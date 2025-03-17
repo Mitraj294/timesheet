@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TimeSheet - Clients</title>
+    <script src="https://kit.fontawesome.com/81206b8719.js" crossorigin="anonymous"></script>
+    <link rel="stylesheet" href="css/style.css?v=2">
+
+</head>
+
+<body>
+    <div class="clients-container">
+        <!-- Header Section -->
+        <div class="clients-header">
+            <h4><i class="fas fa-users"></i> Clients</h4>
+
+            <!-- Breadcrumb Navigation -->
+            <div class="breadcrumbs">
+                <a href="/employer/dashboard" class="breadcrumb-link">
+                    <i class="fas fa-home"></i> Dashboard
+                </a>
+                <span class="breadcrumb-separator">/</span>
+                <span class="breadcrumb-current">Clients</span>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="clients-actions">
+                <button class="download-button">
+                    <i class="fas fa-download"></i> Download
+                </button>
+                <a href="/employer/clients/create" class="add-client-button">
+                    <i class="fas fa-plus"></i> Add New Client
+                </a>
+            </div>
+        </div>
+
+        <!-- Search Box -->
+        <div class="clients-search">
+            <input type="text" id="search" name="search" placeholder="Search by Client Name...">
+            <button class="search-button">
+                <i class="fas fa-search"></i>
+            </button>
+        </div>
+
+        <!-- Clients List -->
+        <div class="clients-list">
+            <!-- Clients Table -->
+            <div class="clients-table">
+                <div class="clients-table-header">
+                    <div>Client Name</div>
+                    <div>Email Address</div>
+                    <div>Phone Number</div>
+                    <div>Address</div>
+                    <div>Notes</div>
+                    <div>Actions</div>
+                </div>
+
+                <div class="clients-table-row">
+                    <div>Elon Musk</div>
+                    <div>elonmusk@tesla.com</div>
+                    <div>8527419630</div>
+                    <div>--</div>
+                    <div>--</div>
+                    <div class="clients-actions">
+                        <a href="/employer/clients/view" class="view-button">
+                            <i class="fas fa-eye"></i>
+                        </a>
+                        <a href="/employer/clients/update" class="edit-button">
+                            <i class="fas fa-edit"></i>
+                        </a>
+                        <button class="delete-button">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+
+</html>

@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TimeSheet - Dashboard</title>
+    <script src="https://kit.fontawesome.com/81206b8719.js" crossorigin="anonymous"></script>
+    <link rel="stylesheet" href="css/style.css?v=2">
+
+</head>
+
+<body>
+    <div id="root">
+        <div class="dashboard-container">
+            <div class="dashboard-cards">
+
+                <!-- Header -->
+                <div class="dashboard-header">
+                    <h4>Hello, User!</h4>
+                    <p>Here is your current company status report.</p>
+                </div>
+
+                <!-- Filters -->
+                <div class="dashboard-filters">
+                    <h4>Select Employee:</h4>
+                    <div class="select-container">
+                        <label for="employee">Employee</label>
+                        <select id="employee">
+                            <option value="All">All Employees</option>
+                            <option value="meet">Meet</option>
+                            <option value="raj">Raj</option>
+                        </select>
+                    </div>
+
+                    <h4>Select Period:</h4>
+                    <div class="select-container">
+                        <label for="viewType">Time Period</label>
+                        <select id="viewType">
+                            <option value="Weekly">View by Weekly</option>
+                            <option value="Fortnightly">View by Fortnightly</option>
+                            <option value="Monthly">View by Monthly</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Dashboard Stats -->
+        <div class="dashboard-grid">
+            <div class="dashboard-card">
+                <div class="dashboard-card-content">
+                    <h3>10</h3>
+                    <p>Number of Employees</p>
+                    <i class="fas fa-id-card"></i>
+                </div>
+            </div>
+
+            <div class="dashboard-card">
+                <div class="dashboard-card-content">
+                    <h3>0</h3>
+                    <p>Total Employee Hours</p>
+                    <i class="fas fa-clock"></i>
+                </div>
+            </div>
+
+            <div class="dashboard-card">
+                <div class="dashboard-card-content">
+                    <h3>0</h3>
+                    <p>Avg. Employee Hours</p>
+                    <i class="fas fa-stopwatch"></i>
+                </div>
+            </div>
+        </div>
+
+        <!-- Weekly Comparison Chart -->
+        <div class="dashboard-card">
+            <h4>This Week vs. Last Week</h4>
+            <div class="dashboard-graph-container">
+                <canvas id="weeklyGraph"></canvas>
+            </div>
+        </div>
+
+        <!-- Hours Spent Section -->
+        <div class="dashboard-grid">
+            <div class="dashboard-card">
+                <h4>Hours Spent on Clients</h4>
+                <div class="dashboard-stat">
+                    <h5>Total Hours:</h5>
+                    <h5>0</h5>
+                </div>
+                <div class="dashboard-graph-container">
+                    <canvas id="clientGraph"></canvas>
+                </div>
+            </div>
+
+            <div class="dashboard-card">
+                <h4>Hours Spent on Projects</h4>
+                <div class="dashboard-stat">
+                    <h5>Total Hours:</h5>
+                    <h5>0</h5>
+                </div>
+
+                <!-- Client Selection -->
+                <div class="select-container">
+                    <label for="client">Select Client</label>
+                    <select id="client">
+                        <option value="">Select Client</option>
+                        <option value="client1">Client 1</option>
+                        <option value="client2">Client 2</option>
+                    </select>
+                </div>
+
+                <div class="dashboard-graph-container">
+                    <canvas id="projectGraph"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/script.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</body>
+
+</html>

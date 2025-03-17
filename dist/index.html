@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TimeSheet</title>
+    <script src="https://kit.fontawesome.com/81206b8719.js" crossorigin="anonymous"></script>
+    <link rel="stylesheet" href="css/style.min.css">
+</head>
+
+<body class="theme--default">
+
+    <!-- Navbar -->
+    <nav class="navbar">
+        <button id="menuButton" class="menu-button">
+            <i class="fas fa-bars"></i>
+        </button>
+
+        <div class="navbar-center">
+            <h4 class="logo">TimeSheet</h4>
+            <span class="user-role">Employer</span>
+        </div>
+
+        <div class="navbar-user">
+            <button id="userButton" class="user-button">
+                <i class="fas fa-user"></i>
+                <span class="user-name">User</span>
+                <i class="fas fa-chevron-down"></i>
+            </button>
+            <div id="userDropdown" class="user-dropdown">
+                <a href="settings.html"><i class="fas fa-settings"></i>Settings</a>
+                <a href="logout.html"><i class="fas fa-logout"></i>Logout</a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Sidebar -->
+    <aside id="sidebar" class="sidebar">
+        <ul class="sidebar-menu">
+            <li><a href="dashboard.html"><i class="fas fa-home"></i> Dashboard</a></li>
+            <li><a href="map.html"><i class="fas fa-map"></i> Map</a></li>
+            <li><a href="timesheets.html"><i class="fas fa-pen"></i> Timesheets</a></li>
+            <li><a href="rosters.html"><i class="fa-solid fa-calendar"></i> Rosters</a></li>
+            <li><a href="clients.html"><i class="fas fa-users"></i> Clients</a></li>
+            <li><a href="employees.html"><i class="fas fa-id-card"></i> Employees</a></li>
+            <li><a href="vehicles.html" class="active"><i class="fas fa-car"></i> Vehicles</a></li>
+        </ul>
+    </aside>
+
+    <script src="js/script.js"></script>
+</body>
+
+</html>
