@@ -1,0 +1,9 @@
+
+export const LOGIN_SUCCESS = "LOGIN_SUCCESS";
+export const LOGIN_FAIL= "LOGIN_FAIL";
+export const LOGOUT= "LOGOUT";
+export const GET_EMPLOYEES = "GET_EMPLOYEES";
+export const ADD_EMPLOYEE = "ADD_EMPLOYEE";
+export const UPDATE_EMPLOYEE = "UPDATE_EMPLOYEE";
+export const DELETE_EMPLOYEE = "DELETE_EMPLOYEE";
+export const EMPLOYEES_ERROR = "EMPLOYEES_ERROR";
