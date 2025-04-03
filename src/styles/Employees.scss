@@ -1,0 +1,150 @@
+.employees-container {
+    padding: 20px;
+    max-width: 1200px;
+    margin: auto;
+
+    .employees-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+        background: #f8f9fa;
+        padding: 15px;
+        border-radius: 8px;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+
+        /* Title and Breadcrumb */
+        .title-breadcrumb {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        h1 {
+            font-size: 24px;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin: 0;
+        }
+
+        .breadcrumb {
+            font-size: 14px;
+            color: #6c757d;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .breadcrumb-link {
+            text-decoration: none;
+            color: #007bff;
+
+            &:hover {
+                text-decoration: underline;
+            }
+        }
+
+        /* Add Employee Button */
+        .add-employee-btn {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 15px;
+            font-size: 16px;
+            cursor: pointer;
+            border-radius: 5px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            height: 60px;
+            /* Matches height of title + breadcrumb */
+
+            &:hover {
+                background-color: #0056b3;
+            }
+        }
+    }
+
+    /* Employee Table */
+    .employee-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 10px;
+        background: #fff;
+        border-radius: 8px;
+        overflow: hidden;
+
+        th,
+        td {
+            padding: 12px;
+            border: 1px solid #ddd;
+            text-align: center;
+        }
+
+        th {
+            background-color: #f4f4f4;
+            font-weight: bold;
+        }
+
+        tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+
+        .edit-btn,
+        .delete-btn {
+            padding: 8px 12px;
+            border: none;
+            cursor: pointer;
+            border-radius: 5px;
+            font-size: 14px;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .edit-btn {
+            background-color: #ffc107;
+            color: white;
+
+            &:hover {
+                background-color: #e0a800;
+            }
+        }
+
+        .delete-btn {
+            background-color: #dc3545;
+            color: white;
+            margin-left: 5px;
+
+            &:hover {
+                background-color: #c82333;
+            }
+        }
+    }
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .employees-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+    }
+
+    .breadcrumb {
+        justify-content: flex-start;
+    }
+
+    .employee-table {
+        overflow-x: auto;
+        display: block;
+
+        th,
+        td {
+            font-size: 14px;
+            padding: 8px;
+        }
+    }
+}

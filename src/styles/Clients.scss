@@ -1,0 +1,337 @@
+/* === Global Styles === */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: Arial, sans-serif;
+    color: #333;
+    background-color: #f4f4f4;
+}
+
+.container {
+    padding: 30px;
+    max-width: 1200px;
+    margin: 0 auto;
+
+    a {
+        text-decoration: none;
+        color: #3498db;
+        transition: 0.3s;
+
+        &:hover {
+            color: #2980b9;
+        }
+    }
+}
+
+/* === Header Section === */
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 25px;
+
+    h2 {
+        font-size: 28px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        color: #2c3e50;
+    }
+
+    .actions {
+        display: flex;
+        gap: 15px;
+
+        .btn {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: 0.3s;
+            font-size: 14px;
+
+            &.btn-download {
+                background: #3498db;
+                color: #fff;
+
+                &:hover {
+                    background: #2980b9;
+                }
+            }
+
+            &.btn-primary {
+                background: #2ecc71;
+                color: #fff;
+
+                &:hover {
+                    background: #27ae60;
+                }
+            }
+        }
+    }
+}
+
+/* === Breadcrumb Navigation === */
+.breadcrumb {
+    font-size: 14px;
+    color: #7f8c8d;
+    margin-bottom: 20px;
+
+    a {
+        color: #3498db;
+        margin-right: 5px;
+
+        &:hover {
+            color: #2980b9;
+        }
+    }
+
+    span {
+        color: #7f8c8d;
+    }
+}
+
+/* === Search Bar === */
+.search-bar {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 30px;
+
+    input {
+        flex: 1;
+        padding: 10px;
+        border: 1px solid #ccc;
+        border-radius: 5px;
+        font-size: 14px;
+
+        &:focus {
+            outline: none;
+            border-color: #3498db;
+        }
+    }
+
+    button {
+        background: #3498db;
+        color: #fff;
+        border: none;
+        padding: 10px 20px;
+        border-radius: 5px;
+        cursor: pointer;
+        transition: 0.3s;
+
+        &:hover {
+            background: #2980b9;
+        }
+    }
+}
+
+/* === Client & Project Cards === */
+.card {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    background: #ffffff;
+    padding: 20px;
+    border-radius: 10px;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+    margin-bottom: 30px;
+
+    .icon {
+        font-size: 30px;
+        color: #3498db;
+    }
+
+    .details {
+        h3 {
+            font-size: 24px;
+            color: #2c3e50;
+        }
+
+        p {
+            font-size: 16px;
+            margin: 5px 0;
+            color: #555;
+
+            svg {
+                margin-right: 10px;
+            }
+        }
+
+        .hours {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 18px;
+            color: #27ae60;
+            font-weight: bold;
+
+            svg {
+                color: #27ae60;
+            }
+        }
+    }
+}
+
+/* === List Section === */
+.list {
+    background: #ffffff;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    padding: 20px;
+    margin-top: 20px;
+
+    h4 {
+        font-size: 20px;
+        margin-bottom: 15px;
+        color: #333;
+    }
+
+    table {
+        width: 100%;
+        border-collapse: collapse;
+
+        thead {
+            th {
+                background: #f4f4f4;
+                padding: 15px;
+                font-weight: bold;
+                color: #555;
+                text-align: left;
+            }
+        }
+
+        tbody {
+            tr {
+                border-bottom: 1px solid #ccc;
+                transition: background 0.3s;
+
+                &:hover {
+                    background: #f1f1f1;
+                }
+
+                td {
+                    padding: 12px 15px;
+                    font-size: 14px;
+                    color: #333;
+
+                    &:last-child {
+                        text-align: center;
+                    }
+                }
+            }
+        }
+
+        .actions {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+
+            .btn {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                gap: 5px;
+                padding: 6px 12px;
+                border: none;
+                border-radius: 5px;
+                cursor: pointer;
+                font-size: 14px;
+                transition: 0.3s;
+
+                &.btn-view {
+                    background: #8e44ad;
+                    color: #fff;
+
+                    &:hover {
+                        background: #732d91;
+                    }
+                }
+
+                &.btn-edit {
+                    background: #f1c40f;
+                    color: #fff;
+
+                    &:hover {
+                        background: #f39c12;
+                    }
+                }
+
+                &.btn-delete {
+                    background: #e74c3c;
+                    color: #fff;
+
+                    &:hover {
+                        background: #c0392b;
+                    }
+                }
+            }
+        }
+    }
+}
+
+/* === Responsive Design === */
+@media (max-width: 992px) {
+    .header {
+        flex-direction: column;
+        gap: 15px;
+        align-items: flex-start;
+    }
+
+    .actions {
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+
+    .card {
+        flex-direction: column;
+        text-align: center;
+    }
+
+    table {
+        font-size: 12px;
+
+        th,
+        td {
+            padding: 10px;
+        }
+    }
+}
+
+@media (max-width: 768px) {
+    .list table {
+        font-size: 12px;
+
+        th,
+        td {
+            padding: 8px;
+        }
+    }
+
+    .header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 15px;
+    }
+
+    .btn {
+        font-size: 12px;
+        padding: 8px 15px;
+    }
+
+    .search-bar {
+        flex-direction: column;
+        gap: 10px;
+
+        input,
+        button {
+            width: 100%;
+        }
+    }
+}

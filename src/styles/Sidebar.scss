@@ -1,0 +1,115 @@
+.sidebar {
+    width: 240px;
+    background: #ffffff; // Bright background
+    color: #333; // Dark text for contrast
+    position: sticky;
+    left: -240px;
+    height: 100vh;
+    top: 0;
+    padding-top: 20px;
+    overflow-y: auto;
+    z-index: 999;
+    transition: left 0.3s ease-in-out;
+    box-shadow: 4px 0 10px rgba(0, 0, 0, 0.1);
+
+    &.open {
+        left: 0;
+    }
+
+    .sidebar-header {
+        text-align: center;
+        font-size: 22px;
+        font-weight: bold;
+        padding: 15px;
+        background: #007bff;
+        color: white;
+    }
+
+    .sidebar-menu {
+        list-style: none;
+        padding: 0;
+        margin-top: 15px;
+
+        li {
+            padding: 12px 20px;
+            transition: background 0.3s;
+            text-align: center;
+
+            a {
+                text-decoration: none;
+                color: #cce5ff;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                gap: 5px;
+                font-size: 14px;
+                font-weight: 600;
+                transition: color 0.3s;
+
+                .sidebar-icon {
+                    font-size: 18px; // Smaller icons
+                }
+
+                &:hover {
+                    color: #007bff;
+                }
+            }
+
+            &.active {
+                background: #cce5ff;
+                font-weight: bold;
+
+                a {
+                    color: #007bff;
+                }
+            }
+
+            &:hover {
+                background: rgba(0, 123, 255, 0.2); // More visible hover effect
+            }
+        }
+    }
+}
+
+/* Sidebar Toggle Button */
+.sidebar-toggle {
+    position: fixed;
+    top: 15px;
+    left: 15px;
+    background: none;
+    border: none;
+    color: #333;
+    font-size: 24px;
+    cursor: pointer;
+    z-index: 1001;
+    transition: opacity 0.3s;
+
+    &:hover {
+        opacity: 0.8;
+    }
+}
+
+/* When Sidebar is Open */
+.sidebar.open+.sidebar-toggle {
+    left: 250px;
+}
+
+/* Responsive Sidebar */
+@media (max-width: 768px) {
+    .sidebar {
+        width: 200px;
+        left: -200px;
+
+        &.open {
+            left: 0;
+        }
+    }
+
+    .sidebar-toggle {
+        left: 10px;
+    }
+
+    .sidebar.open+.sidebar-toggle {
+        left: 210px;
+    }
+}
