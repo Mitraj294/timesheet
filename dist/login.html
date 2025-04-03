@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login - TimeSheet</title>
+  <script src="https://kit.fontawesome.com/81206b8719.js" crossorigin="anonymous"></script>
+  <link rel="stylesheet" href="css/style.min.css">
+</head>
+
+<body class="login-page">
+  <div id="root">
+    <div class="styles_LoginSignupContainer">
+      <div class="styles_Card_styles_Login_">
+        <div class="styles_Login_header">
+          <img src="img/download.png" class="styles_Login_header_logo__adAaF" alt="TimeSheet Logo">
+          <div class="styles_Login_header_headingTextWrapper">
+            <span class="styles_Login_header_headingTextWrapper_headingText">Sign In with TimeSheet</span>
+          </div>
+        </div>
+
+        <div class="styles_Login_content">
+          <form>
+            <!-- Email Input -->
+            <div class="styles_Login_content_input input_Input_container">
+              <i class="fas fa-envelope"></i>
+              <input type="email" id="emailAddress" name="emailAddress" placeholder="Email Address" autocomplete="off"
+                required>
+            </div>
+
+            <!-- Password Input -->
+            <div class="styles_Login_content_input input_Input_container">
+              <i class="fas fa-lock"></i>
+              <input type="password" id="password" name="password" placeholder="Password" required>
+            </div>
+
+            <!-- Forgot Password -->
+            <button type="button" class="styles_Login_content_forgotPassword">Forgot Password?</button>
+
+            <!-- Sign In Button -->
+            <button type="submit" class="styles_Button_primary">
+              <i class="fas fa-sign-in-alt"></i>
+              <span>Sign In</span>
+            </button>
+          </form>
+
+          <!-- Sign Up Button -->
+          <a href="/signup" class="styles_Button_secondary">
+            <i class="fas fa-user-plus"></i>
+            <span>Sign Up</span>
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+
+</html>

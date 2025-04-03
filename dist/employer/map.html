@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TimeSheet - Map</title>
+    <script src="https://kit.fontawesome.com/81206b8719.js" crossorigin="anonymous"></script>
+    <link rel="stylesheet" href="css/style.css?v=2">
+</head>
+
+<body>
+    <div class="map-container">
+        <!-- Header Section -->
+        <div class="map-header">
+            <h4><i class="fas fa-map"></i> Map</h4>
+
+            <!-- Breadcrumb Navigation -->
+            <div class="breadcrumbs">
+                <a href="/employer/dashboard" class="breadcrumb-link">
+                    <i class="fas fa-home"></i> Dashboard
+                </a>
+                <span class="breadcrumb-separator">/</span>
+                <span class="breadcrumb-current">Map</span>
+            </div>
+        </div>
+
+        <!-- Navigation Controls -->
+        <div class="map-navigation">
+            <button class="nav-button">
+                <i class="fas fa-arrow-left"></i> Prev Week
+            </button>
+
+            <div class="select-container">
+                <label for="viewType">View Type</label>
+                <select id="viewType">
+                    <option value="Daily">Daily</option>
+                    <option value="Weekly">Weekly</option>
+                    <option value="Fortnightly">Fortnightly</option>
+                    <option value="Monthly">Monthly</option>
+                </select>
+            </div>
+
+            <button class="nav-button">
+                Next Week <i class="fas fa-arrow-right"></i>
+            </button>
+        </div>
+        <div class="styles_Map_thirdRow">
+            <div class="Map">
+                <h3>Marker Filters:</h3>
+                <div class="check-box">
+
+                </div>
+            </div>
+            <div class="Map">
+                <h4>Select Employee:</h4>
+                <div class="select-container">
+                    <label for="employee">Employee</label>
+                    <select id="employee">
+                        <option value="All">All Employees</option>
+                        <option value="meet">Meet</option>
+                        <option value="raj">Raj</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+</body>
+
+</html>
