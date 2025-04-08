@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faMap, faHome, faArrowLeft, faArrowRight } from "@fortawesome/free-solid-svg-icons";
-import "/home/digilab/timesheet/timesheet-mern/client/src/styles/Map.scss"; 
+import "/home/digilab/timesheet/client/src/styles/Map.scss"; 
 const Map = () => {
   const [viewType, setViewType] = useState("Daily");
   const [selectedEmployee, setSelectedEmployee] = useState("All");

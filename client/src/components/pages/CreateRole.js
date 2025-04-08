@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-
+import { startOfWeek, addDays, format } from 'date-fns';
+import { useNavigate } from 'react-router-dom';
 import '../../styles/CreateRole.scss';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
@@ -9,63 +10,43 @@ import {
   faPalette,
   faCalendar,
   faXmark,
-  faClock
 } from '@fortawesome/free-solid-svg-icons';
 
-const CreateRole = ({ onClose = () => {} }) => {
+const CreateRole = () => {
+  const navigate = useNavigate();
+
   const [roleName, setRoleName] = useState('');
   const [roleDescription, setRoleDescription] = useState('');
   const [color, setColor] = useState('Blue');
+
   const [employees, setEmployees] = useState([]);
   const [selectedEmployees, setSelectedEmployees] = useState([]);
-  const [selectedDays, setSelectedDays] = useState([]);
+
+  const [weekDays, setWeekDays] = useState([]);
   const [schedule, setSchedule] = useState({});
 
   const colors = ['Blue', 'Red', 'Green', 'Yellow', 'Purple'];
-  const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+  useEffect(() => {
+    const weekStart = startOfWeek(new Date(), { weekStartsOn: 1 }); // Week starts on Monday
+    const days = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
+    setWeekDays(days);
+  }, []);
 
   useEffect(() => {
     const fetchEmployees = async () => {
       try {
         const token = localStorage.getItem('token');
         const res = await axios.get('http://localhost:5000/api/employees', {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
+          headers: { Authorization: `Bearer ${token}` },
         });
         setEmployees(res.data);
       } catch (err) {
         console.error('Failed to fetch employees:', err);
       }
     };
-
     fetchEmployees();
   }, []);
-
-  const toggleDay = (day) => {
-    setSelectedDays((prev) =>
-      prev.includes(day)
-        ? prev.filter((d) => d !== day)
-        : [...prev, day]
-    );
-
-    if (!schedule[day]) {
-      setSchedule((prev) => ({
-        ...prev,
-        [day]: { from: '', to: '' },
-      }));
-    }
-  };
-
-  const handleTimeChange = (day, type, value) => {
-    setSchedule((prev) => ({
-      ...prev,
-      [day]: {
-        ...prev[day],
-        [type]: value,
-      },
-    }));
-  };
 
   const handleAddEmployee = (e) => {
     const empId = e.target.value;
@@ -78,33 +59,49 @@ const CreateRole = ({ onClose = () => {} }) => {
     setSelectedEmployees(selectedEmployees.filter((id) => id !== empId));
   };
 
-  const handleSubmit = async () => {
+  const handleTimeChange = (dayStr, type, value) => {
+    setSchedule((prev) => ({
+      ...prev,
+      [dayStr]: {
+        ...prev[dayStr],
+        [type]: value,
+      },
+    }));
+  };
+
+  const handleSubmit = async () => {const scheduleArray = weekDays.map((day) => {
+    const dayStr = format(day, 'yyyy-MM-dd');
+    return {
+      day: dayStr,
+      startTime: schedule[dayStr]?.from || '',
+      endTime: schedule[dayStr]?.to || '',
+    };
+  });
+  
+
     const data = {
       roleName,
       roleDescription,
       color,
       assignedEmployees: selectedEmployees,
-      schedule: selectedDays.map((day) => ({
-        day,
-        from: schedule[day]?.from || '',
-        to: schedule[day]?.to || '',
-      })),
+      schedule: scheduleArray,
     };
-  
+
     try {
       const token = localStorage.getItem('token');
-      await axios.post('http://localhost:5000/api/roles', data, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+      await axios.post('http://localhost:5000/api/schedules/bulk', {
+        schedules: schedulesArray, // <-- this should be an object with a `schedules` key
+      }, {
+        headers: { Authorization: `Bearer ${token}` },
       });
+      
       console.log('Role created successfully!');
-      onClose(); 
+      navigate('/rosterpage');
     } catch (err) {
       console.error('Error creating role:', err.response?.data || err.message);
     }
   };
-  
+
   return (
     <div className="modal-overlay">
       <div className="modal-box create-role">
@@ -112,7 +109,11 @@ const CreateRole = ({ onClose = () => {} }) => {
           <h2>
             <FontAwesomeIcon icon={faUser} /> Create/Assign New Role
           </h2>
-          <button type="button" className="btn-close" onClick={onClose}>
+          <button
+            type="button"
+            className="btn-close"
+            onClick={() => navigate('/rosterpage')}
+          >
             <FontAwesomeIcon icon={faTimes} />
           </button>
         </div>
@@ -149,7 +150,9 @@ const CreateRole = ({ onClose = () => {} }) => {
             onChange={(e) => setColor(e.target.value)}
           >
             {colors.map((col) => (
-              <option key={col} value={col}>{col}</option>
+              <option key={col} value={col}>
+                {col}
+              </option>
             ))}
           </select>
         </div>
@@ -185,49 +188,39 @@ const CreateRole = ({ onClose = () => {} }) => {
           </div>
         </div>
 
-        <div className="form-group">
+        {/* Weekly Schedule Grid */}
+        <div className="form-group schedule-container">
           <label>
-            <FontAwesomeIcon icon={faCalendar} /> Schedules
+            <FontAwesomeIcon icon={faCalendar} /> Weekly Schedule
           </label>
-          <div className="day-buttons">
-            {days.map((day) => (
-              <button
-                key={day}
-                type="button"
-                className={`day-btn ${selectedDays.includes(day) ? 'active' : ''}`}
-                onClick={() => toggleDay(day)}
-              >
-                {day}
-              </button>
-            ))}
-          </div>
-
           <div className="schedule-grid">
-            {days.map((day) => (
-              <div
-                key={day}
-                className="schedule-row"
-                style={{
-                  opacity: selectedDays.includes(day) ? 1 : 0.3,
-                  pointerEvents: selectedDays.includes(day) ? 'auto' : 'none',
-                }}
-              >
-                <span className="day-label">{day}</span>
-                <div className="time-inputs">
-                  <input
-                    type="time"
-                    value={schedule[day]?.from || ''}
-                    onChange={(e) => handleTimeChange(day, 'from', e.target.value)}
-                  />
-                  <span className="to-text">to</span>
-                  <input
-                    type="time"
-                    value={schedule[day]?.to || ''}
-                    onChange={(e) => handleTimeChange(day, 'to', e.target.value)}
-                  />
+            <div className="grid-header-row">
+              {weekDays.map((day) => (
+                <div key={format(day, 'yyyy-MM-dd')} className="grid-header">
+                  {format(day, 'EEE, MMM d')}
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
+            <div className="grid-body-row">
+              {weekDays.map((day) => {
+                const dayStr = format(day, 'yyyy-MM-dd');
+                return (
+                  <div key={dayStr} className="grid-cell">
+                    <input
+                      type="time"
+                      value={schedule[dayStr]?.from || ''}
+                      onChange={(e) => handleTimeChange(dayStr, 'from', e.target.value)}
+                    />
+                    <span className="to-text">to</span>
+                    <input
+                      type="time"
+                      value={schedule[dayStr]?.to || ''}
+                      onChange={(e) => handleTimeChange(dayStr, 'to', e.target.value)}
+                    />
+                  </div>
+                );
+              })}
+            </div>
           </div>
         </div>
 

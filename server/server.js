@@ -12,6 +12,7 @@ import authRoutes from "./routes/authRoutes.js";
 import timesheetRoutes from "./routes/timesheetRoutes.js";
 import projectRoutes from "./routes/projectRoutes.js";
 import roleRoutes from './routes/roleRoutes.js';
+import scheduleRoutes from './routes/scheduleRoutes.js';
 
 const app = express();
 
@@ -47,6 +48,8 @@ app.use("/api/auth", authRoutes);
 app.use("/api/timesheets", timesheetRoutes);
 app.use("/api/projects", projectRoutes);
 app.use("/api/roles", roleRoutes);
+app.use('/api/schedules', scheduleRoutes);
+
 
 // Root Route
 app.get("/", (req, res) => {
