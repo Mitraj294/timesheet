@@ -1,0 +1,118 @@
+.dashboard-container {
+    max-width: 1200px;
+    margin: auto;
+    padding: 20px;
+    font-family: "Arial", sans-serif;
+}
+
+/* FILTERS SECTION */
+.dashboard-filters {
+    background: #f8f9fa;
+    padding: 15px;
+    border-radius: 8px;
+    box-shadow: 0px 2px 8px rgba(0, 0, 0, 0.1);
+    margin-bottom: 20px;
+
+    h4 {
+        margin: 0;
+        font-size: 22px;
+        color: #333;
+    }
+
+    p {
+        font-size: 14px;
+        color: #666;
+    }
+
+    .filters {
+        display: flex;
+        gap: 15px;
+        margin-top: 10px;
+    }
+
+    .select-container {
+        flex: 1;
+
+        label {
+            display: block;
+            font-size: 14px;
+            margin-bottom: 5px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .custom-select {
+            width: 100%;
+        }
+    }
+}
+
+/*  SUMMARY SECTION */
+.dashboard-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+    gap: 15px;
+}
+
+.dashboard-card {
+    background: #ffffff;
+    padding: 20px;
+    border-radius: 10px;
+    text-align: center;
+    box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.1);
+    transition: transform 0.2s ease-in-out;
+
+    &:hover {
+        transform: translateY(-5px);
+    }
+
+    h3 {
+        font-size: 24px;
+        font-weight: bold;
+        color: #007bff;
+        margin: 0;
+    }
+
+    p {
+        font-size: 14px;
+        color: #666;
+        margin: 5px 0;
+    }
+
+    .dashboard-icon {
+        font-size: 30px;
+        margin-top: 10px;
+        color: #007bff;
+    }
+}
+
+/*  GRAPH SECTION */
+.dashboard-card canvas {
+    width: 100%;
+    max-height: 300px;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .dashboard-filters .filters {
+        flex-direction: column;
+    }
+
+    .dashboard-grid {
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    }
+}
+
+.dashboard-card {
+    // Add styling for the cards
+}
+
+.dashboard-card-content {
+    display: flex;
+    justify-content: space-between;
+}
+
+.dashboard-card-graph {
+    margin-top: 20px;
+    text-align: center;
+}

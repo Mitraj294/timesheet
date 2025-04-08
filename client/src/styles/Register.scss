@@ -1,0 +1,81 @@
+.auth-container {
+    width: 100%;
+    max-width: 420px;
+    margin: 50px auto;
+    padding: 25px;
+    background: #ffffff;
+    box-shadow: 0px 5px 15px rgba(0, 0, 0, 0.15);
+    border-radius: 10px;
+    text-align: center;
+    transition: all 0.3s ease-in-out;
+
+    h2 {
+        margin-bottom: 20px;
+        color: #222;
+        font-size: 24px;
+        font-weight: bold;
+    }
+
+    form {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+
+        input,
+        select {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+
+            &:focus {
+                border-color: #007bff;
+                outline: none;
+            }
+        }
+
+        select {
+            cursor: pointer;
+            background: #f8f9fa;
+        }
+
+        button {
+            width: 100%;
+            padding: 12px;
+            background: #007bff;
+            color: #ffffff;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            cursor: pointer;
+            margin-top: 10px;
+            transition: background 0.3s ease;
+
+            &:hover {
+                background: #0056b3;
+            }
+
+            &:disabled {
+                background: #a0a0a0;
+                cursor: not-allowed;
+            }
+        }
+    }
+
+    .error-message {
+        color: #ff0000;
+        font-size: 14px;
+        margin-bottom: 10px;
+        font-weight: bold;
+    }
+}
+
+/* Responsive Design */
+@media (max-width: 500px) {
+    .auth-container {
+        width: 90%;
+        padding: 20px;
+    }
+}

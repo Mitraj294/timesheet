@@ -1,0 +1,66 @@
+.employee-form-container {
+    max-width: 600px;
+    margin: 2rem auto;
+    padding: 2rem;
+    background: #fff;
+    border-radius: 8px;
+    box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.1);
+}
+
+.title-breadcrumb {
+    text-align: center;
+    margin-bottom: 1.5rem;
+
+    .page-title {
+        font-size: 1.8rem;
+        font-weight: bold;
+        margin-bottom: 0.5rem;
+    }
+
+    .breadcrumb {
+        font-size: 0.9rem;
+
+        .breadcrumb-link {
+            color: #007bff;
+            text-decoration: none;
+
+            &:hover {
+                text-decoration: underline;
+            }
+        }
+    }
+}
+
+.employee-form {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+
+    input,
+    select {
+        width: 100%;
+        padding: 10px;
+        font-size: 1rem;
+        border: 1px solid #ccc;
+        border-radius: 5px;
+    }
+
+    label {
+        font-size: 1rem;
+        font-weight: 500;
+    }
+
+    button {
+        background: #28a745;
+        color: #fff;
+        padding: 10px;
+        font-size: 1rem;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+
+        &:hover {
+            background: #218838;
+        }
+    }
+}

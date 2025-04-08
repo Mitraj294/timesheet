@@ -1,0 +1,181 @@
+// CreateRole.scss
+
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 999;
+}
+
+.modal-box.create-role {
+    background: #fff;
+    border-radius: 12px;
+    padding: 2rem;
+    width: 90%;
+    max-width: 600px;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+
+    .modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+
+        h2 {
+            font-size: 1.5rem;
+            margin: 0;
+        }
+
+        .btn-close {
+            background: none;
+            border: none;
+            font-size: 1.2rem;
+            cursor: pointer;
+            color: #666;
+        }
+    }
+
+    .form-group {
+        margin: 1rem 0;
+
+        label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+
+        .input,
+        .dropdown,
+        textarea {
+            width: 100%;
+            padding: 0.6rem;
+            border-radius: 6px;
+            border: 1px solid #ccc;
+            font-size: 1rem;
+            margin-top: 0.3rem;
+        }
+
+        textarea {
+            resize: vertical;
+        }
+    }
+
+    .custom-multiselect {
+        .selected-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin-bottom: 0.5rem;
+
+            .tag {
+                background: #eee;
+                padding: 0.3rem 0.6rem;
+                border-radius: 20px;
+                display: flex;
+                align-items: center;
+                font-size: 0.9rem;
+
+                .remove-icon {
+                    margin-left: 0.5rem;
+                    cursor: pointer;
+                }
+            }
+        }
+    }
+
+    .day-buttons {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+
+        .day-btn {
+            padding: 0.4rem 0.8rem;
+            border: 1px solid #ccc;
+            background: #f9f9f9;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 500;
+
+            &.active {
+                background: #007bff;
+                color: white;
+                border-color: #007bff;
+            }
+        }
+    }
+
+    .schedule-grid {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+        margin-top: 1rem;
+
+        .schedule-row {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+
+            .day-label {
+                width: 3rem;
+                font-weight: bold;
+            }
+
+            .time-inputs {
+                display: flex;
+                gap: 0.5rem;
+
+                input[type='time'] {
+                    padding: 0.4rem;
+                    border: 1px solid #ccc;
+                    border-radius: 4px;
+                }
+
+                .to-text {
+                    margin: 0 0.3rem;
+                    align-self: center;
+                }
+            }
+        }
+    }
+
+    .form-footer {
+        margin-top: 2rem;
+        text-align: right;
+
+        .btn-primary {
+            background-color: #007bff;
+            color: #fff;
+            padding: 0.6rem 1.2rem;
+            font-size: 1rem;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+
+            &:hover {
+                background-color: #0056b3;
+            }
+        }
+    }
+}
+
+@media (max-width: 480px) {
+    .modal-box.create-role {
+        padding: 1.5rem;
+
+        .form-group label {
+            font-size: 0.95rem;
+        }
+
+        .form-footer {
+            text-align: center;
+        }
+    }
+}

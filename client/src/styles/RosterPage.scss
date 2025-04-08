@@ -1,0 +1,172 @@
+.roster-page {
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+
+    .roster-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+
+        .title {
+            h2 {
+                font-size: 1.75rem;
+                display: flex;
+                align-items: center;
+                gap: 0.5rem;
+            }
+
+            .breadcrumbs {
+                font-size: 0.9rem;
+                margin-top: 0.2rem;
+                color: #888;
+
+                a {
+                    color: #4a90e2;
+                    text-decoration: none;
+
+                    &:hover {
+                        text-decoration: underline;
+                    }
+                }
+            }
+        }
+    }
+
+    .week-nav {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+
+        h4 {
+            font-size: 1.1rem;
+            margin: 0 1rem;
+        }
+    }
+
+    .roster-body {
+        display: flex;
+        flex: 1;
+        gap: 1rem;
+
+        aside {
+            flex: 0 0 200px;
+            background-color: #f7f9fb;
+            border-radius: 1rem;
+            padding: 1rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+
+            .sidebar-header {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                font-weight: 600;
+            }
+
+            .employee-list {
+                display: flex;
+                flex-direction: column;
+                gap: 0.5rem;
+                overflow-y: auto;
+            }
+        }
+
+        .roles-sidebar {
+            border: 1px solid #ddd;
+        }
+
+        .employees-sidebar {
+            border: 1px solid #ddd;
+        }
+
+        .schedule-grid {
+            flex: 1;
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 0.5rem;
+
+            .grid-header {
+                font-weight: 600;
+                text-align: center;
+                background-color: #eef2f7;
+                padding: 0.75rem;
+                border-radius: 0.5rem;
+            }
+
+            .grid-cell {
+                height: 120px;
+                background-color: #fff;
+                border: 1px solid #e0e0e0;
+                border-radius: 0.5rem;
+
+                &.even {
+                    background-color: #f9f9f9;
+                }
+            }
+        }
+    }
+
+    // Buttons
+    .btn {
+        padding: 0.6rem 1rem;
+        border-radius: 0.5rem;
+        font-weight: 500;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        cursor: pointer;
+        border: none;
+        transition: all 0.2s ease;
+
+        &.btn-blue {
+            background-color: #007bff;
+            color: white;
+        }
+
+        &.btn-purple {
+            background-color: #6c5ce7;
+            color: white;
+        }
+
+        &.btn-green {
+            background-color: #00b894;
+            color: white;
+        }
+
+        &:hover {
+            opacity: 0.9;
+        }
+
+        .icon-left {
+            margin-right: 0.5rem;
+        }
+
+        .icon-right {
+            margin-left: 0.5rem;
+        }
+    }
+
+    // Responsive Design
+    @media (max-width: 900px) {
+        .roster-body {
+            flex-direction: column;
+
+            aside,
+            .schedule-grid {
+                width: 100%;
+            }
+
+            .schedule-grid {
+                grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            }
+        }
+
+        .week-nav {
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+    }
+}
