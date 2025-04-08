@@ -5,62 +5,60 @@ import helmet from "helmet";
 import dotenv from "dotenv";
 dotenv.config();
 
+// Import Routes
 import clientRoutes from "./routes/clientRoutes.js";
-import employeeRoutes from "./routes/employeeRoutes.js"; 
+import employeeRoutes from "./routes/employeeRoutes.js";
 import authRoutes from "./routes/authRoutes.js";
 import timesheetRoutes from "./routes/timesheetRoutes.js";
-import projectRoutes from "./routes/projectRoutes.js";  
-
+import projectRoutes from "./routes/projectRoutes.js";
+import roleRoutes from './routes/roleRoutes.js';
 
 const app = express();
+
+// Middleware
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(helmet());
 
-// Check if MongoDB URI exists
-if (!process.env.MONGO_URI) {
-  console.error("MONGO_URI is missing in .env file!");
-  process.exit(1);
-}
-
-// Connect MongoDB
+// MongoDB Connection
 const connectDB = async () => {
   try {
-    await mongoose.connect(process.env.MONGO_URI, {
-      useNewUrlParser: true,
-      useUnifiedTopology: true,
-    });
-    console.log("MongoDB Connected...");
+    if (!process.env.MONGO_URI) {
+      console.error("MONGO_URI is missing in .env file!");
+      process.exit(1);
+    }
+
+    await mongoose.connect(process.env.MONGO_URI);
+
+
+    console.log(" MongoDB Connected...");
   } catch (error) {
-    console.error("MongoDB Connection Error:", error);
+    console.error("MongoDB Connection Error:", error.message);
     process.exit(1);
   }
 };
 connectDB();
 
-// API Routes
-
+// Routes
 app.use("/api/clients", clientRoutes);
 app.use("/api/employees", employeeRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/timesheets", timesheetRoutes);
 app.use("/api/projects", projectRoutes);
+app.use("/api/roles", roleRoutes);
 
-
-
-
-// Basic Route
+// Root Route
 app.get("/", (req, res) => {
   res.send("TimeSheet Backend is Running...");
 });
 
-// Error handling middleware
+// Global Error Handler
 app.use((err, req, res, next) => {
-  console.error(err);
-  res.status(500).json({ message: "Something went wrong, please try again." });
+  console.error(" Error:", err.stack);
+  res.status(500).json({ message: "Something went wrong. Please try again." });
 });
 
 // Start Server
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+app.listen(PORT, () => console.log(` Server running on port ${PORT}`));

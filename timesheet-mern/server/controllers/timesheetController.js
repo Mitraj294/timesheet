@@ -67,6 +67,37 @@ export const createTimesheet = async (req, res) => {
   }
 };
 
+// Check Timesheett
+export const checkTimesheet = async (req, res) => {
+
+  const { employee, date } = req.query;
+
+  if (!employee || !date) {
+    return res.status(400).json({ error: 'Missing employee or date' });
+  }
+
+  try {
+    const startOfDay = new Date(date);
+    startOfDay.setUTCHours(0, 0, 0, 0);
+
+    const endOfDay = new Date(date);
+    endOfDay.setUTCHours(23, 59, 59, 999);
+
+    const existing = await Timesheet.findOne({
+      employeeId: employee,
+      date: { $gte: startOfDay, $lte: endOfDay },
+    });
+
+    if (existing) {
+      return res.json({ exists: true, timesheet: existing });
+    } else {
+      return res.json({ exists: false });
+    }
+  } catch (err) {
+    console.error('Error checking timesheet:', err);
+    return res.status(500).json({ error: 'Server error' });
+  }
+};
 
 // Get all timesheets
 export const getTimesheets = async (req, res) => {

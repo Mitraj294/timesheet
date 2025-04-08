@@ -22,4 +22,6 @@ const TimesheetSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+TimesheetSchema.index({ employeeId: 1, date: 1 }, { unique: true });
+
 export default mongoose.model("Timesheet", TimesheetSchema);
