@@ -70,6 +70,7 @@ function App() {
 
               <Route path="/rosterpage" element={<PrivateRoute><RosterPage /></PrivateRoute>} />
               <Route path="/createrole" element={<PrivateRoute><CreateRole /></PrivateRoute>} />
+              <Route path="/createrole/:roleId?" element={<PrivateRoute><CreateRole /></PrivateRoute>} />
               <Route path="/clients" element={<PrivateRoute><Clients /></PrivateRoute>} />
               <Route path="/clients/create" element={<PrivateRoute><CreateClient /></PrivateRoute>} />
               <Route path="/clients/update/:id" element={<PrivateRoute><CreateClient  /></PrivateRoute>} />

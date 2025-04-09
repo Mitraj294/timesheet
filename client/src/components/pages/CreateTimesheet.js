@@ -528,3 +528,5 @@ export default connect(mapStateToProps, {
   getClients,
   getProjects,
 })(CreateTimesheet);
+
+//Time Conversionwhen the user assigns a shift, their input times (which are entered as local times) are converted into UTC (formatted as "HH:mm") by the helper function convertLocalTimeToUTC before sending to the backend.

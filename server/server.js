@@ -2,6 +2,7 @@ import express from "express";
 import cors from "cors";
 import mongoose from "mongoose";
 import helmet from "helmet";
+import cookieParser from 'cookie-parser'
 import dotenv from "dotenv";
 dotenv.config();
 
@@ -21,6 +22,7 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(helmet());
+app.use(cookieParser());
 
 // MongoDB Connection
 const connectDB = async () => {
@@ -47,8 +49,9 @@ app.use("/api/employees", employeeRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/timesheets", timesheetRoutes);
 app.use("/api/projects", projectRoutes);
-app.use("/api/roles", roleRoutes);
+app.use('/api/roles', roleRoutes);
 app.use('/api/schedules', scheduleRoutes);
+
 
 
 // Root Route

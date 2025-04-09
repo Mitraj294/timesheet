@@ -1,53 +1,44 @@
-/* RosterPage.scss */
 .roster-page {
-    padding: 20px;
-    font-family: Arial, sans-serif;
-    color: #333;
+    display: flex;
+    flex-direction: column;
+    padding: 1rem;
+    font-family: 'Segoe UI', sans-serif;
+    background-color: #f9f9f9;
+    min-height: 100vh;
 
     .roster-header {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        margin-bottom: 20px;
+        margin-bottom: 1.5rem;
+        flex-wrap: wrap;
 
         .title {
             h2 {
-                font-size: 24px;
-                margin: 0;
+                font-size: 1.75rem;
                 display: flex;
                 align-items: center;
-
-                svg {
-                    margin-right: 8px;
-                }
+                gap: 0.5rem;
+                color: #333;
             }
 
             .breadcrumbs {
-                font-size: 14px;
-                color: #666;
-                margin-top: 5px;
+                font-size: 0.875rem;
+                color: #777;
 
                 a {
-                    color: #0077b6;
+                    color: #007bff;
                     text-decoration: none;
+
+                    &:hover {
+                        text-decoration: underline;
+                    }
                 }
             }
         }
 
-        .btn.btn-blue {
-            background-color: #0077b6;
-            color: #fff;
-            border: none;
-            padding: 10px 16px;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 14px;
-            display: flex;
-            align-items: center;
-
-            svg.icon-left {
-                margin-right: 6px;
-            }
+        .btn {
+            white-space: nowrap;
         }
     }
 
@@ -55,236 +46,366 @@
         display: flex;
         justify-content: center;
         align-items: center;
-        margin-bottom: 20px;
-
-        button.btn {
-            background-color: #6a1b9a;
-            color: #fff;
-            border: none;
-            padding: 8px 12px;
-            border-radius: 4px;
-            margin: 0 10px;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-
-            svg.icon-left,
-            svg.icon-right {
-                margin: 0 6px;
-            }
-        }
+        margin-bottom: 1rem;
+        gap: 1rem;
+        flex-wrap: wrap;
 
         h4 {
-            font-size: 18px;
-            margin: 0;
+            font-weight: 500;
+            color: #333;
         }
     }
 
     .roster-body {
-        display: flex;
-        gap: 20px;
+        display: grid;
+        grid-template-columns: 1fr 3fr 1fr;
+        gap: 1rem;
 
-        // Roles Sidebar (Left)
-        .roles-sidebar {
-            width: 20%;
-            background-color: #f3f3f3;
-            padding: 10px;
-            border-radius: 4px;
+        @media (max-width: 1024px) {
+            grid-template-columns: 1fr;
+        }
+
+        .roles-sidebar,
+        .employees-sidebar {
+            background-color: #fff;
+            border-radius: 8px;
+            padding: 1rem;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.05);
 
             .sidebar-header {
                 display: flex;
                 justify-content: space-between;
                 align-items: center;
-                margin-bottom: 10px;
+                margin-bottom: 1rem;
 
                 p {
-                    font-weight: bold;
-                    margin: 0;
-                }
-
-                .btn.btn-green {
-                    background-color: #2e7d32;
-                    color: #fff;
-                    border: none;
-                    padding: 6px 10px;
-                    border-radius: 4px;
-                    cursor: pointer;
-                    font-size: 12px;
+                    font-weight: 600;
+                    color: #444;
                 }
             }
 
-            .role-list {
-                .role-badge {
-                    background-color: #d9f1ff;
-                    color: #0077b6;
-                    border-radius: 4px;
-                    padding: 6px 8px;
-                    margin-bottom: 6px;
-                    text-align: center;
-                    font-size: 14px;
+            .role-list,
+            .employee-list {
+                display: flex;
+                flex-direction: column;
+                gap: 0.5rem;
+            }
+
+            // Role buttons remain light blueish for roles in the sidebar.
+            .role-badge {
+                padding: 0.5rem 0.75rem;
+                border-radius: 4px;
+                font-size: 0.875rem;
+                font-weight: 500;
+                color: #fff; // Default white text for better contrast
+                border: none;
+                cursor: pointer;
+                transition: transform 0.2s ease;
+
+                &:hover {
+                    transform: scale(1.03);
+                    opacity: 0.9;
+                }
+            }
+
+        }
+
+        .employees-sidebar {
+            .employee-list {
+                button {
+                    background-color: #fff9c4; // Light yellow background
+                    border: none;
+                    padding: 0.6rem 1rem;
+                    border-radius: 8px;
+                    font-weight: 600;
+                    color: #333;
+                    text-align: left;
+                    cursor: pointer;
+                    font-size: 1rem;
+                    transition: background-color 0.3s;
+
+                    &:hover {
+                        background-color: #fff59d;
+                    }
                 }
             }
         }
 
-        // Schedule Grid (Center)
         .schedule-grid {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
+            background-color: #fff;
+            border-radius: 8px;
+            padding: 1rem;
+            overflow-x: auto;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.05);
 
             .grid-header-row {
-                display: flex;
+                display: grid;
+                grid-template-columns: repeat(7, 1fr);
+                text-align: center;
+                font-weight: bold;
+                margin-bottom: 0.5rem;
 
                 .grid-header {
-                    flex: 1;
-                    background-color: #e1bee7;
-                    padding: 10px;
-                    font-weight: bold;
-                    text-align: center;
-                    border: 1px solid #ccc;
+                    padding: 0.5rem 0;
+                    background-color: #e6f0ff; // Light blue header background
+                    color: #555;
                 }
             }
 
             .grid-body {
-                display: flex;
+                display: grid;
+                grid-template-columns: repeat(7, 1fr);
+                min-height: 250px;
+                gap: 0.25rem;
 
                 .grid-cell {
-                    flex: 1;
-                    min-height: 200px;
-                    border: 1px solid #ccc;
-                    padding: 5px;
-                    position: relative;
+                    min-height: 100px;
+                    border: 1px solid #ddd;
+                    padding: 0.25rem;
+                    border-radius: 4px;
+                    overflow-y: auto;
+                }
 
-                    .shift-card {
-                        background-color: #d9f1ff;
-                        padding: 6px;
-                        margin-bottom: 6px;
-                        border-radius: 4px;
-                        font-size: 12px;
-                        position: relative;
+                .shift-card {
+                    background-color: #fff9c4; // Light yellow background
+                    padding: 0.5rem;
+                    border-radius: 4px;
+                    margin-bottom: 0.25rem;
+                    font-size: 0.875rem;
+                    display: flex;
+                    flex-direction: column;
+                    gap: 0.25rem;
 
-                        .shift-time {
-                            margin: 0;
-                            font-weight: bold;
-                        }
+                    .shift-time {
+                        font-weight: 600;
+                        color: #333;
+                        font-size: 0.8rem; // Small font for time
+                    }
 
-                        .shift-role {
-                            margin: 4px 0 0;
-                            color: #0077b6;
-                        }
+                    .shift-employee {
+                        font-size: 1rem; // Larger font for employee name
+                        font-weight: 700;
+                        color: #222;
+                    }
 
-                        .shift-employee {
-                            margin: 2px 0 0;
-                            color: #555;
-                        }
+                    .shift-actions {
+                        display: flex;
+                        justify-content: flex-end;
+                        gap: 0.5rem;
+                        margin-top: 0.5rem;
 
-                        .shift-actions {
-                            position: absolute;
-                            top: 4px;
-                            right: 4px;
-                            display: flex;
-                            gap: 4px;
+                        .clickable-icon {
+                            cursor: pointer;
+                            color: #d11a2a;
 
-                            .action-icon {
-                                cursor: pointer;
-                                color: #666;
-                                font-size: 10px;
+                            &:hover {
+                                color: #a4001d;
                             }
                         }
                     }
                 }
             }
         }
+    }
 
-        // Employees Sidebar (Right)
-        .employees-sidebar {
-            width: 20%;
-            background-color: #f3f3f3;
-            padding: 10px;
-            border-radius: 4px;
+    .btn {
+        &.btn-green {
+            background-color: #28a745;
+            color: #fff;
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: 5px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background-color 0.3s;
 
-            .sidebar-header {
-                margin-bottom: 10px;
+            &:hover {
+                background-color: #218838;
+            }
+        }
 
-                p {
-                    font-weight: bold;
-                    margin: 0;
+        &.btn-blue {
+            background-color: #007bff;
+            color: #fff;
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: 5px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background-color 0.3s;
+
+            &:hover {
+                background-color: #0069d9;
+            }
+        }
+
+        &.btn-purple {
+            background-color: #6f42c1;
+            color: #fff;
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: 5px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background-color 0.3s;
+
+            &:hover {
+                background-color: #593196;
+            }
+        }
+    }
+
+    .modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: rgba(0, 0, 0, 0.5);
+        z-index: 1000;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+
+        .modal-content {
+            background-color: white;
+            padding: 2rem;
+            border-radius: 10px;
+            max-width: 500px;
+            width: 100%;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.2);
+            position: relative;
+
+            h5 {
+                font-size: 1.5rem;
+                margin-bottom: 1rem;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+            }
+
+            #closeModal {
+                font-size: 1.5rem;
+                cursor: pointer;
+                border: none;
+                background: transparent;
+            }
+
+            .form-group {
+                margin-bottom: 1rem;
+
+                select {
+                    width: 100%;
+                    padding: 0.5rem;
+                    border-radius: 4px;
+                    border: 1px solid #ccc;
+                    font-size: 1rem;
                 }
             }
 
-            .employee-list {
-                button.btn {
-                    background-color: #fff8dc;
-                    color: #333;
+            .schedule-buttons {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 0.5rem;
+                margin-bottom: 1rem;
+
+                .day-btn {
+                    padding: 0.4rem 0.75rem;
+                    border-radius: 20px;
                     border: 1px solid #ccc;
-                    padding: 6px 8px;
-                    border-radius: 4px;
-                    margin-bottom: 6px;
-                    width: 100%;
-                    text-align: left;
+                    background-color: #fff;
                     cursor: pointer;
+                    transition: background-color 0.2s;
+
+                    &.active {
+                        background-color: #007bff;
+                        color: white;
+                        border-color: #007bff;
+                    }
+                }
+            }
+
+            .day-wise-times {
+                display: flex;
+                flex-direction: column;
+                gap: 0.75rem;
+                margin-bottom: 1rem;
+
+                .time-row {
+                    display: flex;
+                    align-items: center;
+                    gap: 0.5rem;
+
+                    input[type="time"] {
+                        padding: 0.4rem;
+                        font-size: 1rem;
+                        border: 1px solid #ccc;
+                        border-radius: 4px;
+                        flex: 1;
+                    }
+                }
+            }
+
+            .modal-footer {
+                display: flex;
+                justify-content: flex-end;
+
+                .btn-green {
+                    background-color: #28a745;
+                    color: white;
+                    padding: 0.5rem 1rem;
+                    border: none;
+                    border-radius: 5px;
+                    font-weight: 500;
+                    cursor: pointer;
+
+                    &:disabled {
+                        background-color: #ccc;
+                        cursor: not-allowed;
+                    }
+
+                    &:hover:not(:disabled) {
+                        background-color: #218838;
+                    }
                 }
             }
         }
     }
 }
 
-.modal-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: rgba(0, 0, 0, 0.4);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 1000;
+/* ---------------------------------------------------------------------------
+     ROLE CARD COLOR CLASSES
+     These classes provide light backgrounds (and complementary text colors)
+     for each role based on its base color.
+  --------------------------------------------------------------------------- */
+.role-card {
+    padding: 0.5rem;
+    border-radius: 4px;
+    margin-bottom: 0.25rem;
+    font-size: 0.875rem;
 }
 
-.modal-content {
-    background: #fff;
-    padding: 2rem;
-    border-radius: 10px;
-    width: 500px;
-    max-width: 90%;
-    position: relative;
+.role-blue {
+    background-color: #e0f7ff; // Lighter blue tint
+    color: #005fa3;
 }
 
-.modal-content h5 {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
+.role-red {
+    background-color: #ffd6d6; // Lighter red tint
+    color: #a30000;
 }
 
-.schedule-buttons {
-    display: flex;
-    gap: 0.5rem;
-    margin-top: 1rem;
+.role-green {
+    background-color: #d4f5d4; // Lighter green tint
+    color: #006600;
 }
 
-.day-btn {
-    padding: 0.5rem 1rem;
-    border: 1px solid #ccc;
-    background: #f2f2f2;
-    cursor: pointer;
-    border-radius: 5px;
+.role-yellow {
+    background-color: #ffffe0; // Lighter yellow tint
+    color: #a67c00;
 }
 
-.day-btn.active {
-    background: #4CAF50;
-    color: white;
-    font-weight: bold;
-}
-
-.time-inputs {
-    margin-top: 1rem;
-    display: flex;
-    gap: 1rem;
-    justify-content: space-between;
-}
-
-.modal-footer {
-    margin-top: 1.5rem;
-    text-align: right;
+.role-purple {
+    background-color: #e6d6ff; // Lighter purple tint
+    color: #5e0099;
 }

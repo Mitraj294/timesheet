@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { startOfWeek, addDays, format } from 'date-fns';
-import { useNavigate } from 'react-router-dom';
 import '../../styles/CreateRole.scss';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
@@ -13,6 +13,7 @@ import {
 } from '@fortawesome/free-solid-svg-icons';
 
 const CreateRole = () => {
+  const { roleId } = useParams();
   const navigate = useNavigate();
 
   const [roleName, setRoleName] = useState('');
@@ -25,13 +26,47 @@ const CreateRole = () => {
   const [weekDays, setWeekDays] = useState([]);
   const [schedule, setSchedule] = useState({});
 
+  // Define the list of colors. Adjust the values if you use hex codes or other color formats.
   const colors = ['Blue', 'Red', 'Green', 'Yellow', 'Purple'];
 
   useEffect(() => {
-    const weekStart = startOfWeek(new Date(), { weekStartsOn: 1 }); // Week starts on Monday
+    const weekStart = startOfWeek(new Date(), { weekStartsOn: 1 });
     const days = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
     setWeekDays(days);
   }, []);
+
+  useEffect(() => {
+    const fetchRole = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        const res = await axios.get(`http://localhost:5000/api/roles/${roleId}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        const data = res.data;
+        setRoleName(data.roleName || '');
+        setRoleDescription(data.roleDescription || '');
+        setColor(data.color || 'Blue');
+        setSelectedEmployees(data.assignedEmployees || []);
+
+        // Format schedule as object for day-wise access (using day keys based on the schedule object)
+        const formattedSchedule = {};
+        (data.schedule || []).forEach((entry) => {
+          // Here we assume entry.day is stored as a full date string.
+          // If you store day keys like 'Monday', adjust accordingly.
+          formattedSchedule[entry.day] = {
+            from: entry.startTime || '',
+            to: entry.endTime || ''
+          };
+        });
+        setSchedule(formattedSchedule);
+      } catch (err) {
+        console.error('Failed to fetch role:', err);
+      }
+    };
+
+    if (roleId) fetchRole();
+  }, [roleId]);
 
   useEffect(() => {
     const fetchEmployees = async () => {
@@ -69,15 +104,19 @@ const CreateRole = () => {
     }));
   };
 
-  const handleSubmit = async () => {const scheduleArray = weekDays.map((day) => {
-    const dayStr = format(day, 'yyyy-MM-dd');
-    return {
-      day: dayStr,
-      startTime: schedule[dayStr]?.from || '',
-      endTime: schedule[dayStr]?.to || '',
-    };
-  });
-  
+  const handleSubmit = async () => {
+    if (!roleName || !roleDescription) {
+      return alert('Please fill in all required fields');
+    }
+
+    const scheduleArray = weekDays.map((day) => {
+      const dayStr = format(day, 'yyyy-MM-dd');
+      return {
+        day: dayStr,
+        startTime: schedule[dayStr]?.from || '',
+        endTime: schedule[dayStr]?.to || '',
+      };
+    });
 
     const data = {
       roleName,
@@ -89,16 +128,38 @@ const CreateRole = () => {
 
     try {
       const token = localStorage.getItem('token');
-      await axios.post('http://localhost:5000/api/schedules/bulk', {
-        schedules: schedulesArray, // <-- this should be an object with a `schedules` key
-      }, {
+
+      // Check if a role with the same name already exists (exclude current if editing)
+      const checkRes = await axios.get('http://localhost:5000/api/roles', {
         headers: { Authorization: `Bearer ${token}` },
       });
-      
-      console.log('Role created successfully!');
+
+      const existingRole = checkRes.data.find(
+        r => r.roleName.toLowerCase() === roleName.toLowerCase() && r._id !== roleId
+      );
+
+      if (existingRole) {
+        // If a different role with the same name exists
+        return alert('Role name already exists. Please choose a unique name.');
+      }
+
+      if (roleId) {
+        // If editing an existing role
+        await axios.put(`http://localhost:5000/api/roles/${roleId}`, data, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        console.log('Role updated successfully!');
+      } else {
+        // Creating new role
+        await axios.post('http://localhost:5000/api/roles', data, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        console.log('Role created successfully!');
+      }
+
       navigate('/rosterpage');
     } catch (err) {
-      console.error('Error creating role:', err.response?.data || err.message);
+      console.error('Error submitting role:', err.response?.data || err.message);
     }
   };
 
@@ -188,39 +249,34 @@ const CreateRole = () => {
           </div>
         </div>
 
-        {/* Weekly Schedule Grid */}
         <div className="form-group schedule-container">
           <label>
-            <FontAwesomeIcon icon={faCalendar} /> Weekly Schedule
+            <FontAwesomeIcon icon={faCalendar} /> Schedule
           </label>
-          <div className="schedule-grid">
-            <div className="grid-header-row">
-              {weekDays.map((day) => (
-                <div key={format(day, 'yyyy-MM-dd')} className="grid-header">
-                  {format(day, 'EEE, MMM d')}
+          <div className="day-wise-times">
+            {weekDays.map((day) => {
+              const dayStr = format(day, 'yyyy-MM-dd');
+              return (
+                <div key={dayStr} className="time-row">
+                  <label>{format(day, 'EEE')}</label>
+                  <input
+                    type="time"
+                    value={schedule[dayStr]?.from || ''}
+                    onChange={(e) =>
+                      handleTimeChange(dayStr, 'from', e.target.value)
+                    }
+                  />
+                  <span style={{ margin: '0 8px' }}>to</span>
+                  <input
+                    type="time"
+                    value={schedule[dayStr]?.to || ''}
+                    onChange={(e) =>
+                      handleTimeChange(dayStr, 'to', e.target.value)
+                    }
+                  />
                 </div>
-              ))}
-            </div>
-            <div className="grid-body-row">
-              {weekDays.map((day) => {
-                const dayStr = format(day, 'yyyy-MM-dd');
-                return (
-                  <div key={dayStr} className="grid-cell">
-                    <input
-                      type="time"
-                      value={schedule[dayStr]?.from || ''}
-                      onChange={(e) => handleTimeChange(dayStr, 'from', e.target.value)}
-                    />
-                    <span className="to-text">to</span>
-                    <input
-                      type="time"
-                      value={schedule[dayStr]?.to || ''}
-                      onChange={(e) => handleTimeChange(dayStr, 'to', e.target.value)}
-                    />
-                  </div>
-                );
-              })}
-            </div>
+              );
+            })}
           </div>
         </div>
 
