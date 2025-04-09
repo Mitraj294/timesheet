@@ -186,16 +186,20 @@ const CreateTimesheet = ({
       alert('You are not logged in! Please log in first.');
       return;
     }
-
-    // Basic validations
+  
     if (!formData.employeeId || !formData.date) {
       if (!isEditing) {
         alert('Employee and Date fields are required.');
         return;
       }
     }
-    
-    
+  
+    // Disallow submission if totalHours exceed 9 and it's not a leave
+    if (!isLeaveSelected && parseFloat(formData.totalHours) > 9) {
+      alert('Total working hours cannot exceed 9 hours.');
+      return;
+    }
+  
     if (isLeaveSelected) {
       if (!formData.description) {
         alert('Please provide a leave description.');
@@ -206,14 +210,14 @@ const CreateTimesheet = ({
         alert('Please select a valid Client and Project.');
         return;
       }
-      const [sh,sm] = formData.startTime.split(':').map(Number);
-      const [eh,em] = formData.endTime.split(':').map(Number);
-      if (eh<sh || (eh===sh && em<=sm)) {
+      const [sh, sm] = formData.startTime.split(':').map(Number);
+      const [eh, em] = formData.endTime.split(':').map(Number);
+      if (eh < sh || (eh === sh && em <= sm)) {
         alert('Start Time must be before End Time.');
         return;
       }
     }
-
+  
     try {
       const config = {
         headers: {
@@ -221,8 +225,8 @@ const CreateTimesheet = ({
           'Content-Type': 'application/json',
         },
       };
-
-      // ❗️ Prevent duplicates when creating
+  
+      // Check for duplicates if not editing
       if (!isEditing) {
         const chk = await axios.get(
           'http://localhost:5000/api/timesheets/check',
@@ -243,14 +247,14 @@ const CreateTimesheet = ({
           });
         }
       }
-
-      // Build payload
+  
+      // Payload
       const requestData = {
         ...formData,
         clientId: isLeaveSelected ? null : String(formData.clientId),
         projectId: isLeaveSelected ? null : String(formData.projectId),
       };
-
+  
       // Create or Update
       if (isEditing) {
         await axios.put(
@@ -267,7 +271,7 @@ const CreateTimesheet = ({
         );
         alert('Timesheet created successfully!');
       }
-
+  
       navigate('/timesheet');
     } catch (error) {
       console.error('Error submitting timesheet:', error.response || error);
@@ -277,7 +281,7 @@ const CreateTimesheet = ({
       );
     }
   };
-
+  
   return (
     <div className='create-timesheet-container'>
       <div className='timesheet-header'>
