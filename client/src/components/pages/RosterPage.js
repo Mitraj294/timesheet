@@ -39,22 +39,22 @@ const RosterPage = () => {
   const [selectedRole, setSelectedRole] = useState('');
   const [selectedDays, setSelectedDays] = useState([]); // e.g., ['Mon', 'Wed']
 
-  // Using objects for times to allow different times per day
+  // Using objects for times to allow different times per day (for modal)
   const [startTime, setStartTime] = useState({});
   const [endTime, setEndTime] = useState({});
 
   const weekDays = Array.from({ length: 7 }, (_, i) => addDays(currentWeekStart, i));
   const maxAllowedWeek = addWeeks(startOfWeek(new Date(), { weekStartsOn: 1 }), 1);
 
-  // Convert backend UTC time (stored as "HH:mm") plus date into a local time string.
+  // Convert backend UTC time (stored as "HH:mm" string) plus date into a local time string.
   const formatTimeUTCtoLocal = (timeStr, dateStr) => {
     if (!timeStr || !timeStr.includes(':') || !dateStr) return '--';
-    // Create a date-time in UTC using dateStr and timeStr
+    // Create a Date object in UTC using dateStr and timeStr
     const utcDate = new Date(`${dateStr}T${timeStr}:00Z`);
-    return format(utcDate, 'hh:mm a'); // date-fns' format will output in local time
+    return format(utcDate, 'hh:mm a'); // Formats as local time
   };
 
-  // Function to convert a local time input (HH:mm) for a given date (yyyy-MM-dd) into UTC (HH:mm)
+  // Convert a local time input (HH:mm) for a given date (yyyy-MM-dd) into a UTC time string (HH:mm).
   const convertLocalTimeToUTC = (localTimeStr, dateStr) => {
     if (!localTimeStr || !dateStr) return '00:00';
     const [year, month, day] = dateStr.split('-').map(Number);
@@ -125,20 +125,138 @@ const RosterPage = () => {
     if (!isEqual(currentWeekStart, maxAllowedWeek)) setCurrentWeekStart(next);
   };
 
+  // Return schedules for a specific day (compared by date string)
   const getSchedulesForDay = (day) => {
     const dayStr = format(day, 'yyyy-MM-dd');
     return schedules.filter(s => format(new Date(s.date), 'yyyy-MM-dd') === dayStr);
   };
 
-  // Define getRolesForDay to filter roles based on the day.
+  // For roles: Compare each role's schedule entry's day with the grid day.
   const getRolesForDay = (day) => {
-    const weekdayName = format(day, 'EEEE'); // e.g., "Monday", "Tuesday"
-    const rolesForDay = roles.filter(role => role.schedule && role.schedule[weekdayName]);
-    console.log(`Roles for ${weekdayName}:`, rolesForDay);
+    const dayStr = format(day, 'yyyy-MM-dd');
+    const rolesForDay = roles.filter(role =>
+      role.schedule &&
+      role.schedule.some(
+        (entry) =>
+          entry.day === dayStr &&
+          entry.startTime &&
+          entry.endTime &&
+          entry.startTime.trim() !== ''
+      )
+    );
+   //console.log(`Roles for ${dayStr}:`, rolesForDay);
     return rolesForDay;
   };
 
-  // When clicking an employee, open the modal with that employee's information.
+  // Delete role handler – adjust this with your actual API
+  const handleDeleteRole = async (roleId) => {
+    try {
+      const token = localStorage.getItem('token');
+      await axios.delete(`http://localhost:5000/api/roles/${roleId}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const res = await axios.get('http://localhost:5000/api/roles', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setRoles(res.data);
+    } catch (err) {
+      console.error("Error deleting role:", err.response || err.message);
+    }
+  };
+
+
+  const handleRolloutToNextWeek = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const nextWeekStart = addWeeks(currentWeekStart, 1);
+      const nextWeekStartStr = format(nextWeekStart, 'yyyy-MM-dd');
+      const nextWeekEndStr = format(addDays(nextWeekStart, 6), 'yyyy-MM-dd');
+  
+      // STEP 1: Rollout EMPLOYEE schedules
+      const newSchedules = schedules.map(sch => {
+        const dateObj = new Date(sch.date);
+        const dayIndex = (dateObj.getDay() + 6) % 7; // Ensure Mon-Sun index
+        const nextDate = addDays(nextWeekStart, dayIndex);
+        const nextDateStr = format(nextDate, 'yyyy-MM-dd');
+  
+        return {
+          employee: sch.employee._id || sch.employee,
+          role: sch.role?._id || sch.role,
+          startTime: sch.startTime,
+          endTime: sch.endTime,
+          date: nextDateStr,
+        };
+      });
+  
+      // Post employee schedules for next week
+      await axios.post('http://localhost:5000/api/schedules/bulk', newSchedules, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+  
+      // STEP 2: Rollout ROLE schedules
+      await Promise.all(
+        roles.map(async (role) => {
+          if (!role.schedule || role.schedule.length === 0) return;
+  
+          // Filter out any existing role schedule entries for next week
+          const filtered = role.schedule.filter(entry =>
+            entry.day < nextWeekStartStr || entry.day > nextWeekEndStr
+          );
+  
+          // Create cloned entries with next week dates
+          const cloned = role.schedule
+            .filter(entry => entry.startTime && entry.endTime)
+            .map(entry => {
+              const newDay = addDays(new Date(entry.day), 7);
+              return {
+                day: format(newDay, 'yyyy-MM-dd'),
+                startTime: entry.startTime,
+                endTime: entry.endTime,
+              };
+            });
+  
+          // Combine cleaned + cloned
+          const newSchedule = [...filtered, ...cloned];
+  
+          const updatedRole = {
+            roleName: role.roleName,
+            roleDescription: role.roleDescription,
+            color: role.color,
+            assignedEmployees: role.assignedEmployees.map(emp =>
+              typeof emp === 'object' && emp._id ? emp._id : emp
+            ),
+            schedule: newSchedule,
+          };
+  
+          await axios.put(`http://localhost:5000/api/roles/${role._id}`, updatedRole, {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+        })
+      );
+  
+      // STEP 3: Refresh Schedules & Roles for UI
+      const scheduleRes = await axios.get(
+        `http://localhost:5000/api/schedules?weekStart=${nextWeekStartStr}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      setSchedules(scheduleRes.data);
+      setCurrentWeekStart(nextWeekStart);
+  
+      const roleRes = await axios.get('http://localhost:5000/api/roles', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setRoles(roleRes.data);
+  
+      console.log('Rollout complete!');
+  
+    } catch (err) {
+      console.error(' Error during rollout:', err.response?.data || err.message);
+    }
+  };
+  
+  
+  
+  // When clicking an employee, open the modal with that employee's info.
   const handleEmployeeClick = (emp) => {
     setSelectedEmployee(emp);
     setSelectedDays([]);
@@ -148,21 +266,18 @@ const RosterPage = () => {
     setShowModal(true);
   };
 
-  // Confirm assignment: For each selected day, check if a schedule exists.
-  // If it exists, update it. Otherwise, create a new schedule.
+  // Confirm assignment: for each selected day, update or create a schedule.
   const handleAssignShift = async () => {
     try {
       const token = localStorage.getItem('token');
       const dayOrder = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-
-      // Create promises for each selected day
       const schedulePromises = selectedDays.map(async (day) => {
         const index = dayOrder.indexOf(day);
         const date = format(addDays(currentWeekStart, index), 'yyyy-MM-dd');
         const utcStartTime = convertLocalTimeToUTC(startTime[day], date);
         const utcEndTime = convertLocalTimeToUTC(endTime[day], date);
 
-        // Find if there is already a schedule for this employee on this date
+        // Find if a schedule already exists for this employee on this date.
         const existing = schedules.find(s =>
           s.employee._id === selectedEmployee._id &&
           format(new Date(s.date), 'yyyy-MM-dd') === date
@@ -177,21 +292,19 @@ const RosterPage = () => {
         };
 
         if (existing) {
-          // Update existing schedule
           return axios.put(`http://localhost:5000/api/schedules/${existing._id}`, scheduleData, {
             headers: { Authorization: `Bearer ${token}` }
           });
         } else {
-          // Create new schedule
-          return axios.post('http://localhost:5000/api/schedules', scheduleData, {
+          await axios.post('http://localhost:5000/api/schedules/bulk', [scheduleData], {
             headers: { Authorization: `Bearer ${token}` }
           });
+          
         }
       });
 
       await Promise.all(schedulePromises);
 
-      // Reset modal and reload schedules
       setShowModal(false);
       setSelectedEmployee(null);
       setSelectedDays([]);
@@ -215,8 +328,6 @@ const RosterPage = () => {
       await axios.delete(`http://localhost:5000/api/schedules/${scheduleId}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
-
-      // Re-fetch schedules after deleting
       const res = await axios.get(
         `http://localhost:5000/api/schedules?weekStart=${format(currentWeekStart, 'yyyy-MM-dd')}`,
         { headers: { Authorization: `Bearer ${token}` } }
@@ -238,10 +349,15 @@ const RosterPage = () => {
             <Link to="/dashboard">Dashboard</Link> / <span>Rosters</span>
           </div>
         </div>
-        <button className="btn btn-green">
-          <FontAwesomeIcon icon={faSyncAlt} className="icon-left" />
-          Rollout Schedules to Next Week
-        </button>
+        {isEqual(currentWeekStart, startOfWeek(new Date(), { weekStartsOn: 1 })) ||
+ isEqual(currentWeekStart, addWeeks(startOfWeek(new Date(), { weekStartsOn: 0 }), 1)) ? (
+  <button className="btn btn-green" onClick={handleRolloutToNextWeek}>
+    <FontAwesomeIcon icon={faSyncAlt} className="icon-left" />
+    Rollout Schedules to Next Week
+  </button>
+) : null} 
+
+
       </header>
 
       <div className="week-nav">
@@ -249,7 +365,8 @@ const RosterPage = () => {
           <FontAwesomeIcon icon={faArrowLeft} /> Prev Week
         </button>
         <h4>
-          {format(currentWeekStart, 'MMM d')} - {format(endOfWeek(currentWeekStart, { weekStartsOn: 1 }), 'MMM d, yyyy')}
+          {format(currentWeekStart, 'MMM d')} -{' '}
+          {format(endOfWeek(currentWeekStart, { weekStartsOn: 1 }), 'MMM d, yyyy')}
         </h4>
         {!isEqual(currentWeekStart, maxAllowedWeek) && (
           <button className="btn btn-blue" onClick={handleNextWeek}>
@@ -268,14 +385,14 @@ const RosterPage = () => {
           </div>
           <div className="role-list">
             {roles.map(role => (
-              <button
-                key={role._id}
-                className="role-badge"
-                onClick={() => navigate(`/createrole/${role._id}`)}
-                style={{ backgroundColor: role.color }}
-              >
-                {role.roleName}
-              </button>
+              <div
+              key={role._id}
+              className={`role-card role-${role.color?.toLowerCase() || 'default'} clickable`}
+              onClick={() => navigate(`/createrole/${role._id}`)}
+            >
+              <p className="role-name">{role.roleName}</p>
+            </div>
+            
             ))}
           </div>
         </aside>
@@ -291,7 +408,7 @@ const RosterPage = () => {
           <div className="grid-body">
             {weekDays.map(day => (
               <div key={day} className="grid-cell">
-                {/* Show Schedules */}
+                {/* Show Shift Cards */}
                 {getSchedulesForDay(day).map(sch => (
                   <div key={sch._id} className="shift-card">
                     <p className="shift-time">
@@ -309,15 +426,53 @@ const RosterPage = () => {
                   </div>
                 ))}
 
-                {/* Show Role Cards on the grid */}
-                {getRolesForDay(day).map(role => (
-                  <div
-                    key={role._id}
-                    className={`role-card role-${role.color.toLowerCase()}`}
-                  >
-                    <p className="role-name">{role.roleName}</p>
-                  </div>
-                ))}
+                {/* Show Role Cards with extra details */}
+            
+{getRolesForDay(day).map(role => {
+  const dayStr = format(day, 'yyyy-MM-dd');
+  // Find the schedule entry for this day from the role.
+  const scheduleEntry = role.schedule.find(entry => entry.day === dayStr);
+  const timeDisplay = scheduleEntry && scheduleEntry.startTime && scheduleEntry.endTime
+    ? `${formatTimeUTCtoLocal(scheduleEntry.startTime, scheduleEntry.day)} - ${formatTimeUTCtoLocal(scheduleEntry.endTime, scheduleEntry.day)}`
+    : '-- --';
+
+  // Updated mapping for assigned employees:
+  const assignedEmployeeNames =
+    role.assignedEmployees && role.assignedEmployees.length > 0
+      ? role.assignedEmployees
+          .map(emp => {
+            // If the element is an object already (populated), use its name.
+            if (typeof emp === 'object' && emp.name) {
+              return emp.name;
+            }
+            // Otherwise, try to look it up from the employees state using the ID.
+            const found = employees.find(e => e._id === emp);
+            return found ? found.name : null;
+          })
+          .filter(name => name)
+          .join(', ')
+      : '-- --';
+
+  return (
+    <div
+      key={role._id}
+      className={`role-card role-${role.color?.toLowerCase() || 'default'}`}
+    >
+      <p className="role-time">{timeDisplay}</p>
+      <p className="role-name">{role.roleName || '-- --'}</p>
+      <p className="role-employee">{assignedEmployeeNames || '-- --'}</p>
+      <div className="role-actions">
+        <FontAwesomeIcon icon={faEye} />
+        <FontAwesomeIcon
+          icon={faTrash}
+          onClick={() => handleDeleteRole(role._id)}
+          className="clickable-icon"
+        />
+      </div>
+    </div>
+  );
+})}
+
               </div>
             ))}
           </div>
@@ -345,9 +500,14 @@ const RosterPage = () => {
         <div className="modal-overlay">
           <div className="modal-content">
             <h5>
-              Assign Shift <button id="closeModal" onClick={() => setShowModal(false)}>×</button>
+              Assign Shift{' '}
+              <button id="closeModal" onClick={() => setShowModal(false)}>
+                ×
+              </button>
             </h5>
-            <p>Employee: <strong>{selectedEmployee.name}</strong></p>
+            <p>
+              Employee: <strong>{selectedEmployee.name}</strong>
+            </p>
 
             <p>Schedules</p>
             <div className="schedule-buttons">

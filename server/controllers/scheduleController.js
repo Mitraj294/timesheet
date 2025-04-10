@@ -79,6 +79,32 @@ export const getSchedulesByWeek = async (req, res) => {
     res.status(500).json({ message: 'Failed to fetch schedules' });
   }
 };
+// Update a single schedule by ID
+export const updateSchedule = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { employee, role, startTime, endTime, date } = req.body;
+
+    const schedule = await Schedule.findById(id);
+    if (!schedule) {
+      return res.status(404).json({ message: 'Schedule not found' });
+    }
+
+    schedule.employee = employee || schedule.employee;
+    schedule.role = role || schedule.role;
+    schedule.startTime = startTime || schedule.startTime;
+    schedule.endTime = endTime || schedule.endTime;
+    schedule.date = DateTime.fromISO(date, { zone: 'local' }).toUTC().toJSDate();
+    schedule.timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+
+    await schedule.save();
+
+    res.status(200).json({ message: 'Schedule updated successfully', schedule });
+  } catch (err) {
+    console.error('Error updating schedule:', err);
+    res.status(500).json({ message: 'Failed to update schedule' });
+  }
+};
 
 // Delete schedule by ID
 export const deleteSchedule = async (req, res) => {

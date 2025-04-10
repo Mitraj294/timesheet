@@ -1,0 +1,122 @@
+.vehicles-page {
+    padding: 2rem;
+    font-family: 'Inter', sans-serif;
+
+    .vehicles-header {
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+        margin-bottom: 1rem;
+
+        h4 {
+            font-size: 1.5rem;
+            font-weight: 700;
+        }
+
+        .breadcrumbs {
+            font-size: 0.875rem;
+            color: #666;
+
+            a {
+                color: #4a90e2;
+                text-decoration: none;
+                margin-right: 0.5rem;
+            }
+        }
+    }
+
+    .vehicles-actions {
+        display: flex;
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+
+        .btn {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: 6px;
+            font-weight: 500;
+            cursor: pointer;
+            font-size: 0.9rem;
+
+            i {
+                font-size: 1.2rem;
+            }
+
+            &.btn-green {
+                background-color: #4caf50;
+                color: white;
+            }
+
+            &.btn-purple {
+                background-color: #7e57c2;
+                color: white;
+            }
+
+            &.btn-red {
+                background-color: #f44336;
+                color: white;
+            }
+        }
+    }
+
+    .vehicles-search {
+        position: relative;
+        margin-bottom: 1.5rem;
+
+        input {
+            width: 100%;
+            padding: 0.5rem 2.5rem 0.5rem 0.75rem;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            font-size: 1rem;
+        }
+
+        .search-icon {
+            position: absolute;
+            right: 0.75rem;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #999;
+        }
+    }
+
+    .vehicles-grid {
+        display: grid;
+        gap: 0.75rem;
+
+        .vehicles-row {
+            display: grid;
+            grid-template-columns: 1fr 2fr 1fr 2fr 1.5fr;
+            align-items: center;
+            padding: 0.75rem 1rem;
+            background-color: #f9f9f9;
+            border-radius: 8px;
+            font-size: 0.95rem;
+
+            &.header {
+                background-color: #e0e0e0;
+                font-weight: 600;
+            }
+
+            .actions {
+                display: flex;
+                gap: 0.5rem;
+
+                .btn-icon {
+                    background: none;
+                    border: none;
+                    cursor: pointer;
+                    font-size: 1.1rem;
+                    color: #444;
+
+                    &.btn-danger {
+                        color: #e53935;
+                    }
+                }
+            }
+        }
+    }
+}

@@ -1,0 +1,91 @@
+.create-vehicle-page {
+    padding: 2rem;
+    font-family: 'Inter', sans-serif;
+
+    .header {
+        margin-bottom: 1rem;
+
+        h4 {
+            font-size: 1.5rem;
+            font-weight: 700;
+        }
+
+        .breadcrumbs {
+            font-size: 0.875rem;
+            margin-top: 0.25rem;
+
+            a {
+                color: #4a90e2;
+                text-decoration: none;
+                margin-right: 0.25rem;
+            }
+        }
+    }
+
+    .card {
+        background: #fff;
+        border-radius: 8px;
+        padding: 2rem;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+        max-width: 500px;
+
+        form {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+
+            .form-group {
+                position: relative;
+
+                input {
+                    width: 100%;
+                    padding: 0.75rem 2.5rem 0.75rem 0.75rem;
+                    border: 1px solid #ccc;
+                    border-radius: 6px;
+                    font-size: 1rem;
+                }
+
+                label {
+                    position: absolute;
+                    left: 0.75rem;
+                    top: -0.7rem;
+                    background: white;
+                    font-size: 0.75rem;
+                    color: #666;
+                    padding: 0 0.25rem;
+                }
+
+                i {
+                    position: absolute;
+                    right: 0.75rem;
+                    top: 50%;
+                    transform: translateY(-50%);
+                    color: #999;
+                }
+            }
+
+            .form-actions {
+                display: flex;
+                justify-content: flex-end;
+
+                .btn {
+                    display: flex;
+                    align-items: center;
+                    gap: 0.5rem;
+                    padding: 0.6rem 1.2rem;
+                    border: none;
+                    border-radius: 6px;
+                    background-color: #7e57c2;
+                    color: white;
+                    font-weight: 500;
+                    font-size: 0.95rem;
+                    cursor: pointer;
+
+                    i {
+                        font-size: 1.1rem;
+                    }
+                }
+            }
+        }
+    }
+}

@@ -14,6 +14,7 @@ import timesheetRoutes from "./routes/timesheetRoutes.js";
 import projectRoutes from "./routes/projectRoutes.js";
 import roleRoutes from './routes/roleRoutes.js';
 import scheduleRoutes from './routes/scheduleRoutes.js';
+import vehicleRoutes from './routes/vehicleRoutes.js';
 
 const app = express();
 
@@ -51,6 +52,7 @@ app.use("/api/timesheets", timesheetRoutes);
 app.use("/api/projects", projectRoutes);
 app.use('/api/roles', roleRoutes);
 app.use('/api/schedules', scheduleRoutes);
+app.use('/api/vehicles', vehicleRoutes);
 
 
 

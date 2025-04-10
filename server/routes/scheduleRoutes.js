@@ -2,6 +2,7 @@ import express from 'express';
 import {
   createBulkSchedules,
   getSchedulesByWeek,
+  updateSchedule,
   deleteSchedule
 } from '../controllers/scheduleController.js';
 
@@ -11,6 +12,7 @@ const router = express.Router();
 
 router.post('/bulk', protect, employerOnly, createBulkSchedules);
 router.get('/', protect, getSchedulesByWeek);
+router.put('/:id', protect, updateSchedule); 
 router.delete('/:id', protect, deleteSchedule);
 
 export default router;

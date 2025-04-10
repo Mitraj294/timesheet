@@ -1,18 +1,17 @@
 import mongoose from 'mongoose';
 
-const scheduleSchema = new mongoose.Schema({
-  day: { type: String, required: true },
-  startTime: { type: String },
-  endTime: { type: String }
-});
-
-const roleSchema = new mongoose.Schema({
+const RoleSchema = new mongoose.Schema({
   roleName: { type: String, required: true },
-  roleDescription: { type: String },
-  color: { type: String },
-  assignedEmployees: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
-  schedule: [scheduleSchema]
+  roleDescription: { type: String, required: true },
+  color: { type: String, default: 'Blue' },
+  assignedEmployees: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Employee' }],
+  schedule: [
+    {
+      day: { type: String },
+      startTime: { type: String },
+      endTime: { type: String },
+    },
+  ],
 }, { timestamps: true });
 
-const Role = mongoose.model('Role', roleSchema);
-export default Role;
+export default mongoose.model('Role', RoleSchema);

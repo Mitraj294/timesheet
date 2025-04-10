@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { startOfWeek, addDays, format } from 'date-fns';
+import { startOfWeek, addDays, format, parseISO } from 'date-fns';
+import { DateTime } from 'luxon';
 import '../../styles/CreateRole.scss';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
@@ -19,14 +20,11 @@ const CreateRole = () => {
   const [roleName, setRoleName] = useState('');
   const [roleDescription, setRoleDescription] = useState('');
   const [color, setColor] = useState('Blue');
-
   const [employees, setEmployees] = useState([]);
   const [selectedEmployees, setSelectedEmployees] = useState([]);
-
   const [weekDays, setWeekDays] = useState([]);
   const [schedule, setSchedule] = useState({});
 
-  // Define the list of colors. Adjust the values if you use hex codes or other color formats.
   const colors = ['Blue', 'Red', 'Green', 'Yellow', 'Purple'];
 
   useEffect(() => {
@@ -49,14 +47,16 @@ const CreateRole = () => {
         setColor(data.color || 'Blue');
         setSelectedEmployees(data.assignedEmployees || []);
 
-        // Format schedule as object for day-wise access (using day keys based on the schedule object)
         const formattedSchedule = {};
         (data.schedule || []).forEach((entry) => {
-          // Here we assume entry.day is stored as a full date string.
-          // If you store day keys like 'Monday', adjust accordingly.
-          formattedSchedule[entry.day] = {
-            from: entry.startTime || '',
-            to: entry.endTime || ''
+          const dayStr = entry.day;
+          formattedSchedule[dayStr] = {
+            from: entry.startTime
+              ? DateTime.fromFormat(entry.startTime, 'HH:mm', { zone: 'utc' }).toLocal().toFormat('HH:mm')
+              : '',
+            to: entry.endTime
+              ? DateTime.fromFormat(entry.endTime, 'HH:mm', { zone: 'utc' }).toLocal().toFormat('HH:mm')
+              : '',
           };
         });
         setSchedule(formattedSchedule);
@@ -104,19 +104,43 @@ const CreateRole = () => {
     }));
   };
 
+  const groupScheduleByWeek = (scheduleArray) => {
+    const grouped = {};
+    scheduleArray.forEach((entry) => {
+      const day = parseISO(entry.day);
+      const weekStart = startOfWeek(day, { weekStartsOn: 1 });
+      const weekKey = format(weekStart, 'yyyy-MM-dd');
+      if (!grouped[weekKey]) grouped[weekKey] = [];
+      grouped[weekKey].push(entry);
+    });
+    return grouped;
+  };
+
   const handleSubmit = async () => {
     if (!roleName || !roleDescription) {
       return alert('Please fill in all required fields');
     }
 
-    const scheduleArray = weekDays.map((day) => {
+    const rawSchedule = weekDays.map((day) => {
       const dayStr = format(day, 'yyyy-MM-dd');
+      const localStart = schedule[dayStr]?.from;
+      const localEnd = schedule[dayStr]?.to;
+      const startTime = localStart
+        ? DateTime.fromFormat(localStart, 'HH:mm').toUTC().toFormat('HH:mm')
+        : '';
+      const endTime = localEnd
+        ? DateTime.fromFormat(localEnd, 'HH:mm').toUTC().toFormat('HH:mm')
+        : '';
       return {
         day: dayStr,
-        startTime: schedule[dayStr]?.from || '',
-        endTime: schedule[dayStr]?.to || '',
+        startTime,
+        endTime,
       };
     });
+
+    const scheduleByWeek = groupScheduleByWeek(rawSchedule);
+    const currentWeekKey = format(startOfWeek(new Date(), { weekStartsOn: 1 }), 'yyyy-MM-dd');
+    const scheduleArray = scheduleByWeek[currentWeekKey] || [];
 
     const data = {
       roleName,
@@ -129,28 +153,31 @@ const CreateRole = () => {
     try {
       const token = localStorage.getItem('token');
 
-      // Check if a role with the same name already exists (exclude current if editing)
       const checkRes = await axios.get('http://localhost:5000/api/roles', {
         headers: { Authorization: `Bearer ${token}` },
       });
 
-      const existingRole = checkRes.data.find(
-        r => r.roleName.toLowerCase() === roleName.toLowerCase() && r._id !== roleId
-      );
+      const sameNameConflict = checkRes.data.find((r) => {
+        if (r.roleName.toLowerCase() !== roleName.toLowerCase() || r._id === roleId) return false;
+        return r.schedule.some((existingDay) =>
+          scheduleArray.some((newDay) => {
+            const existingWeek = DateTime.fromISO(existingDay.day).startOf('week');
+            const newWeek = DateTime.fromISO(newDay.day).startOf('week');
+            return existingWeek.toISODate() === newWeek.toISODate();
+          })
+        );
+      });
 
-      if (existingRole) {
-        // If a different role with the same name exists
-        return alert('Role name already exists. Please choose a unique name.');
+      if (sameNameConflict) {
+        return alert('A role with this name already exists for the same week. Please choose a different week.');
       }
 
       if (roleId) {
-        // If editing an existing role
         await axios.put(`http://localhost:5000/api/roles/${roleId}`, data, {
           headers: { Authorization: `Bearer ${token}` },
         });
         console.log('Role updated successfully!');
       } else {
-        // Creating new role
         await axios.post('http://localhost:5000/api/roles', data, {
           headers: { Authorization: `Bearer ${token}` },
         });
