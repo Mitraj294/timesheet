@@ -482,3 +482,25 @@
     background-color: #e6d6ff; // Lighter purple tint
     color: #5e0099;
 }
+
+.role-card {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem;
+    margin-bottom: 0.5rem;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+}
+
+.role-name {
+    font-size: 1rem;
+    font-weight: 500;
+}
+
+.delete-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0.25rem;
+}

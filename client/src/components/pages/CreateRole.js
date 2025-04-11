@@ -126,11 +126,14 @@ const CreateRole = () => {
       const localStart = schedule[dayStr]?.from;
       const localEnd = schedule[dayStr]?.to;
       const startTime = localStart
-        ? DateTime.fromFormat(localStart, 'HH:mm').toUTC().toFormat('HH:mm')
-        : '';
-      const endTime = localEnd
-        ? DateTime.fromFormat(localEnd, 'HH:mm').toUTC().toFormat('HH:mm')
-        : '';
+  ? DateTime.fromISO(`1970-01-01T${localStart}`).toUTC().toFormat('HH:mm')
+  : '';
+
+const endTime = localEnd
+  ? DateTime.fromISO(`1970-01-01T${localEnd}`).toUTC().toFormat('HH:mm')
+  : '';
+
+
       return {
         day: dayStr,
         startTime,

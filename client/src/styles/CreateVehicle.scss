@@ -1,87 +1,135 @@
 .create-vehicle-page {
     padding: 2rem;
-    font-family: 'Inter', sans-serif;
+    background-color: #f7f7fb;
+    min-height: 100vh;
 
     .header {
-        margin-bottom: 1rem;
+        margin-bottom: 1.5rem;
 
         h4 {
             font-size: 1.5rem;
-            font-weight: 700;
+            font-weight: 600;
+            color: #2e2e2e;
+            margin-bottom: 0.5rem;
         }
 
         .breadcrumbs {
-            font-size: 0.875rem;
-            margin-top: 0.25rem;
+            font-size: 0.9rem;
+            color: #999;
 
             a {
-                color: #4a90e2;
+                color: #5e5eaa;
                 text-decoration: none;
-                margin-right: 0.25rem;
+
+                &:hover {
+                    text-decoration: underline;
+                }
             }
         }
     }
 
     .card {
-        background: #fff;
-        border-radius: 8px;
+        background: white;
         padding: 2rem;
-        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
-        max-width: 500px;
+        border-radius: 12px;
+        box-shadow: 0px 8px 20px rgba(0, 0, 0, 0.05);
+        max-width: 550px;
+        margin: 0 auto;
 
         form {
             display: flex;
             flex-direction: column;
-            gap: 1.5rem;
 
             .form-group {
                 position: relative;
+                margin-bottom: 1.5rem;
 
-                input {
+                input,
+                textarea {
                     width: 100%;
-                    padding: 0.75rem 2.5rem 0.75rem 0.75rem;
+                    padding: 1rem 2.5rem 1rem 1rem;
                     border: 1px solid #ccc;
-                    border-radius: 6px;
+                    border-radius: 8px;
                     font-size: 1rem;
+                    outline: none;
+                    background: #fff;
+
+                    &:focus {
+                        border-color: #a88afc;
+                        box-shadow: 0 0 0 3px rgba(168, 138, 252, 0.2);
+                    }
+                }
+
+                textarea {
+                    resize: vertical;
+                    min-height: 80px;
                 }
 
                 label {
                     position: absolute;
-                    left: 0.75rem;
                     top: -0.7rem;
+                    left: 0.75rem;
                     background: white;
-                    font-size: 0.75rem;
+                    padding: 0 0.3rem;
+                    font-size: 0.85rem;
                     color: #666;
-                    padding: 0 0.25rem;
                 }
 
-                i {
+                .form-icon {
                     position: absolute;
-                    right: 0.75rem;
+                    right: 1rem;
                     top: 50%;
                     transform: translateY(-50%);
-                    color: #999;
+                    color: #aaa;
+                }
+            }
+
+            .checkbox-group {
+                display: flex;
+                flex-direction: column;
+                gap: 0.5rem;
+                margin-bottom: 1.5rem;
+
+                label {
+                    display: flex;
+                    align-items: center;
+                    gap: 0.5rem;
+                    font-weight: 500;
+                    color: #444;
+
+                    input[type='checkbox'] {
+                        width: 16px;
+                        height: 16px;
+                    }
+
+                    svg {
+                        color: #5c5caa;
+                    }
                 }
             }
 
             .form-actions {
-                display: flex;
-                justify-content: flex-end;
+                margin-top: 1rem;
 
                 .btn {
-                    display: flex;
+                    display: inline-flex;
                     align-items: center;
+                    justify-content: center;
                     gap: 0.5rem;
-                    padding: 0.6rem 1.2rem;
-                    border: none;
-                    border-radius: 6px;
-                    background-color: #7e57c2;
+                    background-color: #a88afc;
                     color: white;
-                    font-weight: 500;
-                    font-size: 0.95rem;
+                    border: none;
+                    padding: 0.75rem 1.5rem;
+                    border-radius: 8px;
+                    font-size: 1rem;
                     cursor: pointer;
+                    transition: background-color 0.2s ease;
 
-                    i {
+                    &:hover {
+                        background-color: #8b6df7;
+                    }
+
+                    svg {
                         font-size: 1.1rem;
                     }
                 }

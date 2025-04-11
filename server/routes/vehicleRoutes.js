@@ -6,14 +6,19 @@ import {
   updateVehicle,
   deleteVehicle
 } from '../controllers/vehicleController.js';
-import auth from '../middleware/authMiddleware.js';
 
 const router = express.Router();
 
-router.get('/', auth, getVehicles);
-router.get('/:id', auth, getVehicleById);
-router.post('/', auth, createVehicle);
-router.put('/:id', auth, updateVehicle);
-router.delete('/:id', auth, deleteVehicle);
+router.get('/', getVehicles);
+
+
+router.get('/:id', getVehicleById);
+
+
+router.post('/', createVehicle);
+
+router.put('/:id', updateVehicle);
+
+router.delete('/:id', deleteVehicle);
 
 export default router;

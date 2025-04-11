@@ -1,5 +1,5 @@
-import jwt from "jsonwebtoken";
-import User from "../models/User.js";
+import jwt from 'jsonwebtoken';
+import User from '../models/User.js';
 import dotenv from "dotenv";
 
 dotenv.config();
@@ -23,14 +23,25 @@ export const protect = async (req, res, next) => {
 };
 
 // Middleware to allow only employers
-export const employerOnly = (req, res, next) => {
-  if (!req.user) {
-    return res.status(401).json({ message: "Not authorized, user not found" });
-  }
 
-  if (req.user.role !== "employer") {
-    return res.status(403).json({ message: "Access denied, only employers can perform this action" });
-  }
 
-  next();
+export const employerOnly = async (req, res, next) => {
+  let token;
+  if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
+    try {
+      token = req.headers.authorization.split(' ')[1];
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      const user = await User.findById(decoded.id);
+
+      if (!user) return res.status(401).json({ message: 'Not authorized, user not found' });
+      if (user.role !== 'employer') return res.status(403).json({ message: 'Access denied' });
+
+      req.user = user;
+      next();
+    } catch (err) {
+      res.status(401).json({ message: 'Not authorized, token failed' });
+    }
+  } else {
+    res.status(401).json({ message: 'No token' });
+  }
 };

@@ -122,3 +122,27 @@ export const deleteSchedule = async (req, res) => {
     res.status(500).json({ message: 'Failed to delete schedule' });
   }
 };
+
+// controllers/scheduleController.js
+export const deleteByDateRange = async (req, res) => {
+  try {
+    const { startDate, endDate } = req.body;
+
+    if (!startDate || !endDate) {
+      return res.status(400).json({ message: 'Start date and end date are required.' });
+    }
+
+    // Assuming you're using Mongoose and have a Schedule model
+    const result = await Schedule.deleteMany({
+      date: {
+        $gte: new Date(startDate),
+        $lte: new Date(endDate)
+      }
+    });
+
+    res.status(200).json({ message: `${result.deletedCount} schedules deleted.` });
+  } catch (err) {
+    console.error('Error deleting schedule:', err);
+    res.status(500).json({ message: 'Failed to delete schedule' });
+  }
+};

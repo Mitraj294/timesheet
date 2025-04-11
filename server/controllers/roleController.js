@@ -5,15 +5,18 @@ export const createRole = async (req, res) => {
   try {
     const { roleName, roleDescription, color, assignedEmployees, schedule } = req.body;
 
-    // Convert schedule times to UTC.
-    // We assume schedule is an array like: [{ day: "2025-04-07", startTime: "09:00", endTime: "17:00" }, ...]
+    // Convert from local time to UTC before storing
     const schedulesArray = schedule.map((sch) => ({
-      day: sch.day, 
+      day: sch.day,
       startTime: sch.startTime
-        ? DateTime.fromISO(`1970-01-01T${sch.startTime}`, { zone: 'local' }).toUTC().toFormat('HH:mm')
+        ? DateTime.fromFormat(sch.startTime, 'HH:mm', {
+            zone: sch.timezone || 'UTC', // assume frontend sends correct tz like "Asia/Kolkata"
+          }).toUTC().toFormat('HH:mm')
         : '',
       endTime: sch.endTime
-        ? DateTime.fromISO(`1970-01-01T${sch.endTime}`, { zone: 'local' }).toUTC().toFormat('HH:mm')
+        ? DateTime.fromFormat(sch.endTime, 'HH:mm', {
+            zone: sch.timezone || 'UTC',
+          }).toUTC().toFormat('HH:mm')
         : '',
     }));
 
@@ -45,6 +48,7 @@ export const getRoles = async (req, res) => {
     res.status(500).json({ message: 'Server error while fetching roles' });
   }
 };
+
 export const getRoleById = async (req, res) => {
   try {
     const role = await Role.findById(req.params.id);
@@ -56,9 +60,8 @@ export const getRoleById = async (req, res) => {
     console.error('Error fetching role:', err);
     res.status(500).json({ message: 'Server error' });
   }
-}
+};
 
-// controllers/roleController.js
 export const updateRole = async (req, res) => {
   try {
     const { id } = req.params;
@@ -82,7 +85,7 @@ export const updateRole = async (req, res) => {
     res.status(500).json({ message: 'Server error while updating role' });
   }
 };
-// server/controllers/roleController.js
+
 export const deleteRole = async (req, res) => {
   try {
     const { id } = req.params;
@@ -96,3 +99,49 @@ export const deleteRole = async (req, res) => {
     res.status(500).json({ message: 'Server error while deleting role' });
   }
 };
+
+
+// DELETE /api/roles/:roleId/schedule/:scheduleId
+export const deleteScheduleFromRole = async (req, res) => {
+  const { roleId, scheduleId } = req.params;
+
+  try {
+    const updatedRole = await Role.findByIdAndUpdate(
+      roleId,
+      {
+        $pull: {
+          schedule: { _id: scheduleId }, // removes the schedule with this _id
+        },
+      },
+      { new: true }
+    );
+
+    if (!updatedRole) {
+      return res.status(404).json({ message: 'Role not found' });
+    }
+
+    res.status(200).json({ message: 'Schedule removed from role', role: updatedRole });
+  } catch (err) {
+    console.error('Error deleting schedule:', err);
+    res.status(500).json({ message: 'Server error while deleting schedule from role' });
+  }
+};
+
+
+export const deleteByDateRange = async (req, res) => {
+  const { startDate, endDate } = req.body;
+
+  try {
+    const result = await Schedule.deleteMany({
+      date: { $gte: new Date(startDate), $lte: new Date(endDate) }
+    });
+
+    res.status(200).json({
+      message: `${result.deletedCount} schedules deleted successfully`
+    });
+  } catch (error) {
+    console.error('Error deleting schedules by date range:', error);
+    res.status(500).json({ message: 'Server error while deleting schedules' });
+  }
+};
+

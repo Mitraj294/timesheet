@@ -30,8 +30,9 @@ import CreateRole from "./components/pages/CreateRole";
 import Vehicles from "./components/pages/Vehicles";
 import CreateOrUpdateVehicle from "./components/pages/CreateOrUpdateVehicle";
 import ViewProject from "./components/pages/ViewProject";
-
+import ViewVehicle from "./components/pages/ViewVehicle";
 import "./styles/App.css";
+
 
 // Protected route wrapper
 const PrivateRoute = ({ children }) => {
@@ -94,7 +95,9 @@ function App() {
               {/* Vehicle Pages */}
               <Route path="/vehicles" element={<PrivateRoute><Vehicles /></PrivateRoute>} />
               <Route path="/employer/vehicles/create" element={<PrivateRoute><CreateOrUpdateVehicle /></PrivateRoute>} />
-              <Route path="/employer/vehicles/update/:vehicleId" element={<PrivateRoute><CreateOrUpdateVehicle /></PrivateRoute>} />
+              <Route path="/vehicles/update/:vehicleId" element={<PrivateRoute><CreateOrUpdateVehicle /></PrivateRoute>} />
+              <Route path="/employer/vehicles/view/:vehicleId" element={<PrivateRoute><ViewVehicle /></PrivateRoute>} />
+
             </Routes>
           </Layout>
         </Router>

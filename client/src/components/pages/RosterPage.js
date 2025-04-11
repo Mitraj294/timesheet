@@ -144,26 +144,44 @@ const RosterPage = () => {
           entry.startTime.trim() !== ''
       )
     );
-   //console.log(`Roles for ${dayStr}:`, rolesForDay);
     return rolesForDay;
   };
 
-  // Delete role handler – adjust this with your actual API
-  const handleDeleteRole = async (roleId) => {
+  const handleDeleteScheduleFromRole = async (roleId, scheduleId) => {
     try {
       const token = localStorage.getItem('token');
-      await axios.delete(`http://localhost:5000/api/roles/${roleId}`, {
+      await axios.delete(`http://localhost:5000/api/roles/${roleId}/schedule/${scheduleId}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
+  
+      // Refresh roles after deletion
       const res = await axios.get('http://localhost:5000/api/roles', {
         headers: { Authorization: `Bearer ${token}` }
       });
       setRoles(res.data);
     } catch (err) {
-      console.error("Error deleting role:", err.response || err.message);
+      console.error("Error deleting schedule from role:", err.response || err.message);
     }
   };
 
+  const handleDeleteRole = async (roleId) => {
+    if (!window.confirm('Are you sure you want to delete this role? This action cannot be undone.')) {
+      console.warn('Deletion canceled for role:', roleId);
+      return;
+    }
+    try {
+      const token = localStorage.getItem('token');
+      await axios.delete(`http://localhost:5000/api/roles/${roleId}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      console.log('Role deleted successfully:', roleId);
+      setRoles(prevRoles => prevRoles.filter(role => role._id !== roleId));
+    } catch (error) {
+      console.error('Failed to delete role:', error);
+    }
+  };
 
   const handleRolloutToNextWeek = async () => {
     try {
@@ -171,91 +189,71 @@ const RosterPage = () => {
       const nextWeekStart = addWeeks(currentWeekStart, 1);
       const nextWeekStartStr = format(nextWeekStart, 'yyyy-MM-dd');
       const nextWeekEndStr = format(addDays(nextWeekStart, 6), 'yyyy-MM-dd');
-  
-      // STEP 1: Rollout EMPLOYEE schedules
-      const newSchedules = schedules.map(sch => {
+
+      await axios.delete('http://localhost:5000/api/schedules/deleteByDateRange', {
+        data: { startDate: nextWeekStartStr, endDate: nextWeekEndStr },
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      await Promise.all(roles.map(async (role) => {
+        const cleanedSchedule = role.schedule?.filter(entry => entry.day < nextWeekStartStr || entry.day > nextWeekEndStr) || [];
+        await axios.put(`http://localhost:5000/api/roles/${role._id}`, {
+          ...role,
+          schedule: cleanedSchedule
+        }, { headers: { Authorization: `Bearer ${token}` } });
+      }));
+
+      const newEmployeeSchedules = schedules.map(sch => {
         const dateObj = new Date(sch.date);
-        const dayIndex = (dateObj.getDay() + 6) % 7; // Ensure Mon-Sun index
+        const dayIndex = (dateObj.getDay() + 6) % 7;
         const nextDate = addDays(nextWeekStart, dayIndex);
-        const nextDateStr = format(nextDate, 'yyyy-MM-dd');
-  
         return {
           employee: sch.employee._id || sch.employee,
           role: sch.role?._id || sch.role,
           startTime: sch.startTime,
           endTime: sch.endTime,
-          date: nextDateStr,
+          date: format(nextDate, 'yyyy-MM-dd')
         };
       });
-  
-      // Post employee schedules for next week
-      await axios.post('http://localhost:5000/api/schedules/bulk', newSchedules, {
-        headers: { Authorization: `Bearer ${token}` },
+
+      await axios.post('http://localhost:5000/api/schedules/bulk', newEmployeeSchedules, {
+        headers: { Authorization: `Bearer ${token}` }
       });
-  
-      // STEP 2: Rollout ROLE schedules
-      await Promise.all(
-        roles.map(async (role) => {
-          if (!role.schedule || role.schedule.length === 0) return;
-  
-          // Filter out any existing role schedule entries for next week
-          const filtered = role.schedule.filter(entry =>
-            entry.day < nextWeekStartStr || entry.day > nextWeekEndStr
-          );
-  
-          // Create cloned entries with next week dates
-          const cloned = role.schedule
-            .filter(entry => entry.startTime && entry.endTime)
-            .map(entry => {
-              const newDay = addDays(new Date(entry.day), 7);
-              return {
-                day: format(newDay, 'yyyy-MM-dd'),
-                startTime: entry.startTime,
-                endTime: entry.endTime,
-              };
-            });
-  
-          // Combine cleaned + cloned
-          const newSchedule = [...filtered, ...cloned];
-  
-          const updatedRole = {
-            roleName: role.roleName,
-            roleDescription: role.roleDescription,
-            color: role.color,
-            assignedEmployees: role.assignedEmployees.map(emp =>
-              typeof emp === 'object' && emp._id ? emp._id : emp
-            ),
-            schedule: newSchedule,
+
+      await Promise.all(roles.map(async (role) => {
+        if (!role.schedule || role.schedule.length === 0) return;
+        const clonedEntries = role.schedule.map(entry => {
+          const newDay = addDays(new Date(entry.day), 7);
+          return {
+            day: format(newDay, 'yyyy-MM-dd'),
+            startTime: entry.startTime,
+            endTime: entry.endTime
           };
-  
-          await axios.put(`http://localhost:5000/api/roles/${role._id}`, updatedRole, {
-            headers: { Authorization: `Bearer ${token}` },
-          });
-        })
-      );
-  
-      // STEP 3: Refresh Schedules & Roles for UI
-      const scheduleRes = await axios.get(
-        `http://localhost:5000/api/schedules?weekStart=${nextWeekStartStr}`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+        });
+        const updatedRole = {
+          ...role,
+          assignedEmployees: role.assignedEmployees.map(emp => (typeof emp === 'object' ? emp._id : emp)),
+          schedule: [...role.schedule, ...clonedEntries]
+        };
+        await axios.put(`http://localhost:5000/api/roles/${role._id}`, updatedRole, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+      }));
+
+      const scheduleRes = await axios.get(`http://localhost:5000/api/schedules?weekStart=${nextWeekStartStr}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
       setSchedules(scheduleRes.data);
       setCurrentWeekStart(nextWeekStart);
-  
+
       const roleRes = await axios.get('http://localhost:5000/api/roles', {
-        headers: { Authorization: `Bearer ${token}` },
+        headers: { Authorization: `Bearer ${token}` }
       });
       setRoles(roleRes.data);
-  
-      console.log('Rollout complete!');
-  
     } catch (err) {
-      console.error(' Error during rollout:', err.response?.data || err.message);
+      console.error('Error during rollout:', err.response?.data || err.message);
     }
   };
-  
-  
-  
   // When clicking an employee, open the modal with that employee's info.
   const handleEmployeeClick = (emp) => {
     setSelectedEmployee(emp);
@@ -271,17 +269,14 @@ const RosterPage = () => {
     try {
       const token = localStorage.getItem('token');
       const dayOrder = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+      // For each selected day, check if a schedule for the same employee and date exists.
+      // If one or more already exist, delete extras and update the remaining one.
       const schedulePromises = selectedDays.map(async (day) => {
         const index = dayOrder.indexOf(day);
         const date = format(addDays(currentWeekStart, index), 'yyyy-MM-dd');
         const utcStartTime = convertLocalTimeToUTC(startTime[day], date);
         const utcEndTime = convertLocalTimeToUTC(endTime[day], date);
-
-        // Find if a schedule already exists for this employee on this date.
-        const existing = schedules.find(s =>
-          s.employee._id === selectedEmployee._id &&
-          format(new Date(s.date), 'yyyy-MM-dd') === date
-        );
 
         const scheduleData = {
           employee: selectedEmployee._id,
@@ -291,15 +286,30 @@ const RosterPage = () => {
           date
         };
 
-        if (existing) {
-          return axios.put(`http://localhost:5000/api/schedules/${existing._id}`, scheduleData, {
+        // Find all existing schedules for the same employee and date.
+        const existingSchedules = schedules.filter(s =>
+          s.employee._id === selectedEmployee._id &&
+          format(new Date(s.date), 'yyyy-MM-dd') === date
+        );
+
+        if (existingSchedules.length > 0) {
+          // If more than one exists, delete all but the first.
+          if (existingSchedules.length > 1) {
+            for (let i = 1; i < existingSchedules.length; i++) {
+              await axios.delete(`http://localhost:5000/api/schedules/${existingSchedules[i]._id}`, {
+                headers: { Authorization: `Bearer ${token}` }
+              });
+            }
+          }
+          // Update the first existing schedule with the new data.
+          return axios.put(`http://localhost:5000/api/schedules/${existingSchedules[0]._id}`, scheduleData, {
             headers: { Authorization: `Bearer ${token}` }
           });
         } else {
-          await axios.post('http://localhost:5000/api/schedules/bulk', [scheduleData], {
+          // If no existing schedule is found, create a new one.
+          return axios.post('http://localhost:5000/api/schedules/bulk', [scheduleData], {
             headers: { Authorization: `Bearer ${token}` }
           });
-          
         }
       });
 
@@ -349,13 +359,15 @@ const RosterPage = () => {
             <Link to="/dashboard">Dashboard</Link> / <span>Rosters</span>
           </div>
         </div>
-        {isEqual(currentWeekStart, startOfWeek(new Date(), { weekStartsOn: 1 })) ||
- isEqual(currentWeekStart, addWeeks(startOfWeek(new Date(), { weekStartsOn: 0 }), 1)) ? (
+        {(
+  isEqual(currentWeekStart, startOfWeek(new Date(), { weekStartsOn: 1 })) || 
+  isEqual(currentWeekStart, addWeeks(startOfWeek(new Date(), { weekStartsOn: 1 }), -1))
+) && (
   <button className="btn btn-green" onClick={handleRolloutToNextWeek}>
     <FontAwesomeIcon icon={faSyncAlt} className="icon-left" />
     Rollout Schedules to Next Week
   </button>
-) : null} 
+)}
 
 
       </header>
@@ -376,26 +388,42 @@ const RosterPage = () => {
       </div>
 
       <div className="roster-body">
-        <aside className="roles-sidebar">
-          <div className="sidebar-header">
-            <p>Roles</p>
-            <button className="btn btn-green" onClick={() => navigate('/createrole')}>
-              Create <FontAwesomeIcon icon={faPlus} />
-            </button>
-          </div>
-          <div className="role-list">
-            {roles.map(role => (
-              <div
-              key={role._id}
-              className={`role-card role-${role.color?.toLowerCase() || 'default'} clickable`}
-              onClick={() => navigate(`/createrole/${role._id}`)}
-            >
-              <p className="role-name">{role.roleName}</p>
+        {(isEqual(currentWeekStart, startOfWeek(new Date(), { weekStartsOn: 1 })) ||
+          isEqual(currentWeekStart, addWeeks(startOfWeek(new Date(), { weekStartsOn: 1 }), 1))) && (
+          <aside className="roles-sidebar">
+            <div className="sidebar-header">
+              <p>Roles</p>
+              <button className="btn btn-green" onClick={() => navigate('/createrole')}>
+                Create <FontAwesomeIcon icon={faPlus} />
+              </button>
             </div>
-            
-            ))}
-          </div>
-        </aside>
+            <div className="role-list">
+              {roles.map(role => (
+                <div
+                  key={role._id}
+                  className={`role-card role-${role.color?.toLowerCase() || 'default'}`}
+                >
+                  <div
+                    className="role-name clickable"
+                    onClick={() => navigate(`/createrole/${role._id}`)}
+                  >
+                    {role.roleName}
+                  </div>
+                  <button
+                    className="delete-btn"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDeleteRole(role._id);
+                    }}
+                    title="Delete Role"
+                  >
+                    <FontAwesomeIcon icon={faTrash} color="red" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          </aside>
+        )}
 
         <section className="schedule-grid">
           <div className="grid-header-row">
@@ -427,73 +455,73 @@ const RosterPage = () => {
                 ))}
 
                 {/* Show Role Cards with extra details */}
-            
-{getRolesForDay(day).map(role => {
-  const dayStr = format(day, 'yyyy-MM-dd');
-  // Find the schedule entry for this day from the role.
-  const scheduleEntry = role.schedule.find(entry => entry.day === dayStr);
-  const timeDisplay = scheduleEntry && scheduleEntry.startTime && scheduleEntry.endTime
-    ? `${formatTimeUTCtoLocal(scheduleEntry.startTime, scheduleEntry.day)} - ${formatTimeUTCtoLocal(scheduleEntry.endTime, scheduleEntry.day)}`
-    : '-- --';
+                {getRolesForDay(day).map(role => {
+                  const dayStr = format(day, 'yyyy-MM-dd');
+                  // Find the schedule entry for this day from the role.
+                  const scheduleEntry = role.schedule.find(entry => entry.day === dayStr);
+                  const timeDisplay = scheduleEntry && scheduleEntry.startTime && scheduleEntry.endTime
+                    ? `${formatTimeUTCtoLocal(scheduleEntry.startTime, scheduleEntry.day)} - ${formatTimeUTCtoLocal(scheduleEntry.endTime, scheduleEntry.day)}`
+                    : '-- --';
 
-  // Updated mapping for assigned employees:
-  const assignedEmployeeNames =
-    role.assignedEmployees && role.assignedEmployees.length > 0
-      ? role.assignedEmployees
-          .map(emp => {
-            // If the element is an object already (populated), use its name.
-            if (typeof emp === 'object' && emp.name) {
-              return emp.name;
-            }
-            // Otherwise, try to look it up from the employees state using the ID.
-            const found = employees.find(e => e._id === emp);
-            return found ? found.name : null;
-          })
-          .filter(name => name)
-          .join(', ')
-      : '-- --';
+                  // Updated mapping for assigned employees:
+                  const assignedEmployeeNames =
+                    role.assignedEmployees && role.assignedEmployees.length > 0
+                      ? role.assignedEmployees
+                          .map(emp => {
+                            if (typeof emp === 'object' && emp.name) {
+                              return emp.name;
+                            }
+                            const found = employees.find(e => e._id === emp);
+                            return found ? found.name : null;
+                          })
+                          .filter(name => name)
+                          .join(', ')
+                      : '-- --';
 
-  return (
-    <div
-      key={role._id}
-      className={`role-card role-${role.color?.toLowerCase() || 'default'}`}
-    >
-      <p className="role-time">{timeDisplay}</p>
-      <p className="role-name">{role.roleName || '-- --'}</p>
-      <p className="role-employee">{assignedEmployeeNames || '-- --'}</p>
-      <div className="role-actions">
-        <FontAwesomeIcon icon={faEye} />
-        <FontAwesomeIcon
-          icon={faTrash}
-          onClick={() => handleDeleteRole(role._id)}
-          className="clickable-icon"
-        />
-      </div>
-    </div>
-  );
-})}
-
+                  return (
+                    <div
+                      key={role._id}
+                      className={`role-card role-${role.color?.toLowerCase() || 'default'}`}
+                    >
+                      <p className="role-time">{timeDisplay}</p>
+                      <p className="role-name">{role.roleName || '-- --'}</p>
+                      <p className="role-employee">{assignedEmployeeNames || '-- --'}</p>
+                      <div className="role-actions">
+                        <FontAwesomeIcon icon={faEye} />
+                        <FontAwesomeIcon
+                          icon={faTrash}
+                          onClick={() =>
+                            scheduleEntry && handleDeleteScheduleFromRole(role._id, scheduleEntry._id)
+                          }
+                          className="clickable-icon"
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             ))}
           </div>
         </section>
-
-        <aside className="employees-sidebar">
-          <div className="sidebar-header">
-            <p>Employees</p>
-          </div>
-          <div className="employee-list">
-            {employees.map(emp => (
-              <button
-                key={emp._id}
-                className="btn btn-yellow"
-                onClick={() => handleEmployeeClick(emp)}
-              >
-                {emp.name}
-              </button>
-            ))}
-          </div>
-        </aside>
+        {(isEqual(currentWeekStart, startOfWeek(new Date(), { weekStartsOn: 1 })) ||
+          isEqual(currentWeekStart, addWeeks(startOfWeek(new Date(), { weekStartsOn: 1 }), 1))) && (
+          <aside className="employees-sidebar">
+            <div className="sidebar-header">
+              <p>Employees</p>
+            </div>
+            <div className="employee-list">
+              {employees.map(emp => (
+                <button
+                  key={emp._id}
+                  className="btn btn-yellow"
+                  onClick={() => handleEmployeeClick(emp)}
+                >
+                  {emp.name}
+                </button>
+              ))}
+            </div>
+          </aside>
+        )}
       </div>
 
       {showModal && selectedEmployee && (
