@@ -1,32 +1,48 @@
 .vehicles-page {
     padding: 2rem;
     font-family: 'Inter', sans-serif;
+    background: #fff;
+    color: #333;
 
     .vehicles-header {
         display: flex;
         flex-direction: column;
         gap: 0.25rem;
-        margin-bottom: 1rem;
+        margin-bottom: 1.5rem;
 
         h4 {
-            font-size: 1.5rem;
+            font-size: 1.8rem;
             font-weight: 700;
         }
 
         .breadcrumbs {
-            font-size: 0.875rem;
+            display: flex;
+            flex-wrap: wrap;
+            font-size: 0.95rem;
             color: #666;
+            gap: 0.5rem;
+            margin-top: 0.25rem;
 
             a {
                 color: #4a90e2;
                 text-decoration: none;
-                margin-right: 0.5rem;
+                font-weight: 500;
+
+                &:hover {
+                    text-decoration: underline;
+                }
+            }
+
+            span {
+                font-weight: 600;
+                color: #666;
             }
         }
     }
 
     .vehicles-actions {
         display: flex;
+        flex-wrap: wrap;
         gap: 1rem;
         margin-bottom: 1.5rem;
 
@@ -37,142 +53,14 @@
             padding: 0.5rem 1rem;
             border: none;
             border-radius: 6px;
-            font-weight: 500;
-            cursor: pointer;
-            font-size: 0.9rem;
-
-            i {
-                font-size: 1.2rem;
-            }
-
-            &.btn-green {
-                background-color: #4caf50;
-                color: white;
-            }
-
-            &.btn-purple {
-                background-color: #7e57c2;
-                color: white;
-            }
-
-            &.btn-red {
-                background-color: #f44336;
-                color: white;
-            }
-        }
-    }
-
-    .vehicles-search {
-        position: relative;
-        margin-bottom: 1.5rem;
-
-        input {
-            width: 100%;
-            padding: 0.5rem 2.5rem 0.5rem 0.75rem;
-            border: 1px solid #ccc;
-            border-radius: 6px;
-            font-size: 1rem;
-        }
-
-        .search-icon {
-            position: absolute;
-            right: 0.75rem;
-            top: 50%;
-            transform: translateY(-50%);
-            color: #999;
-        }
-    }
-
-    .vehicles-grid {
-        display: grid;
-        gap: 0.75rem;
-
-        .vehicles-row {
-            display: grid;
-            grid-template-columns: 1fr 2fr 1fr 2fr 1.5fr;
-            align-items: center;
-            padding: 0.75rem 1rem;
-            background-color: #f9f9f9;
-            border-radius: 8px;
-            font-size: 0.95rem;
-
-            &.header {
-                background-color: #e0e0e0;
-                font-weight: 600;
-            }
-
-            .actions {
-                display: flex;
-                gap: 0.5rem;
-
-                .btn-icon {
-                    background: none;
-                    border: none;
-                    cursor: pointer;
-                    font-size: 1.1rem;
-                    color: #444;
-
-                    &.btn-danger {
-                        color: #e53935;
-                    }
-                }
-            }
-        }
-    }
-}
-
-.vehicles-page {
-    padding: 20px;
-
-    .vehicles-header {
-        display: flex;
-        flex-direction: column;
-        margin-bottom: 20px;
-
-        h4 {
-            margin: 0;
-            font-size: 22px;
             font-weight: 600;
-        }
-
-        .breadcrumbs {
-            margin-top: 5px;
-            font-size: 14px;
-
-            a {
-                color: #4a90e2;
-                text-decoration: none;
-
-                &:hover {
-                    text-decoration: underline;
-                }
-            }
-        }
-    }
-
-    .vehicles-actions {
-        display: flex;
-        gap: 10px;
-        margin-bottom: 20px;
-
-        .btn {
-            display: flex;
-            align-items: center;
-            gap: 5px;
-            padding: 8px 14px;
-            border: none;
-            border-radius: 4px;
-            font-size: 14px;
             cursor: pointer;
-            transition: 0.3s ease;
-
-            svg {
-                font-size: 14px;
-            }
+            font-size: 0.95rem;
+            transition: background-color 0.3s ease;
 
             &.btn-green {
                 background-color: #28a745;
-                color: #fff;
+                color: white;
 
                 &:hover {
                     background-color: #218838;
@@ -181,7 +69,7 @@
 
             &.btn-purple {
                 background-color: #6f42c1;
-                color: #fff;
+                color: white;
 
                 &:hover {
                     background-color: #5a32a3;
@@ -190,10 +78,26 @@
 
             &.btn-red {
                 background-color: #dc3545;
-                color: #fff;
+                color: white;
 
                 &:hover {
                     background-color: #b52a37;
+                }
+            }
+
+            &.btn-primary {
+                background-color: #6b4eff;
+
+                &:hover {
+                    background-color: #5a3ee5;
+                }
+            }
+
+            &.btn-danger {
+                background-color: #ef4444;
+
+                &:hover {
+                    background-color: #dc2626;
                 }
             }
         }
@@ -201,14 +105,16 @@
 
     .vehicles-search {
         position: relative;
-        margin-bottom: 20px;
-        width: 300px;
+        margin-bottom: 1.5rem;
+        width: 100%;
+        max-width: 300px;
 
         input {
             width: 100%;
             padding: 8px 12px 8px 35px;
             border: 1px solid #ccc;
-            border-radius: 4px;
+            border-radius: 6px;
+            font-size: 1rem;
         }
 
         .search-icon {
@@ -221,15 +127,17 @@
 
     .vehicles-grid {
         border: 1px solid #ddd;
-        border-radius: 4px;
+        border-radius: 6px;
         overflow: hidden;
+        font-size: 0.95rem;
 
         .vehicles-row {
             display: grid;
-            grid-template-columns: 1.5fr 2fr 1fr 2fr 1.5fr;
-            padding: 10px 15px;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            padding: 12px 16px;
             align-items: center;
             border-bottom: 1px solid #eee;
+            background-color: #f9f9f9;
 
             &:last-child {
                 border-bottom: none;
@@ -237,7 +145,7 @@
 
             &.header {
                 background-color: #71b8f5;
-                color: #fff;
+                color: white;
                 font-weight: bold;
             }
 
@@ -249,6 +157,7 @@
                     background: none;
                     border: none;
                     cursor: pointer;
+                    font-size: 1rem;
                     color: #4a4a4a;
                     transition: color 0.3s;
 
@@ -263,12 +172,69 @@
                             color: #b52a37;
                         }
                     }
-
-                    svg {
-                        font-size: 16px;
-                    }
                 }
             }
         }
+    }
+
+    .vehicle-name-section {
+        margin-top: 2rem;
+
+        .vehicle-name-heading {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #222;
+        }
+    }
+
+    .review-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 1.5rem;
+        margin-top: 1.5rem;
+
+        .label {
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: #666;
+        }
+
+        .value {
+            font-size: 1.05rem;
+            font-weight: 700;
+            color: #222;
+        }
+
+        .status-group {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+
+            .status-icon {
+                font-size: 1rem;
+                font-weight: bold;
+
+                &.green {
+                    color: #10b981;
+                }
+
+                &.red {
+                    color: #ef4444;
+                }
+            }
+        }
+    }
+
+    .green {
+        color: #10b981;
+    }
+
+    .red {
+        color: #ef4444;
+    }
+
+    .eye-icon {
+        color: #22c55e;
+        cursor: pointer;
     }
 }

@@ -13,21 +13,28 @@ import {
   faSearch,
 } from '@fortawesome/free-solid-svg-icons';
 
+// Use the base URL from the environment variable or default to localhost without the trailing "/api"
+const BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+
 const Vehicles = () => {
   const [vehicles, setVehicles] = useState([]);
   const [search, setSearch] = useState('');
   const navigate = useNavigate();
 
-  // Fetch vehicles from the API
+  // Fetch vehicles from the backend
   useEffect(() => {
     const fetchVehicles = async () => {
       try {
         const token = localStorage.getItem('token');
-        const res = await axios.get('http://localhost:5000/api/vehicles', {
+        if (!token) throw new Error('No token found');
+
+        // IMPORTANT: Ensure that BASE_URL does NOT include '/api'
+        const res = await axios.get(`${BASE_URL}/vehicles`, {
           headers: {
             Authorization: `Bearer ${token}`,
           },
         });
+        
         setVehicles(res.data);
       } catch (err) {
         console.error('Error fetching vehicles:', err);
@@ -35,6 +42,8 @@ const Vehicles = () => {
           alert('Unauthorized. Please log in again.');
           localStorage.removeItem('token');
           navigate('/login');
+        } else {
+          alert('Failed to fetch vehicles. Please try again later.');
         }
       }
     };
@@ -42,33 +51,23 @@ const Vehicles = () => {
     fetchVehicles();
   }, [navigate]);
 
-  // Handler for deleting a vehicle
   const handleDeleteVehicle = async (vehicleId) => {
-    const confirmDelete = window.confirm(
-      'Are you sure you want to delete this vehicle?'
-    );
-    if (!confirmDelete) return;
+    if (!window.confirm('Are you sure you want to delete this vehicle?')) return;
 
     try {
       const token = localStorage.getItem('token');
-      await axios.delete(`http://localhost:5000/api/vehicles/${vehicleId}`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+      await axios.delete(`${BASE_URL}/api/vehicles/${vehicleId}`, {
+        headers: { Authorization: `Bearer ${token}` },
       });
-      // Remove the deleted vehicle from state so UI updates immediately
-      setVehicles((prevVehicles) =>
-        prevVehicles.filter((vehicle) => vehicle._id !== vehicleId)
-      );
+      setVehicles((prev) => prev.filter((vehicle) => vehicle._id !== vehicleId));
     } catch (err) {
       console.error('Error deleting vehicle:', err);
       alert('Failed to delete vehicle. Please try again.');
     }
   };
 
-  // Filter vehicles based on search
-  const filteredVehicles = vehicles.filter((v) =>
-    v.name.toLowerCase().includes(search.toLowerCase())
+  const filteredVehicles = vehicles.filter((vehicle) =>
+    vehicle.name.toLowerCase().includes(search.toLowerCase())
   );
 
   return (
@@ -110,34 +109,32 @@ const Vehicles = () => {
           <div>WOF/Rego</div>
           <div>Actions</div>
         </div>
-        {filteredVehicles.map((vehicle) => (
-          <div key={vehicle._id} className="vehicles-row">
-            <div>{vehicle.createdAt?.split('T')[0]}</div>
-            <div>{vehicle.name}</div>
-            <div>{vehicle.hours || '--'}</div>
-            <div>{vehicle.wofRego || '--'}</div>
-            <div className="actions">
-              <Link
-                to={`/vehicles/view/${vehicle._id}`}
-                className="btn-icon"
-              >
-                <FontAwesomeIcon icon={faEye} />
-              </Link>
-              <Link
-                to={`/vehicles/update/${vehicle._id}`}
-                className="btn-icon"
-              >
-                <FontAwesomeIcon icon={faPen} />
-              </Link>
-              <button
-                className="btn-icon btn-danger"
-                onClick={() => handleDeleteVehicle(vehicle._id)}
-              >
-                <FontAwesomeIcon icon={faTrash} />
-              </button>
+        {filteredVehicles.length === 0 ? (
+          <div className="vehicles-row no-results">No vehicles found.</div>
+        ) : (
+          filteredVehicles.map((vehicle) => (
+            <div key={vehicle._id} className="vehicles-row">
+              <div>{vehicle.createdAt?.split('T')[0]}</div>
+              <div>{vehicle.name}</div>
+              <div>{vehicle.hours || '--'}</div>
+              <div>{vehicle.wofRego || '--'}</div>
+              <div className="actions">
+                <Link to={`/vehicles/view/${vehicle._id}`} className="btn-icon">
+                  <FontAwesomeIcon icon={faEye} />
+                </Link>
+                <Link to={`/vehicles/update/${vehicle._id}`} className="btn-icon">
+                  <FontAwesomeIcon icon={faPen} />
+                </Link>
+                <button
+                  className="btn-icon btn-danger"
+                  onClick={() => handleDeleteVehicle(vehicle._id)}
+                >
+                  <FontAwesomeIcon icon={faTrash} />
+                </button>
+              </div>
             </div>
-          </div>
-        ))}
+          ))
+        )}
       </div>
     </div>
   );

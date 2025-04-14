@@ -4,6 +4,7 @@ import {
   getRoles,
   getRoleById,
   updateRole,
+  deleteByDateRange,
   deleteRole,
   deleteScheduleFromRole 
 } from '../controllers/roleController.js';
@@ -15,6 +16,7 @@ router.post('/', protect, employerOnly, createRole);
 router.get('/', protect, getRoles);
 router.get('/:id', protect, getRoleById);
 router.put('/:id', protect, employerOnly, updateRole);  
+router.delete('/deleteByDateRange', protect, deleteByDateRange);
 router.delete('/:id', protect, employerOnly, deleteRole);
 router.delete('/:roleId/schedule/:scheduleId', protect, employerOnly, deleteScheduleFromRole);
 

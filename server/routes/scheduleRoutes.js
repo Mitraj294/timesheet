@@ -17,6 +17,4 @@ router.delete('/deleteByDateRange', protect, deleteByDateRange);
 router.put('/:id', protect, updateSchedule); 
 router.delete('/:id', protect, deleteSchedule);
 
-
-
 export default router;

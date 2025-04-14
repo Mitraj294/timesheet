@@ -31,6 +31,10 @@ import Vehicles from "./components/pages/Vehicles";
 import CreateOrUpdateVehicle from "./components/pages/CreateOrUpdateVehicle";
 import ViewProject from "./components/pages/ViewProject";
 import ViewVehicle from "./components/pages/ViewVehicle";
+import ViewReview from './components/pages/ViewReview';
+import CreateVehicleReview from "./components/pages/CreateVehicleReview";
+
+
 import "./styles/App.css";
 
 
@@ -96,7 +100,13 @@ function App() {
               <Route path="/vehicles" element={<PrivateRoute><Vehicles /></PrivateRoute>} />
               <Route path="/employer/vehicles/create" element={<PrivateRoute><CreateOrUpdateVehicle /></PrivateRoute>} />
               <Route path="/vehicles/update/:vehicleId" element={<PrivateRoute><CreateOrUpdateVehicle /></PrivateRoute>} />
-              <Route path="/employer/vehicles/view/:vehicleId" element={<PrivateRoute><ViewVehicle /></PrivateRoute>} />
+              <Route path="/vehicles/view/:vehicleId" element={<PrivateRoute><ViewVehicle /></PrivateRoute>} />
+              <Route path="/vehicles/:vehicleId/create-review" element={<PrivateRoute><ViewReview /></PrivateRoute>} />
+              <Route path="/vehicles/:vehicleId/create-review" element={<PrivateRoute><ViewReview /></PrivateRoute>} />
+
+              <Route path="/vehicles/:vehicleId/review" element={<PrivateRoute><CreateVehicleReview /></PrivateRoute>} />
+              <Route path="/vehicles/:vehicleId/review/:reviewId"element={<PrivateRoute><CreateVehicleReview  /></PrivateRoute>} />
+
 
             </Routes>
           </Layout>
