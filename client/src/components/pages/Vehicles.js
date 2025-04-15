@@ -13,9 +13,6 @@ import {
   faSearch,
 } from '@fortawesome/free-solid-svg-icons';
 
-// Use the base URL from the environment variable or default to localhost without the trailing "/api"
-const BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
-
 const Vehicles = () => {
   const [vehicles, setVehicles] = useState([]);
   const [search, setSearch] = useState('');
@@ -28,13 +25,10 @@ const Vehicles = () => {
         const token = localStorage.getItem('token');
         if (!token) throw new Error('No token found');
 
-        // IMPORTANT: Ensure that BASE_URL does NOT include '/api'
         const res = await axios.get(`${BASE_URL}/vehicles`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
+          headers: { Authorization: `Bearer ${token}` },
         });
-        
+
         setVehicles(res.data);
       } catch (err) {
         console.error('Error fetching vehicles:', err);
@@ -51,24 +45,35 @@ const Vehicles = () => {
     fetchVehicles();
   }, [navigate]);
 
-  const handleDeleteVehicle = async (vehicleId) => {
-    if (!window.confirm('Are you sure you want to delete this vehicle?')) return;
-
+  const handleDownloadReport = async () => {
     try {
       const token = localStorage.getItem('token');
-      await axios.delete(`${BASE_URL}/api/vehicles/${vehicleId}`, {
-        headers: { Authorization: `Bearer ${token}` },
+      const response = await axios.get(`${BASE_URL}/vehicles/download-report`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        responseType: 'blob',  // Make sure this is set to handle the file correctly
       });
-      setVehicles((prev) => prev.filter((vehicle) => vehicle._id !== vehicleId));
+
+      // Create a Blob from the response data
+      const blob = new Blob([response.data], {
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      });
+
+      // Create an anchor element to trigger the download
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'all_vehicles_report.xlsx';  // Filename for download
+      a.click();  // Trigger the download
+      window.URL.revokeObjectURL(url);
     } catch (err) {
-      console.error('Error deleting vehicle:', err);
-      alert('Failed to delete vehicle. Please try again.');
+      console.error('Error downloading report:', err);
+      alert('Failed to download vehicle report.');
     }
   };
 
-  const filteredVehicles = vehicles.filter((vehicle) =>
-    vehicle.name.toLowerCase().includes(search.toLowerCase())
-  );
+  const BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 
   return (
     <div className="vehicles-page">
@@ -86,7 +91,7 @@ const Vehicles = () => {
         <button className="btn btn-purple">
           <FontAwesomeIcon icon={faPaperPlane} /> Send Report
         </button>
-        <button className="btn btn-red">
+        <button className="btn btn-red" onClick={handleDownloadReport}>
           <FontAwesomeIcon icon={faDownload} /> Download Report
         </button>
       </div>
@@ -109,10 +114,10 @@ const Vehicles = () => {
           <div>WOF/Rego</div>
           <div>Actions</div>
         </div>
-        {filteredVehicles.length === 0 ? (
+        {vehicles.length === 0 ? (
           <div className="vehicles-row no-results">No vehicles found.</div>
         ) : (
-          filteredVehicles.map((vehicle) => (
+          vehicles.map((vehicle) => (
             <div key={vehicle._id} className="vehicles-row">
               <div>{vehicle.createdAt?.split('T')[0]}</div>
               <div>{vehicle.name}</div>

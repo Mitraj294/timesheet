@@ -1,38 +1,52 @@
-// vehicleRoutes.js
+// routes/vehicleRoutes.js
 import express from 'express';
 import {
-  createVehicle,
   getVehicles,
   getVehicleById,
+  createVehicle,
   updateVehicle,
   deleteVehicle,
   createVehicleReview,
   getReviewById,
   getVehicleReviewsByVehicleId,
   getVehicleWithReviews,
-  deleteReview
+  updateReview,
+  deleteReview,
+  downloadReviewReport,
+  downloadVehicleReport,
+  downloadAllVehiclesReport,
 } from '../controllers/vehicleController.js';
 
 const router = express.Router();
-console.log("✅ vehicleRoutes loaded");
+console.log("vehicleRoutes loaded");
 
-// --- Vehicle Routes ---
+// Test route for vehicle API health check
 router.get('/test', (req, res) => {
-  res.send('✅ Vehicle test route is working');
+  res.send('Vehicle test route is working');
 });
 
-router.get('/', getVehicles); // GET /api/vehicles
-router.get('/:id', getVehicleById);
-router.post('/', createVehicle);
-router.put('/:id', updateVehicle);
-router.delete('/:id', deleteVehicle);
+// Vehicle CRUD
+router.get('/', getVehicles);                      // GET all vehicles
+router.get('/:id', getVehicleById);                // GET single vehicle by ID
+router.post('/', createVehicle);                   // POST create vehicle
+router.put('/:id', updateVehicle);                 // PUT update vehicle
+router.delete('/:id', deleteVehicle);              // DELETE vehicle
 
-// --- Vehicle Review Routes ---
-router.post('/reviews', createVehicleReview);
-router.get('/review/:reviewId', getReviewById);
+// Vehicle Review Routes
+router.post('/reviews', createVehicleReview);      // POST create review
+router.get('/reviews/:reviewId', getReviewById);     // GET review by review ID
+router.put('/reviews/:reviewId', updateReview);      // PUT update review
+router.delete('/reviews/:reviewId', deleteReview);   // DELETE review
 
-router.get('/reviews/:vehicleId', getVehicleReviewsByVehicleId);
-router.get('/vehicle-with-reviews/:vehicleId', getVehicleWithReviews);
-router.delete('/reviews/:reviewId', deleteReview);
+router.get('/vehicle/:vehicleId/reviews', getVehicleReviewsByVehicleId); // GET all reviews for a vehicle
+router.get('/vehicle-with-reviews/:vehicleId', getVehicleWithReviews);   // GET vehicle with reviews
+
+// Download routes
+router.get('/reviews/:reviewId/download', downloadReviewReport);
+
+router.get('/vehicles/download-report', downloadAllVehiclesReport);
+
+router.get('/:vehicleId/download-report', downloadVehicleReport);
+
 
 export default router;

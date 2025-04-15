@@ -5,14 +5,16 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
   faArrowLeft,
   faDownload,
-  faPaperPlane,
+  faPlus,
   faEye,
   faSearch,
   faCheck,
   faTimes,
   faPen,
-  faTrash
+  faTrash,
 } from '@fortawesome/free-solid-svg-icons';
+import DatePicker from 'react-datepicker';
+import 'react-datepicker/dist/react-datepicker.css';
 import '../../styles/Vehicles.scss';
 
 const ViewVehicle = () => {
@@ -21,6 +23,11 @@ const ViewVehicle = () => {
   const [vehicleHistory, setVehicleHistory] = useState([]);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
+  const [showDateRangePicker, setShowDateRangePicker] = useState(false);
+  const [startDate, setStartDate] = useState(null);
+  const [endDate, setEndDate] = useState(null);
+  const [downloading, setDownloading] = useState(false);
+
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -32,9 +39,13 @@ const ViewVehicle = () => {
         });
         setVehicle(vehicleRes.data);
 
-        const reviewsRes = await axios.get(`http://localhost:5000/api/vehicles/reviews/${vehicleId}`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        const reviewsRes = await axios.get(
+          `http://localhost:5000/api/vehicles/vehicle/${vehicleId}/reviews`,
+          {
+            headers: { Authorization: `Bearer ${token}` },
+          }
+        );
+
         setVehicleHistory(reviewsRes.data.reviews);
       } catch (err) {
         console.error('Error fetching vehicle with reviews:', err);
@@ -70,10 +81,48 @@ const ViewVehicle = () => {
   };
 
   const handleViewReviewClick = (item) => {
- 
-    navigate(`/vehicles/${item._id}/review`, { state: { reviewData: item } });
+    navigate(`/vehicles/reviews/${item._id}/view`);
   };
-  
+
+  const handleDownloadExcelReport = async () => {
+    if (!startDate || !endDate) {
+      alert('Please select a start and end date.');
+      return;
+    }
+
+    setDownloading(true);
+
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.get(
+        `http://localhost:5000/api/vehicles/${vehicleId}/download-report`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+          responseType: 'blob',
+          params: {
+            startDate: startDate.toISOString(),
+            endDate: endDate.toISOString(),
+          },
+        }
+      );
+
+      const blob = new Blob([response.data], {
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      });
+
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${vehicle?.name?.replace(/\s+/g, '_') || 'vehicle'}_report_${startDate.toLocaleDateString()}_to_${endDate.toLocaleDateString()}.xlsx`;
+      a.click();
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Error downloading Excel report:', error);
+      alert('Failed to download report.');
+    } finally {
+      setDownloading(false);
+    }
+  };
 
   if (loading) {
     return <div>Loading...</div>;
@@ -93,13 +142,43 @@ const ViewVehicle = () => {
       </div>
 
       <div className="vehicles-actions">
-        <button className="btn btn-purple" onClick={handleCreateReviewClick}>
-          <FontAwesomeIcon icon={faPaperPlane} /> Create Review
+        <button className="btn btn-green" onClick={handleCreateReviewClick}>
+          <FontAwesomeIcon icon={faPlus} /> Create Review
         </button>
-        <button className="btn btn-red">
+        <button className="btn btn-red" onClick={() => setShowDateRangePicker(!showDateRangePicker)}>
           <FontAwesomeIcon icon={faDownload} /> Download Report
         </button>
       </div>
+
+      {showDateRangePicker && (
+        <div className="download-date-range">
+          <div className="date-picker-range">
+            <DatePicker
+              selected={startDate}
+              onChange={(date) => setStartDate(date)}
+              selectsStart
+              startDate={startDate}
+              endDate={endDate}
+              placeholderText="Start Date"
+              dateFormat="yyyy-MM-dd"
+            />
+            <DatePicker
+              selected={endDate}
+              onChange={(date) => setEndDate(date)}
+              selectsEnd
+              startDate={startDate}
+              endDate={endDate}
+              placeholderText="End Date"
+              dateFormat="yyyy-MM-dd"
+              minDate={startDate}
+            />
+          </div>
+          <button className="btn btn-blue" onClick={handleDownloadExcelReport}>
+            <FontAwesomeIcon icon={faDownload} /> Download Excel
+          </button>
+          {downloading && <p>Generating report, please wait...</p>}
+        </div>
+      )}
 
       <div className="vehicle-name-section">
         <h2 className="vehicle-name-heading">{vehicle?.name ?? 'Vehicle'}</h2>
@@ -118,11 +197,11 @@ const ViewVehicle = () => {
       <div className="vehicles-grid">
         <div className="vehicles-row header">
           <div>Date</div>
-          <div>Employee</div>
+          <div>Employee Name</div>
           <div>WOF/Rego</div>
-          <div>Oil</div>
-          <div>Checked</div>
-          <div>Broken</div>
+          <div>Oil Checked</div>
+          <div>Vehicle Checked</div>
+          <div>Vehicle Broken</div>
           <div>Hours</div>
           <div>Action</div>
         </div>
@@ -153,9 +232,11 @@ const ViewVehicle = () => {
                 <button onClick={() => handleViewReviewClick(item)}>
                   <FontAwesomeIcon icon={faEye} className="eye-icon" />
                 </button>
-                <Link to={`/vehicles/${item._id}/review`}>
-                  <FontAwesomeIcon icon={faPen} className="edit-icon" />
-                </Link>
+                <button>
+                  <Link to={`/vehicles/${vehicleId}/reviews/${item._id}/edit`}>
+                    <FontAwesomeIcon icon={faPen} className="edit-icon" />
+                  </Link>
+                </button>
                 <button onClick={() => handleDeleteReview(item._id)} className="btn-icon btn-red">
                   <FontAwesomeIcon icon={faTrash} />
                 </button>
