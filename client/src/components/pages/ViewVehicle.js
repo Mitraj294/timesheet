@@ -12,12 +12,17 @@ import {
   faTimes,
   faPen,
   faTrash,
+  faPaperPlane,
 } from '@fortawesome/free-solid-svg-icons';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 import '../../styles/Vehicles.scss';
 
 const ViewVehicle = () => {
+    const [sendEmail, setSendEmail] = useState('');
+    const [sending, setSending] = useState(false);
+    const [showSendReport, setShowSendReport] = useState(false);
+
   const { vehicleId } = useParams();
   const [vehicle, setVehicle] = useState(null);
   const [vehicleHistory, setVehicleHistory] = useState([]);
@@ -68,6 +73,9 @@ const ViewVehicle = () => {
   };
 
   const handleDeleteReview = async (reviewId) => {
+    const confirmDelete = window.confirm('Are you sure you want to delete this review? This action cannot be undone.');
+    if (!confirmDelete) return;
+  
     try {
       const token = localStorage.getItem('token');
       await axios.delete(`http://localhost:5000/api/vehicles/reviews/${reviewId}`, {
@@ -79,6 +87,7 @@ const ViewVehicle = () => {
       alert('Error deleting review');
     }
   };
+  ;
 
   const handleViewReviewClick = (item) => {
     navigate(`/vehicles/reviews/${item._id}/view`);
@@ -123,6 +132,42 @@ const ViewVehicle = () => {
       setDownloading(false);
     }
   };
+  const handleSendVehicleReport = async () => {
+    if (!startDate || !endDate || !sendEmail) {
+      alert('Please select a date range and enter an email address.');
+      return;
+    }
+  
+    setSending(true);
+    try {
+      const token = localStorage.getItem('token');
+      console.log('Sending vehicle report for vehicleId:', vehicleId);  // Log the vehicleId
+  
+      await axios.post(
+        `http://localhost:5000/api/report/email/${vehicleId}`,
+        {
+          startDate: startDate.toISOString(),
+          endDate: endDate.toISOString(),
+          email: sendEmail,
+        },
+        {
+          headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+        }
+      );
+  
+      alert('Vehicle report sent successfully via email.');
+      setSendEmail('');
+    } catch (error) {
+      console.error('Error sending report:', error);
+      alert('An error occurred while sending the report.');
+    } finally {
+      setSending(false);
+    }
+  };
+  
+  
+  
+
 
   if (loading) {
     return <div>Loading...</div>;
@@ -145,10 +190,61 @@ const ViewVehicle = () => {
         <button className="btn btn-green" onClick={handleCreateReviewClick}>
           <FontAwesomeIcon icon={faPlus} /> Create Review
         </button>
+              <button
+                  className="btn btn-purple"
+                  onClick={() => setShowSendReport(!showSendReport)}
+                >
+                  <FontAwesomeIcon icon={faPaperPlane} /> Send Report
+                </button>
+        
         <button className="btn btn-red" onClick={() => setShowDateRangePicker(!showDateRangePicker)}>
           <FontAwesomeIcon icon={faDownload} /> Download Report
         </button>
       </div>
+
+   {/* Send Report Section */}
+      {showSendReport && (
+        <div className="send-report-container">
+          <div className="date-picker-range">
+            <DatePicker
+              selected={startDate}
+              onChange={(date) => setStartDate(date)}
+              selectsStart
+              startDate={startDate}
+              endDate={endDate}
+              placeholderText="Start Date"
+              dateFormat="yyyy-MM-dd"
+            />
+            <DatePicker
+              selected={endDate}
+              onChange={(date) => setEndDate(date)}
+              selectsEnd
+              startDate={startDate}
+              endDate={endDate}
+              placeholderText="End Date"
+              dateFormat="yyyy-MM-dd"
+              minDate={startDate}
+            />
+          </div>
+          <div className="send-report-email">
+            <input
+              type="email"
+              placeholder="Enter recipient email"
+              value={sendEmail}
+              onChange={(e) => setSendEmail(e.target.value)}
+            />
+            <button
+              className="btn btn-purple"
+              onClick={handleSendVehicleReport}
+              disabled={sending}
+            >
+              <FontAwesomeIcon icon={faPaperPlane} /> {sending ? 'Sending...' : 'Send Report'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Download Report Section */}
 
       {showDateRangePicker && (
         <div className="download-date-range">

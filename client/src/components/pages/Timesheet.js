@@ -9,7 +9,8 @@ import {
   faChevronDown,
   faChevronUp,
   faTrash,
-  faDownload
+  faDownload,
+  faEnvelope 
 } from '@fortawesome/free-solid-svg-icons';
 import axios from 'axios';
 import { format } from 'date-fns';
@@ -24,6 +25,7 @@ const Timesheet = () => {
   const [expandedRows, setExpandedRows] = useState({});
   const [currentDate, setCurrentDate] = useState(new Date());
   const [isLoading, setIsLoading] = useState(false);
+  const [email, setEmail] = useState('');
 
   const navigate = useNavigate();
 
@@ -278,91 +280,49 @@ const Timesheet = () => {
 
 
 
-
-
-
+  const handleSendEmail = async () => {
+    if (!email) {
+      alert('Please enter a valid email address.');
+      return;
+    }
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        alert('Authentication error! Please log in again.');
+        return;
+      }
+      const config = { headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' } };
+      const response = await axios.post('http://localhost:5000/api/timesheets/send', { email }, config);
+      alert(response.data.message || 'Timesheet sent successfully!');
+    } catch (error) {
+      console.error('Error sending timesheet email:', error);
+      alert('Failed to send timesheet. Please try again.');
+    }
+  };
+  
 
 
 
 // ...
 
-const downloadCSVReport = () => {
-  // Define CSV headers (adjust as needed)
-  const csvHeaders = [
-    'Employee',
-    'Date',
-    'Client',
-    'Project',
-    'Start Time',
-    'End Time',
-    'Lunch Break',
-    'Total Hours',
-    'Leave Type',
-    'Notes'
-  ];
-
-  // Build an array of CSV rows
-  let csvRows = [];
-
-  // Loop through the grouped timesheet data (groupTimesheets is a memoized result)
-  groupTimesheets.forEach((employee) => {
-    employee.details.forEach((detail) => {
-      // Format the date if available
-      const dateFormatted = detail.date
-        ? format(new Date(detail.date), 'yyyy-MM-dd')
-        : '';
-      const employeeName = employee.name || '';
-      const clientName = detail.clientName || '';
-      const projectName = detail.projectName || '';
-      const startTime = detail.startTime || '';
-      const endTime = detail.endTime || '';
-      const lunchBreak = detail.lunchBreak || '';
-      const totalHours = detail.totalHours || '';
-      const leaveType = detail.leaveType || '';
-      // Replace any newline characters from notes to keep CSV formatting clean
-      const notes = detail.notes ? detail.notes.replace(/\n/g, ' ') : '';
-
-      // Create a row array for the CSV
-      csvRows.push([
-        employeeName,
-        dateFormatted,
-        clientName,
-        projectName,
-        startTime,
-        endTime,
-        lunchBreak,
-        totalHours,
-        leaveType,
-        notes,
-      ]);
+const handleDownload = async () => {
+  try {
+    const response = await fetch('http://localhost:5000/api/timesheets/download', {
+      method: 'GET',
     });
-  });
 
-  // Build the final CSV content string.
-  // Wrap each value in quotes (") to prevent issues with commas in the content.
-  const csvContent = [
-    csvHeaders.join(','),
-    ...csvRows.map((row) =>
-      row.map((cell) => `"${cell}"`).join(',')
-    ),
-  ].join('\n');
-
-  // Create a Blob object from the CSV content
-  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-  const url = URL.createObjectURL(blob);
-
-  // Create a temporary anchor element to trigger the download
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = `timesheet_report_${format(currentDate, 'yyyy-MM-dd')}.csv`;
-  document.body.appendChild(link);
-  link.click();
-
-  // Clean up: remove the temporary link and revoke the blob URL
-  document.body.removeChild(link);
-  URL.revokeObjectURL(url);
+    const blob = await response.blob();
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', 'timesheets.xlsx');
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+  } catch (err) {
+    console.error('Download failed', err);
+  }
 };
-
 
 
 
@@ -430,9 +390,24 @@ const downloadCSVReport = () => {
         </Link>{' '}
         <span> / </span> <span>Timesheet</span>
 
-        <button className="btn btn-red" onClick={downloadCSVReport} >
-  <FontAwesomeIcon icon={faDownload} /> Download Report
-</button>
+        <div className="action-buttons">
+  <button className="btn btn-red" onClick={handleDownload}>
+    <FontAwesomeIcon icon={faDownload} /> Download Report
+  </button>
+  <div className="email-send">
+    <input 
+      type="email" 
+      placeholder="Enter email address" 
+      value={email} 
+      onChange={(e) => setEmail(e.target.value)} 
+      className="email-input" 
+    />
+    <button className="btn btn-green" onClick={handleSendEmail}>
+      <FontAwesomeIcon icon={faEnvelope} /> Send Timesheet
+    </button>
+  </div>
+</div>
+
       </div>
 
       <div className='timesheet-top-bar'>

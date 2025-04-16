@@ -16,8 +16,7 @@ import timesheetRoutes from "./routes/timesheetRoutes.js";
 import projectRoutes from "./routes/projectRoutes.js";
 import roleRoutes from "./routes/roleRoutes.js";
 import scheduleRoutes from "./routes/scheduleRoutes.js";
-import vehicleRoutes from "./routes/vehicleRoutes.js"; // This now handles both vehicle and vehicle review routes
-
+import vehicleRoutes from "./routes/vehicleRoutes.js";
 const app = express();
 
 // Middleware
@@ -51,7 +50,7 @@ app.use("/api/timesheets", timesheetRoutes);
 app.use("/api/projects", projectRoutes);
 app.use("/api/roles", roleRoutes);
 app.use("/api/schedules", scheduleRoutes);
-app.use("/api/vehicles", vehicleRoutes); // Now handles both vehicle and vehicle review routes
+app.use("/api/vehicles", vehicleRoutes);
 
 // Root Route
 app.get("/", (req, res) => {

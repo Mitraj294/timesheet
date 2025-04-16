@@ -88,6 +88,15 @@ const Register = () => {
           {loading ? "Signing Up..." : "Sign Up"}
         </button>
       </form>
+      <p className="styles_SignupPrompt">
+        Already have an account? 
+          <button
+            className="styles_SignupButton"
+            onClick={() => navigate("/login", { state: { email: formData.email } })}
+          >
+            Sign in
+          </button>
+        </p>
     </div>
   );
 };

@@ -5,12 +5,15 @@ dotenv.config();
 
 const connectDB = async () => {
   try {
-    const conn = await mongoose.connect(MONGO_URI);
-
-
-    console.log(`MongoDB Connected: ${conn.connection.host}`);
+    if (!process.env.MONGO_URI) {
+      console.error("MONGO_URI is missing in .env file!");
+      process.exit(1);
+    }
+    console.log(`Connecting to MongoDB at ${process.env.MONGO_URI}`); // Add this line
+    await mongoose.connect(process.env.MONGO_URI);
+    console.log("MongoDB Connected...>>>>>>");
   } catch (error) {
-    console.error(`Error: ${error.message}`);
+    console.error("MongoDB Connection Error:", error.message);
     process.exit(1);
   }
 };

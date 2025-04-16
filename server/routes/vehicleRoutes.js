@@ -1,4 +1,3 @@
-// routes/vehicleRoutes.js
 import express from 'express';
 import {
   getVehicles,
@@ -14,8 +13,11 @@ import {
   deleteReview,
   downloadReviewReport,
   downloadVehicleReport,
-  downloadAllVehiclesReport,
+  downloadAllVehiclesReport ,
+  sendVehicleReportByEmail,
+  sendAllVehiclesReportByEmail
 } from '../controllers/vehicleController.js';
+
 
 const router = express.Router();
 console.log("vehicleRoutes loaded");
@@ -44,9 +46,15 @@ router.get('/vehicle-with-reviews/:vehicleId', getVehicleWithReviews);   // GET 
 // Download routes
 router.get('/reviews/:reviewId/download', downloadReviewReport);
 
-router.get('/vehicles/download-report', downloadAllVehiclesReport);
+
+router.get('/download/all', downloadAllVehiclesReport);
+
+
 
 router.get('/:vehicleId/download-report', downloadVehicleReport);
 
+router.post('/report/email/:vehicleId', sendVehicleReportByEmail);
+
+router.post('/send-report',  sendAllVehiclesReportByEmail);
 
 export default router;
