@@ -8,7 +8,7 @@ import { getClients } from '../../redux/actions/clientActions';
 import { getProjects } from '../../redux/actions/projectActions';
 import axios from 'axios';
 import '../../styles/CreateForms.scss';
-
+import { DateTime } from 'luxon';
 const CreateTimesheet = ({
   employees,
   clients,
@@ -35,6 +35,7 @@ const CreateTimesheet = ({
     hourlyWage: '',
     totalHours: 0,
     notes: '',
+    timezone: '',
   });
 
   // Edit mode flag
@@ -66,21 +67,33 @@ const CreateTimesheet = ({
   useEffect(() => {
     if (location.state?.timesheet) {
       const timesheet = location.state.timesheet;
+      console.log('Editing timesheet:', timesheet);
 
-      const formatTime = (timeString) => {
-        if (!timeString) return '00:00';
-        if (timeString.includes('AM') || timeString.includes('PM')) {
-          const [_, timePart, period] = timeString.split(' ');
-          let [hours, minutes] = timePart.split(':').map(Number);
-          if (period === 'PM' && hours < 12) hours += 12;
-          if (period === 'AM' && hours === 12) hours = 0;
-          return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
-        }
-        const date = new Date(timeString);
-        return `${String(date.getHours()).padStart(2, '0')}:${String(
-          date.getMinutes()
-        ).padStart(2, '0')}`;
-      };
+const formatTime = (timeString) => {
+  if (!timeString) return '00:00';
+
+  // If it's already HH:mm
+  if (/^\d{2}:\d{2}$/.test(timeString)) return timeString;
+
+  // If it's HH:mm:ss
+  if (/^\d{2}:\d{2}:\d{2}$/.test(timeString)) {
+    return timeString.slice(0, 5);
+  }
+
+  // AM/PM Format
+  if (timeString.includes('AM') || timeString.includes('PM')) {
+    const [_, timePart, period] = timeString.split(' ');
+    let [hours, minutes] = timePart.split(':').map(Number);
+    if (period === 'PM' && hours < 12) hours += 12;
+    if (period === 'AM' && hours === 12) hours = 0;
+    return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+  }
+
+  // Parse as date fallback
+  const date = new Date(timeString);
+  return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+};
+
 
       setFormData({
         employeeId: timesheet.employeeId?._id || '',
@@ -99,10 +112,23 @@ const CreateTimesheet = ({
         totalHours: timesheet.totalHours || 0,
         notes: timesheet.notes || '',
       });
+      calculateHours({
+        ...timesheet,
+        startTime: formatTime(timesheet.startTime),
+        endTime: formatTime(timesheet.endTime),
+        lunchBreak: timesheet.lunchBreak || 'No',
+        lunchDuration: timesheet.lunchDuration || '00:00'
+      });
       setIsEditing(true);
     }
   }, [location.state]);
 
+  useEffect(() => {
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    setFormData(fd => ({ ...fd, timezone: tz }));
+  }, []);
+  
+  
   // Handle form input changes
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -134,23 +160,17 @@ const CreateTimesheet = ({
       }));
       return;
     }
-
-    // Date → UTC string
     if (name === 'date') {
-      const utcDate = new Date(value).toISOString().split('T')[0];
-      setFormData((prev) => ({ ...prev, date: utcDate }));
+      setFormData(prev => ({ ...prev, date: value }));
       return;
     }
-
-    // Time fields → UTC HH:MM
+    
     if (['startTime','endTime'].includes(name)) {
-      const [h,m] = value.split(':').map(Number);
-      const utc = new Date(Date.UTC(1970,0,1,h,m)).toISOString().substr(11,5);
-      setFormData((prev) => ({ ...prev, [name]: utc }));
-      calculateHours({ ...formData, [name]: utc });
+      setFormData(prev => ({ ...prev, [name]: value }));
+      calculateHours({ ...formData, [name]: value });
       return;
     }
-
+    
     // Other fields
     setFormData((prev) => ({ ...prev, [name]: value || '' }));
     if (name === 'lunchDuration') {
@@ -251,6 +271,7 @@ const CreateTimesheet = ({
       // Payload
       const requestData = {
         ...formData,
+        timezone: formData.timezone,   // ← NEW
         clientId: isLeaveSelected ? null : String(formData.clientId),
         projectId: isLeaveSelected ? null : String(formData.projectId),
       };

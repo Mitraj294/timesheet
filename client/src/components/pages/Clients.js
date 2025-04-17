@@ -31,15 +31,36 @@ const Clients = () => {
     client.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  const handleDownloadClients = async () => {
+    try {
+      const response = await axios.get('/api/clients/download', {
+        responseType: 'blob',  // IMPORTANT
+      });
+  
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', 'clients.xlsx'); // Download filename
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+  
+    } catch (error) {
+      console.error('Download failed:', error);
+      alert('Failed to download clients.');
+    }
+  };
+  
   return (
     <div className="container">
       {/* Header */}
       <div className="header">
         <h2><FontAwesomeIcon icon={faUsers} /> Clients</h2>
         <div className="actions">
-          <button className="btn btn-download">
-            <FontAwesomeIcon icon={faDownload} /> Download
-          </button>
+        <button className="btn btn-download" onClick={handleDownloadClients}>
+  <FontAwesomeIcon icon={faDownload} /> Download
+</button>
+
           <Link to="/clients/create" className="btn btn-primary">
             <FontAwesomeIcon icon={faPlus} /> Add New Client
           </Link>

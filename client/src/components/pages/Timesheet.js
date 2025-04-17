@@ -15,6 +15,17 @@ import {
 import axios from 'axios';
 import { format } from 'date-fns';
 import '../../styles/Timesheet.scss';
+ import { DateTime } from 'luxon';
+
+ const formatDate = iso =>
+   DateTime.fromISO(iso, { zone: 'utc' })
+          .setZone(DateTime.local().zoneName)
+          .toFormat('yyyy‑LL‑dd');
+
+ const formatTime = iso =>
+   DateTime.fromISO(iso, { zone: 'utc' })
+          .setZone(DateTime.local().zoneName)
+          .toFormat('HH:mm');
 
 const Timesheet = () => {
   const [viewType, setViewType] = useState('Weekly');
@@ -579,7 +590,10 @@ const handleDownload = async () => {
                                           {employee.name || 'N/A'}
                                         </p>
                                         <p>
-                                          <b>Date:</b> {entry.date || 'N/A'}
+                                          <b>Date:</b>{' '}
+                                          {entry.date
+                                            ? formatDate(entry.date)
+                                            : 'N/A'}
                                         </p>
 
                                         <p>
@@ -590,23 +604,35 @@ const handleDownload = async () => {
                                           <b>Project:</b>{' '}
                                           {entry.projectId?.name || 'N/A'}
                                         </p>
-
                                         <p>
                                           <b>Start Time:</b>{' '}
-                                          {entry.startTime || 'N/A'}
+                                          {entry.startTime
+                                            ? formatTime(entry.startTime)
+                                            : 'N/A'}
                                         </p>
                                         <p>
                                           <b>End Time:</b>{' '}
-                                          {entry.endTime || 'N/A'}
+                                          {entry.endTime
+                                            ? formatTime(entry.endTime)
+                                            : 'N/A'}
                                         </p>
+                                        {(() => {
+                                          const [h, m] = entry.lunchDuration
+                                            .split(':')
+                                            .map(Number);
+                                          const mins = h * 60 + m;
+                                          return (
+                                            <p>
+                                              <b>Lunch Break:</b>{' '}
+                                              {entry.lunchBreak === 'Yes'
+                                                ? `${mins} mins`
+                                                : 'No break'}
+                                            </p>
+                                          );
+                                        })()}
                                         <p>
-                                          <b>Lunch Break:</b>{' '}
-                                          {entry.lunchBreak === 'Yes'
-                                            ? `${entry.lunchDuration} mins`
-                                            : 'No break'}
-                                        </p>
-                                        <p>
-                                          <b>Notes:</b> {entry.notes || 'None'}
+                                          <b>Notes:</b>{' '}
+                                          {entry.description || 'None'}
                                         </p>
                                         <p>
                                           <b>Total Hours Worked:</b>{' '}
@@ -614,8 +640,7 @@ const handleDownload = async () => {
                                         </p>
                                         <p>
                                           <b>Leave Type:</b>{' '}
-                                          {entry.leaveType &&
-                                          entry.leaveType !== 'None'
+                                          {entry.leaveType !== 'None'
                                             ? entry.leaveType
                                             : 'Not on leave'}
                                         </p>

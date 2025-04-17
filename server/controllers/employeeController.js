@@ -14,7 +14,7 @@ export const getEmployees = async (req, res) => {
 // Add a new employee
 export const addEmployee = async (req, res) => {
   try {
-    console.log("Received Employee Data:", req.body); // Debugging
+    console.log("Received Employee Data:", req.body);
     console.log("Type of wage:", typeof req.body.wage);
     console.log("Type of employeeCode:", typeof req.body.employeeCode);
 
@@ -30,7 +30,7 @@ export const addEmployee = async (req, res) => {
       role,
       department,
       employeeCode,
-      wage: Number(wage), // Convert wage to number
+      wage: Number(wage), 
     });
 
     await newEmployee.save();

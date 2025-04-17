@@ -1,7 +1,7 @@
 import Project from "../models/Project.js";
 
 
-// ✅ Create a new project linked to a client
+// Create a new project linked to a client
 export const createProject = async (req, res) => {
   const { clientId } = req.params;
   const { name, startDate, finishDate, address, expectedHours, notes, isImportant, status } = req.body;
@@ -66,7 +66,7 @@ export const getProjectsByClientId = async (req, res) => {
   }
 };
 
-// ✅ Get project by ID
+// Get project by ID
 export const getProjectById = async (req, res) => {
   const { projectId } = req.params;
 
@@ -85,7 +85,7 @@ export const getProjectById = async (req, res) => {
   }
 };
 
-// ✅ Update an existing project
+// Update an existing project
 export const updateProject = async (req, res) => {
   const { projectId } = req.params;
   const updates = req.body;
@@ -109,7 +109,7 @@ export const updateProject = async (req, res) => {
   }
 };
 
-// ✅ Delete project by ID
+// Delete project by ID
 export const deleteProject = async (req, res) => {
   const { projectId } = req.params;
 

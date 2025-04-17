@@ -5,11 +5,13 @@ import {
   getClientById,
   updateClient,
   deleteClient,
+  downloadClients
 } from "../controllers/clientController.js";
 
 const router = express.Router();
 
 // Routes
+router.get('/download', downloadClients);
 router.post("/", createClient);           // Create a new client
 router.get("/", getClients);              // Fetch all clients
 router.get("/:id", getClientById);        // Fetch a single client by ID
