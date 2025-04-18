@@ -14,8 +14,13 @@ import {
 } from '@fortawesome/free-solid-svg-icons';
 import axios from 'axios';
 import { format } from 'date-fns';
+import DatePicker from 'react-datepicker';
+import 'react-datepicker/dist/react-datepicker.css';
 import '../../styles/Timesheet.scss';
- import { DateTime } from 'luxon';
+import { DateTime } from 'luxon';
+
+
+
 
  const formatDate = iso =>
    DateTime.fromISO(iso, { zone: 'utc' })
@@ -37,6 +42,12 @@ const Timesheet = () => {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [isLoading, setIsLoading] = useState(false);
   const [email, setEmail] = useState('');
+const [selectedEmployee, setSelectedEmployee] = useState('');
+const [startDate,      setStartDate]      = useState(null);
+const [endDate,        setEndDate]        = useState(null);
+const [showDownloadFilters, setShowDownloadFilters] = useState(false);
+
+const [showSendFilters, setShowSendFilters] = useState(false);
 
   const navigate = useNavigate();
 
@@ -296,14 +307,34 @@ const Timesheet = () => {
       alert('Please enter a valid email address.');
       return;
     }
+  
     try {
       const token = localStorage.getItem('token');
       if (!token) {
         alert('Authentication error! Please log in again.');
         return;
       }
-      const config = { headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' } };
-      const response = await axios.post('http://localhost:5000/api/timesheets/send', { email }, config);
+  
+      const config = {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      };
+  
+      const body = {
+        email,
+        employeeIds: selectedEmployee ? [selectedEmployee] : [],
+        startDate: startDate ? format(startDate, 'yyyy-MM-dd') : null,
+        endDate: endDate ? format(endDate, 'yyyy-MM-dd') : null,
+      };
+  
+      const response = await axios.post(
+        'http://localhost:5000/api/timesheets/send',
+        body,
+        config
+      );
+  
       alert(response.data.message || 'Timesheet sent successfully!');
     } catch (error) {
       console.error('Error sending timesheet email:', error);
@@ -313,27 +344,33 @@ const Timesheet = () => {
   
 
 
-
 // ...
 
 const handleDownload = async () => {
   try {
     const response = await fetch('http://localhost:5000/api/timesheets/download', {
-      method: 'GET',
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        employeeIds: selectedEmployee ? [selectedEmployee] : [],
+        startDate: startDate ? format(startDate, 'yyyy-MM-dd') : null,
+        endDate: endDate ? format(endDate, 'yyyy-MM-dd') : null,
+      }),
     });
 
     const blob = await response.blob();
-    const url = window.URL.createObjectURL(blob);
     const link = document.createElement('a');
-    link.href = url;
+    link.href = window.URL.createObjectURL(blob);
     link.setAttribute('download', 'timesheets.xlsx');
     document.body.appendChild(link);
     link.click();
     link.remove();
   } catch (err) {
     console.error('Download failed', err);
+    alert('Could not download report');
   }
 };
+
 
 
 
@@ -392,34 +429,110 @@ const handleDownload = async () => {
           <FontAwesomeIcon icon={faPen} /> Timesheet
         </h3>
       </div>
-      <div className='breadcrumb'>
-        <Link
-          to='/dashboard'
-          className='breadcrumb-link'
-        >
-          Dashboard
-        </Link>{' '}
-        <span> / </span> <span>Timesheet</span>
+      <div className="breadcrumb">
+    <Link to="/dashboard" className="breadcrumb-link">Dashboard</Link>
+    <span className="breadcrumb-separator">/</span>
+    <span className="breadcrumb-current">Timesheet</span>
+  </div>
 
-        <div className="action-buttons">
-  <button className="btn btn-red" onClick={handleDownload}>
-    <FontAwesomeIcon icon={faDownload} /> Download Report
-  </button>
-  <div className="email-send">
-    <input 
-      type="email" 
-      placeholder="Enter email address" 
-      value={email} 
-      onChange={(e) => setEmail(e.target.value)} 
-      className="email-input" 
-    />
-    <button className="btn btn-green" onClick={handleSendEmail}>
-      <FontAwesomeIcon icon={faEnvelope} /> Send Timesheet
+  {/* Right: Action Buttons */}
+  <div className="timesheet-actions">
+    <button
+      className="btn btn-red"
+      onClick={() => setShowDownloadFilters(prev => !prev)}
+    >
+      <FontAwesomeIcon icon={faDownload} /> Download Report
+    </button>
+    <button
+      className="btn btn-purple"
+      onClick={() => setShowSendFilters(prev => !prev)}
+    >
+      <FontAwesomeIcon icon={faEnvelope} /> Send Report
     </button>
   </div>
-</div>
 
-      </div>
+
+{/* Download Filters */}
+{showDownloadFilters && (
+  <div className="filter-panel">
+    <select
+      value={selectedEmployee}
+      onChange={e => setSelectedEmployee(e.target.value)}
+      className="filter-select"
+    >
+      <option value="">All Employees</option>
+      {employees.map(emp => (
+        <option key={emp._id} value={emp._id}>{emp.name}</option>
+      ))}
+    </select>
+
+    <DatePicker
+      selected={startDate}
+      onChange={setStartDate}
+      placeholderText="From"
+      dateFormat="yyyy-MM-dd"
+      className="filter-datepicker"
+    />
+    <DatePicker
+      selected={endDate}
+      onChange={setEndDate}
+      minDate={startDate}
+      placeholderText="To"
+      dateFormat="yyyy-MM-dd"
+      className="filter-datepicker"
+    />
+
+    <button  className="btn btn-red" onClick={handleDownload}>
+      <FontAwesomeIcon icon={faDownload} /> Download
+    </button>
+  </div>
+)}
+
+{/* Send Filters */}
+{showSendFilters && (
+  <div className="filter-panel">
+    <select
+      value={selectedEmployee}
+      onChange={e => setSelectedEmployee(e.target.value)}
+      className="filter-select"
+    >
+      <option value="">All Employees</option>
+      {employees.map(emp => (
+        <option key={emp._id} value={emp._id}>{emp.name}</option>
+      ))}
+    </select>
+
+    <DatePicker
+      selected={startDate}
+      onChange={setStartDate}
+      placeholderText="From"
+      dateFormat="yyyy-MM-dd"
+      className="filter-datepicker"
+    />
+    <DatePicker
+      selected={endDate}
+      onChange={setEndDate}
+      minDate={startDate}
+      placeholderText="To"
+      dateFormat="yyyy-MM-dd"
+      className="filter-datepicker"
+    />
+
+    <input
+      type="email"
+      placeholder="Recipient email"
+      value={email}
+      onChange={e => setEmail(e.target.value)}
+      className="filter-email"
+    />
+
+    <button className="btn btn-green" onClick={handleSendEmail}>
+      <FontAwesomeIcon icon={faEnvelope} /> Send
+    </button>
+  </div>
+)}
+
+
 
       <div className='timesheet-top-bar'>
         <div className='timesheet-period'>
@@ -461,10 +574,7 @@ const handleDownload = async () => {
         >
           <FontAwesomeIcon icon={faPlus} /> Create Timesheet
         </button>
- 
-
       </div>
-      
 
       {isLoading ? (
         <div>Loading...</div>
@@ -529,9 +639,7 @@ const handleDownload = async () => {
                               <td rowSpan={dayChunks.length}>
                                 {`${generateDateColumns[0].formatted} - ${generateDateColumns[6].formatted}`}
                               </td>
-                              
                             )}
-                            
                           </>
                         )}
 

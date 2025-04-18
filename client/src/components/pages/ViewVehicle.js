@@ -144,7 +144,7 @@ const ViewVehicle = () => {
       console.log('Sending vehicle report for vehicleId:', vehicleId);  // Log the vehicleId
   
       await axios.post(
-        `http://localhost:5000/api/report/email/${vehicleId}`,
+        `http://localhost:5000/api/vehicles/report/email/${vehicleId}`,
         {
           startDate: startDate.toISOString(),
           endDate: endDate.toISOString(),

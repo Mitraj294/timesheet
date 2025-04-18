@@ -69,64 +69,42 @@ const CreateTimesheet = ({
       const timesheet = location.state.timesheet;
       console.log('Editing timesheet:', timesheet);
 
-const formatTime = (timeString) => {
-  if (!timeString) return '00:00';
-
-  // If it's already HH:mm
-  if (/^\d{2}:\d{2}$/.test(timeString)) return timeString;
-
-  // If it's HH:mm:ss
-  if (/^\d{2}:\d{2}:\d{2}$/.test(timeString)) {
-    return timeString.slice(0, 5);
-  }
-
-  // AM/PM Format
-  if (timeString.includes('AM') || timeString.includes('PM')) {
-    const [_, timePart, period] = timeString.split(' ');
-    let [hours, minutes] = timePart.split(':').map(Number);
-    if (period === 'PM' && hours < 12) hours += 12;
-    if (period === 'AM' && hours === 12) hours = 0;
-    return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
-  }
-
-  // Parse as date fallback
-  const date = new Date(timeString);
-  return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
-};
 
 
-      setFormData({
-        employeeId: timesheet.employeeId?._id || '',
-        clientId: timesheet.clientId?._id || '',
-        projectId: timesheet.projectId?._id || '',
-        date: timesheet.date
-          ? new Date(timesheet.date).toISOString().split('T')[0]
-          : '',
-        startTime: formatTime(timesheet.startTime),
-        endTime: formatTime(timesheet.endTime),
-        lunchBreak: timesheet.lunchBreak || 'No',
-        lunchDuration: timesheet.lunchDuration || '00:00',
-        leaveType: timesheet.leaveType || 'None',
-        description: timesheet.description || '',
-        hourlyWage: timesheet.hourlyWage || '',
-        totalHours: timesheet.totalHours || 0,
-        notes: timesheet.notes || '',
-      });
-      calculateHours({
-        ...timesheet,
-        startTime: formatTime(timesheet.startTime),
-        endTime: formatTime(timesheet.endTime),
-        lunchBreak: timesheet.lunchBreak || 'No',
-        lunchDuration: timesheet.lunchDuration || '00:00'
-      });
+console.log("Timesheet being edited (from backend):", timesheet);
+
+setFormData({
+  employeeId: timesheet.employeeId?._id || '',
+  clientId: timesheet.clientId?._id || '',
+  projectId: timesheet.projectId?._id || '',
+  date: timesheet.date || '',
+  startTime: timesheet.startTime || '',  // ✅ already local
+  endTime: timesheet.endTime || '',      // ✅ already local
+  lunchBreak: timesheet.lunchBreak || 'No',
+  lunchDuration: timesheet.lunchDuration || '00:00',
+  leaveType: timesheet.leaveType || 'None',
+  description: timesheet.description || '',
+  hourlyWage: timesheet.hourlyWage || '',
+  totalHours: timesheet.totalHours || 0,
+  notes: timesheet.notes || '',
+  timezone: timesheet.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone, // fallback
+});
+
+calculateHours({
+  startTime: timesheet.startTime,
+  endTime: timesheet.endTime,
+  lunchBreak: timesheet.lunchBreak || 'No',
+  lunchDuration: timesheet.lunchDuration || '00:00'
+});
+
       setIsEditing(true);
     }
   }, [location.state]);
-
   useEffect(() => {
     const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
     setFormData(fd => ({ ...fd, timezone: tz }));
   }, []);
+  
   
   
   // Handle form input changes
@@ -182,21 +160,31 @@ const formatTime = (timeString) => {
   const calculateHours = (fd = formData) => {
     const { startTime, endTime, lunchBreak, lunchDuration } = fd;
     if (!startTime || !endTime) return;
-    const [sh,sm] = startTime.split(':').map(Number);
-    const [eh,em] = endTime.split(':').map(Number);
-    const start = new Date(Date.UTC(1970,0,1,sh,sm));
-    const end   = new Date(Date.UTC(1970,0,1,eh,em));
+  
+    const [sh, sm] = startTime.split(':').map(Number);
+    const [eh, em] = endTime.split(':').map(Number);
+  
+    const start = new Date(2000, 0, 1, sh, sm);  // local time
+    const end   = new Date(2000, 0, 1, eh, em);  // local time
+  
     if (end <= start) {
       setFormData((prev) => ({ ...prev, totalHours: 0 }));
       return;
     }
+  
     let total = (end - start) / 36e5;
-    if (lunchBreak==='Yes' && lunchDuration) {
-      const [lh,lm] = lunchDuration.split(':').map(Number);
-      total -= lh + lm/60;
+  
+    if (lunchBreak === 'Yes' && lunchDuration) {
+      const [lh, lm] = lunchDuration.split(':').map(Number);
+      total -= lh + lm / 60;
     }
-    setFormData((prev) => ({ ...prev, totalHours: total>0 ? total.toFixed(2) : 0 }));
+  
+    setFormData((prev) => ({
+      ...prev,
+      totalHours: total > 0 ? total.toFixed(2) : 0,
+    }));
   };
+  
 
   // Submit handler with duplicate check
   const handleSubmit = async (e) => {
@@ -254,10 +242,12 @@ const formatTime = (timeString) => {
             params: {
               employee: formData.employeeId,
               date: formData.date,
+              timezone: formData.timezone, // 🆕 Add this line
             },
             headers: { Authorization: `Bearer ${token}` },
           }
         );
+        
         if (chk.data.exists) {
           alert(
             'A timesheet for this employee on that date already exists. Redirecting to edit.'

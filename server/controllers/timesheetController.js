@@ -3,6 +3,8 @@ import ExcelJS from 'exceljs';
 import mongoose from "mongoose";
 import moment from "moment-timezone";
 import nodemailer from "nodemailer";
+import dotenv from "dotenv";
+dotenv.config();
 
 // Utility functions
 
@@ -11,9 +13,9 @@ const toUTC = (date, time, timezone) => {
   return moment.tz(`${date} ${time}`, "YYYY-MM-DD HH:mm", timezone).utc().toDate();
 };
 
-const toLocalTime = (utcTime, timezone) => {
+/*const toLocalTime = (utcTime, timezone) => {
   return moment(utcTime).tz(timezone).format("YYYY-MM-DD HH:mm A");
-};
+};*/
 
 
 const calculateTotalHours = (startTime, endTime, lunchBreak, lunchDuration) => {
@@ -31,7 +33,7 @@ const calculateTotalHours = (startTime, endTime, lunchBreak, lunchDuration) => {
 
 const convertTimesheetToLocal = (ts, timezone) => ({
   ...ts._doc,
-
+  timezone,
   startTime: ts.startTime 
     ? moment(ts.startTime).tz(timezone).format("HH:mm") 
     : "",
@@ -111,7 +113,18 @@ export const getTimesheets = async (req, res) => {
   try {
     const { timezone = "UTC" } = req.query;
 
-    const timesheets = await Timesheet.find()
+   const { email, employeeIds = [], startDate, endDate } = req.body;
+
+const filter = {};
+if (employeeIds.length > 0) filter.employeeId = { $in: employeeIds };
+if (startDate && endDate) {
+  filter.date = {
+    $gte: new Date(startDate),
+    $lte: new Date(endDate),
+  };
+}
+
+const timesheets = await Timesheet.find(filter)
       .populate("employeeId", "name email")
       .populate("clientId", "name emailAddress")
       .populate("projectId", "name startDate finishDate")
@@ -259,25 +272,36 @@ export const deleteTimesheet = async (req, res) => {
 };
 
 
+
 // Download timesheets as an Excel file
 export const downloadTimesheets = async (req, res) => {
   try {
-    const timesheets = await Timesheet.find()
+    const { employeeIds = [], startDate, endDate, timezone = 'Asia/Kolkata' } = req.body;
+
+    // 1️⃣ Build your Mongo filter
+    const filter = {};
+    if (employeeIds.length)    filter.employeeId = { $in: employeeIds };
+    if (startDate && endDate)  filter.date       = {
+      $gte: new Date(startDate),
+      $lte: new Date(endDate)
+    };
+
+    // 2️⃣ Fetch, populate, convert to local time
+    const timesheets = await Timesheet.find(filter)
       .populate('employeeId')
       .populate('clientId')
       .populate('projectId');
-    if (!timesheets || timesheets.length === 0) {
-      return res.status(404).json({ error: 'No timesheets found' });
+
+    if (!timesheets.length) {
+      return res.status(404).json({ error: 'No timesheets found for the given filters' });
     }
-    const groupedByEmployee = timesheets.reduce((acc, ts) => {
-      const empName = ts.employeeId?.name || 'Unknown';
-      if (!acc[empName]) acc[empName] = [];
-      acc[empName].push(ts);
-      return acc;
-    }, {});
+
+    const localized = timesheets.map(ts => convertTimesheetToLocal(ts, timezone));
+
+    // 3️⃣ Build the Excel workbook in-memory
     const workbook = new ExcelJS.Workbook();
-    const worksheet = workbook.addWorksheet('Timesheets');
-    worksheet.columns = [
+    const ws = workbook.addWorksheet('Timesheets');
+    ws.columns = [
       { header: 'Full Name', key: 'employee', width: 20 },
       { header: 'Date', key: 'date', width: 15 },
       { header: 'Day', key: 'day', width: 12 },
@@ -292,68 +316,103 @@ export const downloadTimesheets = async (req, res) => {
       { header: 'Hourly Wage', key: 'hourlyWage', width: 15 },
       { header: 'Total Hours', key: 'totalHours', width: 15 },
     ];
-    for (const [employeeName, entries] of Object.entries(groupedByEmployee)) {
-      entries.forEach((ts, index) => {
-        worksheet.addRow({
-          employee: index === 0 ? employeeName : '',
-          date: ts.date ? new Date(ts.date).toISOString().substring(0, 10) : '', // yyyy-mm-dd
-          day: ts.date ? new Date(ts.date).toLocaleDateString('en-GB', { weekday: 'long' }) : '',
-          client: ts.clientId?.name || '',
-          project: ts.projectId?.name || '',
-          startTime: ts.startTime ? new Date(ts.startTime).toISOString().substring(11, 16) : '', // HH:mm
-          endTime: ts.endTime ? new Date(ts.endTime).toISOString().substring(11, 16) : '',       // HH:mm
-          lunchBreak: ts.lunchBreak || '',
+
+    // Group by employee
+    const byEmp = localized.reduce((acc, ts) => {
+      const name = ts.employeeId?.name || 'Unknown';
+      (acc[name] = acc[name] || []).push(ts);
+      return acc;
+    }, {});
+
+    Object.entries(byEmp).forEach(([emp, entries]) => {
+      entries.forEach((ts, i) => {
+        ws.addRow({
+          employee:      i === 0 ? emp : '',
+          date:          ts.date,
+          day:           moment(ts.date).format('dddd'),
+          client:        ts.clientId?.name || '',
+          project:       ts.projectId?.name || '',
+          startTime:     ts.startTime,
+          endTime:       ts.endTime,
+          lunchBreak:    ts.lunchBreak || '',
           lunchDuration: ts.lunchDuration || '',
-          leaveType: ts.leaveType || '',
-          description: ts.description || '',
-          hourlyWage: ts.hourlyWage != null ? ts.hourlyWage : '',
-          totalHours: ts.totalHours != null ? ts.totalHours.toFixed(2) : '',
+          leaveType:     ts.leaveType || '',
+          description:   ts.description || '',
+          hourlyWage:    ts.hourlyWage != null ? ts.hourlyWage : '',
+          totalHours:    ts.totalHours != null ? ts.totalHours.toFixed(2) : '',
         });
       });
-      worksheet.addRow({});
-    }
-    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-    res.setHeader('Content-Disposition', 'attachment; filename=timesheets.xlsx');
-    await workbook.xlsx.write(res);
-    res.end();
+      ws.addRow([]);
+    });
+
+    // 4️⃣ Generate buffer
+    const buffer = await workbook.xlsx.writeBuffer();
+
+    // 5️⃣ Build a dynamic filename with names and date range
+    const employeeNames = Array.from(new Set(localized.map(ts => ts.employeeId?.name || 'Unknown')));
+    const nameLabel = employeeNames.length === 1
+      ? employeeNames[0]
+      : employeeNames.join('_');
+    const startLabel = moment(startDate).format('YYYY-MM-DD');
+    const endLabel   = moment(endDate).format('YYYY-MM-DD');
+    const fileName = `${nameLabel}_Timesheet_${startLabel}_to_${endLabel}.xlsx`;
+
+    res.setHeader(
+      'Content-Type',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    );
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="${fileName}"; filename*=UTF-8''${encodeURIComponent(fileName)}`
+    );
+
+    return res.send(buffer);
+
   } catch (error) {
     console.error('Excel download error:', error);
-    res.status(500).json({ error: 'Failed to generate Excel file' });
+    return res.status(500).json({ error: 'Failed to generate Excel file' });
   }
 };
 
 
 // Send email with timesheet
 
-
 export const sendTimesheetEmail = async (req, res) => {
-  const { email } = req.body;
-  console.log("Received email send request with email:", email);
+  const { email, employeeIds = [], startDate, endDate, timezone = 'Asia/Kolkata' } = req.body;
+  console.log("Received email send request with filters:", { email, employeeIds, startDate, endDate });
 
   try {
-    // Fetch timesheets from the database
-    const timesheets = await Timesheet.find()
+    const filter = {};
+    if (employeeIds.length > 0) {
+      filter.employeeId = { $in: employeeIds };
+    }
+    if (startDate && endDate) {
+      filter.date = {
+        $gte: new Date(startDate),
+        $lte: new Date(endDate),
+      };
+    }
+
+    const timesheets = await Timesheet.find(filter)
       .populate("employeeId")
       .populate("clientId")
       .populate("projectId");
 
-    if (!timesheets || timesheets.length === 0) {
-      console.log("No timesheets available to send.");
+    if (!timesheets.length) {
       return res.status(400).json({ message: "No timesheets to send" });
     }
 
-    // Group timesheets by employee
-    const groupedByEmployee = timesheets.reduce((acc, ts) => {
+    const localizedTimesheets = timesheets.map(ts => convertTimesheetToLocal(ts, timezone));
+
+    const groupedByEmployee = localizedTimesheets.reduce((acc, ts) => {
       const empName = ts.employeeId?.name || "Unknown";
       if (!acc[empName]) acc[empName] = [];
       acc[empName].push(ts);
       return acc;
     }, {});
 
-    // Create an Excel workbook with the timesheet data
     const workbook = new ExcelJS.Workbook();
     const worksheet = workbook.addWorksheet("Timesheets");
-
     worksheet.columns = [
       { header: "Full Name", key: "employee", width: 20 },
       { header: "Date", key: "date", width: 15 },
@@ -373,66 +432,240 @@ export const sendTimesheetEmail = async (req, res) => {
     for (const [employeeName, entries] of Object.entries(groupedByEmployee)) {
       entries.forEach((ts, index) => {
         worksheet.addRow({
-          employee: index === 0 ? employeeName : "",
-          date: ts.date ? new Date(ts.date).toISOString().substring(0, 10) : "",
-          day: ts.date
-            ? new Date(ts.date).toLocaleDateString("en-GB", { weekday: "long" })
-            : "",
-          client: ts.clientId?.name || "",
-          project: ts.projectId?.name || "",
-          startTime: ts.startTime
-            ? new Date(ts.startTime).toISOString().substring(11, 16)
-            : "",
-          endTime: ts.endTime
-            ? new Date(ts.endTime).toISOString().substring(11, 16)
-            : "",
-          lunchBreak: ts.lunchBreak || "",
-          lunchDuration: ts.lunchDuration || "",
-          leaveType: ts.leaveType || "",
-          description: ts.description || "",
-          hourlyWage: ts.hourlyWage != null ? ts.hourlyWage : "",
-          totalHours: ts.totalHours != null ? ts.totalHours.toFixed(2) : "",
+          employee: index === 0 ? employeeName : '',
+          date: ts.date,
+          day: moment(ts.date).format("dddd"),
+          client: ts.clientId?.name || '',
+          project: ts.projectId?.name || '',
+          startTime: ts.startTime,
+          endTime: ts.endTime,
+          lunchBreak: ts.lunchBreak || '',
+          lunchDuration: ts.lunchDuration || '',
+          leaveType: ts.leaveType || '',
+          description: ts.description || '',
+          hourlyWage: ts.hourlyWage != null ? ts.hourlyWage : '',
+          totalHours: ts.totalHours != null ? ts.totalHours.toFixed(2) : '',
         });
       });
       worksheet.addRow({});
     }
 
-    // Log a message indicating that Excel file generation succeeded
-    console.log("Excel workbook generated successfully.");
+    const buffer = await workbook.xlsx.writeBuffer();
 
-    // Create email transporter
+    // Format the date range for the filename
+    const formattedStartDate = moment(startDate).format('YYYY-MM-DD');
+    const formattedEndDate = moment(endDate).format('YYYY-MM-DD');
+    const fileName = `${Object.keys(groupedByEmployee).join('_')}_Timesheet_${formattedStartDate}_to_${formattedEndDate}.xlsx`;
+
     const transporter = nodemailer.createTransport({
       service: "gmail",
       auth: {
-        user: "your-email@gmail.com",
-        pass: "your-email-password",
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS,
       },
     });
 
-    // Prepare email options with the Excel file attached
-    const buffer = await workbook.xlsx.writeBuffer();
-    console.log("Excel workbook buffer length:", buffer.length);
-
     const mailOptions = {
-      from: "your-email@gmail.com",
+      from: process.env.EMAIL_USER,
       to: email,
-      subject: "Timesheet Report",
-      text: "Here is your timesheet report attached.",
-      html: `<p>Please find attached the timesheet report.</p>`,
+      subject: "Filtered Timesheet Report",
+      text: "Please find attached your filtered timesheet report.",
       attachments: [
         {
-          filename: "timesheets.xlsx",
+          filename: fileName,
           content: buffer,
         },
       ],
     };
 
-    // Send the email with the attachment
     await transporter.sendMail(mailOptions);
-    console.log("Email sent successfully.");
     res.status(200).send({ message: "Timesheet sent successfully!" });
   } catch (error) {
     console.error("Error sending timesheet email:", error);
+    res.status(500).send({ message: "Failed to send email. Please try again." });
+  }
+};
+
+//  Download timesheets by project as Excel
+export const downloadProjectTimesheets = async (req, res) => {
+  try {
+    const { projectIds = [], startDate, endDate, timezone = 'Asia/Kolkata' } = req.body;
+
+    const filter = {};
+    if (projectIds.length) filter.projectId = { $in: projectIds };
+    if (startDate && endDate) filter.date = {
+      $gte: new Date(startDate),
+      $lte: new Date(endDate)
+    };
+
+    const timesheets = await Timesheet.find(filter)
+      .populate('employeeId')
+      .populate('clientId')
+      .populate('projectId');
+
+    if (!timesheets.length) {
+      return res.status(404).json({ error: 'No timesheets found for the given filters' });
+    }
+
+    const localized = timesheets.map(ts => convertTimesheetToLocal(ts, timezone));
+
+    const workbook = new ExcelJS.Workbook();
+    const ws = workbook.addWorksheet('Project Timesheets');
+    ws.columns = [
+      { header: 'Project', key: 'project', width: 20 },
+      { header: 'Full Name', key: 'employee', width: 20 },
+      { header: 'Date', key: 'date', width: 15 },
+      { header: 'Day', key: 'day', width: 12 },
+      { header: 'Client', key: 'client', width: 20 },
+      { header: 'Start', key: 'startTime', width: 15 },
+      { header: 'End', key: 'endTime', width: 15 },
+      { header: 'Lunch Break', key: 'lunchBreak', width: 12 },
+      { header: 'Lunch Duration', key: 'lunchDuration', width: 15 },
+      { header: 'Leave Type', key: 'leaveType', width: 20 },
+      { header: 'Description', key: 'description', width: 30 },
+      { header: 'Hourly Wage', key: 'hourlyWage', width: 15 },
+      { header: 'Total Hours', key: 'totalHours', width: 15 },
+    ];
+
+    const byProject = localized.reduce((acc, ts) => {
+      const projectName = ts.projectId?.name || 'Unknown';
+      (acc[projectName] = acc[projectName] || []).push(ts);
+      return acc;
+    }, {});
+
+    Object.entries(byProject).forEach(([project, entries]) => {
+      entries.forEach((ts, i) => {
+        ws.addRow({
+          project: i === 0 ? project : '',
+          employee: ts.employeeId?.name || '',
+          date: ts.date,
+          day: moment(ts.date).format('dddd'),
+          client: ts.clientId?.name || '',
+          startTime: ts.startTime,
+          endTime: ts.endTime,
+          lunchBreak: ts.lunchBreak || '',
+          lunchDuration: ts.lunchDuration || '',
+          leaveType: ts.leaveType || '',
+          description: ts.description || '',
+          hourlyWage: ts.hourlyWage != null ? ts.hourlyWage : '',
+          totalHours: ts.totalHours != null ? ts.totalHours.toFixed(2) : '',
+        });
+      });
+      ws.addRow([]);
+    });
+
+    const buffer = await workbook.xlsx.writeBuffer();
+    const projectNames = Array.from(new Set(localized.map(ts => ts.projectId?.name || 'Unknown')));
+    const nameLabel = projectNames.length === 1 ? projectNames[0] : projectNames.join('_');
+    const startLabel = moment(startDate).format('YYYY-MM-DD');
+    const endLabel = moment(endDate).format('YYYY-MM-DD');
+    const fileName = `${nameLabel}_ProjectTimesheet_${startLabel}_to_${endLabel}.xlsx`;
+
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename="${fileName}"; filename*=UTF-8''${encodeURIComponent(fileName)}`);
+    return res.send(buffer);
+
+  } catch (error) {
+    console.error('Excel download error:', error);
+    return res.status(500).json({ error: 'Failed to generate Excel file' });
+  }
+};
+
+
+// Send project-based timesheet email
+export const sendProjectTimesheetEmail = async (req, res) => {
+  const { email, projectIds = [], startDate, endDate, timezone = 'Asia/Kolkata' } = req.body;
+  try {
+    const filter = {};
+    if (projectIds.length) filter.projectId = { $in: projectIds };
+    if (startDate && endDate) filter.date = {
+      $gte: new Date(startDate),
+      $lte: new Date(endDate),
+    };
+
+    const timesheets = await Timesheet.find(filter)
+      .populate("employeeId")
+      .populate("clientId")
+      .populate("projectId");
+
+    if (!timesheets.length) return res.status(400).json({ message: "No timesheets to send" });
+
+    const localizedTimesheets = timesheets.map(ts => convertTimesheetToLocal(ts, timezone));
+    const groupedByProject = localizedTimesheets.reduce((acc, ts) => {
+      const projectName = ts.projectId?.name || "Unknown";
+      (acc[projectName] = acc[projectName] || []).push(ts);
+      return acc;
+    }, {});
+
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet("Project Timesheets");
+    worksheet.columns = [
+      { header: 'Project', key: 'project', width: 20 },
+      { header: 'Full Name', key: 'employee', width: 20 },
+      { header: 'Date', key: 'date', width: 15 },
+      { header: 'Day', key: 'day', width: 12 },
+      { header: 'Client', key: 'client', width: 20 },
+      { header: 'Start', key: 'startTime', width: 15 },
+      { header: 'End', key: 'endTime', width: 15 },
+      { header: 'Lunch Break', key: 'lunchBreak', width: 12 },
+      { header: 'Lunch Duration', key: 'lunchDuration', width: 15 },
+      { header: 'Leave Type', key: 'leaveType', width: 20 },
+      { header: 'Description', key: 'description', width: 30 },
+      { header: 'Hourly Wage', key: 'hourlyWage', width: 15 },
+      { header: 'Total Hours', key: 'totalHours', width: 15 },
+    ];
+
+    Object.entries(groupedByProject).forEach(([projectName, entries]) => {
+      entries.forEach((ts, i) => {
+        worksheet.addRow({
+          project: i === 0 ? projectName : '',
+          employee: ts.employeeId?.name || '',
+          date: ts.date,
+          day: moment(ts.date).format("dddd"),
+          client: ts.clientId?.name || '',
+          startTime: ts.startTime,
+          endTime: ts.endTime,
+          lunchBreak: ts.lunchBreak || '',
+          lunchDuration: ts.lunchDuration || '',
+          leaveType: ts.leaveType || '',
+          description: ts.description || '',
+          hourlyWage: ts.hourlyWage != null ? ts.hourlyWage : '',
+          totalHours: ts.totalHours != null ? ts.totalHours.toFixed(2) : '',
+        });
+      });
+      worksheet.addRow({});
+    });
+
+    const buffer = await workbook.xlsx.writeBuffer();
+    const formattedStart = moment(startDate).format('YYYY-MM-DD');
+    const formattedEnd = moment(endDate).format('YYYY-MM-DD');
+    const fileName = `${Object.keys(groupedByProject).join('_')}_ProjectTimesheet_${formattedStart}_to_${formattedEnd}.xlsx`;
+
+    const transporter = nodemailer.createTransport({
+      service: "gmail",
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS,
+      },
+    });
+
+    const mailOptions = {
+      from: process.env.EMAIL_USER,
+      to: email,
+      subject: "Project Timesheet Report",
+      text: "Please find attached the filtered project timesheet report.",
+      attachments: [
+        {
+          filename: fileName,
+          content: buffer,
+        },
+      ],
+    };
+
+    await transporter.sendMail(mailOptions);
+    res.status(200).send({ message: "Project timesheet sent successfully!" });
+  } catch (error) {
+    console.error("Error sending project timesheet email:", error);
     res.status(500).send({ message: "Failed to send email. Please try again." });
   }
 };

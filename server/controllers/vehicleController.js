@@ -270,6 +270,121 @@ export const downloadReviewReport = async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 };
+
+
+export const sendReviewReportByClient = async (req, res) => {
+  const { reviewId } = req.params;
+  const { email, format = 'pdf' } = req.body;
+
+  if (!email) {
+    return res.status(400).json({ message: 'Email is required.' });
+  }
+  if (!['pdf', 'excel'].includes(format)) {
+    return res.status(400).json({ message: 'Invalid format. Use "pdf" or "excel".' });
+  }
+
+  try {
+    // Load the review, vehicle and employee data
+    const review = await VehicleReview.findById(reviewId)
+      .populate('vehicle', 'name wofRego')
+      .populate('employeeId', 'name');
+    if (!review) {
+      return res.status(404).json({ message: 'Review not found.' });
+    }
+
+    let buffer;
+    let filename;
+    let contentType;
+
+    if (format === 'pdf') {
+      // Generate PDF into a Buffer
+      buffer = await new Promise((resolve, reject) => {
+        const doc = new PDFDocument({ autoFirstPage: true });
+        const chunks = [];
+        doc.on('data', (chunk) => chunks.push(chunk));
+        doc.on('end', () => resolve(Buffer.concat(chunks)));
+        doc.on('error', reject);
+
+        // PDF content
+        doc.fontSize(16).font('Helvetica-Bold').text('Vehicle Review Report', { align: 'center' });
+        doc.moveDown();
+        doc.fontSize(12).font('Helvetica');
+        doc.text(`Vehicle: ${review.vehicle.name}`);
+        doc.text(`WOF/Rego: ${review.vehicle.wofRego}`);
+        doc.text(`Date Reviewed: ${new Date(review.dateReviewed).toLocaleDateString()}`);
+        doc.text(`Employee: ${review.employeeId.name}`);
+        doc.text(`Oil Checked: ${review.oilChecked ? 'Yes' : 'No'}`);
+        doc.text(`Vehicle Checked: ${review.vehicleChecked ? 'Yes' : 'No'}`);
+        doc.text(`Vehicle Broken: ${review.vehicleBroken ? 'Yes' : 'No'}`);
+        doc.text(`Hours Used: ${review.hours}`);
+        doc.text(`Notes: ${review.notes || 'N/A'}`);
+
+        doc.end();
+      });
+
+      filename = `review_${reviewId}.pdf`;
+      contentType = 'application/pdf';
+    } else {
+      // Generate Excel into a Buffer
+      const workbook = new ExcelJS.Workbook();
+      const sheet = workbook.addWorksheet('Review Report');
+
+      sheet.columns = [
+        { header: 'Field',          key: 'field', width: 30 },
+        { header: 'Value',          key: 'value', width: 50 },
+      ];
+      sheet.addRows([
+        { field: 'Vehicle',        value: review.vehicle.name },
+        { field: 'WOF/Rego',       value: review.vehicle.wofRego },
+        { field: 'Date Reviewed',  value: new Date(review.dateReviewed).toLocaleDateString() },
+        { field: 'Employee',       value: review.employeeId.name },
+        { field: 'Oil Checked',    value: review.oilChecked ? 'Yes' : 'No' },
+        { field: 'Vehicle Checked',value: review.vehicleChecked ? 'Yes' : 'No' },
+        { field: 'Vehicle Broken', value: review.vehicleBroken ? 'Yes' : 'No' },
+        { field: 'Hours Used',     value: review.hours },
+        { field: 'Notes',          value: review.notes || 'N/A' },
+      ]);
+      // styling
+      sheet.getRow(1).font = { bold: true };
+      sheet.getColumn(1).width = 30;
+      sheet.getColumn(2).width = 50;
+
+      buffer = await workbook.xlsx.writeBuffer();
+      filename = `review_${reviewId}.xlsx`;
+      contentType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+    }
+
+    // Send email with attachment
+    const transporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS,
+      },
+    });
+
+    await transporter.sendMail({
+      from: process.env.EMAIL_USER,
+      to: email,
+      subject: `Review Report: ${review.vehicle.name}`,
+      text: `Please find attached the ${format.toUpperCase()} review report for ${review.vehicle.name}.`,
+      attachments: [
+        {
+          filename,
+          content: buffer,
+          contentType,
+        },
+      ],
+    });
+
+    res.status(200).json({ message: 'Review report sent successfully.' });
+  } catch (error) {
+    console.error('Error sending review report:', error);
+    res.status(500).json({ message: 'Failed to send review report.' });
+  }
+};
+
+
 export const downloadVehicleReport = async (req, res) => {
   
   try {
@@ -358,127 +473,82 @@ export const downloadVehicleReport = async (req, res) => {
 
 export const sendVehicleReportByEmail = async (req, res) => {
   try {
-    const { startDate, endDate, email } = req.body;
     const { vehicleId } = req.params;
+    const { startDate, endDate, email } = req.body;
 
-    if (!email) {
-      return res.status(400).json({ message: 'Email is required' });
+    if (!startDate || !endDate || !email) {
+      return res.status(400).json({ message: "Missing required fields." });
     }
 
     const vehicle = await Vehicle.findById(vehicleId);
     if (!vehicle) return res.status(404).json({ message: 'Vehicle not found' });
 
-    
-    // Parse dates (if provided) and normalize end date to include the whole day
-    const start = startDate ? new Date(startDate) : null;
-    const end = endDate ? new Date(endDate) : null;
-    if (end) {
-      end.setHours(23, 59, 59, 999);
-    }
-
-    // Format dates for email subject/text
-    const formattedStart = start ? start.toISOString().split('T')[0] : 'Start';
-    const formattedEnd = end ? end.toISOString().split('T')[0] : 'Today';
-
-    // Build a review query based on the date range
-    const reviewQuery = { vehicle: vehicleId };
-    if (start && end) {
-      reviewQuery.dateReviewed = { $gte: start, $lte: end };
-    } else if (start) {
-      reviewQuery.dateReviewed = { $gte: start };
-    } else if (end) {
-      reviewQuery.dateReviewed = { $lte: end };
-    }
-
-    // Retrieve reviews for the vehicle
-    const reviews = await VehicleReview.find(reviewQuery)
-      .populate('employeeId', 'name')
-      .sort({ dateReviewed: -1 })
-      .lean();
-
-    // Create a new Excel workbook and add two sheets: Summary and History
-    const workbook = new ExcelJS.Workbook();
-
-    // Sheet 1: Summary
-    const summarySheet = workbook.addWorksheet('Vehicle Summary');
-    summarySheet.mergeCells('A1:C1');
-    summarySheet.getCell('A1').value = 'Vehicle Summary Report';
-    summarySheet.getCell('A1').font = { bold: true, size: 16 };
-    summarySheet.getCell('A1').alignment = { horizontal: 'center' };
-
-    summarySheet.addRow([]);
-    summarySheet.addRow(['Vehicle Name', 'Total Hours', 'WOF/Rego']);
-    summarySheet.addRow([
-      vehicle.name || 'N/A',
-      vehicle.hours || 'N/A',
-      vehicle.wofRego || 'N/A',
-    ]);
-    summarySheet.getRow(3).font = { bold: true };
-
-    // Sheet 2: History
-    const historySheet = workbook.addWorksheet('Vehicle History');
-    historySheet.columns = [
-      { header: 'Employee Name', key: 'employee', width: 25 },
-      { header: 'Date Reviewed', key: 'date', width: 15 },
-      { header: 'WOF/Rego', key: 'wofRego', width: 15 },
-      { header: 'Hours Used', key: 'hours', width: 10 },
-      { header: 'Oil Checked', key: 'oilChecked', width: 15 },
-      { header: 'Vehicle Checked', key: 'vehicleChecked', width: 20 },
-      { header: 'Vehicle Broken', key: 'vehicleBroken', width: 20 },
-      { header: 'Photos', key: 'photos', width: 30 },
-      { header: 'Notes', key: 'notes', width: 30 },
-    ];
-    historySheet.getRow(1).font = { bold: true };
+    const reviews = await VehicleReview.find({
+      vehicle: vehicleId,
+      dateReviewed: {
+        $gte: new Date(startDate),
+        $lte: new Date(endDate),
+      },
+    }).populate('employeeId');
 
     if (!reviews.length) {
-      historySheet.addRow({ employee: 'No reviews found for this date range.' });
-    } else {
-      reviews.forEach((r) => {
-        historySheet.addRow({
-          employee: r.employeeId?.name || 'N/A',
-          date: r.dateReviewed ? new Date(r.dateReviewed).toLocaleDateString() : 'N/A',
-          wofRego: vehicle.wofRego || 'N/A',
-          hours: r.hours || 'N/A',
-          oilChecked: r.oilChecked ? 'Yes' : 'No',
-          vehicleChecked: r.vehicleChecked ? 'Yes' : 'No',
-          vehicleBroken: r.vehicleBroken ? 'Yes' : 'No',
-          photos: Array.isArray(r.photos) ? r.photos.join(', ') : r.photos || 'N/A',
-          notes: r.notes || 'N/A',
-        });
-      });
+      return res.status(404).json({ message: 'No reviews in the selected range' });
     }
 
-    // Write the workbook into a buffer
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet('Vehicle Report');
+
+    worksheet.columns = [
+      { header: 'Date', key: 'date', width: 15 },
+      { header: 'Employee', key: 'employee', width: 25 },
+      { header: 'WOF/Rego', key: 'wofRego', width: 15 },
+      { header: 'Oil Checked', key: 'oilChecked', width: 15 },
+      { header: 'Vehicle Checked', key: 'vehicleChecked', width: 15 },
+      { header: 'Vehicle Broken', key: 'vehicleBroken', width: 15 },
+      { header: 'Hours', key: 'hours', width: 10 },
+    ];
+
+    reviews.forEach((review) => {
+      worksheet.addRow({
+        date: review.dateReviewed.toISOString().split('T')[0],
+        employee: review.employeeId?.name || 'Unknown',
+        wofRego: vehicle.wofRego || 'N/A',
+        oilChecked: review.oilChecked ? 'Yes' : 'No',
+        vehicleChecked: review.vehicleChecked ? 'Yes' : 'No',
+        vehicleBroken: review.vehicleBroken ? 'Yes' : 'No',
+        hours: review.hours || 'N/A',
+      });
+    });
+
     const buffer = await workbook.xlsx.writeBuffer();
 
-    // Set up the nodemailer transporter (using Gmail in this example)
     const transporter = nodemailer.createTransport({
-      service: 'Gmail', // Change this if you use another service
+      service: 'gmail',
       auth: {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASS,
       },
     });
 
-    // Send the email with the Excel file as an attachment
-    await transporter.sendMail({
-      from: `"Timesheet Manager" <${process.env.EMAIL_USER}>`,
+    const mailOptions = {
+      from: process.env.EMAIL_USER,
       to: email,
-      subject: `Vehicle Report - ${vehicle.name} (${formattedStart} to ${formattedEnd})`,
-      text: `Hello,\n\nAttached is the vehicle report for "${vehicle.name}" from ${formattedStart} to ${formattedEnd}.\n\nRegards,\nTeam`,
+      subject: `Vehicle Report: ${vehicle.name}`,
+      text: `Attached is the vehicle report for ${vehicle.name} from ${startDate} to ${endDate}.`,
       attachments: [
         {
-          filename: `VehicleReport_${vehicle.name.replace(/\s+/g, '_')}_${formattedStart}_to_${formattedEnd}.xlsx`,
+          filename: `${vehicle.name}_report.xlsx`,
           content: buffer,
-          contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         },
       ],
-    });
+    };
 
-    res.status(200).json({ message: 'Report sent successfully' });
+    await transporter.sendMail(mailOptions);
+    res.status(200).json({ message: 'Vehicle report sent successfully.' });
+
   } catch (error) {
-    console.error('Error sending report:', error);
-    res.status(500).json({ message: 'Failed to send report' });
+    console.error('Email report error:', error);
+    res.status(500).json({ message: 'Failed to send email report.' });
   }
 };
 
@@ -647,7 +717,7 @@ export const sendAllVehiclesReportByEmail = async (req, res) => {
 
     // Set up Nodemailer transporter
     const transporter = nodemailer.createTransport({
-      service: 'Gmail', // or your SMTP service
+      service: 'Gmail', 
       auth: {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASS,

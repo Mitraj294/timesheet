@@ -7,7 +7,12 @@ const ViewReview = () => {
   const { reviewId } = useParams();
   const [reviewData, setReviewData] = useState(null);
   const [loading, setLoading] = useState(true);
+
   const [showDownloadPrompt, setShowDownloadPrompt] = useState(false);
+  const [showEmailPrompt, setShowEmailPrompt] = useState(false);
+  const [email, setEmail] = useState('');
+  const [emailFormat, setEmailFormat] = useState('pdf');
+  const [sending, setSending] = useState(false);
 
   useEffect(() => {
     const fetchReview = async () => {
@@ -41,10 +46,9 @@ const ViewReview = () => {
       const token = localStorage.getItem('token');
       const response = await axios.get(`http://localhost:5000/api/vehicles/reviews/${reviewId}/download?format=${format}`, {
         headers: { Authorization: `Bearer ${token}` },
-        responseType: 'blob', // Important: tells axios to treat it as binary data
+        responseType: 'blob',
       });
 
-      // Ensure the response is a Blob (PDF or Excel)
       if (response && response.data) {
         const url = window.URL.createObjectURL(new Blob([response.data], { type: format === 'pdf' ? 'application/pdf' : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }));
         const link = document.createElement('a');
@@ -59,13 +63,36 @@ const ViewReview = () => {
     }
   };
 
-  const openDownloadPrompt = () => {
-    setShowDownloadPrompt(true);
+  const handleSendEmail = async () => {
+    if (!email) {
+      alert('Please enter a valid email address.');
+      return;
+    }
+    setSending(true);
+    try {
+      const token = localStorage.getItem('token');
+      await axios.post(
+        `http://localhost:5000/api/vehicles/reviews/report/email/${reviewId}`,
+        { email, format: emailFormat },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      
+      alert('Email sent successfully!');
+      setShowEmailPrompt(false);
+      setEmail('');
+    } catch (error) {
+      console.error('Error sending email:', error);
+      alert('Failed to send email. Please try again.');
+    } finally {
+      setSending(false);
+    }
   };
 
-  const closeDownloadPrompt = () => {
-    setShowDownloadPrompt(false);
-  };
+  const openDownloadPrompt = () => setShowDownloadPrompt(true);
+  const closeDownloadPrompt = () => setShowDownloadPrompt(false);
+
+  const openEmailPrompt = () => setShowEmailPrompt(true);
+  const closeEmailPrompt = () => setShowEmailPrompt(false);
 
   return (
     <div className="vehicles-page view-review">
@@ -80,7 +107,7 @@ const ViewReview = () => {
 
         <div className="view-review-header">
           <div className="right">
-            <button className="btn btn-purple">Send Report</button>
+            <button className="btn btn-purple" onClick={openEmailPrompt}>Send Report</button>
             <button className="btn btn-red" onClick={openDownloadPrompt}>Download Report</button>
           </div>
         </div>
@@ -96,6 +123,49 @@ const ViewReview = () => {
         </div>
       )}
 
+      {/* Prompt for sending email */}
+      {showEmailPrompt && (
+        <div className="download-prompt">
+          <h4>Send Report via Email</h4>
+          <input
+            type="email"
+            placeholder="Enter recipient email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            className="input-email"
+          />
+          <div className="format-options">
+            <label>
+              <input
+                type="radio"
+                name="format"
+                value="pdf"
+                checked={emailFormat === 'pdf'}
+                onChange={() => setEmailFormat('pdf')}
+              />
+              PDF
+            </label>
+            <label>
+              <input
+                type="radio"
+                name="format"
+                value="excel"
+                checked={emailFormat === 'excel'}
+                onChange={() => setEmailFormat('excel')}
+              />
+              Excel
+            </label>
+          </div>
+          <div className="email-actions">
+            <button className="btn btn-green" onClick={handleSendEmail} disabled={sending}>
+              {sending ? 'Sending...' : 'Send Email'}
+            </button>
+            <button className="btn btn-gray" onClick={closeEmailPrompt} disabled={sending}>Cancel</button>
+          </div>
+        </div>
+      )}
+
+      {/* Review details */}
       <div className="view-review-header">
         <div className="left">
           <h1>{reviewData.vehicle?.name || 'Unnamed Vehicle'}</h1>
@@ -114,6 +184,7 @@ const ViewReview = () => {
         </div>
       </div>
 
+      {/* Review fields */}
       <div className="review-table">
         <div className="row">
           <div className="label">WOF/Rego</div>

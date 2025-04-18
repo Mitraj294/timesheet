@@ -14,6 +14,7 @@ import {
   downloadReviewReport,
   downloadVehicleReport,
   downloadAllVehiclesReport ,
+  sendReviewReportByClient,
   sendVehicleReportByEmail,
   sendAllVehiclesReportByEmail
 } from '../controllers/vehicleController.js';
@@ -45,6 +46,7 @@ router.get('/vehicle-with-reviews/:vehicleId', getVehicleWithReviews);   // GET 
 
 // Download routes
 router.get('/reviews/:reviewId/download', downloadReviewReport);
+router.post('/reviews/report/email/:reviewId', sendReviewReportByClient);
 
 
 router.get('/download/all', downloadAllVehiclesReport);
@@ -52,8 +54,8 @@ router.get('/download/all', downloadAllVehiclesReport);
 
 
 router.get('/:vehicleId/download-report', downloadVehicleReport);
-
 router.post('/report/email/:vehicleId', sendVehicleReportByEmail);
+
 
 router.post('/send-report',  sendAllVehiclesReportByEmail);
 

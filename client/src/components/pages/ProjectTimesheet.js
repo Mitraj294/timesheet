@@ -6,6 +6,7 @@ import {
   faArrowLeft,
   faArrowRight,
   faPlus,
+  faPaperPlane,faDownload,faEnvelope ,
   faChevronDown,
   faChevronUp,
   faTrash,
@@ -13,6 +14,7 @@ import {
 import axios from "axios";
 import { format } from "date-fns";
 import "../../styles/Timesheet.scss";
+import DatePicker from 'react-datepicker';
 
 const ProjectTimesheet = ({
   selectedProjectId,
@@ -27,7 +29,14 @@ const ProjectTimesheet = ({
   const [expandedRows, setExpandedRows] = useState({});
   const [currentDate, setCurrentDate] = useState(new Date());
   const [isLoading, setIsLoading] = useState(false);
+  const [showDownloadFilters, setShowDownloadFilters] = useState(false);
+  const [showSendFilters, setShowSendFilters] = useState(false);
+  const [selectedProject, setSelectedProject] = useState('');
 
+  
+ const [startDate,      setStartDate]      = useState(null);
+ const [endDate,        setEndDate]        = useState(null);
+    const [email, setEmail] = useState('');
   const navigate = useNavigate();
 
   // Fetch supporting data on mount
@@ -295,6 +304,97 @@ const ProjectTimesheet = ({
     return Object.values(grouped);
   }, [timesheets, employees, clients, projects, generateDateColumns, selectedProjectId]);
 
+  const handleEmailProjectTimesheets = async () => {
+    if (!email) {
+      alert('Please enter a valid email address.');
+      return;
+    }
+  
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        alert('Authentication error! Please log in again.');
+        return;
+      }
+  
+      const config = {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      };
+  
+      const body = {
+        email,
+        projectIds: selectedProject ? [selectedProject] : [],
+        startDate: startDate ? format(startDate, 'yyyy-MM-dd') : null,
+        endDate: endDate ? format(endDate, 'yyyy-MM-dd') : null,
+      };
+  
+      const response = await axios.post(
+        'http://localhost:5000/api/timesheets//send-email/project',
+        body,
+        config
+      );
+  
+      alert(response.data.message || 'Timesheet sent successfully!');
+    } catch (error) {
+      console.error('Error sending timesheet email:', error);
+      alert('Failed to send timesheet. Please try again.');
+    }
+  };
+  
+  
+  
+  // ...
+  
+  const handleDownloadProjectTimesheets = async () => {
+    if (!selectedProject) {
+      alert('Please select a project first.');
+      return;
+    }
+  
+    try {
+    const response = await fetch('http://localhost:5000/api/timesheets/download/project', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    Authorization: `Bearer ${localStorage.getItem('token')}`,
+  },
+  body: JSON.stringify({
+    projectIds: [selectedProject],
+    startDate,
+    endDate,
+    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+  }),
+});
+
+  
+      if (!response.ok) {
+        const errorData = await response.json();
+        return alert(errorData.error || 'Download failed');
+      }
+  
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+  
+      const disposition = response.headers.get('Content-Disposition');
+      const match = disposition && disposition.match(/filename\*?=(?:UTF-8'')?(.+)/);
+      const fileName = match ? decodeURIComponent(match[1]) : 'Project_Timesheet.xlsx';
+  
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    } catch (err) {
+      console.error('Download error:', err);
+      alert('Failed to download project timesheet.');
+    }
+  };
+  
+  
   const renderTableHeaders = () => {
     if (viewType === "Daily") {
       return (
@@ -404,6 +504,103 @@ const ProjectTimesheet = ({
         >
           <FontAwesomeIcon icon={faPlus} /> Create Timesheet
         </button>
+        <div className="timesheet-actions">
+  <button
+    className="btn btn-red"
+    onClick={() => setShowDownloadFilters(prev => !prev)}
+  >
+    <FontAwesomeIcon icon={faDownload} /> Download Report
+  </button>
+  <button
+    className="btn btn-purple"
+    onClick={() => setShowSendFilters(prev => !prev)}
+  >
+    <FontAwesomeIcon icon={faPaperPlane} /> Send Report
+  </button>
+</div>
+
+{/* Download Filters */}
+{showDownloadFilters && (
+  <div className="filter-panel">
+    <select
+      value={selectedProject}
+      onChange={e => setSelectedProject(e.target.value)}
+      className="filter-select"
+    >
+      <option value="">All Projects</option>
+      {projects.map(project => (
+        <option key={project._id} value={project._id}>{project.name}</option>
+      ))}
+    </select>
+
+    <DatePicker
+      selected={startDate}
+      onChange={setStartDate}
+      placeholderText="From"
+      dateFormat="yyyy-MM-dd"
+      className="filter-datepicker"
+    />
+    <DatePicker
+      selected={endDate}
+      onChange={setEndDate}
+      minDate={startDate}
+      placeholderText="To"
+      dateFormat="yyyy-MM-dd"
+      className="filter-datepicker"
+    />
+
+    <button className="btn btn-red" onClick={handleDownloadProjectTimesheets}>
+      <FontAwesomeIcon icon={faDownload} /> Download
+    </button>
+  </div>
+)}
+
+{/* Send Filters */}
+{showSendFilters && (
+  <div className="filter-panel">
+    <select
+      value={selectedProject}
+      onChange={e => setSelectedProject(e.target.value)}
+      className="filter-select"
+    >
+      <option value="">All Projects</option>
+      {projects.map(project => (
+        <option key={project._id} value={project._id}>{project.name}</option>
+      ))}
+    </select>
+
+    <DatePicker
+      selected={startDate}
+      onChange={setStartDate}
+      placeholderText="From"
+      dateFormat="yyyy-MM-dd"
+      className="filter-datepicker"
+    />
+    <DatePicker
+      selected={endDate}
+      onChange={setEndDate}
+      minDate={startDate}
+      placeholderText="To"
+      dateFormat="yyyy-MM-dd"
+      className="filter-datepicker"
+    />
+
+    <input
+      type="email"
+      placeholder="Recipient email"
+      value={email}
+      onChange={e => setEmail(e.target.value)}
+      className="filter-email"
+    />
+
+    <button className="btn btn-green" onClick={handleEmailProjectTimesheets}>
+      <FontAwesomeIcon icon={faEnvelope} /> Send
+    </button>
+  </div>
+)}
+
+
+      
       </div>
 
       {isLoading ? (
