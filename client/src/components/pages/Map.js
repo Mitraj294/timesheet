@@ -9,7 +9,8 @@ import {
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 
 import 'leaflet/dist/leaflet.css';
-import '/home/digilab/timesheet/client/src/styles/Map.scss';
+import '../../styles/Map.scss';
+
 
 const Map = () => {
   const [viewType, setViewType] = useState('Daily');
