@@ -19,7 +19,7 @@ import DatePicker from 'react-datepicker';
 const ProjectTimesheet = ({
   selectedProjectId,
   setSelectedProjectId,
-  updateActualHours, // New prop for updating parent's actualHours
+  updateActualHours, 
 }) => {
   const [timesheets, setTimesheets] = useState([]);
   const [viewType, setViewType] = useState("Weekly");
@@ -332,7 +332,7 @@ const ProjectTimesheet = ({
       };
   
       const response = await axios.post(
-        'http://localhost:5000/api/timesheets//send-email/project',
+        'http://localhost:5000/api/timesheets/send-email/project',
         body,
         config
       );
@@ -345,8 +345,6 @@ const ProjectTimesheet = ({
   };
   
   
-  
-  // ...
   
   const handleDownloadProjectTimesheets = async () => {
     if (!selectedProject) {
@@ -465,7 +463,7 @@ const ProjectTimesheet = ({
               </option>
             ))}
           </select>
-          {isLoading ? <div>Loading...</div> : <div>{/* Data loaded below */}</div>}
+          {isLoading ? <div>Loading...</div> : <div>{}</div>}
         </div>
 
         <div className="timesheet-period">

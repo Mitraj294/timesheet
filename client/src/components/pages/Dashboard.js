@@ -25,9 +25,9 @@ import Chart from "chart.js/auto";
 import { format } from "date-fns";
 import "../../styles/Dashboard.scss";
 
-/*  UTILITY FUNCTIONS  */
+//UTILITY FUNCTIONS  
 
-// Convert decimal hours (e.g. 8.5) to "HH:MM" format.
+// Convert decimal hours to "HH:MM" format.
 const convertDecimalToTime = (decimalHours) => {
   if (isNaN(decimalHours)) return "00:00";
   const hours = Math.floor(decimalHours);
@@ -56,7 +56,7 @@ const getWeekStart = (date) => {
   return d;
 };
 
-// Get the period range based on view type ("Weekly", "Fortnightly", "Monthly").
+// Get the period range based on view type //Weekly, Fortnightly, Monthly
 const getPeriodRange = (view) => {
   const today = new Date();
   let start, end;
@@ -123,7 +123,7 @@ const getWeeklyTotals = (data, periodStart, weeks) => {
   return weeklyTotals;
 };
 
-/*  DASHBOARD COMPONENT  */
+ //DASHBOARD COMPONENT 
 
 const Dashboard = () => {
   const dispatch = useDispatch();

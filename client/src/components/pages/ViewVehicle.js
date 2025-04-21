@@ -18,7 +18,7 @@ import {
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 import '../../styles/Vehicles.scss';
-
+import '../../styles/_base.scss'
 const ViewVehicle = () => {
     const [sendEmail, setSendEmail] = useState('');
     const [sending, setSending] = useState(false);

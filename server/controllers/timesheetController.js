@@ -111,34 +111,55 @@ export const checkTimesheet = async (req, res) => {
 // Get all timesheets
 export const getTimesheets = async (req, res) => {
   try {
-    const { timezone = "UTC" } = req.query;
+    const {
+      timezone = "UTC",
+      email,
+      employeeIds = [],
+      startDate,
+      endDate,
+    } = req.query;
 
-   const { email, employeeIds = [], startDate, endDate } = req.body;
+    const filter = {};
 
-const filter = {};
-if (employeeIds.length > 0) filter.employeeId = { $in: employeeIds };
-if (startDate && endDate) {
-  filter.date = {
-    $gte: new Date(startDate),
-    $lte: new Date(endDate),
-  };
-}
+    if (employeeIds.length > 0) {
+      // Convert to array if it's a string from query (e.g. employeeIds=a,b,c)
+      const ids = Array.isArray(employeeIds)
+        ? employeeIds
+        : employeeIds.split(",");
+      filter.employeeId = { $in: ids };
+    }
 
-const timesheets = await Timesheet.find(filter)
+    if (startDate && endDate) {
+      filter.date = {
+        $gte: new Date(startDate),
+        $lte: new Date(endDate),
+      };
+    }
+
+    const timesheets = await Timesheet.find(filter)
       .populate("employeeId", "name email")
       .populate("clientId", "name emailAddress")
       .populate("projectId", "name startDate finishDate")
       .sort({ createdAt: -1 });
 
-    if (!timesheets.length)
+    if (!timesheets.length) {
       return res.status(404).json({ message: "No timesheets found" });
+    }
 
-    const timesheetsWithLocal = timesheets.map(t => convertTimesheetToLocal(t, timezone));
+    const timesheetsWithLocal = timesheets.map((t) =>
+      convertTimesheetToLocal(t, timezone)
+    );
 
     const total = timesheets.reduce((sum, t) => sum + (t.totalHours || 0), 0);
-    const avg = timesheets.length ? (total / timesheets.length).toFixed(1) : 0;
+    const avg = timesheets.length
+      ? (total / timesheets.length).toFixed(1)
+      : 0;
 
-    res.json({ timesheets: timesheetsWithLocal, totalHours: total, avgHours: avg });
+    res.json({
+      timesheets: timesheetsWithLocal,
+      totalHours: total,
+      avgHours: avg,
+    });
   } catch (error) {
     console.error("Error fetching timesheets:", error);
     res.status(500).json({ message: error.message });

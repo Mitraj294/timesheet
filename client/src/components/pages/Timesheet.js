@@ -673,9 +673,7 @@ const handleDownload = async () => {
                                     )
                                     .map((entry) => (
                                       <div
-                                        key={
-                                          entry._id || `entry-${Math.random()}`
-                                        }
+                                        key={entry._id || `entry-${Math.random()}`}
                                         className='timesheet-entry'
                                       >
                                         <button
@@ -692,10 +690,9 @@ const handleDownload = async () => {
                                         >
                                           <FontAwesomeIcon icon={faTrash} />
                                         </button>
-
+                          
                                         <p>
-                                          <b>Employee Name:</b>{' '}
-                                          {employee.name || 'N/A'}
+                                          <b>Employee Name:</b> {employee.name || 'N/A'}
                                         </p>
                                         <p>
                                           <b>Date:</b>{' '}
@@ -703,14 +700,11 @@ const handleDownload = async () => {
                                             ? formatDate(entry.date)
                                             : 'N/A'}
                                         </p>
-
                                         <p>
-                                          <b>Client:</b>{' '}
-                                          {entry.clientId?.name || 'N/A'}
+                                          <b>Client:</b> {entry.clientId?.name || 'N/A'}
                                         </p>
                                         <p>
-                                          <b>Project:</b>{' '}
-                                          {entry.projectId?.name || 'N/A'}
+                                          <b>Project:</b> {entry.projectId?.name || 'N/A'}
                                         </p>
                                         <p>
                                           <b>Start Time:</b>{' '}
@@ -738,19 +732,29 @@ const handleDownload = async () => {
                                             </p>
                                           );
                                         })()}
-                                        <p>
-                                          <b>Notes:</b>{' '}
-                                          {entry.description || 'None'}
-                                        </p>
+                          
                                         <p>
                                           <b>Total Hours Worked:</b>{' '}
                                           {entry.totalHours || 'N/A'}
                                         </p>
+                          
                                         <p>
                                           <b>Leave Type:</b>{' '}
                                           {entry.leaveType !== 'None'
                                             ? entry.leaveType
                                             : 'Not on leave'}
+                                        </p>
+                          
+                                        {/* show description only if leaveType isn’t “None” */}
+                                        {entry.leaveType !== 'None' && entry.description && (
+                                          <p>
+                                            <b>Description:</b> {entry.description}
+                                          </p>
+                                        )}
+                          
+                                        {/* always show notes */}
+                                        <p>
+                                          <b>Notes:</b> {entry.notes || 'N/A'}
                                         </p>
                                       </div>
                                     ))}
@@ -758,6 +762,7 @@ const handleDownload = async () => {
                               )}
                             </td>
                           );
+                          
                         })}
                         <td>{totalHours}</td>
                       </tr>

@@ -100,7 +100,8 @@ const CreateProject = () => {
     <div className="create-project-container">
       <h2>{projectId ? "Update Project" : "Create Project"}</h2>
 
-      {/* Breadcrumb */}
+    //Breadcrumb 
+
       <div className="breadcrumb">
         <Link to="/dashboard" className="breadcrumb-link">Dashboard</Link>
         <span> / </span>
@@ -113,7 +114,8 @@ const CreateProject = () => {
 
       <form onSubmit={handleSubmit} className="create-project-form">
 
-        {/* Project Name */}
+      //Project Name 
+
         <div className="form-group">
           <FontAwesomeIcon icon={faUser} className="input-icon" />
           <input
@@ -126,7 +128,8 @@ const CreateProject = () => {
           />
         </div>
 
-        {/* Start Date */}
+      //Start Date 
+
         <div className="form-group">
           <FontAwesomeIcon icon={faCalendar} className="input-icon" />
           <input
@@ -137,7 +140,8 @@ const CreateProject = () => {
           />
         </div>
 
-        {/* Finish Date */}
+      //Finish Date 
+
         <div className="form-group">
           <FontAwesomeIcon icon={faCalendar} className="input-icon" />
           <input
@@ -148,7 +152,8 @@ const CreateProject = () => {
           />
         </div>
 
-        {/* Address */}
+      //Address 
+
         <div className="form-group">
           <FontAwesomeIcon icon={faMapMarker} className="input-icon" />
           <input
@@ -160,7 +165,8 @@ const CreateProject = () => {
           />
         </div>
 
-        {/* Expected Hours */}
+      //Expected Hours 
+
         <div className="form-group">
           <FontAwesomeIcon icon={faClock} className="input-icon" />
           <input
@@ -172,7 +178,8 @@ const CreateProject = () => {
           />
         </div>
 
-        {/* Notes */}
+      //Notes 
+
         <div className="form-group">
           <FontAwesomeIcon icon={faStickyNote} className="input-icon" />
           <textarea
@@ -183,7 +190,8 @@ const CreateProject = () => {
           />
         </div>
 
-        {/* Important Checkbox */}
+      //Important Checkbox 
+
         <div className="checkbox-group">
           <input
             type="checkbox"
@@ -194,7 +202,8 @@ const CreateProject = () => {
           <label>Important</label>
         </div>
 
-        {/* Form Buttons */}
+      //Form Buttons 
+
         <div className="form-buttons">
           <button type="submit" className="submit-btn">
             <FontAwesomeIcon icon={faPlus} /> {projectId ? "Update Project" : "Create Project"}

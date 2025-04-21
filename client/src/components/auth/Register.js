@@ -25,7 +25,7 @@ const Register = () => {
   useEffect(() => {
     if (isAuthenticated) {
       // Redirect after successful registration
-      // You can change the redirect route based on the role (employee/employer)
+      
       navigate("/dashboard");
     }
   }, [isAuthenticated, navigate]);

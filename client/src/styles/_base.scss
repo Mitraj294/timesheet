@@ -1,0 +1,59 @@
+// _base.scss
+
+// Typography
+$font-base: 'Inter', sans-serif;
+$font-size-base: 1rem;
+$font-size-sm: 0.875rem;
+$font-size-lg: 1.25rem;
+
+// Spacing (scale: 4px)
+$space-xs: 0.25rem;
+$space-sm: 0.5rem;
+$space-md: 1rem;
+$space-lg: 2rem;
+$space-xl: 4rem;
+
+// Colors
+$color-primary: #2a2a2a;
+$color-secondary: #f0f0f0;
+$color-accent: #1e90ff;
+$color-border: #dcdcdc;
+$color-background: #ffffff;
+
+// Breakpoints
+$break-sm: 576px;
+$break-md: 768px;
+$break-lg: 992px;
+
+// Mixins
+@mixin flex-center {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+@mixin grid($columns, $gap: $space-md) {
+    display: grid;
+    grid-template-columns: repeat($columns, 1fr);
+    gap: $gap;
+}
+
+@mixin respond($breakpoint) {
+    @if $breakpoint ==sm {
+        @media (max-width: $break-sm) {
+            @content;
+        }
+    }
+
+    @else if $breakpoint ==md {
+        @media (max-width: $break-md) {
+            @content;
+        }
+    }
+
+    @else if $breakpoint ==lg {
+        @media (max-width: $break-lg) {
+            @content;
+        }
+    }
+}
