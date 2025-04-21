@@ -33,6 +33,7 @@ import ViewProject from "./components/pages/ViewProject";
 import ViewVehicle from "./components/pages/ViewVehicle";
 import ViewReview from './components/pages/ViewReview';
 import CreateOrUpdateVehicleReview from "./components/pages/CreateOrUpdateVehicleReview";
+import 'leaflet/dist/leaflet.css';
 
 
 import "./styles/App.css";
@@ -96,23 +97,16 @@ function App() {
               <Route path="/createrole" element={<PrivateRoute><CreateRole /></PrivateRoute>} />
               <Route path="/createrole/:roleId?" element={<PrivateRoute><CreateRole /></PrivateRoute>} />
 
-        {/* Vehicle Pages */}
-<Route path="/vehicles" element={<PrivateRoute><Vehicles /></PrivateRoute>} />
-<Route path="/employer/vehicles/create" element={<PrivateRoute><CreateOrUpdateVehicle /></PrivateRoute>} />
-<Route path="/vehicles/update/:vehicleId" element={<PrivateRoute><CreateOrUpdateVehicle /></PrivateRoute>} />
-<Route path="/vehicles/view/:vehicleId" element={<PrivateRoute><ViewVehicle /></PrivateRoute>} />
 
-{/* For creating a review */}
-<Route path="/vehicles/:vehicleId/review" element={<PrivateRoute><CreateOrUpdateVehicleReview /></PrivateRoute>} />
+              <Route path="/vehicles" element={<PrivateRoute><Vehicles /></PrivateRoute>} />  
+              <Route path="/employer/vehicles/create" element={<PrivateRoute><CreateOrUpdateVehicle /></PrivateRoute>} /> 
+              <Route path="/vehicles/update/:vehicleId" element={<PrivateRoute><CreateOrUpdateVehicle /></PrivateRoute>} /> 
+              <Route path="/vehicles/view/:vehicleId" element={<PrivateRoute><ViewVehicle /></PrivateRoute>} />
 
-{/* For editing a review */}
-<Route path="/vehicles/:vehicleId/reviews/:reviewId/edit" element={<PrivateRoute><CreateOrUpdateVehicleReview /></PrivateRoute>} />
-
-{/* (Optional) If you have a separate view route */}
-<Route path="/vehicles/:vehicleId/reviews/:reviewId" element={<PrivateRoute><ViewReview /></PrivateRoute>} />
-
-
-<Route path="/vehicles/reviews/:reviewId/view" element={<PrivateRoute><ViewReview /></PrivateRoute>} />
+              <Route path="/vehicles/:vehicleId/review" element={<PrivateRoute><CreateOrUpdateVehicleReview /></PrivateRoute>} />
+              <Route path="/vehicles/:vehicleId/reviews/:reviewId/edit" element={<PrivateRoute><CreateOrUpdateVehicleReview /></PrivateRoute>} />
+              <Route path="/vehicles/:vehicleId/reviews/:reviewId" element={<PrivateRoute><ViewReview /></PrivateRoute>} />
+              <Route path="/vehicles/reviews/:reviewId/view" element={<PrivateRoute><ViewReview /></PrivateRoute>} />
 
             </Routes>
           </Layout>
