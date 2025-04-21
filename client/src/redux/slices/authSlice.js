@@ -1,7 +1,7 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import axios from "axios";
 
-const BASE_URL = process.env.REACT_APP_API_URL;
+const API_URL = "http://localhost:5000/api/auth";
 
 const token = localStorage.getItem("token");
 const user = JSON.parse(localStorage.getItem("user"));
@@ -16,7 +16,7 @@ const initialState = {
 // 🔹 Login User
 export const loginUser = createAsyncThunk("auth/login", async (userData, { rejectWithValue }) => {
   try {
-    const response = await axios.post(`${BASE_URL}/api/auth/login`, data);
+    const response = await axios.post(`${API_URL}/login`, userData);
     localStorage.setItem("token", response.data.token);
     localStorage.setItem("user", JSON.stringify(response.data.user));
     return response.data;
