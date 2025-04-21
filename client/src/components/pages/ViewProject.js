@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Link, useParams, useNavigate } from "react-router-dom";
 import axios from "axios";
+import { useDispatch, useSelector } from "react-redux";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faProjectDiagram,
@@ -25,6 +26,7 @@ const ViewProject = () => {
   const navigate = useNavigate();
   const [project, setProject] = useState(null);
 
+    const { user } = useSelector((state) => state.auth)
   // Fetch project data on mount or when selectedProjectId changes
   useEffect(() => {
     const fetchProjectData = async () => {
@@ -59,6 +61,7 @@ const ViewProject = () => {
         <h2>
           <FontAwesomeIcon icon={faProjectDiagram} /> View Project
         </h2>
+        {user?.role === "employer" && (
         <div className="actions">
           <button
             className="btn btn-primary"
@@ -81,7 +84,7 @@ const ViewProject = () => {
           >
             <FontAwesomeIcon icon={faTrash} /> Delete Project
           </button>
-        </div>
+        </div>)}
       </div>
 
       {/* Breadcrumb */}

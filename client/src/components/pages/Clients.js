@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { useDispatch, useSelector } from "react-redux";
 import { Link } from "react-router-dom";
 import axios from "axios";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
@@ -8,7 +9,7 @@ import "../../styles/Clients.scss";
 const Clients = () => {
   const [clients, setClients] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
-
+  const { user } = useSelector((state) => state.auth); // Get logged-in user
   useEffect(() => {
     axios.get("/api/clients")
       .then(res => setClients(res.data))
@@ -60,10 +61,10 @@ const Clients = () => {
         <button className="btn btn-download" onClick={handleDownloadClients}>
   <FontAwesomeIcon icon={faDownload} /> Download
 </button>
-
+{user?.role === "employer" && (
           <Link to="/clients/create" className="btn btn-primary">
             <FontAwesomeIcon icon={faPlus} /> Add New Client
-          </Link>
+          </Link>)}
         </div>
       </div>
 
@@ -106,16 +107,20 @@ const Clients = () => {
                 <td>{client.phoneNumber}</td>
                 <td>{client.address || "--"}</td>
                 <td>{client.notes || "--"}</td>
+             
                 <td className="actions">
                   <Link to={`/clients/view/${client._id}`} className="btn btn-view">
                     <FontAwesomeIcon icon={faEye} />
                   </Link>
+                  {user?.role === "employer" && (
                   <Link to={`/clients/update/${client._id}`} className="btn btn-edit">
                     <FontAwesomeIcon icon={faEdit} />
                   </Link>
+                  )}
+                      {user?.role === "employer" && (
                   <button className="btn btn-delete" onClick={() => deleteClient(client._id)}>
                     <FontAwesomeIcon icon={faTrash} />
-                  </button>
+                  </button>)}
                 </td>
               </tr>
             ))}

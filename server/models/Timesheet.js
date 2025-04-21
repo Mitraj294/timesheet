@@ -16,6 +16,7 @@ const TimesheetSchema = new mongoose.Schema(
       default: "None" 
     },
     description: { type: String, default: "" },
+    notes: { type: String, default: "" },
     hourlyWage: { type: Number },
     totalHours: { type: Number, default: 0 },
     timezone: { type: String, default: "UTC" },

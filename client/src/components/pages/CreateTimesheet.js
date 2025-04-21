@@ -20,6 +20,8 @@ const CreateTimesheet = ({
   const navigate = useNavigate();
   const location = useLocation();
 
+
+
   // Initial form state
   const [formData, setFormData] = useState({
     employeeId: '',
@@ -73,13 +75,20 @@ const CreateTimesheet = ({
 
 console.log("Timesheet being edited (from backend):", timesheet);
 
+const toLocalTime = (isoStr) => {
+  return isoStr
+    ? DateTime.fromISO(isoStr, { zone: 'utc' }).toLocal().toFormat('HH:mm')
+    : '';
+};
+
+
 setFormData({
   employeeId: timesheet.employeeId?._id || '',
   clientId: timesheet.clientId?._id || '',
   projectId: timesheet.projectId?._id || '',
   date: timesheet.date || '',
-  startTime: timesheet.startTime || '',  // ✅ already local
-  endTime: timesheet.endTime || '',      // ✅ already local
+  startTime: toLocalTime(timesheet.startTime),
+  endTime: toLocalTime(timesheet.endTime),  
   lunchBreak: timesheet.lunchBreak || 'No',
   lunchDuration: timesheet.lunchDuration || '00:00',
   leaveType: timesheet.leaveType || 'None',

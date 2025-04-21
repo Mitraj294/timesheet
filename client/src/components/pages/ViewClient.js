@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Link, useParams, useNavigate } from "react-router-dom";
 import axios from "axios";
+import { useDispatch, useSelector } from "react-redux";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faUser,
@@ -22,7 +23,7 @@ const ViewClient = () => {
   const [projects, setProjects] = useState([]);
   // This state will store the total hours spent on this client (by all employees)
   const [clientTotalHours, setClientTotalHours] = useState(0);
-
+  const { user } = useSelector((state) => state.auth); // Get logged-in user
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -111,12 +112,14 @@ const ViewClient = () => {
           <FontAwesomeIcon icon={faUser} /> View Client
         </h2>
         <div className="actions">
+        {user?.role === "employer" && (
           <button
             className="btn btn-primary"
             onClick={() => navigate(`/clients/${clientId}/create-project`)}
           >
             <FontAwesomeIcon icon={faPlus} /> Create New Project
           </button>
+        )}
         </div>
       </div>
 
@@ -191,7 +194,9 @@ const ViewClient = () => {
                     className="btn btn-view"
                   >
                     <FontAwesomeIcon icon={faEye} />
+                    
                   </Link>
+                  {user?.role === "employer" && (
                   <button
                     className="btn btn-edit"
                     onClick={() =>
@@ -199,13 +204,15 @@ const ViewClient = () => {
                     }
                   >
                     <FontAwesomeIcon icon={faEdit} />
-                  </button>
+                  </button>)}
+                  {user?.role === "employer" && (
                   <button
                     className="btn btn-delete"
                     onClick={() => deleteProject(project._id)}
                   >
                     <FontAwesomeIcon icon={faTrash} />
                   </button>
+                  )}
                 </td>
               </tr>
             ))}

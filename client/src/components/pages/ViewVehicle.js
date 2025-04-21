@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useDispatch, useSelector } from "react-redux";
 import axios from 'axios';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
@@ -35,6 +36,7 @@ const ViewVehicle = () => {
 
   const navigate = useNavigate();
 
+  const { user } = useSelector((state) => state.auth); // Get logged-in user
   useEffect(() => {
     const fetchVehicleWithReviews = async () => {
       try {
@@ -187,9 +189,11 @@ const ViewVehicle = () => {
       </div>
 
       <div className="vehicles-actions">
+      {user?.role === "employer" && (
         <button className="btn btn-green" onClick={handleCreateReviewClick}>
           <FontAwesomeIcon icon={faPlus} /> Create Review
         </button>
+      )}
               <button
                   className="btn btn-purple"
                   onClick={() => setShowSendReport(!showSendReport)}
@@ -328,14 +332,19 @@ const ViewVehicle = () => {
                 <button onClick={() => handleViewReviewClick(item)}>
                   <FontAwesomeIcon icon={faEye} className="eye-icon" />
                 </button>
-                <button>
+                {(user?.role === "employer" || (user?.role === "employee" && user?.name === item.employeeId?.name)) && (
+  
+              <button>
                   <Link to={`/vehicles/${vehicleId}/reviews/${item._id}/edit`}>
                     <FontAwesomeIcon icon={faPen} className="edit-icon" />
                   </Link>
-                </button>
+                </button>)}
+                {(user?.role === "employer" || (user?.role === "employee" && user?.name === item.employeeId?.name)) && (
+ 
                 <button onClick={() => handleDeleteReview(item._id)} className="btn-icon btn-red">
                   <FontAwesomeIcon icon={faTrash} />
                 </button>
+                )}
               </div>
             </div>
           ))
@@ -346,3 +355,4 @@ const ViewVehicle = () => {
 };
 
 export default ViewVehicle;
+

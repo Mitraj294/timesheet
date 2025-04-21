@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { useDispatch, useSelector } from "react-redux";
 import axios from 'axios';
 import '../../styles/Vehicles.scss';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
@@ -33,6 +34,8 @@ const Vehicles = () => {
   const [showDateRangePicker, setShowDateRangePicker] = useState(false);
   const [downloading, setDownloading] = useState(false);
   
+  const { user } = useSelector((state) => state.auth); // Get logged-in user
+
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -149,9 +152,10 @@ const Vehicles = () => {
       </div>
 
       <div className="vehicles-actions">
+      {user?.role === "employer" && (
         <Link to="/employer/vehicles/create" className="btn btn-green">
           <FontAwesomeIcon icon={faPlus} /> Create Vehicle
-        </Link>
+        </Link>)}
         <button
           className="btn btn-purple"
           onClick={() => setShowSendReport(!showSendReport)}
@@ -274,15 +278,19 @@ const Vehicles = () => {
                   <Link to={`/vehicles/view/${vehicle._id}`} className="btn-icon">
                     <FontAwesomeIcon icon={faEye} />
                   </Link>
+                  {user?.role === "employer" && (
                   <Link to={`/vehicles/update/${vehicle._id}`} className="btn-icon">
                     <FontAwesomeIcon icon={faPen} />
                   </Link>
+                  )}
+                    {user?.role === "employer" && (
                   <button
                     className="btn-icon btn-danger"
                     onClick={() => handleDeleteVehicle(vehicle._id)}
                   >
                     <FontAwesomeIcon icon={faTrash} />
                   </button>
+                  )}
                 </div>
               </div>
             ))

@@ -4,6 +4,8 @@ import { Provider } from "react-redux";
 import store from "./store/store";
 import App from "./App";
 import { SidebarProvider } from "./context/SidebarContext";
+import 'leaflet/dist/leaflet.css';
+
 //import "@fortawesome/fontawesome-free/css/all.min.css";
 
 import "./index.css";

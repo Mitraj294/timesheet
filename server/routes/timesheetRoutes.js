@@ -18,9 +18,9 @@ import {
 const router = express.Router();
 
 router.get('/', protect, getTimesheets);
-router.post('/', protect, employerOnly, createTimesheet);
-router.put('/:id', protect, employerOnly, updateTimesheet);
-router.delete('/:id', protect, employerOnly, deleteTimesheet);
+router.post('/', protect, createTimesheet);
+router.put('/:id', protect,updateTimesheet);
+router.delete('/:id', protect, deleteTimesheet);
 
 router.get('/check', checkTimesheet);
 
