@@ -33,7 +33,6 @@ body {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 25px;
-  flex-wrap: wrap;
 
   h2 {
     font-size: 28px;
@@ -46,7 +45,6 @@ body {
   .actions {
     display: flex;
     gap: 15px;
-    flex-wrap: wrap;
 
     .btn {
       display: flex;
@@ -56,8 +54,8 @@ body {
       border: none;
       border-radius: 5px;
       cursor: pointer;
-      font-size: 14px;
       transition: 0.3s;
+      font-size: 14px;
 
       &.btn-primary {
         background: #2ecc71;
@@ -100,39 +98,33 @@ body {
 /* === Project Summary === */
 .project-summary {
   display: flex;
-  gap: 20px;
   justify-content: space-between;
+  align-items: center;
   background: #f4f4f4;
-  padding: 30px;
   border-radius: 10px;
+  padding: 30px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  flex-wrap: wrap;
+}
 
-  .project-card {
-    flex: 1;
-    background: #fff;
-    padding: 20px;
-    border-radius: 8px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-    text-align: center;
+.project-card {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
 
-    h2 {
-      font-size: 24px;
-      margin-bottom: 10px;
-      color: #2c3e50;
-    }
+  h2 {
+    font-size: 24px;
+    color: #2c3e50;
+  }
 
-    p {
-      font-size: 16px;
-      color: #555;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      gap: 8px;
+  p {
+    font-size: 16px;
+    color: #555;
+    display: flex;
+    align-items: center;
+    gap: 10px;
 
-      svg {
-        color: #3498db;
-      }
+    svg {
+      color: #3498db;
     }
   }
 }
@@ -156,11 +148,11 @@ body {
     padding: 10px 20px;
     border: none;
     border-radius: 5px;
+    cursor: pointer;
+    transition: 0.3s;
     font-size: 14px;
     background: #3498db;
     color: #fff;
-    cursor: pointer;
-    transition: 0.3s;
 
     &:hover {
       background: #2980b9;
@@ -210,7 +202,7 @@ body {
       border: none;
       border-radius: 5px;
       cursor: pointer;
-      font-size: 13px;
+      transition: 0.3s;
 
       &.btn-view {
         background: #8e44ad;
@@ -246,23 +238,6 @@ body {
   }
 }
 
-/* === Stats Section === */
-.stats {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  font-weight: bold;
-
-  .actual {
-    border: 2px solid #27ae60;
-
-    h2 {
-      color: #27ae60;
-    }
-  }
-}
-
 /* === Responsive Design === */
 @media (max-width: 992px) {
 
@@ -273,17 +248,18 @@ body {
     align-items: flex-start;
   }
 
-  .project-card {
-    width: 100%;
-    text-align: center;
-  }
-
   .actions {
     flex-wrap: wrap;
     gap: 10px;
   }
 
-  .timesheet-table {
+  .card,
+  .project-card {
+    flex-direction: column;
+    text-align: center;
+  }
+
+  table {
     font-size: 12px;
 
     th,
@@ -294,9 +270,13 @@ body {
 }
 
 @media (max-width: 768px) {
-  .project-summary {
-    flex-direction: column;
-    gap: 15px;
+  .list table {
+    font-size: 12px;
+
+    th,
+    td {
+      padding: 8px;
+    }
   }
 
   .header {
@@ -309,13 +289,66 @@ body {
     font-size: 12px;
     padding: 8px 15px;
   }
+}
 
-  .timesheet-table {
+.project-summary {
+  display: flex;
+  gap: 20px;
+  justify-content: space-between;
+  background: #f4f4f4;
+  padding: 20px;
+  border-radius: 10px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
 
-    th,
-    td {
-      font-size: 12px;
-      padding: 8px;
+.project-card {
+  flex: 1;
+  background: white;
+  padding: 20px;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  text-align: center;
+
+  h2 {
+    font-size: 24px;
+    margin-bottom: 10px;
+    color: #2c3e50;
+  }
+
+  p {
+    font-size: 16px;
+    color: #555;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 8px;
+
+    svg {
+      color: #3498db;
     }
+  }
+}
+
+.stats {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  font-weight: bold;
+}
+
+.actual {
+  border: 2px solid #27ae60; // Green border for actual hours
+
+  h2 {
+    color: #27ae60;
+  }
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .project-summary {
+    flex-direction: column;
+    gap: 15px;
   }
 }
