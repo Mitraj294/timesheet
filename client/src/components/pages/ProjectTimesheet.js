@@ -599,6 +599,7 @@ const ProjectTimesheet = ({
       {isLoading ? (
         <div>Loading...</div>
       ) : (
+        <div className="timesheet-table-wrapper">
         <table className="timesheet-table">
           <thead>
             <tr>{renderTableHeaders()}</tr>
@@ -757,6 +758,8 @@ const ProjectTimesheet = ({
             })}
           </tbody>
         </table>
+        </div>
+
       )}
     </div>
   );

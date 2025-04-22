@@ -4,6 +4,8 @@ import { useParams, useNavigate } from "react-router-dom";
 import { getEmployees, updateEmployee } from "../../redux/actions/employeeActions";
 import "../../styles/EditEmployee.scss";
 
+const API_URL = process.env.REACT_APP_API_URL || 'https://timesheet-c4mj.onrender.com/api';
+
 const EditEmployee = () => {
   const { id } = useParams();
   const dispatch = useDispatch();

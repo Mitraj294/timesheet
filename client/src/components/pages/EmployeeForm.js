@@ -52,12 +52,13 @@ const EmployeeForm = ({ employees, addEmployee, updateEmployee }) => {
   
     try {
       // Check if the user already exists
-      const userCheckResponse = await fetch("http://localhost:5000/api/auth/check-user", {
+
+      const userCheckResponse = await fetch(`${API_URL}/auth/check-user`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: formData.email }),
       });
-  
+      
       const userCheckData = await userCheckResponse.json();
       let employeeData = { ...formData, wage: parseFloat(formData.wage) };
   
@@ -65,7 +66,7 @@ const EmployeeForm = ({ employees, addEmployee, updateEmployee }) => {
         console.log("User not found, registering new employee...");
   
         // Register the employee as a user first
-        const registerResponse = await fetch("`${API_URL}/api/auth/register`", {
+        const registerResponse = await fetch(`${API_URL}/auth/register`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({

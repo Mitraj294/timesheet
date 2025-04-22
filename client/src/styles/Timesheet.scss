@@ -1,4 +1,4 @@
-/* Timesheet Styles */
+/* Timesheet Container */
 .Timesheet-container {
     max-width: 1200px;
     margin: auto;
@@ -9,14 +9,15 @@
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 }
 
+/* Header Section */
 .timesheet-header {
     display: flex;
-    align-items: center;
     justify-content: space-between;
+    align-items: center;
     flex-wrap: wrap;
+    margin-bottom: 20px;
     font-size: 1.75rem;
     font-weight: 600;
-    margin-bottom: 20px;
 
     h3 {
         margin: 0;
@@ -26,13 +27,14 @@
     }
 }
 
+/* Breadcrumb Navigation */
 .breadcrumb {
     display: flex;
     flex-wrap: wrap;
-    font-size: 0.95rem;
-    margin-bottom: 16px;
     align-items: center;
     gap: 0.5rem;
+    margin-bottom: 16px;
+    font-size: 0.95rem;
 
     .breadcrumb-link {
         text-decoration: none;
@@ -54,6 +56,7 @@
     }
 }
 
+/* Action Buttons */
 .timesheet-actions {
     display: flex;
     flex-wrap: wrap;
@@ -101,6 +104,7 @@
     }
 }
 
+/* Filter Panel */
 .filter-panel {
     display: flex;
     flex-wrap: wrap;
@@ -127,6 +131,7 @@
     }
 }
 
+/* Top Navigation */
 .timesheet-top-bar {
     display: flex;
     flex-wrap: wrap;
@@ -187,13 +192,29 @@
     }
 }
 
+/* Responsive Table Wrapper */
+.timesheet-table-wrapper {
+    overflow-x: auto;
+    width: 100%;
+
+    /* Scrollbar Styling (Optional) */
+    &::-webkit-scrollbar {
+        height: 8px;
+    }
+
+    &::-webkit-scrollbar-thumb {
+        background-color: #ccc;
+        border-radius: 4px;
+    }
+}
+
+/* Main Table */
 .timesheet-table {
     width: 100%;
     border-collapse: collapse;
-    background: #fff;
-    border-radius: 8px;
-    overflow: hidden;
+    min-width: 800px;
     font-size: 0.95rem;
+    background: #fff;
 
     th,
     td {
@@ -217,6 +238,7 @@
     }
 }
 
+/* Entry Styles */
 .timesheet-cell {
     vertical-align: top;
     position: relative;
@@ -239,6 +261,7 @@
     box-shadow: 0 0 2px rgba(0, 0, 0, 0.05);
 }
 
+/* Icon Buttons */
 .icon-btn {
     background: transparent;
     border: none;
@@ -297,12 +320,7 @@
         }
     }
 
-    .timesheet-table {
-        font-size: 12px;
-
-        th,
-        td {
-            padding: 8px;
-        }
+    .timesheet-table-wrapper {
+        margin-top: 10px;
     }
 }

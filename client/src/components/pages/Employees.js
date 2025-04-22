@@ -6,6 +6,9 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faEdit, faIdCard, faTrash, faPlus } from "@fortawesome/free-solid-svg-icons";
 import "../../styles/Employees.scss";
 
+const API_URL = process.env.REACT_APP_API_URL || 'https://timesheet-c4mj.onrender.com/api';
+
+
 const Employees = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
@@ -30,7 +33,7 @@ const Employees = () => {
 
   return (
     <div className="employees-container">
-      {/* Header Section */}
+   
       <div className="employees-header">
         <div className="title-breadcrumb">
           <h2>

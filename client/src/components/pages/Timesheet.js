@@ -581,6 +581,7 @@ const handleDownload = async () => {
       {isLoading ? (
         <div>Loading...</div>
       ) : (
+        <div className="timesheet-table-wrapper">
         <table className='timesheet-table'>
           <thead>
             <tr>{renderTableHeaders()}</tr>
@@ -775,6 +776,7 @@ const handleDownload = async () => {
             })}
           </tbody>
         </table>
+        </div>
       )}
     </div>
   );

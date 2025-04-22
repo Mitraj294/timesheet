@@ -122,7 +122,7 @@ export const getTimesheets = async (req, res) => {
     const filter = {};
 
     if (employeeIds.length > 0) {
-      // Convert to array if it's a string from query (e.g. employeeIds=a,b,c)
+      // Convert to array if it's a string from query 
       const ids = Array.isArray(employeeIds)
         ? employeeIds
         : employeeIds.split(",");
@@ -299,7 +299,7 @@ export const downloadTimesheets = async (req, res) => {
   try {
     const { employeeIds = [], startDate, endDate, timezone = 'Asia/Kolkata' } = req.body;
 
-    // 1️⃣ Build your Mongo filter
+    // Build your Mongo filter
     const filter = {};
     if (employeeIds.length)    filter.employeeId = { $in: employeeIds };
     if (startDate && endDate)  filter.date       = {
@@ -307,7 +307,7 @@ export const downloadTimesheets = async (req, res) => {
       $lte: new Date(endDate)
     };
 
-    // 2️⃣ Fetch, populate, convert to local time
+    // Fetch, populate, convert to local time
     const timesheets = await Timesheet.find(filter)
       .populate('employeeId')
       .populate('clientId')
@@ -319,7 +319,7 @@ export const downloadTimesheets = async (req, res) => {
 
     const localized = timesheets.map(ts => convertTimesheetToLocal(ts, timezone));
 
-    // 3️⃣ Build the Excel workbook in-memory
+    // Build the Excel workbook in-memory
     const workbook = new ExcelJS.Workbook();
     const ws = workbook.addWorksheet('Timesheets');
     ws.columns = [
@@ -366,10 +366,10 @@ export const downloadTimesheets = async (req, res) => {
       ws.addRow([]);
     });
 
-    // 4️⃣ Generate buffer
+    // Generate buffer
     const buffer = await workbook.xlsx.writeBuffer();
 
-    // 5️⃣ Build a dynamic filename with names and date range
+    // Build a dynamic filename with names and date range
     const employeeNames = Array.from(new Set(localized.map(ts => ts.employeeId?.name || 'Unknown')));
     const nameLabel = employeeNames.length === 1
       ? employeeNames[0]

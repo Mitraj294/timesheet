@@ -13,6 +13,9 @@ import {
   faXmark,
 } from '@fortawesome/free-solid-svg-icons';
 
+const API_URL = process.env.REACT_APP_API_URL || 'https://timesheet-c4mj.onrender.com/api';
+
+
 const CreateRole = () => {
   const { roleId } = useParams();
   const navigate = useNavigate();
@@ -33,20 +36,26 @@ const CreateRole = () => {
     setWeekDays(days);
   }, []);
 
+
   useEffect(() => {
     const fetchRole = async () => {
       try {
         const token = localStorage.getItem('token');
-        const res = await axios.get(`http://localhost:5000/api/roles/${roleId}`, {
+        if (!token) {
+          alert('No authentication token found!');
+          return;
+        }
+        
+        const res = await axios.get(`${API_URL}/roles/${roleId}`, {
           headers: { Authorization: `Bearer ${token}` },
         });
-
+  
         const data = res.data;
         setRoleName(data.roleName || '');
         setRoleDescription(data.roleDescription || '');
         setColor(data.color || 'Blue');
         setSelectedEmployees(data.assignedEmployees || []);
-
+  
         const formattedSchedule = {};
         (data.schedule || []).forEach((entry) => {
           const dayStr = entry.day;
@@ -62,24 +71,33 @@ const CreateRole = () => {
         setSchedule(formattedSchedule);
       } catch (err) {
         console.error('Failed to fetch role:', err);
+        alert('Failed to fetch role. Please try again later.');
       }
     };
-
+  
     if (roleId) fetchRole();
   }, [roleId]);
+  
 
   useEffect(() => {
     const fetchEmployees = async () => {
       try {
         const token = localStorage.getItem('token');
-        const res = await axios.get('http://localhost:5000/api/employees', {
+        if (!token) {
+          alert('No authentication token found. Please log in again.');
+          return;
+        }
+  
+        const res = await axios.get(`${API_URL}/employees`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         setEmployees(res.data);
       } catch (err) {
         console.error('Failed to fetch employees:', err);
+        alert('There was an issue fetching employees. Please try again later.');
       }
     };
+  
     fetchEmployees();
   }, []);
 
@@ -116,35 +134,36 @@ const CreateRole = () => {
     return grouped;
   };
 
+
+
   const handleSubmit = async () => {
+    // Validate that required fields are filled in
     if (!roleName || !roleDescription) {
       return alert('Please fill in all required fields');
     }
-
+  
+    // Prepare the schedule data by formatting start and end times
     const rawSchedule = weekDays.map((day) => {
       const dayStr = format(day, 'yyyy-MM-dd');
       const localStart = schedule[dayStr]?.from;
       const localEnd = schedule[dayStr]?.to;
+  
       const startTime = localStart
-  ? DateTime.fromISO(`1970-01-01T${localStart}`).toUTC().toFormat('HH:mm')
-  : '';
-
-const endTime = localEnd
-  ? DateTime.fromISO(`1970-01-01T${localEnd}`).toUTC().toFormat('HH:mm')
-  : '';
-
-
-      return {
-        day: dayStr,
-        startTime,
-        endTime,
-      };
+        ? DateTime.fromISO(`1970-01-01T${localStart}`).toUTC().toFormat('HH:mm')
+        : '';
+      const endTime = localEnd
+        ? DateTime.fromISO(`1970-01-01T${localEnd}`).toUTC().toFormat('HH:mm')
+        : '';
+  
+      return { day: dayStr, startTime, endTime };
     });
-
+  
+    // Group the schedule by weeks
     const scheduleByWeek = groupScheduleByWeek(rawSchedule);
     const currentWeekKey = format(startOfWeek(new Date(), { weekStartsOn: 1 }), 'yyyy-MM-dd');
     const scheduleArray = scheduleByWeek[currentWeekKey] || [];
-
+  
+    // Prepare the data for role creation/update
     const data = {
       roleName,
       roleDescription,
@@ -152,14 +171,18 @@ const endTime = localEnd
       assignedEmployees: selectedEmployees,
       schedule: scheduleArray,
     };
-
+  
     try {
       const token = localStorage.getItem('token');
-
-      const checkRes = await axios.get('http://localhost:5000/api/roles', {
+      if (!token) {
+        return alert('Authentication token is missing. Please log in again.');
+      }
+  
+      // Check if a role with the same name already exists for the same week
+      const checkRes = await axios.get(`${API_URL}/roles`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-
+  
       const sameNameConflict = checkRes.data.find((r) => {
         if (r.roleName.toLowerCase() !== roleName.toLowerCase() || r._id === roleId) return false;
         return r.schedule.some((existingDay) =>
@@ -170,28 +193,32 @@ const endTime = localEnd
           })
         );
       });
-
+  
       if (sameNameConflict) {
         return alert('A role with this name already exists for the same week. Please choose a different week.');
       }
-
+  
+      // Submit the role (create or update)
       if (roleId) {
-        await axios.put(`http://localhost:5000/api/roles/${roleId}`, data, {
+        await axios.put(`${API_URL}/roles/${roleId}`, data, {
           headers: { Authorization: `Bearer ${token}` },
         });
-        console.log('Role updated successfully!');
+        alert('Role updated successfully!');
       } else {
-        await axios.post('http://localhost:5000/api/roles', data, {
+        await axios.post(`${API_URL}/roles`, data, {
           headers: { Authorization: `Bearer ${token}` },
         });
-        console.log('Role created successfully!');
+        alert('Role created successfully!');
       }
-
+  
+      // Redirect to the roster page
       navigate('/rosterpage');
     } catch (err) {
       console.error('Error submitting role:', err.response?.data || err.message);
+      alert('An error occurred while submitting the role. Please try again.');
     }
   };
+  
 
   return (
     <div className="modal-overlay">

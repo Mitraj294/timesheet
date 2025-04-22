@@ -28,14 +28,13 @@ router.get('/test', (req, res) => {
   res.send('Vehicle test route is working');
 });
 
-// Vehicle CRUD
 router.get('/', getVehicles);                      // GET all vehicles
 router.get('/:id', getVehicleById);                // GET single vehicle by ID
 router.post('/', createVehicle);                   // POST create vehicle
 router.put('/:id', updateVehicle);                 // PUT update vehicle
 router.delete('/:id', deleteVehicle);              // DELETE vehicle
 
-// Vehicle Review Routes
+// Review Routes
 router.post('/reviews', createVehicleReview);      // POST create review
 router.get('/reviews/:reviewId', getReviewById);     // GET review by review ID
 router.put('/reviews/:reviewId', updateReview);      // PUT update review

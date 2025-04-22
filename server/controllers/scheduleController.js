@@ -1,5 +1,3 @@
-// controllers/scheduleController.js
-
 import Schedule from '../models/Schedule.js';
 import mongoose from 'mongoose';
 import { DateTime } from 'luxon';
@@ -123,7 +121,7 @@ export const deleteSchedule = async (req, res) => {
   }
 };
 
-// controllers/scheduleController.js
+
 export const deleteByDateRange = async (req, res) => {
   try {
     const { startDate, endDate } = req.body;
@@ -132,7 +130,7 @@ export const deleteByDateRange = async (req, res) => {
       return res.status(400).json({ message: 'Start date and end date are required.' });
     }
 
-    // Assuming you're using Mongoose and have a Schedule model
+
     const result = await Schedule.deleteMany({
       date: {
         $gte: new Date(startDate),

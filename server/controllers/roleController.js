@@ -10,7 +10,7 @@ export const createRole = async (req, res) => {
       day: sch.day,
       startTime: sch.startTime
         ? DateTime.fromFormat(sch.startTime, 'HH:mm', {
-            zone: sch.timezone || 'UTC', // assume frontend sends correct tz like "Asia/Kolkata"
+            zone: sch.timezone || 'UTC', 
           }).toUTC().toFormat('HH:mm')
         : '',
       endTime: sch.endTime
