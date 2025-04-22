@@ -19,7 +19,7 @@ import 'react-datepicker/dist/react-datepicker.css';
 import '../../styles/Timesheet.scss';
 import { DateTime } from 'luxon';
 
-
+const API_URL = process.env.REACT_APP_API_URL || 'https://timesheet-c4mj.onrender.com/api';
 
 
  const formatDate = iso =>
@@ -65,12 +65,9 @@ const [showSendFilters, setShowSendFilters] = useState(false);
         console.error('No authentication token found!');
         return;
       }
-
+  
       const config = { headers: { Authorization: `Bearer ${token}` } };
-      const response = await axios.get(
-        'http://localhost:5000/api/employees',
-        config
-      );
+      const response = await axios.get(`${API_URL}/employees`, config);
       setEmployees(response.data);
     } catch (error) {
       console.error(
@@ -80,7 +77,7 @@ const [showSendFilters, setShowSendFilters] = useState(false);
       alert('Failed to fetch employees, please try again later.');
     }
   };
-
+  
   const fetchClients = async () => {
     try {
       const token = localStorage.getItem('token');
@@ -88,11 +85,9 @@ const [showSendFilters, setShowSendFilters] = useState(false);
         console.error('No authentication token found!');
         return;
       }
+  
       const config = { headers: { Authorization: `Bearer ${token}` } };
-      const response = await axios.get(
-        'http://localhost:5000/api/clients',
-        config
-      );
+      const response = await axios.get(`${API_URL}/clients`, config);
       setClients(response.data);
     } catch (error) {
       console.error(
@@ -102,6 +97,7 @@ const [showSendFilters, setShowSendFilters] = useState(false);
       alert('Failed to fetch clients, please try again later.');
     }
   };
+  
 
   const fetchProjects = async () => {
     try {
@@ -110,11 +106,9 @@ const [showSendFilters, setShowSendFilters] = useState(false);
         console.error('No authentication token found!');
         return;
       }
+  
       const config = { headers: { Authorization: `Bearer ${token}` } };
-      const response = await axios.get(
-        'http://localhost:5000/api/projects',
-        config
-      );
+      const response = await axios.get(`${API_URL}/projects`, config);
       setProjects(response.data);
     } catch (error) {
       console.error(
@@ -124,6 +118,7 @@ const [showSendFilters, setShowSendFilters] = useState(false);
       alert('Failed to fetch projects, please try again later.');
     }
   };
+  
 
   const fetchTimesheets = async () => {
     setIsLoading(true);
@@ -133,13 +128,13 @@ const [showSendFilters, setShowSendFilters] = useState(false);
         console.error('No authentication token found!');
         return;
       }
-
+  
       const config = { headers: { Authorization: `Bearer ${token}` } };
       const response = await axios.get(
-        'http://localhost:5000/api/timesheets',
+        `${API_URL}/timesheets`, // Using the API_URL constant
         config
       );
-
+  
       const fetchedTimesheets = response.data?.timesheets;
       setTimesheets(Array.isArray(fetchedTimesheets) ? fetchedTimesheets : []);
     } catch (error) {
@@ -153,6 +148,7 @@ const [showSendFilters, setShowSendFilters] = useState(false);
       setIsLoading(false);
     }
   };
+  
 
   const toggleExpand = (id) => {
     setExpandedRows((prev) => ({ ...prev, [id]: !prev[id] }));
@@ -161,20 +157,19 @@ const [showSendFilters, setShowSendFilters] = useState(false);
   const handleUpdate = (timesheet) => {
     navigate('/timesheet/create', { state: { timesheet, isUpdate: true } });
   };
-
   const handleDelete = async (id) => {
     if (!window.confirm('Are you sure you want to delete this timesheet?'))
       return;
-
+  
     try {
       const token = localStorage.getItem('token');
       if (!token) {
         alert('Authentication error! Please log in again.');
         return;
       }
-
+  
       const config = { headers: { Authorization: `Bearer ${token}` } };
-      await axios.delete(`http://localhost:5000/api/timesheets/${id}`, config);
+      await axios.delete(`${API_URL}/timesheets/${id}`, config); // Use API_URL constant
       alert('Timesheet deleted successfully!');
       fetchTimesheets();
     } catch (error) {
@@ -185,6 +180,7 @@ const [showSendFilters, setShowSendFilters] = useState(false);
       alert('Failed to delete timesheet. Check console for details.');
     }
   };
+  
 
   const adjustToMonday = (date) => {
     const day = date.getDay();
@@ -330,7 +326,7 @@ const [showSendFilters, setShowSendFilters] = useState(false);
       };
   
       const response = await axios.post(
-        'http://localhost:5000/api/timesheets/send',
+        `${API_URL}/timesheets/send`, // Use the API_URL constant here
         body,
         config
       );
@@ -342,13 +338,14 @@ const [showSendFilters, setShowSendFilters] = useState(false);
     }
   };
   
+  
 
 
 // ...
 
 const handleDownload = async () => {
   try {
-    const response = await fetch('http://localhost:5000/api/timesheets/download', {
+    const response = await fetch(`${API_URL}/timesheets/download`, {  // Use the API_URL constant here
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -357,6 +354,10 @@ const handleDownload = async () => {
         endDate: endDate ? format(endDate, 'yyyy-MM-dd') : null,
       }),
     });
+
+    if (!response.ok) {
+      throw new Error('Failed to fetch download');
+    }
 
     const blob = await response.blob();
     const link = document.createElement('a');
@@ -370,6 +371,7 @@ const handleDownload = async () => {
     alert('Could not download report');
   }
 };
+
 
 
 

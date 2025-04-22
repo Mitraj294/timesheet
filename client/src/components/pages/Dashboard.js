@@ -25,6 +25,9 @@ import Chart from "chart.js/auto";
 import { format } from "date-fns";
 import "../../styles/Dashboard.scss";
 
+
+const API_URL = process.env.REACT_APP_API_URL || 'https://timesheet-c4mj.onrender.com/api';
+
 //UTILITY FUNCTIONS  
 
 // Convert decimal hours to "HH:MM" format.
@@ -136,7 +139,7 @@ const Dashboard = () => {
   const [selectedEmployee, setSelectedEmployee] = useState({ value: "All", label: "All Employees" });
   const [viewType, setViewType] = useState({ value: "Weekly", label: "View by Weekly" });
   const [clients, setClients] = useState([]);
-  // Note: We removed the projects client selection. The Projects Pie Chart will now show data for all clients.
+
   const [projects, setProjects] = useState([]);
   const [currentDate, setCurrentDate] = useState(new Date());
   const [isLoading, setIsLoading] = useState(false);
@@ -147,7 +150,7 @@ const Dashboard = () => {
   const clientsChartRef = useRef(null);
   const projectsChartRef = useRef(null);
 
-  /*  DATA FETCHING  */
+  // DATA FETCHING  
   useEffect(() => {
     fetchAllTimesheets();
     dispatch(getTimesheets());
@@ -159,7 +162,7 @@ const Dashboard = () => {
     if (user && user.token && user.role === "employer") {
       const fetchClients = async () => {
         try {
-          const response = await axios.get("http://localhost:5000/api/clients", {
+          const response = await axios.get(`${API_URL}/clients`, {
             headers: { Authorization: `Bearer ${user.token}` },
           });
           setClients(response.data.clients || []);
@@ -167,6 +170,7 @@ const Dashboard = () => {
           console.error("Error fetching clients:", error);
         }
       };
+      
       fetchClients();
     }
   }, [user]);
@@ -184,7 +188,7 @@ const Dashboard = () => {
   const fetchAllTimesheets = async () => {
     try {
       const token = localStorage.getItem("token");
-      const response = await axios.get("http://localhost:5000/api/timesheets", {
+      const response = await axios.get(`${API_URL}/timesheets`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       setAllTimesheets(response.data?.timesheets || []);
@@ -192,12 +196,13 @@ const Dashboard = () => {
       console.error("Failed to fetch all timesheets:", err);
     }
   };
+  
 
   // Fetch timesheets for a specific employee.
   const fetchEmployeeTimesheets = async (employeeId) => {
     try {
       const token = localStorage.getItem("token");
-      const response = await axios.get(`http://localhost:5000/api/timesheets/employee/${employeeId}`, {
+      const response = await axios.get(`${API_URL}/timesheets/employee/${employeeId}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       setEmployeeTimesheets(
@@ -210,12 +215,13 @@ const Dashboard = () => {
       setEmployeeTimesheets([]);
     }
   };
+  
 
   // Fetch clients.
   const fetchClients = async () => {
     try {
       const token = localStorage.getItem("token");
-      const response = await axios.get("http://localhost:5000/api/clients", {
+      const response = await axios.get(`${API_URL}/clients`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       setClients(response.data.clients || []);
@@ -223,8 +229,9 @@ const Dashboard = () => {
       console.error("Failed to fetch clients:", err);
     }
   };
+  
 
-  /*  DROPDOWN OPTIONS  */
+  // DROPDOWN OPTIONS  
   const employeeOptions = [
     { value: "All", label: "All Employees" },
     ...(employees ? employees.map((emp) => ({ value: emp._id, label: emp.name })) : []),
@@ -241,7 +248,7 @@ const Dashboard = () => {
     ];
   }, [clients]);
 
-  /*  DATA PROCESSING & SUMMARY  */
+  // DATA PROCESSING & SUMMARY  
   // Filter timesheets with no leave for work-hour calculations.
   const validTimesheets = employeeTimesheets.filter((t) => t.leaveType === "None");
 
@@ -330,7 +337,7 @@ const Dashboard = () => {
   const projectsWorked = new Set(validTimesheets.map((t) => t.projectId?._id || t.projectId).filter(Boolean)).size;
   const clientsWorked = new Set(validTimesheets.map((t) => t.clientId?._id || t.clientId).filter(Boolean)).size;
 
-  /*  GRAPH DATA CALCULATION  */
+  // GRAPH DATA CALCULATION  
   // Calculate daily totals.
   const getDayTotalsCalc = (data, periodStart) => {
     const dailyTotals = [];
@@ -401,7 +408,7 @@ const Dashboard = () => {
     return { labels, currentData, previousData, thisPeriodLabel, lastPeriodLabel };
   }, [viewType, filteredCurrentTimesheets, filteredPreviousTimesheets]);
 
-  /*  CHARTS RENDERING  */
+  // CHARTS RENDERING  
   // Render Bar Chart.
   useEffect(() => {
     const ctx = document.getElementById("graphCanvas");
@@ -546,7 +553,7 @@ const Dashboard = () => {
     
   }, [allTimesheets, selectedEmployee, viewType, projects]);
 
-  /*  RENDERING THE DASHBOARD  */
+  // RENDERING THE DASHBOARD  
   return (
     <div className="dashboard-container">
       {/* Filters Section */}
