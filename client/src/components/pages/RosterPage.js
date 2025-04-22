@@ -23,9 +23,7 @@ import {
   faTrash,
 } from '@fortawesome/free-solid-svg-icons';
 
-
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
-
+const API_URL = process.env.REACT_APP_API_URL || 'https://timesheet-c4mj.onrender.com/api';
 
 const RosterPage = () => {
   const navigate = useNavigate();
@@ -82,7 +80,7 @@ const RosterPage = () => {
     const fetchEmployees = async () => {
       try {
         const token = localStorage.getItem('token');
-        const res = await axios.get(`${API_URL}/employees`,  {
+        const res = await axios.get(`${API_URL}/employees`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         console.log('Employees fetched:', res.data);
@@ -92,15 +90,17 @@ const RosterPage = () => {
         if (err.response?.status === 401) navigate('/login');
       }
     };
+  
     fetchEmployees();
   }, [navigate]);
+  
 
   // Fetch Roles
   useEffect(() => {
     const fetchRoles = async () => {
       try {
         const token = localStorage.getItem('token');
-        const res = await axios.get(`${API_URL}/roles`,  {
+        const res = await axios.get(`${API_URL}/roles`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         console.log('Roles fetched:', res.data);
@@ -109,9 +109,10 @@ const RosterPage = () => {
         console.error('Failed to fetch roles:', err);
       }
     };
+  
     fetchRoles();
   }, []);
-
+  
   // Fetch Schedules
   useEffect(() => {
     const fetchSchedules = async () => {
@@ -119,7 +120,9 @@ const RosterPage = () => {
         const token = localStorage.getItem('token');
         const res = await axios.get(
           `${API_URL}/schedules?weekStart=${format(currentWeekStart, 'yyyy-MM-dd')}`,
-          { headers: { Authorization: `Bearer ${token}` } }
+          {
+            headers: { Authorization: `Bearer ${token}` },
+          }
         );
         console.log('Schedules fetched:', res.data);
         setSchedules(res.data);
@@ -127,8 +130,10 @@ const RosterPage = () => {
         console.error('Failed to fetch schedules:', err);
       }
     };
+  
     fetchSchedules();
   }, [currentWeekStart]);
+  
 
   const handlePrevWeek = () =>
     setCurrentWeekStart((prev) => addWeeks(prev, -1));
@@ -165,17 +170,19 @@ const RosterPage = () => {
   const handleDeleteScheduleFromRole = async (roleId, scheduleId) => {
     try {
       const token = localStorage.getItem('token');
+  
       await axios.delete(
         `${API_URL}/roles/${roleId}/schedule/${scheduleId}`,
         {
           headers: { Authorization: `Bearer ${token}` },
         }
       );
-
+  
       // Refresh roles after deletion
       const res = await axios.get(`${API_URL}/roles`, {
         headers: { Authorization: `Bearer ${token}` },
       });
+  
       setRoles(res.data);
     } catch (err) {
       console.error(
@@ -184,6 +191,7 @@ const RosterPage = () => {
       );
     }
   };
+  
 
   const handleDeleteRole = async (roleId) => {
     if (
@@ -194,19 +202,23 @@ const RosterPage = () => {
       console.warn('Deletion canceled for role:', roleId);
       return;
     }
+  
     try {
       const token = localStorage.getItem('token');
+  
       await axios.delete(`${API_URL}/roles/${roleId}`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
       });
+  
       console.log('Role deleted successfully:', roleId);
       setRoles((prevRoles) => prevRoles.filter((role) => role._id !== roleId));
     } catch (error) {
       console.error('Failed to delete role:', error);
     }
   };
+  
 
   const handleRolloutToNextWeek = async () => {
     try {
@@ -214,7 +226,8 @@ const RosterPage = () => {
       const nextWeekStart = addWeeks(currentWeekStart, 1);
       const nextWeekStartStr = format(nextWeekStart, 'yyyy-MM-dd');
       const nextWeekEndStr = format(addDays(nextWeekStart, 6), 'yyyy-MM-dd');
-
+  
+      // Delete existing schedules for the next week
       await axios.delete(
         `${API_URL}/schedules/deleteByDateRange`,
         {
@@ -222,7 +235,8 @@ const RosterPage = () => {
           headers: { Authorization: `Bearer ${token}` },
         }
       );
-
+  
+      // Update roles with cleaned schedule data
       await Promise.all(
         roles.map(async (role) => {
           const cleanedSchedule =
@@ -240,7 +254,8 @@ const RosterPage = () => {
           );
         })
       );
-
+  
+      // Generate new employee schedules for the next week
       const newEmployeeSchedules = schedules.map((sch) => {
         const dateObj = new Date(sch.date);
         const dayIndex = (dateObj.getDay() + 6) % 7;
@@ -253,15 +268,17 @@ const RosterPage = () => {
           date: format(nextDate, 'yyyy-MM-dd'),
         };
       });
-
+  
+      // Create new schedules in the system
       await axios.post(
-        '${API_URL}/schedules/bulk',
+        `${API_URL}/schedules/bulk`,
         newEmployeeSchedules,
         {
           headers: { Authorization: `Bearer ${token}` },
         }
       );
-
+  
+      // Clone and update roles for the next week
       await Promise.all(
         roles.map(async (role) => {
           if (!role.schedule || role.schedule.length === 0) return;
@@ -289,7 +306,8 @@ const RosterPage = () => {
           );
         })
       );
-
+  
+      // Fetch new schedules for the next week
       const scheduleRes = await axios.get(
         `${API_URL}/schedules?weekStart=${nextWeekStartStr}`,
         {
@@ -298,8 +316,9 @@ const RosterPage = () => {
       );
       setSchedules(scheduleRes.data);
       setCurrentWeekStart(nextWeekStart);
-
-      const roleRes = await axios.get('${API_URL}/roles', {
+  
+      // Fetch updated roles
+      const roleRes = await axios.get(`${API_URL}/roles`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       setRoles(roleRes.data);
@@ -307,6 +326,8 @@ const RosterPage = () => {
       console.error('Error during rollout:', err.response?.data || err.message);
     }
   };
+  
+
   // When clicking an employee, open the modal with that employee's info.
   const handleEmployeeClick = (emp) => {
     setSelectedEmployee(emp);
@@ -322,15 +343,13 @@ const RosterPage = () => {
     try {
       const token = localStorage.getItem('token');
       const dayOrder = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-
-      // For each selected day, check if a schedule for the same employee and date exists.
-      // If one or more already exist, delete extras and update the remaining one.
+  
       const schedulePromises = selectedDays.map(async (day) => {
         const index = dayOrder.indexOf(day);
         const date = format(addDays(currentWeekStart, index), 'yyyy-MM-dd');
         const utcStartTime = convertLocalTimeToUTC(startTime[day], date);
         const utcEndTime = convertLocalTimeToUTC(endTime[day], date);
-
+  
         const scheduleData = {
           employee: selectedEmployee._id,
           role: selectedRole || null,
@@ -338,16 +357,15 @@ const RosterPage = () => {
           endTime: utcEndTime,
           date,
         };
-
-        // Find all existing schedules for the same employee and date.
+  
         const existingSchedules = schedules.filter(
           (s) =>
             s.employee._id === selectedEmployee._id &&
             format(new Date(s.date), 'yyyy-MM-dd') === date
         );
-
+  
         if (existingSchedules.length > 0) {
-          // If more than one exists, delete all but the first.
+          // Delete all extras if multiple exist
           if (existingSchedules.length > 1) {
             for (let i = 1; i < existingSchedules.length; i++) {
               await axios.delete(
@@ -358,7 +376,7 @@ const RosterPage = () => {
               );
             }
           }
-          // Update the first existing schedule with the new data.
+          // Update the first existing schedule
           return axios.put(
             `${API_URL}/schedules/${existingSchedules[0]._id}`,
             scheduleData,
@@ -367,9 +385,9 @@ const RosterPage = () => {
             }
           );
         } else {
-          // If no existing schedule is found, create a new one.
+          // Create a new schedule
           return axios.post(
-            '${API_URL}/schedules/bulk',
+            `${API_URL}/schedules/bulk`,
             [scheduleData],
             {
               headers: { Authorization: `Bearer ${token}` },
@@ -377,40 +395,36 @@ const RosterPage = () => {
           );
         }
       });
-
+  
       await Promise.all(schedulePromises);
-
+  
       setShowModal(false);
       setSelectedEmployee(null);
       setSelectedDays([]);
       setSelectedRole('');
       setStartTime({});
       setEndTime({});
-
+  
       const res = await axios.get(
         `${API_URL}/schedules?weekStart=${format(currentWeekStart, 'yyyy-MM-dd')}`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
       setSchedules(res.data);
+  
     } catch (err) {
-      console.error(
-        'Error assigning/updating shift:',
-        err.response || err.message
-      );
+      console.error('Error assigning/updating shift:', err.response || err.message);
     }
   };
-
+  
 
   const handleDeleteSchedule = async (scheduleId) => {
     try {
       const token = localStorage.getItem('token');
-  
-      // Delete the schedule
+      
       await axios.delete(`${API_URL}/schedules/${scheduleId}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
   
-      // Fetch the updated schedules for the current week
       const res = await axios.get(
         `${API_URL}/schedules?weekStart=${format(currentWeekStart, 'yyyy-MM-dd')}`,
         {
@@ -418,12 +432,13 @@ const RosterPage = () => {
         }
       );
   
-      // Update the schedules state
       setSchedules(res.data);
     } catch (err) {
       console.error('Error deleting schedule:', err);
     }
   };
+  
+
   return (
     <div className='roster-page'>
       <header className='roster-header'>
