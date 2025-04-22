@@ -9,7 +9,7 @@ const connectDB = async () => {
       console.error("MONGO_URI is missing in .env file!");
       process.exit(1);
     }
-    console.log(`Connecting to MongoDB at ${process.env.MONGO_URI}`); // Add this line
+    console.log(`Connecting to MongoDB at ${process.env.MONGO_URI}`); 
     await mongoose.connect(process.env.MONGO_URI);
     console.log("MongoDB Connected...>>>>>>");
   } catch (error) {

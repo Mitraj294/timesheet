@@ -4,7 +4,7 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
-// Middleware to protect routes (Only authenticated users)
+// Only authenticated users
 export const protect = async (req, res, next) => {
   let token;
 

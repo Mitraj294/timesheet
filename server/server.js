@@ -1,3 +1,4 @@
+// server.js
 import express from "express";
 import cors from "cors";
 import mongoose from "mongoose";
@@ -17,6 +18,7 @@ import projectRoutes from "./routes/projectRoutes.js";
 import roleRoutes from "./routes/roleRoutes.js";
 import scheduleRoutes from "./routes/scheduleRoutes.js";
 import vehicleRoutes from "./routes/vehicleRoutes.js";
+
 const app = express();
 
 // Middleware
@@ -42,15 +44,17 @@ const connectDB = async () => {
 };
 connectDB();
 
-// Routes
-app.use("/api/clients", clientRoutes);
-app.use("/api/employees", employeeRoutes);
-app.use("/api/auth", authRoutes);
-app.use("/api/timesheets", timesheetRoutes);
-app.use("/api/projects", projectRoutes);
-app.use("/api/roles", roleRoutes);
-app.use("/api/schedules", scheduleRoutes);
-app.use("/api/vehicles", vehicleRoutes);
+// Use BASE_API_URL for all routes
+const BASE_API_URL = process.env.BASE_API_URL || '/api';
+
+app.use(`${BASE_API_URL}/clients`, clientRoutes);
+app.use(`${BASE_API_URL}/employees`, employeeRoutes);
+app.use(`${BASE_API_URL}/auth`, authRoutes);
+app.use(`${BASE_API_URL}/timesheets`, timesheetRoutes);
+app.use(`${BASE_API_URL}/projects`, projectRoutes);
+app.use(`${BASE_API_URL}/roles`, roleRoutes);
+app.use(`${BASE_API_URL}/schedules`, scheduleRoutes);
+app.use(`${BASE_API_URL}/vehicles`, vehicleRoutes);
 
 // Root Route
 app.get("/", (req, res) => {

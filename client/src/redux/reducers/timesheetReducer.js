@@ -1,4 +1,4 @@
-// timesheetReducer.js (if you're using this)
+
 import { GET_TIMESHEETS, TIMESHEET_ERROR } from "../actions/types";
 
 
@@ -38,7 +38,7 @@ export default function (state = initialState, action) {
       return {
         ...state,
         loading: false,
-        data: action.payload, // Assume payload is an array of timesheets
+        data: action.payload, 
       };
     case 'FETCH_TIMESHEETS_FAILURE':
       return {
