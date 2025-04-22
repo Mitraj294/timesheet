@@ -1,4 +1,4 @@
-/* Timesheet Container */
+/* === Timesheet Container === */
 .Timesheet-container {
     max-width: 1200px;
     margin: auto;
@@ -9,25 +9,26 @@
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 }
 
-/* Header Section */
+/* === Header Section === */
 .timesheet-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
     flex-wrap: wrap;
     margin-bottom: 20px;
-    font-size: 1.75rem;
-    font-weight: 600;
 
     h3 {
         margin: 0;
+        font-size: 1.75rem;
+        font-weight: 600;
         display: flex;
         align-items: center;
         gap: 10px;
+        color: #2c3e50;
     }
 }
 
-/* Breadcrumb Navigation */
+/* === Breadcrumb Navigation === */
 .breadcrumb {
     display: flex;
     flex-wrap: wrap;
@@ -56,7 +57,7 @@
     }
 }
 
-/* Action Buttons */
+/* === Action Buttons === */
 .timesheet-actions {
     display: flex;
     flex-wrap: wrap;
@@ -104,7 +105,7 @@
     }
 }
 
-/* Filter Panel */
+/* === Filter Panel === */
 .filter-panel {
     display: flex;
     flex-wrap: wrap;
@@ -115,11 +116,12 @@
     .filter-select,
     .filter-datepicker,
     .filter-email {
-        padding: 6px 10px;
+        padding: 8px 12px;
         font-size: 0.95rem;
         border: 1px solid #ccc;
         border-radius: 6px;
         min-width: 160px;
+        background: #fff;
     }
 
     .filter-email {
@@ -131,7 +133,7 @@
     }
 }
 
-/* Top Navigation */
+/* === Top Navigation === */
 .timesheet-top-bar {
     display: flex;
     flex-wrap: wrap;
@@ -145,6 +147,7 @@
     .timesheet-period {
         font-size: 1rem;
         font-weight: 600;
+        color: #333;
         margin-bottom: 8px;
     }
 
@@ -192,12 +195,11 @@
     }
 }
 
-/* Responsive Table Wrapper */
+/* === Responsive Table Wrapper === */
 .timesheet-table-wrapper {
     overflow-x: auto;
     width: 100%;
 
-    /* Scrollbar Styling (Optional) */
     &::-webkit-scrollbar {
         height: 8px;
     }
@@ -208,7 +210,7 @@
     }
 }
 
-/* Main Table */
+/* === Main Table === */
 .timesheet-table {
     width: 100%;
     border-collapse: collapse;
@@ -238,7 +240,7 @@
     }
 }
 
-/* Entry Styles */
+/* === Entry Styles === */
 .timesheet-cell {
     vertical-align: top;
     position: relative;
@@ -261,12 +263,13 @@
     box-shadow: 0 0 2px rgba(0, 0, 0, 0.05);
 }
 
-/* Icon Buttons */
+/* === Icon Buttons === */
 .icon-btn {
     background: transparent;
     border: none;
     cursor: pointer;
     color: #444;
+    transition: color 0.3s;
 
     &:hover {
         color: #007bff;
@@ -281,7 +284,7 @@
     }
 }
 
-/* Responsive Enhancements */
+/* === Responsive Enhancements === */
 @media (max-width: 768px) {
 
     .timesheet-header,

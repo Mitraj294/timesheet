@@ -14,6 +14,7 @@
         h4 {
             font-size: 1.8rem;
             font-weight: 700;
+            margin-bottom: 0.5rem;
         }
 
         .breadcrumbs {
@@ -21,8 +22,7 @@
             flex-wrap: wrap;
             align-items: center;
             gap: 0.5rem;
-            font-size: 0.95rem;
-            margin-top: 0.5rem;
+            font-size: 0.9rem;
 
             a {
                 color: #4a90e2;
@@ -125,88 +125,12 @@
             color: #333;
         }
     }
-}
-
-.view-review-container {
-    margin-top: 2rem;
-
-    .vehicle-name-section {
-        margin-bottom: 1.5rem;
-
-        .vehicle-name-heading {
-            font-size: 2rem;
-            font-weight: 700;
-            color: #222;
-        }
-    }
-
-    .review-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-        gap: 1.5rem;
-
-        .label {
-            font-size: 0.9rem;
-            font-weight: 600;
-            color: #666;
-            margin-bottom: 0.3rem;
-        }
-
-        .value {
-            font-size: 1rem;
-            font-weight: 700;
-            color: #333;
-            margin: 0;
-        }
-
-        .status-group {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-
-            .status-icon {
-                font-size: 1rem;
-                font-weight: bold;
-
-                &.green {
-                    color: #10b981; // tailwind's green-500
-                }
-
-                &.red {
-                    color: #ef4444; // tailwind's red-500
-                }
-            }
-        }
-    }
-}
-
-.view-review {
-    padding: 2rem;
-
-    .breadcrumbs {
-        font-size: 0.9rem;
-
-        a {
-            color: #0d6efd;
-            text-decoration: none;
-            margin-right: 0.3rem;
-
-            &:hover {
-                text-decoration: underline;
-            }
-        }
-
-        span {
-            margin: 0 0.3rem;
-            color: #6c757d;
-        }
-    }
 
     .view-review-container {
         background-color: #f5f5f5;
         padding: 2rem;
         border-radius: 8px;
-        margin-top: 1.5rem;
+        margin-top: 2rem;
 
         .vehicle-name-section {
             margin-bottom: 2rem;
@@ -219,58 +143,44 @@
         }
 
         .review-grid {
-            display: table;
-            width: 100%;
-            border-collapse: collapse;
-            background-color: white;
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+            gap: 1.5rem;
+            background-color: #fff;
+            padding: 1rem;
             border: 1px solid #dee2e6;
+            border-radius: 6px;
 
-            >div {
-                display: table-row;
-
-                .label {
-                    display: table-cell;
-                    padding: 1rem;
-                    font-weight: 600;
-                    border-bottom: 1px solid #dee2e6;
-                    border-right: 1px solid #dee2e6;
-                    vertical-align: middle;
-                    color: #333;
-                    width: 50%;
-                }
-
-                .value {
-                    display: table-cell;
-                    padding: 1rem;
-                    font-weight: 700;
-                    color: #222;
-                    border-bottom: 1px solid #dee2e6;
-                    vertical-align: middle;
-                }
-
-                .status-group {
-                    display: flex;
-                    align-items: center;
-                    gap: 0.5rem;
-
-                    .status-icon {
-                        font-size: 1rem;
-                        font-weight: bold;
-
-                        &.green {
-                            color: #10b981; // Tailwind green-500
-                        }
-
-                        &.red {
-                            color: #ef4444; // Tailwind red-500
-                        }
-                    }
-                }
+            .label {
+                font-size: 0.9rem;
+                font-weight: 600;
+                color: #666;
             }
 
-            >div:last-child .label,
-            >div:last-child .value {
-                border-bottom: none;
+            .value {
+                font-size: 1rem;
+                font-weight: 700;
+                color: #333;
+                margin: 0;
+            }
+
+            .status-group {
+                display: flex;
+                align-items: center;
+                gap: 0.5rem;
+
+                .status-icon {
+                    font-size: 1rem;
+                    font-weight: bold;
+
+                    &.green {
+                        color: #10b981;
+                    }
+
+                    &.red {
+                        color: #ef4444;
+                    }
+                }
             }
         }
     }
@@ -296,6 +206,37 @@
 
         &:hover {
             background-color: #dc2626;
+        }
+    }
+
+    // 🔥 Responsive Media Queries
+    @media (max-width: 992px) {
+        .d-flex {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 1rem;
+        }
+
+        .details-grid {
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        }
+
+        .review-grid {
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        }
+    }
+
+    @media (max-width: 600px) {
+        .view-review-container {
+            padding: 1rem;
+        }
+
+        .vehicle-name-heading {
+            font-size: 1.6rem;
+        }
+
+        .review-grid {
+            grid-template-columns: 1fr;
         }
     }
 }

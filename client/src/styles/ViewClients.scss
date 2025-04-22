@@ -33,6 +33,7 @@ body {
     justify-content: space-between;
     align-items: center;
     margin-bottom: 25px;
+    flex-wrap: wrap;
 
     h2 {
         font-size: 28px;
@@ -44,6 +45,7 @@ body {
 
     .actions {
         display: flex;
+        flex-wrap: wrap;
         gap: 15px;
 
         .btn {
@@ -54,8 +56,8 @@ body {
             border: none;
             border-radius: 5px;
             cursor: pointer;
-            transition: 0.3s;
             font-size: 14px;
+            transition: 0.3s;
 
             &.btn-download {
                 background: #3498db;
@@ -84,8 +86,6 @@ body {
     flex-direction: column;
     gap: 20px;
     padding: 20px;
-    max-width: 1200px;
-    margin: 0 auto;
 }
 
 /* === Client Summary === */
@@ -97,74 +97,79 @@ body {
     border-radius: 10px;
     padding: 30px;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-}
+    flex-wrap: wrap;
 
-.client-card {
-    display: flex;
-    align-items: center;
-    gap: 20px;
-
-    .client-avatar {
-        width: 100px;
-        height: 100px;
-        background: #e9ecef;
-        border-radius: 50%;
+    .client-card {
         display: flex;
-        justify-content: center;
         align-items: center;
+        gap: 20px;
+        flex-wrap: wrap;
 
-        svg {
-            color: #3498db;
-            font-size: 40px;
-        }
-    }
-
-    .client-info {
-        display: flex;
-        flex-direction: column;
-        gap: 8px;
-
-        h2 {
-            font-size: 24px;
-            color: #2c3e50;
-        }
-
-        p {
-            font-size: 14px;
-            color: #555;
+        .client-avatar {
+            width: 100px;
+            height: 100px;
+            background: #e9ecef;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
 
             svg {
-                margin-right: 8px;
                 color: #3498db;
+                font-size: 40px;
+            }
+        }
+
+        .client-info {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+
+            h2 {
+                font-size: 24px;
+                color: #2c3e50;
+            }
+
+            p {
+                font-size: 14px;
+                color: #555;
+                display: flex;
+                align-items: center;
+                gap: 8px;
+
+                svg {
+                    color: #3498db;
+                }
             }
         }
     }
-}
 
-.total-hours {
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    .total-hours {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        margin-top: 15px;
 
-    .hours-card {
-        background: #ffffff;
-        padding: 20px;
-        border-radius: 10px;
-        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
-        text-align: center;
+        .hours-card {
+            background: #ffffff;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+            text-align: center;
 
-        span {
-            font-size: 14px;
-            color: #7f8c8d;
-        }
+            span {
+                font-size: 14px;
+                color: #7f8c8d;
+            }
 
-        h3 {
-            font-size: 32px;
-            color: #27ae60;
-            margin: 10px 0;
+            h3 {
+                font-size: 32px;
+                color: #27ae60;
+                margin: 10px 0;
 
-            svg {
-                margin-right: 10px;
+                svg {
+                    margin-right: 10px;
+                }
             }
         }
     }
@@ -182,18 +187,21 @@ body {
         display: flex;
         justify-content: space-between;
         align-items: center;
+        flex-wrap: wrap;
         margin-bottom: 20px;
     }
 
     .search-bar {
         display: flex;
         gap: 10px;
+        flex-wrap: wrap;
 
         input {
             padding: 8px 12px;
             border: 1px solid #ccc;
             border-radius: 5px;
             font-size: 14px;
+            width: 200px;
 
             &:focus {
                 outline: none;
@@ -221,6 +229,7 @@ body {
 .project-table {
     width: 100%;
     border-collapse: collapse;
+    margin-top: 20px;
 
     th,
     td {
@@ -258,6 +267,7 @@ body {
             border: none;
             border-radius: 5px;
             cursor: pointer;
+            font-size: 13px;
             transition: 0.3s;
 
             &.btn-view {
@@ -307,10 +317,16 @@ body {
 @media (max-width: 992px) {
 
     .header,
-    .client-summary {
+    .client-summary,
+    .project-header {
         flex-direction: column;
-        gap: 15px;
         align-items: flex-start;
+        gap: 15px;
+    }
+
+    .client-card {
+        flex-direction: column;
+        align-items: center;
     }
 
     .actions {
@@ -318,13 +334,17 @@ body {
         gap: 10px;
     }
 
-    .card,
-    .client-card {
+    .search-bar {
         flex-direction: column;
-        text-align: center;
+        align-items: flex-start;
+
+        input,
+        button {
+            width: 100%;
+        }
     }
 
-    table {
+    .project-table {
         font-size: 12px;
 
         th,
@@ -335,19 +355,10 @@ body {
 }
 
 @media (max-width: 768px) {
-    .list table {
-        font-size: 12px;
 
-        th,
-        td {
-            padding: 8px;
-        }
-    }
-
-    .header {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 15px;
+    .client-container,
+    .project-section {
+        padding: 20px;
     }
 
     .btn {
@@ -355,13 +366,12 @@ body {
         padding: 8px 15px;
     }
 
-    .search-bar {
-        flex-direction: column;
-        gap: 10px;
+    .project-table {
 
-        input,
-        button {
-            width: 100%;
+        th,
+        td {
+            font-size: 12px;
+            padding: 8px;
         }
     }
 }
