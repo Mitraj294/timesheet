@@ -20,7 +20,7 @@ const initialState = {
 // 🔹 Login User
 export const loginUser = createAsyncThunk("auth/login", async (userData, { rejectWithValue }) => {
   try {
-    const response = await axios.post(`${API_URL}/login`, userData);
+    const response = await axios.post(`${API_URL}/auth/login`, userData);
     
     // Log the response to verify it contains the token and user data
     console.log("Login Response:", response.data);
@@ -37,7 +37,7 @@ export const loginUser = createAsyncThunk("auth/login", async (userData, { rejec
 // 🔹 Register User
 export const registerUser = createAsyncThunk("auth/register", async (userData, { rejectWithValue }) => {
   try {
-    const response = await axios.post(`${API_URL}/register`, userData);
+    const response = await axios.post(`${API_URL}/auth/register`, userData);
     
     // Log the response to verify it contains the token and user data
     console.log("Registration Response:", response.data);
