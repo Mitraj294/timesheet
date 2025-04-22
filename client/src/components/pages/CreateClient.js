@@ -5,6 +5,8 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faUser, faEnvelope, faPhone, faMapMarker, faStickyNote, faSave, faTimes } from "@fortawesome/free-solid-svg-icons";
 import "../../styles/CreateForms.scss";
 
+const API_URL = process.env.REACT_APP_API_URL || 'https://timesheet-c4mj.onrender.com/api';
+
 const CreateClient = () => {
   const navigate = useNavigate();
   const { id } = useParams();
@@ -18,13 +20,15 @@ const CreateClient = () => {
     isImportant: false,
   });
 
+
   useEffect(() => {
     if (id) {
-      axios.get(`http://localhost:5000/api/clients/${id}`)
+      axios.get(`${API_URL}/clients/${id}`)  // Use API_URL here
         .then((response) => setClientData(response.data))
         .catch((error) => console.error("Error fetching client data:", error));
     }
   }, [id]);
+  
 
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -34,20 +38,24 @@ const CreateClient = () => {
     }));
   };
 
+
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
       if (id) {
-        await axios.put(`http://localhost:5000/api/clients/${id}`, clientData);
+        await axios.put(`${API_URL}/clients/${id}`, clientData);  // Using API_URL here
       } else {
-        await axios.post("http://localhost:5000/api/clients", clientData);
+        await axios.post(`${API_URL}/clients`, clientData);  // Using API_URL here
       }
       alert("Client saved successfully!");
       navigate("/clients");
     } catch (error) {
       console.error("Error saving client:", error);
+      alert("Failed to save client. Please try again.");
     }
   };
+  
 
   return (
     <div className="create-client-container">

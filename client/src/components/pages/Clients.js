@@ -6,12 +6,15 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faUsers, faDownload, faPlus, faSearch, faEye, faEdit, faTrash } from "@fortawesome/free-solid-svg-icons";
 import "../../styles/Clients.scss";
 
+const API_URL = process.env.REACT_APP_API_URL || 'https://timesheet-c4mj.onrender.com/api';
+
 const Clients = () => {
   const [clients, setClients] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const { user } = useSelector((state) => state.auth); // Get logged-in user
+
   useEffect(() => {
-    axios.get("/api/clients")
+    axios.get(`${API_URL}/clients`)  // Use API_URL here
       .then(res => setClients(res.data))
       .catch(err => console.error("Error fetching clients:", err));
   }, []);
@@ -20,7 +23,7 @@ const Clients = () => {
     if (!window.confirm("Are you sure you want to delete this client?")) return;
 
     try {
-      await axios.delete(`/api/clients/${clientId}`);
+      await axios.delete(`${API_URL}/clients/${clientId}`);  // Use API_URL here
       setClients(clients.filter(client => client._id !== clientId));
     } catch (err) {
       console.error("Error deleting client:", err);
@@ -34,10 +37,10 @@ const Clients = () => {
 
   const handleDownloadClients = async () => {
     try {
-      const response = await axios.get('/api/clients/download', {
-        responseType: 'blob',  // IMPORTANT
+      const response = await axios.get(`${API_URL}/clients/download`, {  // Use API_URL here
+        responseType: 'blob',  
       });
-  
+
       const url = window.URL.createObjectURL(new Blob([response.data]));
       const link = document.createElement('a');
       link.href = url;
@@ -45,12 +48,15 @@ const Clients = () => {
       document.body.appendChild(link);
       link.click();
       link.remove();
-  
+
     } catch (error) {
       console.error('Download failed:', error);
       alert('Failed to download clients.');
     }
   };
+
+
+
   
   return (
     <div className="container">

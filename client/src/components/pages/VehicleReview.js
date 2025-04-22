@@ -2,6 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 
+const API_URL = process.env.REACT_APP_API_URL || 'https://timesheet-c4mj.onrender.com/api';
+
 const VehicleReview = () => {
   const location = useLocation();
   const navigate = useNavigate();
@@ -23,7 +25,7 @@ const VehicleReview = () => {
     const fetchEmployees = async () => {
       try {
         const token = localStorage.getItem('token');
-        const res = await axios.get('http://localhost:5000/api/employees', {
+        const res = await axios.get(`${API_URL}/employees`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         setEmployees(res.data);
@@ -62,10 +64,10 @@ const VehicleReview = () => {
     try {
       const token = localStorage.getItem('token');
       const config = { headers: { Authorization: `Bearer ${token}` } };
-
+  
       // Always POST a new review
-      await axios.post('http://localhost:5000/api/vehicles', vehicleData, config);
-
+      await axios.post(`${API_URL}/vehicles`, vehicleData, config);
+  
       navigate('/vehicles');
     } catch (err) {
       console.error('Failed to save vehicle review:', err);

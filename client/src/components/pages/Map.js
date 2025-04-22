@@ -24,7 +24,7 @@ const Map = () => {
     const fetchEmployees = async () => {
       try {
         const token = localStorage.getItem('token');
-        const response = await fetch('/api/employees', {
+        const response = await fetch(`${API_URL}/employees`, {
           headers: {
             'Content-Type': 'application/json',
             Authorization: `Bearer ${token}`,

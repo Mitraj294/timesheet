@@ -16,6 +16,9 @@ import {
 } from "@fortawesome/free-solid-svg-icons";
 import "../../styles/ViewClients.scss";
 
+const API_URL = process.env.REACT_APP_API_URL || 'https://timesheet-c4mj.onrender.com/api';
+
+
 const ViewClient = () => {
   const { clientId } = useParams(); // Get clientId from URL params
   const navigate = useNavigate();
@@ -24,23 +27,24 @@ const ViewClient = () => {
   // This state will store the total hours spent on this client (by all employees)
   const [clientTotalHours, setClientTotalHours] = useState(0);
   const { user } = useSelector((state) => state.auth); // Get logged-in user
+
   useEffect(() => {
     const fetchData = async () => {
       try {
         const token = localStorage.getItem("token");
-
+  
         // Fetch Client Info
         const clientRes = await axios.get(
-          `http://localhost:5000/api/clients/${clientId}`,
+          `${API_URL}/clients/${clientId}`,
           {
             headers: { Authorization: `Bearer ${token}` },
           }
         );
         setClient(clientRes.data);
-
+  
         // Fetch Projects for this client
         const projectsRes = await axios.get(
-          `http://localhost:5000/api/projects/client/${clientId}`,
+          `${API_URL}/projects/client/${clientId}`,
           {
             headers: { Authorization: `Bearer ${token}` },
           }
@@ -51,10 +55,10 @@ const ViewClient = () => {
           console.warn("No projects found.");
           setProjects([]);
         }
-
+  
         // Fetch all timesheets (for calculating total hours)
         const timesheetRes = await axios.get(
-          "http://localhost:5000/api/timesheets",
+          `${API_URL}/timesheets`,
           {
             headers: { Authorization: `Bearer ${token}` },
           }
@@ -81,7 +85,7 @@ const ViewClient = () => {
         }
       }
     };
-
+  
     fetchData();
   }, [clientId, navigate]);
 
@@ -89,10 +93,10 @@ const ViewClient = () => {
   const deleteProject = async (projectId) => {
     if (!window.confirm("Are you sure you want to delete this project?"))
       return;
-
+  
     try {
       const token = localStorage.getItem("token");
-      await axios.delete(`http://localhost:5000/api/projects/${projectId}`, {
+      await axios.delete(`${API_URL}/projects/${projectId}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       setProjects((prev) => prev.filter((project) => project._id !== projectId));
@@ -101,7 +105,6 @@ const ViewClient = () => {
       alert("Failed to delete project.");
     }
   };
-
   if (!client) return <p>Loading...</p>;
 
   return (

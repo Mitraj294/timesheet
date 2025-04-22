@@ -2,7 +2,8 @@ import axios from "axios";
 import { GET_EMPLOYEES, EMPLOYEES_ERROR, ADD_EMPLOYEE, UPDATE_EMPLOYEE, DELETE_EMPLOYEE } from "./types";
 
 
-const API_URL = "http://localhost:5000/api/employees";
+
+const API_URL = process.env.REACT_APP_API_URL || 'https://timesheet-c4mj.onrender.com/api';
 
 // Function to get authentication headers
 const getAuthHeaders = () => {

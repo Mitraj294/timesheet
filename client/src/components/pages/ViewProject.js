@@ -13,6 +13,8 @@ import {
 } from "@fortawesome/free-solid-svg-icons";
 import ProjectTimesheet from "./ProjectTimesheet";
 import "../../styles/ViewProject.scss";
+const API_URL = process.env.REACT_APP_API_URL || 'https://timesheet-c4mj.onrender.com/api';
+
 
 const ViewProject = () => {
   const { clientId, projectId } = useParams();
@@ -32,15 +34,13 @@ const ViewProject = () => {
     const fetchProjectData = async () => {
       if (!selectedProjectId) return;
       try {
-        const projectRes = await axios.get(
-          `http://localhost:5000/api/projects/${selectedProjectId}`
-        );
+        const projectRes = await axios.get(`${API_URL}/projects/${selectedProjectId}`);
         setProject(projectRes.data);
       } catch (err) {
         console.error("Error fetching project data:", err);
       }
     };
-
+  
     fetchProjectData();
   }, [selectedProjectId]);
 
@@ -72,11 +72,9 @@ const ViewProject = () => {
           <button
             className="btn btn-danger"
             onClick={() => {
-              if (
-                window.confirm("Are you sure you want to delete this project?")
-              ) {
+              if (window.confirm("Are you sure you want to delete this project?")) {
                 axios
-                  .delete(`http://localhost:5000/api/projects/${projectId}`)
+                  .delete(`${API_URL}/projects/${projectId}`)
                   .then(() => navigate("/clients"))
                   .catch((err) => alert("Failed to delete project"));
               }

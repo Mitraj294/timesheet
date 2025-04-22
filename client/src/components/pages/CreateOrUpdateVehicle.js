@@ -14,6 +14,9 @@ import {
 } from '@fortawesome/free-solid-svg-icons';
 import '../../styles/CreateVehicle.scss';
 
+const API_URL = process.env.REACT_APP_API_URL || 'https://timesheet-c4mj.onrender.com/api';
+
+
 const CreateOrUpdateVehicle = () => {
   const { vehicleId } = useParams();
   const navigate = useNavigate();
@@ -37,7 +40,7 @@ const CreateOrUpdateVehicle = () => {
     const fetchEmployees = async () => {
       try {
         const token = localStorage.getItem('token');
-        const res = await axios.get('http://localhost:5000/api/employees', {
+        const res = await axios.get(`${API_URL}/employees`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         setEmployees(res.data);
@@ -50,10 +53,11 @@ const CreateOrUpdateVehicle = () => {
 
     
     if (isEditMode) {
+
       const fetchVehicle = async () => {
         try {
           const token = localStorage.getItem('token');
-          const res = await axios.get(`http://localhost:5000/api/vehicles/${vehicleId}`, {
+          const res = await axios.get(`${API_URL}/vehicles/${vehicleId}`, {
             headers: { Authorization: `Bearer ${token}` },
           });
           const data = res.data;
@@ -92,13 +96,13 @@ const CreateOrUpdateVehicle = () => {
           Authorization: `Bearer ${token}`,
         },
       };
-
+  
       if (isEditMode) {
-        await axios.put(`http://localhost:5000/api/vehicles/${vehicleId}`, vehicleData, config);
+        await axios.put(`${API_URL}/vehicles/${vehicleId}`, vehicleData, config);
       } else {
-        await axios.post('http://localhost:5000/api/vehicles', vehicleData, config);
+        await axios.post(`${API_URL}/vehicles`, vehicleData, config);
       }
-
+  
       navigate('/vehicles');
     } catch (err) {
       console.error('Failed to save vehicle:', err);

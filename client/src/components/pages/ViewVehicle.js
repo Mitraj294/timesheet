@@ -19,6 +19,9 @@ import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 import '../../styles/Vehicles.scss';
 import '../../styles/_base.scss'
+
+const API_URL = process.env.REACT_APP_API_URL || 'https://timesheet-c4mj.onrender.com/api';
+
 const ViewVehicle = () => {
     const [sendEmail, setSendEmail] = useState('');
     const [sending, setSending] = useState(false);
@@ -38,21 +41,22 @@ const ViewVehicle = () => {
 
   const { user } = useSelector((state) => state.auth); // Get logged-in user
   useEffect(() => {
+
     const fetchVehicleWithReviews = async () => {
       try {
         const token = localStorage.getItem('token');
-        const vehicleRes = await axios.get(`http://localhost:5000/api/vehicles/${vehicleId}`, {
+        
+        // Use API_URL for vehicle request
+        const vehicleRes = await axios.get(`${API_URL}/vehicles/${vehicleId}`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         setVehicle(vehicleRes.data);
-
-        const reviewsRes = await axios.get(
-          `http://localhost:5000/api/vehicles/vehicle/${vehicleId}/reviews`,
-          {
-            headers: { Authorization: `Bearer ${token}` },
-          }
-        );
-
+    
+        // Use API_URL for reviews request
+        const reviewsRes = await axios.get(`${API_URL}/vehicles/vehicle/${vehicleId}/reviews`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+    
         setVehicleHistory(reviewsRes.data.reviews);
       } catch (err) {
         console.error('Error fetching vehicle with reviews:', err);
@@ -61,9 +65,9 @@ const ViewVehicle = () => {
         setLoading(false);
       }
     };
-
+    
     fetchVehicleWithReviews();
-  }, [vehicleId]);
+    }, [vehicleId]);
 
   const filteredHistory = vehicleHistory.filter((entry) => {
     const employeeName = entry.employeeId?.name?.toLowerCase() || '';
@@ -80,16 +84,18 @@ const ViewVehicle = () => {
   
     try {
       const token = localStorage.getItem('token');
-      await axios.delete(`http://localhost:5000/api/vehicles/reviews/${reviewId}`, {
+      
+      // Use API_URL for the delete request
+      await axios.delete(`${API_URL}/vehicles/reviews/${reviewId}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
+  
       setVehicleHistory((prev) => prev.filter((review) => review._id !== reviewId));
     } catch (err) {
       console.error('Error deleting review:', err);
       alert('Error deleting review');
     }
   };
-  ;
 
   const handleViewReviewClick = (item) => {
     navigate(`/vehicles/reviews/${item._id}/view`);
@@ -100,13 +106,13 @@ const ViewVehicle = () => {
       alert('Please select a start and end date.');
       return;
     }
-
+  
     setDownloading(true);
-
+  
     try {
       const token = localStorage.getItem('token');
       const response = await axios.get(
-        `http://localhost:5000/api/vehicles/${vehicleId}/download-report`,
+        `${API_URL}/vehicles/${vehicleId}/download-report`,  // Use API_URL here
         {
           headers: { Authorization: `Bearer ${token}` },
           responseType: 'blob',
@@ -116,11 +122,11 @@ const ViewVehicle = () => {
           },
         }
       );
-
+  
       const blob = new Blob([response.data], {
         type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
       });
-
+  
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -146,14 +152,14 @@ const ViewVehicle = () => {
       console.log('Sending vehicle report for vehicleId:', vehicleId);  // Log the vehicleId
   
       await axios.post(
-        `http://localhost:5000/api/vehicles/report/email/${vehicleId}`,
+        `${API_URL}/vehicles/report/email/${vehicleId}`,  // Use API_URL here
         {
           startDate: startDate.toISOString(),
           endDate: endDate.toISOString(),
           email: sendEmail,
         },
         {
-          headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+          headers: { Authorization: `Bearer ${token}` },
         }
       );
   

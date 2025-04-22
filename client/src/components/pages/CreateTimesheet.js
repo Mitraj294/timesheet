@@ -9,6 +9,10 @@ import { getProjects } from '../../redux/actions/projectActions';
 import axios from 'axios';
 import '../../styles/CreateForms.scss';
 import { DateTime } from 'luxon';
+
+const API_URL = process.env.REACT_APP_API_URL || 'https://timesheet-c4mj.onrender.com/api';
+
+
 const CreateTimesheet = ({
   employees,
   clients,
@@ -244,29 +248,36 @@ calculateHours({
       };
   
       // Check for duplicates if not editing
-      if (!isEditing) {
-        const chk = await axios.get(
-          'http://localhost:5000/api/timesheets/check',
-          {
-            params: {
-              employee: formData.employeeId,
-              date: formData.date,
-              timezone: formData.timezone, // 🆕 Add this line
-            },
-            headers: { Authorization: `Bearer ${token}` },
-          }
-        );
-        
-        if (chk.data.exists) {
-          alert(
-            'A timesheet for this employee on that date already exists. Redirecting to edit.'
-          );
-          return navigate('/timesheet/create', {
-            state: { timesheet: chk.data.timesheet },
-          });
-        }
+
+
+if (!isEditing) {
+  try {
+    const chk = await axios.get(
+      `${API_URL}/timesheets/check`, // Use API_URL here
+      {
+        params: {
+          employee: formData.employeeId,
+          date: formData.date,
+          timezone: formData.timezone, // 🆕 Add timezone parameter
+        },
+        headers: { Authorization: `Bearer ${token}` },
       }
-  
+    );
+
+    if (chk.data.exists) {
+      alert(
+        'A timesheet for this employee on that date already exists. Redirecting to edit.'
+      );
+      return navigate('/timesheet/create', {
+        state: { timesheet: chk.data.timesheet },
+      });
+    }
+  } catch (err) {
+    console.error('Error checking timesheet:', err);
+    alert('There was an issue checking the timesheet. Please try again.');
+  }
+}
+
       // Payload
       const requestData = {
         ...formData,
@@ -277,19 +288,29 @@ calculateHours({
   
       // Create or Update
       if (isEditing) {
-        await axios.put(
-          `http://localhost:5000/api/timesheets/${location.state.timesheet._id}`,
-          requestData,
-          config
-        );
-        alert('Timesheet updated successfully!');
+        try {
+          await axios.put(
+            `${API_URL}/timesheets/${location.state.timesheet._id}`, // Use API_URL here
+            requestData,
+            config
+          );
+          alert('Timesheet updated successfully!');
+        } catch (err) {
+          console.error('Error updating timesheet:', err);
+          alert('Failed to update timesheet. Please try again.');
+        }
       } else {
-        await axios.post(
-          'http://localhost:5000/api/timesheets',
-          requestData,
-          config
-        );
-        alert('Timesheet created successfully!');
+        try {
+          await axios.post(
+            `${API_URL}/timesheets`, // Use API_URL here
+            requestData,
+            config
+          );
+          alert('Timesheet created successfully!');
+        } catch (err) {
+          console.error('Error creating timesheet:', err);
+          alert('Failed to create timesheet. Please try again.');
+        }
       }
   
       navigate('/timesheet');

@@ -8,6 +8,9 @@ import {
 } from "@fortawesome/free-solid-svg-icons";
 import "../../styles/CreateForms.scss";
 
+const API_URL = process.env.REACT_APP_API_URL || 'https://timesheet-c4mj.onrender.com/api';
+
+
 const CreateProject = () => {
   const { clientId, projectId } = useParams();
   const navigate = useNavigate();
@@ -24,17 +27,14 @@ const CreateProject = () => {
 
   const [loading, setLoading] = useState(false);
 
-
   useEffect(() => {
     const fetchProjectDetails = async () => {
       if (projectId) {
         setLoading(true);
         try {
-        
-          const response = await axios.get(`http://localhost:5000/api/projects/${projectId}`);
+          const response = await axios.get(`${API_URL}/projects/${projectId}`);
           const project = response.data;
-
-      
+  
           setFormData({
             name: project.name,
             startDate: project.startDate ? project.startDate.split("T")[0] : "",
@@ -44,7 +44,7 @@ const CreateProject = () => {
             notes: project.notes || "",
             isImportant: project.isImportant || false
           });
-
+  
         } catch (err) {
           console.error("Error fetching project:", err);
         } finally {
@@ -52,7 +52,6 @@ const CreateProject = () => {
         }
       }
     };
-
     fetchProjectDetails();
   }, [projectId]);
 
@@ -74,11 +73,9 @@ const CreateProject = () => {
   
     try {
       if (projectId) {
-       
-        await axios.put(`http://localhost:5000/api/projects/${projectId}`, payload); 
+        await axios.put(`${API_URL}/projects/${projectId}`, payload);
       } else {
-        
-        await axios.post(`http://localhost:5000/api/projects/${clientId}/projects`, payload);
+        await axios.post(`${API_URL}/projects/${clientId}/projects`, payload);
       }
   
       navigate(`/clients/view/${clientId}`);
@@ -100,8 +97,8 @@ const CreateProject = () => {
     <div className="create-project-container">
       <h2>{projectId ? "Update Project" : "Create Project"}</h2>
 
-    //Breadcrumb 
-
+      {/* Breadcrumb */}
+      
       <div className="breadcrumb">
         <Link to="/dashboard" className="breadcrumb-link">Dashboard</Link>
         <span> / </span>
@@ -114,8 +111,8 @@ const CreateProject = () => {
 
       <form onSubmit={handleSubmit} className="create-project-form">
 
-      //Project Name 
-
+        {/* Project Name */}
+        
         <div className="form-group">
           <FontAwesomeIcon icon={faUser} className="input-icon" />
           <input
@@ -128,8 +125,8 @@ const CreateProject = () => {
           />
         </div>
 
-      //Start Date 
-
+        {/* Start Date */}
+        
         <div className="form-group">
           <FontAwesomeIcon icon={faCalendar} className="input-icon" />
           <input
@@ -140,8 +137,8 @@ const CreateProject = () => {
           />
         </div>
 
-      //Finish Date 
-
+        {/* Finish Date */}
+        
         <div className="form-group">
           <FontAwesomeIcon icon={faCalendar} className="input-icon" />
           <input
@@ -152,8 +149,8 @@ const CreateProject = () => {
           />
         </div>
 
-      //Address 
-
+        {/* Address */}
+        
         <div className="form-group">
           <FontAwesomeIcon icon={faMapMarker} className="input-icon" />
           <input
@@ -165,8 +162,8 @@ const CreateProject = () => {
           />
         </div>
 
-      //Expected Hours 
-
+        {/* Expected Hours */}
+        
         <div className="form-group">
           <FontAwesomeIcon icon={faClock} className="input-icon" />
           <input
@@ -178,8 +175,8 @@ const CreateProject = () => {
           />
         </div>
 
-      //Notes 
-
+        {/* Notes */}
+        
         <div className="form-group">
           <FontAwesomeIcon icon={faStickyNote} className="input-icon" />
           <textarea
@@ -190,8 +187,8 @@ const CreateProject = () => {
           />
         </div>
 
-      //Important Checkbox 
-
+        {/* Important Checkbox */}
+        
         <div className="checkbox-group">
           <input
             type="checkbox"
@@ -202,8 +199,8 @@ const CreateProject = () => {
           <label>Important</label>
         </div>
 
-      //Form Buttons 
-
+        {/* Form Buttons */}
+        
         <div className="form-buttons">
           <button type="submit" className="submit-btn">
             <FontAwesomeIcon icon={faPlus} /> {projectId ? "Update Project" : "Create Project"}

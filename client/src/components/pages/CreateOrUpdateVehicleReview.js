@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useParams, useNavigate } from 'react-router-dom';
 
+const API_URL = process.env.REACT_APP_API_URL || 'https://timesheet-c4mj.onrender.com/api';
+
 const CreateOrUpdateVehicleReview = () => {
   const { vehicleId, reviewId } = useParams();
   const navigate = useNavigate();
@@ -19,43 +21,43 @@ const CreateOrUpdateVehicleReview = () => {
   const [employees, setEmployees] = useState([]);
   const [vehicle, setVehicle] = useState(null);
 
+
   useEffect(() => {
-    // Fetch vehicle details
+    // Fetch vehicle data
     axios
-      .get(`http://localhost:5000/api/vehicles/${vehicleId}`)
+      .get(`${API_URL}/vehicles/${vehicleId}`)
       .then((response) => setVehicle(response.data))
       .catch((error) => console.error('Error fetching vehicle:', error));
-
+  
     // Fetch employees
     axios
-      .get('http://localhost:5000/api/employees', {
+      .get(`${API_URL}/employees`, {
         headers: {
           Authorization: `Bearer ${localStorage.getItem('token')}`,
         },
       })
       .then((response) => setEmployees(response.data))
       .catch((error) => console.error('Error fetching employees:', error));
-
+  
     // Fetch existing review if editing
-// Fetch existing review if editing
-if (reviewId) {
-  console.log('Fetching review with ID:', reviewId); // Log the review ID
-  axios
-    .get(`http://localhost:5000/api/vehicles/reviews/${reviewId}`, {
-      headers: {
-        Authorization: `Bearer ${localStorage.getItem('token')}`,
-      },
-    })
-    .then((response) => {
-      console.log('Review fetched:', response.data); // Log response
-      setFormData(response.data);
-    })
-    .catch((error) => {
-      console.error('Error fetching review:', error);
-      alert('Review not found');
-    });
-}
-
+    if (reviewId) {
+      console.log('Fetching review with ID:', reviewId);
+      axios
+        .get(`${API_URL}/vehicles/reviews/${reviewId}`, {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem('token')}`,
+          },
+        })
+        .then((response) => {
+          console.log('Review fetched:', response.data);
+          setFormData(response.data);
+        })
+        .catch((error) => {
+          console.error('Error fetching review:', error);
+          alert('Review not found');
+        });
+    }
+  
   }, [vehicleId, reviewId]);
 
   const handleChange = (e) => {
@@ -69,23 +71,22 @@ if (reviewId) {
   const handleSubmit = (e) => {
     e.preventDefault();
     const token = localStorage.getItem('token');
-
+  
     const config = {
       headers: {
         Authorization: `Bearer ${token}`,
       },
     };
-
-    // IMPORTANT: Rename "vehicleId" to "vehicle" to match backend expectation
+  
     const payload = {
       ...formData,
       vehicle: vehicleId,
     };
-
+  
     const request = reviewId
-      ? axios.put(`http://localhost:5000/api/vehicles/reviews/${reviewId}`, payload, config)
-      : axios.post('http://localhost:5000/api/vehicles/reviews', payload, config);
-
+      ? axios.put(`${API_URL}/vehicles/reviews/${reviewId}`, payload, config)
+      : axios.post(`${API_URL}/vehicles/reviews`, payload, config);
+  
     request
       .then((response) => {
         console.log('Review submitted successfully:', response.data);

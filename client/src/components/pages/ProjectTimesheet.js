@@ -16,6 +16,9 @@ import { format } from "date-fns";
 import "../../styles/Timesheet.scss";
 import DatePicker from 'react-datepicker';
 
+const API_URL = process.env.REACT_APP_API_URL || 'https://timesheet-c4mj.onrender.com/api';
+
+
 const ProjectTimesheet = ({
   selectedProjectId,
   setSelectedProjectId,
@@ -60,10 +63,7 @@ const ProjectTimesheet = ({
         return;
       }
       const config = { headers: { Authorization: `Bearer ${token}` } };
-      const response = await axios.get(
-        "http://localhost:5000/api/employees",
-        config
-      );
+      const response = await axios.get(`${API_URL}/employees`, config);;
       setEmployees(response.data);
     } catch (error) {
       console.error(
@@ -82,10 +82,7 @@ const ProjectTimesheet = ({
         return;
       }
       const config = { headers: { Authorization: `Bearer ${token}` } };
-      const response = await axios.get(
-        "http://localhost:5000/api/clients",
-        config
-      );
+      const response = await axios.get(`${API_URL}/clients`, config);
       setClients(response.data);
     } catch (error) {
       console.error(
@@ -104,10 +101,7 @@ const ProjectTimesheet = ({
         return;
       }
       const config = { headers: { Authorization: `Bearer ${token}` } };
-      const response = await axios.get(
-        "http://localhost:5000/api/projects",
-        config
-      );
+      const response = await axios.get(`${API_URL}/projects`, config);
       setProjects(response.data);
     } catch (error) {
       console.error(
@@ -133,9 +127,9 @@ const ProjectTimesheet = ({
       const config = { headers: { Authorization: `Bearer ${token}` } };
 
       // Build URL with projectId if selected
-      let url = `http://localhost:5000/api/timesheets`;
+      let url = `${API_URL}/timesheets`;
       if (selectedProjectId) {
-        url = `http://localhost:5000/api/timesheets/project/${selectedProjectId}`;
+        url = `${API_URL}/timesheets/project/${selectedProjectId}`;
       }
       console.log("Fetching timesheets from URL:", url);
 
@@ -180,7 +174,7 @@ const ProjectTimesheet = ({
         return;
       }
       const config = { headers: { Authorization: `Bearer ${token}` } };
-      await axios.delete(`http://localhost:5000/api/timesheets/${id}`, config);
+      await axios.delete(`${API_URL}/timesheets/${id}`, config);
       alert("Timesheet deleted successfully!");
       fetchTimesheets();
     } catch (error) {
@@ -332,7 +326,7 @@ const ProjectTimesheet = ({
       };
   
       const response = await axios.post(
-        'http://localhost:5000/api/timesheets/send-email/project',
+        `${API_URL}/timesheets/send-email/project`,
         body,
         config
       );
@@ -353,7 +347,8 @@ const ProjectTimesheet = ({
     }
   
     try {
-    const response = await fetch('http://localhost:5000/api/timesheets/download/project', {
+
+      const response = await fetch(`${API_URL}/timesheets/download/project`, {
   method: 'POST',
   headers: {
     'Content-Type': 'application/json',

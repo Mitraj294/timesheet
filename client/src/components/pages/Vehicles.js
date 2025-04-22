@@ -16,6 +16,8 @@ import {
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 
+const API_URL = process.env.REACT_APP_API_URL || 'https://timesheet-c4mj.onrender.com/api';
+
 const Vehicles = () => {
   // State for report sending
   const [sendEmail, setSendEmail] = useState('');
@@ -39,27 +41,27 @@ const Vehicles = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    const fetchVehicles = async () => {
-      try {
-        const token = localStorage.getItem('token');
-        const res = await axios.get(`http://localhost:5000/api/vehicles`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        setVehicles(res.data);
-      } catch (err) {
-        console.error('Error fetching vehicles:', err);
-        if (err.response?.status === 401) {
-          alert('Unauthorized. Please log in again.');
-          localStorage.removeItem('token');
-          navigate('/login');
-        } else {
-          alert('Failed to fetch vehicles. Please try again later.');
-        }
+     const fetchVehicles = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const res = await axios.get(`${API_URL}/vehicles`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setVehicles(res.data);
+    } catch (err) {
+      console.error('Error fetching vehicles:', err);
+      if (err.response?.status === 401) {
+        alert('Unauthorized. Please log in again.');
+        localStorage.removeItem('token');
+        navigate('/login');
+      } else {
+        alert('Failed to fetch vehicles. Please try again later.');
       }
-    };
+    }
+  };
 
-    fetchVehicles();
-  }, [navigate]);
+  fetchVehicles();
+}, [navigate]);
 
   const handleDownloadReport = async () => {
     if (!startDate || !endDate) {
@@ -70,14 +72,14 @@ const Vehicles = () => {
     setDownloading(true);
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get(`http://localhost:5000/api/vehicles/download/all`, {
+      const response = await axios.get(`${API_URL}/vehicles/download/all`, {
         headers: { Authorization: `Bearer ${token}` },
         responseType: 'blob',
         params: {
           startDate: startDate.toISOString(),
           endDate: endDate.toISOString(),
         },
-      });
+      });;
 
       const blob = new Blob([response.data], {
         type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
@@ -107,7 +109,7 @@ const Vehicles = () => {
     try {
       const token = localStorage.getItem('token');
       await axios.post(
-        `http://localhost:5000/api/vehicles/send-report`,
+        `${API_URL}/vehicles/send-report`,
         {
           startDate: startDate.toISOString(),
           endDate: endDate.toISOString(),
@@ -132,7 +134,7 @@ const Vehicles = () => {
 
     try {
       const token = localStorage.getItem('token');
-      await axios.delete(`http://localhost:5000/api/vehicles/${vehicleId}`, {
+      await axios.delete(`${API_URL}/vehicles/${vehicleId}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       setVehicles((prev) => prev.filter((v) => v._id !== vehicleId));

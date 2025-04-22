@@ -1,10 +1,11 @@
 import axios from "axios";
 import { GET_PROJECTS, PROJECT_ERROR } from "./types";
+const API_URL = process.env.REACT_APP_API_URL || 'https://timesheet-c4mj.onrender.com/api';
 
 // Create Project
 export const createProject = (clientId, projectData) => async (dispatch) => {
   try {
-    const response = await axios.post(`http://localhost:5000/api/clients/${clientId}/projects`, projectData);
+    const response = await axios.post(`${API_URL}/clients/${clientId}/projects`, projectData);
 
     dispatch({ type: "CREATE_PROJECT_SUCCESS", payload: response.data });
   } catch (error) {
@@ -20,7 +21,7 @@ export const createProject = (clientId, projectData) => async (dispatch) => {
 export const updateProject = (clientId, projectId, projectData) => async (dispatch) => {
   try {
     const response = await axios.put(
-      `http://localhost:5000/api/clients/${clientId}/projects/${projectId}`,
+      `${API_URL}/clients/${clientId}/projects/${projectId}`,
       projectData
     );
 
@@ -38,15 +39,14 @@ export const updateProject = (clientId, projectId, projectData) => async (dispat
 export const getProjects = (clientId = "") => async (dispatch) => {
   try {
     const url = clientId
-      ? `http://localhost:5000/api/projects/client/${clientId}`  
-      : `http://localhost:5000/api/projects`;                      
+      ? `${API_URL}/projects/client/${clientId}`
+      : `${API_URL}/projects`;
 
     const response = await axios.get(url);
 
-
     dispatch({
-      type: GET_PROJECTS,                 
-      payload: response.data,             
+      type: GET_PROJECTS,
+      payload: response.data,
     });
   } catch (error) {
     console.error("Error fetching projects:", error.response?.data || error.message);

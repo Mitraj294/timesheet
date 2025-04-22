@@ -4,6 +4,8 @@ import { connect } from "react-redux";
 import { addEmployee, updateEmployee } from "../../redux/actions/employeeActions";
 import "../../styles/EmployeeForms.scss";
 
+const API_URL = process.env.REACT_APP_API_URL || 'https://timesheet-c4mj.onrender.com/api';
+
 const EmployeeForm = ({ employees, addEmployee, updateEmployee }) => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -49,7 +51,7 @@ const EmployeeForm = ({ employees, addEmployee, updateEmployee }) => {
     }
   
     try {
-      // Step 1: Check if the user already exists
+      // Check if the user already exists
       const userCheckResponse = await fetch("http://localhost:5000/api/auth/check-user", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -62,8 +64,8 @@ const EmployeeForm = ({ employees, addEmployee, updateEmployee }) => {
       if (!userCheckData.exists) {
         console.log("User not found, registering new employee...");
   
-        // Step 2: Register the employee as a user first
-        const registerResponse = await fetch("http://localhost:5000/api/auth/register", {
+        // Register the employee as a user first
+        const registerResponse = await fetch("`${API_URL}/api/auth/register`", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -88,7 +90,7 @@ const EmployeeForm = ({ employees, addEmployee, updateEmployee }) => {
         employeeData.userId = registeredUser.user._id; // Link new user to employee
       }
   
-      // Step 3: Add employee record
+      // Add employee record
       if (id) {
         updateEmployee(id, employeeData);
       } else {

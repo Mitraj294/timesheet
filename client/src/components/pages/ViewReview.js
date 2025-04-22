@@ -3,6 +3,8 @@ import { useParams, Link } from 'react-router-dom';
 import axios from 'axios';
 import '../../styles/Vehicles.scss';
 
+const API_URL = process.env.REACT_APP_API_URL || 'https://timesheet-c4mj.onrender.com/api';
+
 const ViewReview = () => {
   const { reviewId } = useParams();
   const [reviewData, setReviewData] = useState(null);
@@ -18,7 +20,7 @@ const ViewReview = () => {
     const fetchReview = async () => {
       try {
         const token = localStorage.getItem('token');
-        const res = await axios.get(`http://localhost:5000/api/vehicles/reviews/${reviewId}`, {
+        const res = await axios.get(`${API_URL}/vehicles/reviews/${reviewId}`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         setReviewData(res.data);
@@ -28,7 +30,7 @@ const ViewReview = () => {
         setLoading(false);
       }
     };
-
+  
     fetchReview();
   }, [reviewId]);
 
@@ -44,11 +46,11 @@ const ViewReview = () => {
   const handleDownload = async (format) => {
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get(`http://localhost:5000/api/vehicles/reviews/${reviewId}/download?format=${format}`, {
+      const response = await axios.get(`${API_URL}/vehicles/reviews/${reviewId}/download?format=${format}`, {
         headers: { Authorization: `Bearer ${token}` },
         responseType: 'blob',
       });
-
+  
       if (response && response.data) {
         const url = window.URL.createObjectURL(new Blob([response.data], { type: format === 'pdf' ? 'application/pdf' : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }));
         const link = document.createElement('a');
@@ -68,11 +70,13 @@ const ViewReview = () => {
       alert('Please enter a valid email address.');
       return;
     }
+    
     setSending(true);
+    
     try {
       const token = localStorage.getItem('token');
       await axios.post(
-        `http://localhost:5000/api/vehicles/reviews/report/email/${reviewId}`,
+        `${API_URL}/vehicles/reviews/report/email/${reviewId}`,
         { email, format: emailFormat },
         { headers: { Authorization: `Bearer ${token}` } }
       );

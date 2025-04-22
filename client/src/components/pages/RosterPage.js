@@ -23,6 +23,10 @@ import {
   faTrash,
 } from '@fortawesome/free-solid-svg-icons';
 
+
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+
+
 const RosterPage = () => {
   const navigate = useNavigate();
 
@@ -78,7 +82,7 @@ const RosterPage = () => {
     const fetchEmployees = async () => {
       try {
         const token = localStorage.getItem('token');
-        const res = await axios.get('http://localhost:5000/api/employees', {
+        const res = await axios.get(`${API_URL}/employees`,  {
           headers: { Authorization: `Bearer ${token}` },
         });
         console.log('Employees fetched:', res.data);
@@ -96,7 +100,7 @@ const RosterPage = () => {
     const fetchRoles = async () => {
       try {
         const token = localStorage.getItem('token');
-        const res = await axios.get('http://localhost:5000/api/roles', {
+        const res = await axios.get(`${API_URL}/roles`,  {
           headers: { Authorization: `Bearer ${token}` },
         });
         console.log('Roles fetched:', res.data);
@@ -114,10 +118,7 @@ const RosterPage = () => {
       try {
         const token = localStorage.getItem('token');
         const res = await axios.get(
-          `http://localhost:5000/api/schedules?weekStart=${format(
-            currentWeekStart,
-            'yyyy-MM-dd'
-          )}`,
+          `${API_URL}/schedules?weekStart=${format(currentWeekStart, 'yyyy-MM-dd')}`,
           { headers: { Authorization: `Bearer ${token}` } }
         );
         console.log('Schedules fetched:', res.data);
@@ -165,14 +166,14 @@ const RosterPage = () => {
     try {
       const token = localStorage.getItem('token');
       await axios.delete(
-        `http://localhost:5000/api/roles/${roleId}/schedule/${scheduleId}`,
+        `${API_URL}/roles/${roleId}/schedule/${scheduleId}`,
         {
           headers: { Authorization: `Bearer ${token}` },
         }
       );
 
       // Refresh roles after deletion
-      const res = await axios.get('http://localhost:5000/api/roles', {
+      const res = await axios.get(`${API_URL}/roles`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       setRoles(res.data);
@@ -195,7 +196,7 @@ const RosterPage = () => {
     }
     try {
       const token = localStorage.getItem('token');
-      await axios.delete(`http://localhost:5000/api/roles/${roleId}`, {
+      await axios.delete(`${API_URL}/roles/${roleId}`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -215,7 +216,7 @@ const RosterPage = () => {
       const nextWeekEndStr = format(addDays(nextWeekStart, 6), 'yyyy-MM-dd');
 
       await axios.delete(
-        'http://localhost:5000/api/schedules/deleteByDateRange',
+        `${API_URL}/schedules/deleteByDateRange`,
         {
           data: { startDate: nextWeekStartStr, endDate: nextWeekEndStr },
           headers: { Authorization: `Bearer ${token}` },
@@ -230,7 +231,7 @@ const RosterPage = () => {
                 entry.day < nextWeekStartStr || entry.day > nextWeekEndStr
             ) || [];
           await axios.put(
-            `http://localhost:5000/api/roles/${role._id}`,
+            `${API_URL}/roles/${role._id}`,
             {
               ...role,
               schedule: cleanedSchedule,
@@ -254,7 +255,7 @@ const RosterPage = () => {
       });
 
       await axios.post(
-        'http://localhost:5000/api/schedules/bulk',
+        '${API_URL}/schedules/bulk',
         newEmployeeSchedules,
         {
           headers: { Authorization: `Bearer ${token}` },
@@ -280,7 +281,7 @@ const RosterPage = () => {
             schedule: [...role.schedule, ...clonedEntries],
           };
           await axios.put(
-            `http://localhost:5000/api/roles/${role._id}`,
+            `${API_URL}/roles/${role._id}`,
             updatedRole,
             {
               headers: { Authorization: `Bearer ${token}` },
@@ -290,7 +291,7 @@ const RosterPage = () => {
       );
 
       const scheduleRes = await axios.get(
-        `http://localhost:5000/api/schedules?weekStart=${nextWeekStartStr}`,
+        `${API_URL}/schedules?weekStart=${nextWeekStartStr}`,
         {
           headers: { Authorization: `Bearer ${token}` },
         }
@@ -298,7 +299,7 @@ const RosterPage = () => {
       setSchedules(scheduleRes.data);
       setCurrentWeekStart(nextWeekStart);
 
-      const roleRes = await axios.get('http://localhost:5000/api/roles', {
+      const roleRes = await axios.get('${API_URL}/roles', {
         headers: { Authorization: `Bearer ${token}` },
       });
       setRoles(roleRes.data);
@@ -350,7 +351,7 @@ const RosterPage = () => {
           if (existingSchedules.length > 1) {
             for (let i = 1; i < existingSchedules.length; i++) {
               await axios.delete(
-                `http://localhost:5000/api/schedules/${existingSchedules[i]._id}`,
+                `${API_URL}/schedules/${existingSchedules[i]._id}`,
                 {
                   headers: { Authorization: `Bearer ${token}` },
                 }
@@ -359,7 +360,7 @@ const RosterPage = () => {
           }
           // Update the first existing schedule with the new data.
           return axios.put(
-            `http://localhost:5000/api/schedules/${existingSchedules[0]._id}`,
+            `${API_URL}/schedules/${existingSchedules[0]._id}`,
             scheduleData,
             {
               headers: { Authorization: `Bearer ${token}` },
@@ -368,7 +369,7 @@ const RosterPage = () => {
         } else {
           // If no existing schedule is found, create a new one.
           return axios.post(
-            'http://localhost:5000/api/schedules/bulk',
+            '${API_URL}/schedules/bulk',
             [scheduleData],
             {
               headers: { Authorization: `Bearer ${token}` },
@@ -387,10 +388,7 @@ const RosterPage = () => {
       setEndTime({});
 
       const res = await axios.get(
-        `http://localhost:5000/api/schedules?weekStart=${format(
-          currentWeekStart,
-          'yyyy-MM-dd'
-        )}`,
+        `${API_URL}/schedules?weekStart=${format(currentWeekStart, 'yyyy-MM-dd')}`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
       setSchedules(res.data);
@@ -402,25 +400,30 @@ const RosterPage = () => {
     }
   };
 
+
   const handleDeleteSchedule = async (scheduleId) => {
     try {
       const token = localStorage.getItem('token');
-      await axios.delete(`http://localhost:5000/api/schedules/${scheduleId}`, {
+  
+      // Delete the schedule
+      await axios.delete(`${API_URL}/schedules/${scheduleId}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
+  
+      // Fetch the updated schedules for the current week
       const res = await axios.get(
-        `http://localhost:5000/api/schedules?weekStart=${format(
-          currentWeekStart,
-          'yyyy-MM-dd'
-        )}`,
-        { headers: { Authorization: `Bearer ${token}` } }
+        `${API_URL}/schedules?weekStart=${format(currentWeekStart, 'yyyy-MM-dd')}`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
       );
+  
+      // Update the schedules state
       setSchedules(res.data);
     } catch (err) {
       console.error('Error deleting schedule:', err);
     }
   };
-
   return (
     <div className='roster-page'>
       <header className='roster-header'>
