@@ -674,8 +674,8 @@ const RosterPage = () => {
             ))}
           </div>
         </section>
-        </div>
-        </div>
+          </div>
+</div>
         
         {(isEqual(
           currentWeekStart,

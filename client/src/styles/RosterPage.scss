@@ -133,24 +133,12 @@
             }
         }
 
-        .roster-body {
-            display: flex;
-            justify-content: center; // horizontally center the grid when sidebars are missing
-            align-items: flex-start;
-            gap: 2rem;
-            flex-wrap: wrap;
-            padding: 2rem;
-        }
-
         .schedule-wrapper {
             display: flex;
             justify-content: center;
             padding: 2rem;
             box-sizing: border-box;
-            flex: 1 1 auto;
-            max-width: 1200px;
-            margin: 0 auto;
-            min-width: 700px;
+
 
             .schedule-grid {
                 background-color: #fff;
