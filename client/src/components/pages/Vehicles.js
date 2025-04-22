@@ -12,6 +12,7 @@ import {
   faPen,
   faTrash,
   faSearch,
+  faCar,
 } from '@fortawesome/free-solid-svg-icons';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
@@ -147,7 +148,7 @@ const Vehicles = () => {
   return (
     <div className="vehicles-page">
       <div className="vehicles-header">
-        <h4>Vehicles</h4>
+        <h4>  <FontAwesomeIcon icon={faCar} /> Vehicles</h4>
         <div className="breadcrumbs">
           <Link to="/dashboard">Dashboard</Link> / Vehicles
         </div>

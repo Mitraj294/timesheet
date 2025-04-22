@@ -426,15 +426,17 @@ const handleDownload = async () => {
   };
   return (
     <div className='Timesheet-container'>
-      <div className='timesheet-header'>
-        <h3>
-          <FontAwesomeIcon icon={faPen} /> Timesheet
-        </h3>
-      </div>
-      <div className="breadcrumb">
-    <Link to="/dashboard" className="breadcrumb-link">Dashboard</Link>
-    <span className="breadcrumb-separator">/</span>
-    <span className="breadcrumb-current">Timesheet</span>
+     <div className="timesheet-header">
+  {/* Left: Title + Breadcrumb */}
+  <div className="timesheet-title">
+    <h3>
+      <FontAwesomeIcon icon={faPen} /> Timesheet
+    </h3>
+    <div className="breadcrumb">
+      <Link to="/dashboard" className="breadcrumb-link">Dashboard</Link>
+      <span className="breadcrumb-separator">/</span>
+      <span className="breadcrumb-current">Timesheet</span>
+    </div>
   </div>
 
   {/* Right: Action Buttons */}
@@ -452,6 +454,7 @@ const handleDownload = async () => {
       <FontAwesomeIcon icon={faEnvelope} /> Send Report
     </button>
   </div>
+</div>
 
 
 {/* Download Filters */}

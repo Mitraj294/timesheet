@@ -1,4 +1,4 @@
-/* === Timesheet Container === */
+/* Timesheet Container */
 .Timesheet-container {
     max-width: 1200px;
     margin: auto;
@@ -9,103 +9,111 @@
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 }
 
-/* === Header Section === */
 .timesheet-header {
     display: flex;
     justify-content: space-between;
-    align-items: center;
+    align-items: flex-start;
     flex-wrap: wrap;
-    margin-bottom: 20px;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
 
-    h3 {
-        margin: 0;
-        font-size: 1.75rem;
-        font-weight: 600;
+    @media (max-width: 768px) {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .timesheet-title {
         display: flex;
-        align-items: center;
-        gap: 10px;
-        color: #2c3e50;
-    }
-}
+        flex-direction: column;
+        gap: 0.3rem;
 
-/* === Breadcrumb Navigation === */
-.breadcrumb {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 0.5rem;
-    margin-bottom: 16px;
-    font-size: 0.95rem;
+        h3 {
+            font-size: 1.8rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
 
-    .breadcrumb-link {
-        text-decoration: none;
-        color: #007bff;
-        font-weight: 500;
+        .breadcrumb {
+            display: flex;
+            align-items: center;
+            font-size: 0.95rem;
+            color: #666;
+            white-space: nowrap;
+            gap: 0.25rem;
+            flex-wrap: nowrap;
+            white-space: nowrap;
+            overflow-x: auto;
 
-        &:hover {
-            text-decoration: underline;
+            a {
+                color: #4a90e2;
+                text-decoration: none;
+                font-weight: 500;
+                flex-shrink: 0;
+
+                &:hover {
+                    text-decoration: underline;
+                }
+
+                span {
+                    display: inline; // ✅ Not inline-block
+                    white-space: nowrap;
+                }
+            }
+
+            .breadcrumb-separator {
+                margin: 0 0.3rem;
+                color: #666;
+            }
+
+            .breadcrumb-current {
+                color: #666;
+                font-weight: 500;
+            }
+
+            &::-webkit-scrollbar {
+                display: none;
+            }
         }
     }
 
-    .breadcrumb-separator {
-        color: #6c757d;
-    }
-
-    .breadcrumb-current {
-        font-weight: 600;
-        color: #333;
-    }
-}
-
-/* === Action Buttons === */
-.timesheet-actions {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 10px;
-    margin-bottom: 20px;
-
-    .btn {
+    .timesheet-actions {
         display: flex;
-        align-items: center;
-        gap: 8px;
-        padding: 8px 16px;
-        font-size: 0.95rem;
-        font-weight: 500;
-        border-radius: 6px;
-        border: none;
-        cursor: pointer;
-        transition: background 0.3s;
+        gap: 0.75rem;
+        flex-wrap: wrap;
 
-        &.btn-red {
-            background-color: #dc3545;
-            color: #fff;
+        .btn {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 1rem;
+            font-size: 0.95rem;
+            font-weight: 500;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            white-space: nowrap;
 
-            &:hover {
-                background-color: #c82333;
+            &.btn-red {
+                background-color: #e74c3c;
+                color: #fff;
             }
-        }
 
-        &.btn-purple {
-            background-color: #6f42c1;
-            color: #fff;
-
-            &:hover {
-                background-color: #5a32a3;
+            &.btn-purple {
+                background-color: #9b59b6;
+                color: #fff;
             }
-        }
-
-        &.btn-green {
-            background-color: #28a745;
-            color: #fff;
 
             &:hover {
-                background-color: #218838;
+                opacity: 0.9;
             }
         }
     }
 }
 
-/* === Filter Panel === */
+
+/* Filter Panel */
 .filter-panel {
     display: flex;
     flex-wrap: wrap;
@@ -116,12 +124,11 @@
     .filter-select,
     .filter-datepicker,
     .filter-email {
-        padding: 8px 12px;
+        padding: 6px 10px;
         font-size: 0.95rem;
         border: 1px solid #ccc;
         border-radius: 6px;
         min-width: 160px;
-        background: #fff;
     }
 
     .filter-email {
@@ -133,7 +140,7 @@
     }
 }
 
-/* === Top Navigation === */
+/* Top Navigation */
 .timesheet-top-bar {
     display: flex;
     flex-wrap: wrap;
@@ -147,7 +154,6 @@
     .timesheet-period {
         font-size: 1rem;
         font-weight: 600;
-        color: #333;
         margin-bottom: 8px;
     }
 
@@ -195,11 +201,12 @@
     }
 }
 
-/* === Responsive Table Wrapper === */
+/* Responsive Table Wrapper */
 .timesheet-table-wrapper {
     overflow-x: auto;
     width: 100%;
 
+    /* Scrollbar Styling (Optional) */
     &::-webkit-scrollbar {
         height: 8px;
     }
@@ -210,7 +217,7 @@
     }
 }
 
-/* === Main Table === */
+/* Main Table */
 .timesheet-table {
     width: 100%;
     border-collapse: collapse;
@@ -240,7 +247,7 @@
     }
 }
 
-/* === Entry Styles === */
+/* Entry Styles */
 .timesheet-cell {
     vertical-align: top;
     position: relative;
@@ -263,13 +270,12 @@
     box-shadow: 0 0 2px rgba(0, 0, 0, 0.05);
 }
 
-/* === Icon Buttons === */
+/* Icon Buttons */
 .icon-btn {
     background: transparent;
     border: none;
     cursor: pointer;
     color: #444;
-    transition: color 0.3s;
 
     &:hover {
         color: #007bff;
@@ -284,7 +290,7 @@
     }
 }
 
-/* === Responsive Enhancements === */
+/* Responsive Enhancements */
 @media (max-width: 768px) {
 
     .timesheet-header,

@@ -559,7 +559,8 @@ const RosterPage = () => {
             </div>
           </aside>
         )}
-
+        <div className="schedule-wrapper">
+        <div className="schedule-grid">
         <section className='schedule-grid'>
           <div className='grid-header-row'>
             {weekDays.map((day) => (
@@ -673,6 +674,8 @@ const RosterPage = () => {
             ))}
           </div>
         </section>
+        </div>
+        </div>
         
         {(isEqual(
           currentWeekStart,

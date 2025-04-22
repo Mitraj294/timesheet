@@ -133,84 +133,107 @@
             }
         }
 
-        .schedule-grid {
-            background-color: #fff;
-            border-radius: 8px;
-            padding: 1rem;
-            overflow-x: auto;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.05);
+        .roster-body {
+            display: flex;
+            justify-content: center; // horizontally center the grid when sidebars are missing
+            align-items: flex-start;
+            gap: 2rem;
+            flex-wrap: wrap;
+            padding: 2rem;
+        }
 
-            .grid-header-row {
-                display: grid;
-                grid-template-columns: repeat(7, 1fr);
-                text-align: center;
-                font-weight: bold;
-                margin-bottom: 0.5rem;
+        .schedule-wrapper {
+            display: flex;
+            justify-content: center;
+            padding: 2rem;
+            box-sizing: border-box;
+            flex: 1 1 auto;
+            max-width: 1200px;
+            margin: 0 auto;
+            min-width: 700px;
 
-                .grid-header {
-                    padding: 0.5rem 0;
-                    background-color: #e6f0ff; // Light blue header background
-                    color: #555;
+            .schedule-grid {
+                background-color: #fff;
+                border-radius: 8px;
+                padding: 1rem;
+                overflow-x: auto;
+                box-shadow: 0 0 10px rgba(0, 0, 0, 0.05);
+                width: 100%;
+                max-width: 1200px;
+
+                .grid-header-row {
+                    display: grid;
+                    grid-template-columns: repeat(7, 1fr);
+                    text-align: center;
+                    font-weight: bold;
+                    margin-bottom: 0.5rem;
+
+                    .grid-header {
+                        padding: 0.5rem 0;
+                        background-color: #e6f0ff;
+                        color: #555;
+                    }
                 }
-            }
 
-            .grid-body {
-                display: grid;
-                grid-template-columns: repeat(7, 1fr);
-                min-height: 250px;
-                gap: 0.25rem;
+                .grid-body {
+                    display: grid;
+                    grid-template-columns: repeat(7, 1fr);
+                    min-height: 250px;
+                    gap: 0.25rem;
 
-                .grid-cell {
-                    min-height: 100px;
-                    border: 1px solid #ddd;
-                    padding: 0.25rem;
-                    border-radius: 4px;
-                    overflow-y: auto;
-                }
-
-                .shift-card {
-                    background-color: #ddd480; // Light yellow background
-                    background-color: #fff9c4;
-                    border-left: 4px solid #007bff;
-                    padding: 8px 10px;
-                    margin-bottom: 8px;
-                    border-radius: 8px;
-                    font-size: 0.9rem;
-                    display: flex;
-                    flex-direction: column;
-                    gap: 4px;
-                    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
-
-                    .shift-time {
-                        font-weight: 600;
-                        color: #333;
-                        font-size: 0.8rem; // Small font for time
+                    .grid-cell {
+                        min-height: 100px;
+                        border: 1px solid #ddd;
+                        padding: 0.25rem;
+                        border-radius: 4px;
+                        overflow-y: auto;
                     }
 
-                    .shift-employee {
-                        font-size: 1rem; // Larger font for employee name
-                        font-weight: 700;
-                        color: #222;
-                    }
-
-                    .shift-actions {
+                    .shift-card {
+                        background-color: #fff9c4;
+                        border-left: 4px solid #007bff;
+                        padding: 8px 10px;
+                        margin-bottom: 8px;
+                        border-radius: 8px;
+                        font-size: 0.9rem;
                         display: flex;
-                        justify-content: flex-end;
-                        gap: 0.5rem;
-                        margin-top: 0.5rem;
+                        flex-direction: column;
+                        gap: 4px;
+                        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 
-                        .clickable-icon {
-                            cursor: pointer;
-                            color: #d11a2a;
+                        .shift-time {
+                            font-weight: 600;
+                            color: #333;
+                            font-size: 0.8rem;
+                        }
 
-                            &:hover {
-                                color: #a4001d;
+                        .shift-employee {
+                            font-size: 1rem;
+                            font-weight: 700;
+                            color: #222;
+                        }
+
+                        .shift-actions {
+                            display: flex;
+                            justify-content: flex-end;
+                            gap: 0.5rem;
+                            margin-top: 0.5rem;
+
+                            .clickable-icon {
+                                cursor: pointer;
+                                color: #d11a2a;
+
+                                &:hover {
+                                    color: #a4001d;
+                                }
                             }
                         }
                     }
                 }
             }
         }
+
+
     }
 
     .btn {

@@ -25,6 +25,17 @@ body {
             color: #2980b9;
         }
     }
+
+    @media (max-width: 576px) {
+        .list {
+            overflow-x: auto;
+        }
+
+        table {
+            min-width: 600px;
+        }
+    }
+
 }
 
 /* === Header Section === */
