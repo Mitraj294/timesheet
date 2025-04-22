@@ -7,7 +7,7 @@ import { getEmployees } from '../../redux/actions/employeeActions';
 import { getClients } from '../../redux/actions/clientActions';
 import { getProjects } from '../../redux/actions/projectActions';
 import axios from 'axios';
-import '../../styles/CreateForms.scss';
+import '../../styles/CreateTimesheet.scss';
 import { DateTime } from 'luxon';
 
 const API_URL = process.env.REACT_APP_API_URL || 'https://timesheet-c4mj.onrender.com/api';
@@ -335,9 +335,7 @@ if (!isEditing) {
       <div className='breadcrumb'>
         <Link to='/dashboard' className='breadcrumb-link'>
           Dashboard
-        </Link>
-        <span> / </span>
-        <Link to='/timesheet' className='breadcrumb-link'>
+        </Link><span> / </span><Link to='/timesheet' className='breadcrumb-link'>
           Timesheet
         </Link>
         <span> / </span>
@@ -386,6 +384,7 @@ if (!isEditing) {
           {/* Project */}
           <div className='form-group'>
             <label>Project</label>
+            { "       " }
             <select
               name='projectId'
               value={formData.projectId || ''}
