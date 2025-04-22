@@ -149,7 +149,7 @@ const Vehicles = () => {
       <div className="vehicles-header">
         <h4>Vehicles</h4>
         <div className="breadcrumbs">
-          <Link to="/employer/dashboard">Dashboard</Link> / Vehicles
+          <Link to="/dashboard">Dashboard</Link> / Vehicles
         </div>
       </div>
 

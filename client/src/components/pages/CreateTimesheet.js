@@ -335,7 +335,9 @@ if (!isEditing) {
       <div className='breadcrumb'>
         <Link to='/dashboard' className='breadcrumb-link'>
           Dashboard
-        </Link><span> / </span><Link to='/timesheet' className='breadcrumb-link'>
+        </Link>
+        <span> / </span>
+        <Link to='/timesheet' className='breadcrumb-link'>
           Timesheet
         </Link>
         <span> / </span>
