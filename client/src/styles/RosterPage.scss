@@ -1,3 +1,4 @@
+/* src/styles/RosterPage.scss */
 .roster-page {
     display: flex;
     flex-direction: column;
@@ -6,252 +7,35 @@
     background-color: #f9f9f9;
     min-height: 100vh;
 
-    .roster-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 1.5rem;
-        flex-wrap: wrap;
-
-        .title {
-            h2 {
-                font-size: 1.75rem;
-                display: flex;
-                align-items: center;
-                gap: 0.5rem;
-                color: #333;
-            }
-
-            .breadcrumbs {
-                font-size: 0.875rem;
-                color: #777;
-
-                a {
-                    color: #007bff;
-                    text-decoration: none;
-
-                    &:hover {
-                        text-decoration: underline;
-                    }
-                }
-            }
-        }
-
-        .btn {
-            white-space: nowrap;
-        }
-    }
-
-    .week-nav {
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        margin-bottom: 1rem;
-        gap: 1rem;
-        flex-wrap: wrap;
-
-        h4 {
-            font-weight: 500;
-            color: #333;
-        }
-    }
-
-    .roster-body {
-        display: grid;
-        grid-template-columns: 1fr 3fr 1fr;
-        gap: 1rem;
-
-        @media (max-width: 1024px) {
-            display: flex;
-            flex-direction: column;
-
-            .roles-sidebar,
-            .employees-sidebar,
-            .schedule-wrapper {
-                width: 100%;
-            }
-
-            .roles-sidebar.hidden,
-            .employees-sidebar.hidden {
-                display: none;
-            }
-
-            .schedule-wrapper {
-                order: 3;
-                display: flex;
-                justify-content: center;
-                padding: 1rem;
-
-                .schedule-grid {
-                    width: 100%;
-                    max-width: 100%;
-                }
-            }
-
-            &.only-schedule-visible {
-                .schedule-wrapper {
-                    justify-content: center;
-                }
-            }
-        }
-
-        .roles-sidebar,
-        .employees-sidebar {
-            background-color: #fff;
-            border-radius: 8px;
-            padding: 1rem;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.05);
-
-            .sidebar-header {
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
-                margin-bottom: 1rem;
-
-                p {
-                    font-weight: 600;
-                    color: #444;
-                }
-            }
-
-            .role-list,
-            .employee-list {
-                display: flex;
-                flex-direction: column;
-                gap: 0.5rem;
-
-                .role-badge {
-                    padding: 0.5rem 0.75rem;
-                    border-radius: 4px;
-                    font-size: 0.875rem;
-                    font-weight: 500;
-                    color: #fff;
-                    border: none;
-                    cursor: pointer;
-                    transition: transform 0.2s ease;
-
-                    &:hover {
-                        transform: scale(1.03);
-                        opacity: 0.9;
-                    }
-                }
-
-                button {
-                    background: transparent;
-                    border: none;
-                    padding: 0.6rem 1rem;
-                    border-radius: 8px;
-                    display: flex;
-                    flex-direction: column;
-                    font-weight: 600;
-                    color: #333;
-                    text-align: left;
-                    cursor: pointer;
-                    font-size: 1rem;
-                    transition: background-color 0.3s;
-
-                    &:hover {
-                        background-color: #fff59d;
-                    }
-                }
-            }
-        }
-
-        .schedule-wrapper {
-            display: flex;
-            justify-content: center;
-            padding: 2rem;
-            box-sizing: border-box;
-
-            .schedule-grid {
-                background-color: #fff;
-                border-radius: 8px;
-                padding: 1rem;
-                overflow-x: auto;
-                box-shadow: 0 0 10px rgba(0, 0, 0, 0.05);
-                width: 100%;
-                max-width: 1200px;
-
-                .grid-header-row {
-                    display: grid;
-                    grid-template-columns: repeat(7, 1fr);
-                    text-align: center;
-                    font-weight: bold;
-                    margin-bottom: 0.5rem;
-
-                    .grid-header {
-                        padding: 0.5rem 0;
-                        background-color: #e6f0ff;
-                        color: #555;
-                    }
-                }
-
-                .grid-body {
-                    display: grid;
-                    grid-template-columns: repeat(7, 1fr);
-                    min-height: 250px;
-                    gap: 0.25rem;
-
-                    .grid-cell {
-                        min-height: 100px;
-                        border: 1px solid #ddd;
-                        padding: 0.25rem;
-                        border-radius: 4px;
-                        overflow-y: auto;
-                    }
-
-                    .shift-card {
-                        background-color: #fff9c4;
-                        border-left: 4px solid #007bff;
-                        padding: 8px 10px;
-                        margin-bottom: 8px;
-                        border-radius: 8px;
-                        font-size: 0.9rem;
-                        display: flex;
-                        flex-direction: column;
-                        gap: 4px;
-                        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
-
-                        .shift-time {
-                            font-weight: 600;
-                            color: #333;
-                            font-size: 0.8rem;
-                        }
-
-                        .shift-employee {
-                            font-size: 1rem;
-                            font-weight: 700;
-                            color: #222;
-                        }
-
-                        .shift-actions {
-                            display: flex;
-                            justify-content: flex-end;
-                            gap: 0.5rem;
-                            margin-top: 0.5rem;
-
-                            .clickable-icon {
-                                cursor: pointer;
-                                color: #d11a2a;
-
-                                &:hover {
-                                    color: #a4001d;
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-
     .btn {
+        padding: 0.5rem 1rem;
+        border: none;
+        border-radius: 5px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: background-color 0.3s, color 0.3s, border-color 0.3s;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        white-space: nowrap;
+
+        &:disabled {
+            background-color: #ccc;
+            color: #666;
+            cursor: not-allowed;
+            opacity: 0.7;
+        }
+
         &.btn-green {
             background-color: #28a745;
             color: #fff;
 
-            &:hover {
+            &:hover:not(:disabled) {
                 background-color: #218838;
+            }
+
+            &:disabled {
+                background-color: #a3d9b1;
             }
         }
 
@@ -259,8 +43,25 @@
             background-color: #007bff;
             color: #fff;
 
-            &:hover {
+            &:hover:not(:disabled) {
                 background-color: #0069d9;
+            }
+
+            &:disabled {
+                background-color: #b3d7ff;
+            }
+        }
+
+        &.btn-yellow {
+            background-color: #ffc107;
+            color: #212529;
+
+            &:hover:not(:disabled) {
+                background-color: #cdbe91;
+            }
+
+            &:disabled {
+                background-color: #ffeeba;
             }
         }
 
@@ -268,141 +69,37 @@
             background-color: #6f42c1;
             color: #fff;
 
-            &:hover {
+            &:hover:not(:disabled) {
                 background-color: #593196;
             }
-        }
 
-        padding: 0.5rem 1rem;
-        border: none;
-        border-radius: 5px;
-        font-weight: 500;
-        cursor: pointer;
-        transition: background-color 0.3s;
-    }
-
-    .modal-overlay {
-        position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background-color: rgba(0, 0, 0, 0.5);
-        z-index: 1000;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-
-        .modal-content {
-            background-color: white;
-            padding: 2rem;
-            border-radius: 10px;
-            max-width: 500px;
-            width: 100%;
-            box-shadow: 0 0 20px rgba(0, 0, 0, 0.2);
-            position: relative;
-
-            h5 {
-                font-size: 1.5rem;
-                margin-bottom: 1rem;
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
-            }
-
-            #closeModal {
-                font-size: 1.5rem;
-                cursor: pointer;
-                border: none;
-                background: transparent;
-            }
-
-            .form-group {
-                margin-bottom: 1rem;
-
-                select {
-                    width: 100%;
-                    padding: 0.5rem;
-                    border-radius: 4px;
-                    border: 1px solid #ccc;
-                    font-size: 1rem;
-                }
-            }
-
-            .schedule-buttons {
-                display: flex;
-                flex-wrap: wrap;
-                gap: 0.5rem;
-                margin-bottom: 1rem;
-
-                .day-btn {
-                    padding: 0.4rem 0.75rem;
-                    border-radius: 20px;
-                    border: 1px solid #ccc;
-                    background-color: #fff;
-                    cursor: pointer;
-                    transition: background-color 0.2s;
-
-                    &.active {
-                        background-color: #007bff;
-                        color: white;
-                        border-color: #007bff;
-                    }
-                }
-            }
-
-            .day-wise-times {
-                display: flex;
-                flex-direction: column;
-                gap: 0.75rem;
-                margin-bottom: 1rem;
-
-                .time-row {
-                    display: flex;
-                    align-items: center;
-                    gap: 0.5rem;
-
-                    input[type="time"] {
-                        padding: 0.4rem;
-                        font-size: 1rem;
-                        border: 1px solid #ccc;
-                        border-radius: 4px;
-                        flex: 1;
-                    }
-                }
-            }
-
-            .modal-footer {
-                display: flex;
-                justify-content: flex-end;
-
-                .btn-green {
-                    background-color: #28a745;
-                    color: white;
-
-                    &:disabled {
-                        background-color: #ccc;
-                        cursor: not-allowed;
-                    }
-
-                    &:hover:not(:disabled) {
-                        background-color: #218838;
-                    }
-                }
+            &:disabled {
+                background-color: #c8b6e2;
             }
         }
+
+        // Added btn-grey for cancel button
+        &.btn-grey {
+            background-color: #6c757d;
+            color: #fff;
+
+            &:hover:not(:disabled) {
+                background-color: #5a6268;
+            }
+
+            &:disabled {
+                background-color: #adb5bd;
+            }
+        }
+
+        .icon-left {
+            margin-right: 0.3rem;
+        }
+
+        .icon-right {
+            margin-left: 0.3rem;
+        }
     }
-}
-
-///////////////////////
-
-.roster-page {
-    display: flex;
-    flex-direction: column;
-    padding: 1rem;
-    font-family: 'Segoe UI', sans-serif;
-    background-color: #f9f9f9;
-    min-height: 100vh;
 
     .roster-header {
         display: flex;
@@ -410,6 +107,7 @@
         align-items: center;
         margin-bottom: 1.5rem;
         flex-wrap: wrap;
+        gap: 1rem;
 
         .title {
             h2 {
@@ -418,6 +116,7 @@
                 align-items: center;
                 gap: 0.5rem;
                 color: #333;
+                margin: 0 0 0.25rem 0;
             }
 
             .breadcrumbs {
@@ -432,11 +131,11 @@
                         text-decoration: underline;
                     }
                 }
-            }
-        }
 
-        .btn {
-            white-space: nowrap;
+                span {
+                    margin-left: 0.25rem;
+                }
+            }
         }
     }
 
@@ -444,22 +143,26 @@
         display: flex;
         justify-content: center;
         align-items: center;
-        margin-bottom: 1rem;
+        margin-bottom: 1.5rem;
         gap: 1rem;
         flex-wrap: wrap;
 
         h4 {
             font-weight: 500;
             color: #333;
+            margin: 0;
+            text-align: center;
         }
     }
 
     .roster-body {
         display: grid;
-        grid-template-columns: 1fr 3fr 1fr;
-        gap: 1rem;
+        // Adjusted grid template for better flexibility initially
+        grid-template-columns: minmax(180px, auto) 1fr minmax(180px, auto);
+        gap: 1.5rem;
 
         @media (max-width: 1024px) {
+            // Stack sidebars and main content on medium screens
             grid-template-columns: 1fr;
         }
 
@@ -468,17 +171,22 @@
             background-color: #fff;
             border-radius: 8px;
             padding: 1rem;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.05);
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+            height: fit-content; // Allows sidebars to grow/shrink
 
             .sidebar-header {
                 display: flex;
                 justify-content: space-between;
                 align-items: center;
                 margin-bottom: 1rem;
+                padding-bottom: 0.75rem;
+                border-bottom: 1px solid #eee;
 
                 p {
                     font-weight: 600;
+                    font-size: 1.1rem;
                     color: #444;
+                    margin: 0;
                 }
             }
 
@@ -486,185 +194,319 @@
             .employee-list {
                 display: flex;
                 flex-direction: column;
-                gap: 0.5rem;
-            }
+                gap: 0.75rem;
 
-            // Role buttons remain light blueish for roles in the sidebar.
-            .role-badge {
-                padding: 0.5rem 0.75rem;
-                border-radius: 4px;
-                font-size: 0.875rem;
-                font-weight: 500;
-                color: #fff; // Default white text for better contrast
-                border: none;
-                cursor: pointer;
-                transition: transform 0.2s ease;
-
-                &:hover {
-                    transform: scale(1.03);
-                    opacity: 0.9;
+                // Style for empty list message
+                >p {
+                    color: #888;
+                    font-style: italic;
+                    text-align: center;
+                    padding: 1rem 0;
                 }
             }
+        }
 
+        .roles-sidebar {
+            .role-list {
+
+                // Styles specific to role cards *within the sidebar*
+                .role-card {
+                    display: flex; // Override the default flex-direction: column from the global .role-card
+                    flex-direction: row; // Ensure items are side-by-side
+                    justify-content: space-between;
+                    align-items: center;
+                    padding: 8px 12px; // Adjust padding as needed
+                    margin-bottom: 0; // Remove margin from global .role-card if needed
+
+                    &.clickable {
+                        cursor: pointer;
+
+                        &:hover {
+                            // Use a subtle background change, color handled by role-color classes
+                            background-color: rgba(0, 0, 0, 0.03);
+                        }
+                    }
+
+                    .role-name {
+                        font-weight: 500;
+                        flex-grow: 1;
+                        margin-right: 0.5rem;
+                        font-size: 1rem;
+                        // Color is inherited from the role-color class
+                    }
+
+                    .delete-btn {
+                        background: none;
+                        border: none;
+                        cursor: pointer;
+                        padding: 0.25rem;
+                        color: #dc3545; // Base delete color
+                        line-height: 1;
+                        flex-shrink: 0; // Prevent shrinking
+
+                        &:hover {
+                            color: #a4001d; // Darker on hover
+                        }
+
+                        svg {
+                            display: block; // Ensure SVG behaves like a block element
+                            width: 1em; // Control size
+                            height: 1em;
+                        }
+                    }
+                }
+            }
         }
 
         .employees-sidebar {
             .employee-list {
-                button {
-                    background-color: #fff9c4; // Light yellow background
-                    border: none;
-                    padding: 0.6rem 1rem;
-                    border-radius: 8px;
-                    display: flex;
-                    flex-direction: column;
-                    font-weight: 600;
-                    color: #333;
-                    text-align: left;
-                    cursor: pointer;
-                    font-size: 1rem;
-                    transition: background-color 0.3s;
 
-                    &:hover {
-                        background-color: #fff59d;
+                // Styles specific to employee buttons in the sidebar
+                button.btn {
+                    // Be more specific to override global .btn if needed
+                    width: 100%;
+                    justify-content: center; // Center text/icon
+                    text-align: center;
+                    padding: 0.6rem 1rem;
+                    border-radius: 5px; // Match global .btn
+                    font-weight: 500; // Match global .btn
+                    font-size: 1rem;
+                    // Inherit cursor, transition, border: none from global .btn
+
+                    // Use btn-yellow class for specific colors
+                    &.btn-yellow {
+                        background-color: #ffffe0;
+                        color: #212529;
+
+                        &:hover:not(:disabled) {
+                            background-color: #edd281;
+                        }
+
+                        &:disabled {
+                            background-color: #ffeeba;
+                            color: #6c757d; // More appropriate disabled text color
+                            cursor: not-allowed;
+                            opacity: 0.65; // Standard disabled opacity
+                        }
                     }
                 }
             }
         }
 
         .schedule-wrapper {
-            display: flex;
-            justify-content: center;
-            padding: 2rem;
+            padding: 0;
             box-sizing: border-box;
-
+            // Removed overflow: hidden to allow vertical stacking
+            // overflow: hidden;
 
             .schedule-grid {
                 background-color: #fff;
                 border-radius: 8px;
                 padding: 1rem;
-                overflow-x: auto;
-                box-shadow: 0 0 10px rgba(0, 0, 0, 0.05);
+                // Removed overflow-x: auto by default
+                // overflow-x: auto;
+                box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
                 width: 100%;
-                max-width: 1200px;
 
                 .grid-header-row {
                     display: grid;
-                    grid-template-columns: repeat(7, 1fr);
+                    grid-template-columns: repeat(7, minmax(120px, 1fr));
                     text-align: center;
                     font-weight: bold;
                     margin-bottom: 0.5rem;
+                    position: sticky; // Sticky might not work well with vertical stacking, consider removing in media query
+                    top: 0;
+                    background-color: #fff; // Background needed for sticky to obscure content scrolling beneath
+                    z-index: 10; // Ensure header stays above grid content
 
                     .grid-header {
-                        padding: 0.5rem 0;
-                        background-color: #e6f0ff;
-                        color: #555;
+                        padding: 0.75rem 0.5rem;
+                        background-color: #e9ecef;
+                        color: #495057;
+                        border-bottom: 2px solid #dee2e6;
+                        // Add side borders for visual separation
+                        border-left: 1px solid #dee2e6;
+
+                        &:first-child {
+                            border-left: none; // Remove border from the very first header
+                        }
                     }
                 }
 
                 .grid-body {
                     display: grid;
-                    grid-template-columns: repeat(7, 1fr);
-                    min-height: 250px;
-                    gap: 0.25rem;
+                    grid-template-columns: repeat(7, minmax(120px, 1fr));
+                    min-height: 250px; // Keep a min-height for the grid area visually
+                    gap: 0.5rem;
 
                     .grid-cell {
-                        min-height: 100px;
-                        border: 1px solid #ddd;
-                        padding: 0.25rem;
+                        min-height: 100px; // Minimum height for each cell
+                        border: 1px solid #e9ecef;
+                        padding: 0.5rem;
                         border-radius: 4px;
-                        overflow-y: auto;
-                    }
-
-                    .shift-card {
-                        background-color: #fff9c4;
-                        border-left: 4px solid #007bff;
-                        padding: 8px 10px;
-                        margin-bottom: 8px;
-                        border-radius: 8px;
-                        font-size: 0.9rem;
+                        overflow-y: auto; // Allow vertical scroll *within* a cell if content overflows
+                        background-color: #fff;
                         display: flex;
                         flex-direction: column;
-                        gap: 4px;
-                        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+                        gap: 0.75rem; // Space between cards within a cell
 
-                        .shift-time {
-                            font-weight: 600;
-                            color: #333;
-                            font-size: 0.8rem;
-                        }
-
-                        .shift-employee {
-                            font-size: 1rem;
-                            font-weight: 700;
-                            color: #222;
-                        }
-
-                        .shift-actions {
+                        // Styles for shift cards *within the grid cell*
+                        .shift-card {
+                            background-color: #ffffe0; // Lighter blue background
+                            border-left: 4px solid#ffc107; // Blue accent border
+                            padding: 8px 10px;
+                            border-radius: 4px; // Slightly less rounded corners
+                            font-size: 0.9rem;
                             display: flex;
-                            justify-content: flex-end;
-                            gap: 0.5rem;
-                            margin-top: 0.5rem;
+                            flex-direction: column;
+                            gap: 4px;
+                            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 
-                            .clickable-icon {
-                                cursor: pointer;
-                                color: #d11a2a;
+                            .shift-time {
+                                font-weight: 600;
+                                color: #333;
+                                font-size: 0.8rem;
+                            }
 
-                                &:hover {
-                                    color: #a4001d;
+                            .shift-employee {
+                                font-size: 0.95rem; // Slightly smaller employee name
+                                font-weight: 600; // Less bold
+                                color: #222;
+                            }
+
+                            .shift-actions {
+                                display: flex;
+                                justify-content: flex-end;
+                                gap: 0.75rem; // Increased gap
+                                margin-top: 0.5rem;
+                                opacity: 0; // Hide actions by default
+                                transition: opacity 0.2s ease-in-out; // Smooth transition
+
+                                .action-icon {
+                                    cursor: pointer;
+                                    color: #6c757d; // Default icon color
+                                    font-size: 0.9rem;
+
+                                    &:hover {
+                                        color: #343a40; // Darker on hover
+                                    }
+
+                                    &.delete {
+                                        color: #dc3545; // Specific delete color
+
+                                        &:hover {
+                                            color: #a4001d;
+                                        }
+                                    }
+
+                                    &.view {
+                                        color: #007bff; // Specific view color
+
+                                        &:hover {
+                                            color: #0056b3;
+                                        }
+                                    }
                                 }
                             }
+
+                            // Show actions on hover of the shift card
+                            &:hover .shift-actions {
+                                opacity: 1;
+                            }
+                        }
+
+                        // Styles for role cards *within the grid cell*
+                        // Uses the global .role-card and its color modifiers
+                        .role-card {
+                            padding: 8px 10px;
+                            border-radius: 4px;
+                            font-size: 0.9rem;
+                            gap: 4px;
+                            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+
+                            .role-time {
+                                font-weight: 600;
+                                color: #555; // Slightly muted time color
+                                font-size: 0.8rem;
+                            }
+
+                            .role-name {
+                                font-size: 0.95rem; // Match shift card employee size
+                                font-weight: 600; // Match shift card employee weight
+                                // Color comes from the role-color modifier class
+                            }
+
+                            .role-employee {
+                                font-style: italic;
+                                font-weight: 400; // Lighter weight for assigned names
+                                color: #666;
+                                font-size: 0.8rem;
+                            }
+
+                            .role-actions {
+                                display: flex;
+                                justify-content: flex-end;
+                                gap: 0.75rem; // Match shift card actions gap
+                                margin-top: 4px;
+                                opacity: 0; // Hide actions by default
+                                transition: opacity 0.2s ease-in-out; // Smooth transition
+
+                                .action-icon {
+                                    cursor: pointer;
+                                    color: #6c757d;
+                                    font-size: 0.9rem;
+
+                                    &:hover {
+                                        color: #343a40;
+                                    }
+
+                                    &.delete {
+                                        color: #dc3545;
+
+                                        &:hover {
+                                            color: #a4001d;
+                                        }
+                                    }
+
+                                    &.view {
+                                        color: #007bff;
+
+                                        &:hover {
+                                            color: #0056b3;
+                                        }
+                                    }
+                                }
+                            }
+
+                            // Show actions on hover of the role card
+                            &:hover .role-actions {
+                                opacity: 1;
+                            }
+                        }
+
+                        // Style for empty cell message
+                        >p {
+                            text-align: center;
+                            color: #999;
+                            font-size: 0.9em;
+                            margin-top: 1rem;
                         }
                     }
                 }
-            }
-        }
 
-
-    }
-
-    .btn {
-        &.btn-green {
-            background-color: #28a745;
-            color: #fff;
-            padding: 0.5rem 1rem;
-            border: none;
-            border-radius: 5px;
-            font-weight: 500;
-            cursor: pointer;
-            transition: background-color 0.3s;
-
-            &:hover {
-                background-color: #218838;
-            }
-        }
-
-        &.btn-blue {
-            background-color: #007bff;
-            color: #fff;
-            padding: 0.5rem 1rem;
-            border: none;
-            border-radius: 5px;
-            font-weight: 500;
-            cursor: pointer;
-            transition: background-color 0.3s;
-
-            &:hover {
-                background-color: #0069d9;
-            }
-        }
-
-        &.btn-purple {
-            background-color: #6f42c1;
-            color: #fff;
-            padding: 0.5rem 1rem;
-            border: none;
-            border-radius: 5px;
-            font-weight: 500;
-            cursor: pointer;
-            transition: background-color 0.3s;
-
-            &:hover {
-                background-color: #593196;
+                // New styles for vertical layout header (hidden by default)
+                .vertical-grid-header {
+                    display: none; // Hidden by default, shown in media query
+                    padding: 0.75rem 0.5rem;
+                    background-color: #e9ecef;
+                    color: #495057;
+                    border: 1px solid #dee2e6;
+                    border-bottom: 2px solid #dee2e6; // Match horizontal header bottom border
+                    font-weight: bold;
+                    text-align: center;
+                    margin-bottom: 0; // No gap between this header and its cell
+                    border-radius: 4px 4px 0 0; // Optional: round top corners
+                }
             }
         }
     }
@@ -675,66 +517,89 @@
         left: 0;
         right: 0;
         bottom: 0;
-        background-color: rgba(0, 0, 0, 0.5);
+        background-color: rgba(0, 0, 0, 0.6); // Slightly darker overlay
         z-index: 1000;
         display: flex;
         justify-content: center;
         align-items: center;
+        padding: 1rem;
 
         .modal-content {
             background-color: white;
-            padding: 2rem;
-            border-radius: 10px;
-            max-width: 500px;
+            padding: 1.5rem 2rem;
+            border-radius: 8px; // Consistent border radius
+            max-width: 550px;
             width: 100%;
-            box-shadow: 0 0 20px rgba(0, 0, 0, 0.2);
-            position: relative;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+            position: relative; // For absolute positioning of close button if needed
 
             h5 {
-                font-size: 1.5rem;
-                margin-bottom: 1rem;
+                font-size: 1.4rem; // Slightly smaller heading
+                margin-top: 0;
+                margin-bottom: 1.5rem;
                 display: flex;
                 justify-content: space-between;
                 align-items: center;
+                color: #333;
+                border-bottom: 1px solid #eee;
+                padding-bottom: 0.75rem;
+                font-weight: 600; // Bolder heading
             }
 
             #closeModal {
-                font-size: 1.5rem;
+                font-size: 1.75rem;
+                font-weight: bold;
+                line-height: 1;
                 cursor: pointer;
                 border: none;
                 background: transparent;
-            }
+                color: #aaa;
+                padding: 0 0.5rem; // Padding for easier clicking
 
-            .form-group {
-                margin-bottom: 1rem;
-
-                select {
-                    width: 100%;
-                    padding: 0.5rem;
-                    border-radius: 4px;
-                    border: 1px solid #ccc;
-                    font-size: 1rem;
+                &:hover {
+                    color: #333;
                 }
             }
+
+            p {
+                margin-bottom: 1rem; // Consistent margin
+                color: #555;
+                font-size: 0.95rem; // Slightly smaller paragraph text
+
+                strong {
+                    color: #000;
+                }
+            }
+
+            // Removed .form-group as it wasn't used in the provided JS for the modal
+            // If needed, it can be added back here.
 
             .schedule-buttons {
                 display: flex;
                 flex-wrap: wrap;
                 gap: 0.5rem;
-                margin-bottom: 1rem;
+                margin-bottom: 1.5rem;
 
                 .day-btn {
-                    padding: 0.4rem 0.75rem;
-                    border-radius: 20px;
+                    padding: 0.4rem 0.9rem;
+                    border-radius: 20px; // Pill shape
                     border: 1px solid #ccc;
-                    background-color: #fff;
+                    background-color: #f8f9fa;
+                    color: #333;
                     cursor: pointer;
-                    transition: background-color 0.2s;
+                    transition: background-color 0.2s, color 0.2s, border-color 0.2s;
+                    font-size: 0.9rem;
+                    font-weight: 400; // Normal weight
+
+                    &:hover {
+                        background-color: #e9ecef;
+                    }
 
                     &.active {
                         background-color: #007bff;
                         color: white;
                         border-color: #007bff;
+                        font-weight: 500; // Slightly bolder when active
                     }
                 }
             }
@@ -742,20 +607,36 @@
             .day-wise-times {
                 display: flex;
                 flex-direction: column;
-                gap: 0.75rem;
-                margin-bottom: 1rem;
+                gap: 1rem;
+                margin-bottom: 1.5rem;
 
                 .time-row {
                     display: flex;
                     align-items: center;
-                    gap: 0.5rem;
+                    gap: 0.75rem;
+
+                    label {
+                        font-weight: 500;
+                        width: 40px; // Fixed width for alignment
+                        text-align: right;
+                        color: #333;
+                        font-size: 0.9rem; // Match button font size
+                    }
 
                     input[type="time"] {
-                        padding: 0.4rem;
-                        font-size: 1rem;
+                        padding: 0.5rem 0.6rem; // Adjusted padding
+                        font-size: 0.95rem;
                         border: 1px solid #ccc;
                         border-radius: 4px;
-                        flex: 1;
+                        flex: 1; // Allow inputs to grow
+                        min-width: 80px; // Ensure minimum width
+                    }
+
+                    span {
+                        // The "to" text
+                        color: #777;
+                        margin: 0 4px;
+                        font-size: 0.9rem;
                     }
                 }
             }
@@ -763,153 +644,126 @@
             .modal-footer {
                 display: flex;
                 justify-content: flex-end;
+                gap: 0.5rem; // Add gap between footer buttons
+                margin-top: 1.5rem;
+                padding-top: 1rem;
+                border-top: 1px solid #eee;
+            }
+        }
+    }
+}
 
-                .btn-green {
-                    background-color: #28a745;
-                    color: white;
-                    padding: 0.5rem 1rem;
-                    border: none;
-                    border-radius: 5px;
-                    font-weight: 500;
-                    cursor: pointer;
+// Global Role Card Styles (used in grid and potentially sidebar if not overridden)
+.role-card {
+    background-color: #f8f9fa; // Default background
+    border-left: 4px solid #6c757d; // Default border color
+    padding: 8px 10px;
+    margin-bottom: 8px; // Default margin (might be overridden locally)
+    border-radius: 8px; // Default radius (might be overridden locally)
+    font-size: 0.9rem;
+    display: flex;
+    flex-direction: column; // Default direction (might be overridden locally)
+    gap: 4px;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+    color: #333; // Default text color
 
-                    &:disabled {
-                        background-color: #ccc;
-                        cursor: not-allowed;
+    // Color modifier classes
+    &.role-blue {
+        background-color: #e0f7ff;
+        border-left-color: #007bff;
+
+        .role-name {
+            color: #005fa3;
+        }
+    }
+
+    &.role-red {
+        background-color: #ffd6d6;
+        border-left-color: #dc3545;
+
+        .role-name {
+            color: #a30000;
+        }
+    }
+
+    &.role-green {
+        background-color: #d4f5d4;
+        border-left-color: #28a745;
+
+        .role-name {
+            color: #006600;
+        }
+    }
+
+    &.role-yellow {
+        background-color: #ffffe0;
+        border-left-color: #ffc107;
+
+        .role-name {
+            color: #a67c00;
+        }
+    }
+
+    &.role-purple {
+        background-color: #e6d6ff;
+        border-left-color: #6f42c1;
+
+        .role-name {
+            color: #5e0099;
+        }
+    }
+
+    // Default is already defined above, but explicit class can be useful
+    &.role-default {
+        background-color: #f8f9fa;
+        border-left-color: #6c757d;
+
+        .role-name {
+            color: #343a40;
+        }
+    }
+}
+
+
+// --- Media Query for Vertical Grid Layout ---
+// Adjust breakpoint (e.g., 768px) as needed for when the grid should stack
+@media (max-width: 768px) {
+    .roster-page {
+        .roster-body {
+            // Sidebars will already stack because of the 1024px breakpoint changing to 1fr
+
+            .schedule-wrapper {
+                .schedule-grid {
+                    padding: 0.5rem; // Reduce padding on small screens
+
+                    .grid-header-row {
+                        display: none; // Hide the horizontal header row entirely
                     }
 
-                    &:hover:not(:disabled) {
-                        background-color: #218838;
+                    .grid-body {
+                        display: block; // Change layout from grid to block
+                        grid-template-columns: none; // Remove grid column definition
+                        min-height: auto; // Remove fixed min-height
+                        gap: 0; // Remove grid gap
+
+                        // The React.Fragment in JS handles grouping, no extra wrapper needed here
+
+                        .vertical-grid-header {
+                            display: block; // Show the vertical header for each day
+                        }
+
+                        .grid-cell {
+                            width: 100%; // Make cells full width
+                            min-height: auto; // Let height be determined by content
+                            margin-bottom: 1rem; // Add space *between* day blocks (header + cell)
+                            border-radius: 0 0 4px 4px; // Round bottom corners of the cell
+                            border-top: none; // Avoid double border with vertical header
+                            // Ensure enough padding even on small screens
+                            padding: 0.75rem;
+                        }
                     }
                 }
             }
         }
     }
-}
-
-.role-card {
-    background-color: #f0f4ff;
-    border-left: 4px solid #007bff;
-    padding: 8px 10px;
-    margin-bottom: 8px;
-    border-radius: 8px;
-    font-size: 0.9rem;
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
-
-    .role-time {
-        font-weight: 600;
-        color: #333;
-        font-size: 0.8rem;
-    }
-
-    .role-name {
-        font-style: bold;
-        font-size: 1rem;
-        font-weight: 700;
-        color: #222;
-    }
-
-    .role-employee {
-        font-style: italic;
-        font-weight: 600;
-        color: #333;
-        font-size: 0.8rem;
-    }
-
-    .role-actions {
-        display: flex;
-        justify-content: flex-end;
-        gap: 10px;
-        margin-top: 4px;
-
-        svg {
-            cursor: pointer;
-            color: #666;
-
-            &:hover {
-                color: #007bff;
-            }
-        }
-
-        .clickable-icon {
-            cursor: pointer;
-            color: #d11a2a;
-
-            &:hover {
-                color: #a4001d;
-            }
-        }
-    }
-}
-
-.role-list {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-
-    .role-card {
-        width: 100%;
-    }
-}
-
-/* ---------------------------------------------------------------------------
-     ROLE CARD COLOR CLASSES
-     These classes provide light backgrounds (and complementary text colors)
-     for each role based on its base color.
-  --------------------------------------------------------------------------- */
-.role-card {
-    padding: 0.5rem;
-    border-radius: 4px;
-    margin-bottom: 0.25rem;
-    font-size: 0.875rem;
-}
-
-.role-blue {
-    background-color: #e0f7ff; // Lighter blue tint
-    color: #005fa3;
-}
-
-.role-red {
-    background-color: #ffd6d6; // Lighter red tint
-    color: #a30000;
-}
-
-.role-green {
-    background-color: #d4f5d4; // Lighter green tint
-    color: #006600;
-}
-
-.role-yellow {
-    background-color: #ffffe0; // Lighter yellow tint
-    color: #a67c00;
-}
-
-.role-purple {
-    background-color: #e6d6ff; // Lighter purple tint
-    color: #5e0099;
-}
-
-.role-card {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 0.75rem;
-    margin-bottom: 0.5rem;
-    border: 1px solid #ccc;
-    border-radius: 8px;
-}
-
-.role-name {
-    font-size: 1rem;
-    font-weight: 500;
-}
-
-.delete-btn {
-    background: none;
-    border: none;
-    cursor: pointer;
-    padding: 0.25rem;
 }
