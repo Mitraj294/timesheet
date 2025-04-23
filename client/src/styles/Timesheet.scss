@@ -12,97 +12,68 @@
 .timesheet-header {
     display: flex;
     justify-content: space-between;
-    align-items: flex-start;
+    align-items: center;
     flex-wrap: wrap;
-    gap: 1rem;
     margin-bottom: 1.5rem;
 
-    @media (max-width: 768px) {
-        flex-direction: column;
-        align-items: flex-start;
-    }
-
-    .timesheet-title {
+    .header-left {
         display: flex;
         flex-direction: column;
-        gap: 0.3rem;
 
         h3 {
+            margin: 0;
             font-size: 1.8rem;
-            font-weight: 700;
             display: flex;
             align-items: center;
             gap: 0.5rem;
+            color: #333;
         }
 
         .breadcrumb {
-            display: flex;
-            align-items: center;
+            margin-top: 0.4rem;
             font-size: 0.95rem;
             color: #666;
-            white-space: nowrap;
-            gap: 0.25rem;
-            flex-wrap: nowrap;
-            white-space: nowrap;
-            overflow-x: auto;
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
 
             a {
-                color: #4a90e2;
+                color: #6366f1;
                 text-decoration: none;
-                font-weight: 500;
-                flex-shrink: 0;
 
                 &:hover {
                     text-decoration: underline;
                 }
-
-                span {
-                    display: inline; // ✅ Not inline-block
-                    white-space: nowrap;
-                }
-            }
-
-            .breadcrumb-separator {
-                margin: 0 0.3rem;
-                color: #666;
             }
 
             .breadcrumb-current {
-                color: #666;
-                font-weight: 500;
-            }
-
-            &::-webkit-scrollbar {
-                display: none;
+                color: #999;
             }
         }
     }
 
-    .timesheet-actions {
+    .header-right {
         display: flex;
-        gap: 0.75rem;
-        flex-wrap: wrap;
+        gap: 0.8rem;
 
         .btn {
             display: flex;
             align-items: center;
             gap: 0.5rem;
-            padding: 0.5rem 1rem;
-            font-size: 0.95rem;
-            font-weight: 500;
+            padding: 0.45rem 1rem;
+            font-size: 0.9rem;
+            border-radius: 8px;
             border: none;
-            border-radius: 4px;
             cursor: pointer;
+            color: white;
             white-space: nowrap;
 
             &.btn-red {
-                background-color: #e74c3c;
-                color: #fff;
+                background-color: #ef4444;
             }
 
             &.btn-purple {
-                background-color: #9b59b6;
-                color: #fff;
+                background-color: #8b5cf6;
             }
 
             &:hover {
@@ -112,31 +83,84 @@
     }
 }
 
-
-/* Filter Panel */
 .filter-panel {
+    background-color: #fafafa;
+    border: 1px solid #eee;
+    border-radius: 12px;
+    padding: 1rem;
+    margin-top: 1rem;
     display: flex;
     flex-wrap: wrap;
-    gap: 12px;
     align-items: center;
-    margin-bottom: 20px;
+    gap: 1rem;
 
     .filter-select,
     .filter-datepicker,
     .filter-email {
-        padding: 6px 10px;
-        font-size: 0.95rem;
+        padding: 0.5rem 0.75rem;
+        font-size: 1rem;
         border: 1px solid #ccc;
-        border-radius: 6px;
+        border-radius: 8px;
+        background: #fff;
         min-width: 160px;
-    }
 
-    .filter-email {
-        width: 240px;
+        &:focus {
+            border-color: #7e57c2;
+            outline: none;
+        }
     }
 
     .btn {
+        margin-left: auto;
+        align-self: flex-end;
+        padding: 0.5rem 1rem;
+        font-size: 0.9rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.45rem 1rem;
+        font-size: 0.9rem;
+        border-radius: 8px;
+        border: none;
+        cursor: pointer;
+        color: white;
         white-space: nowrap;
+
+        &.btn-red {
+            background-color: #ef4444;
+        }
+
+        &.btn-purple {
+            background-color: #8b5cf6;
+        }
+
+        &:hover {
+            opacity: 0.9;
+        }
+    }
+}
+
+@media (max-width: 768px) {
+    .timesheet-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 1rem;
+
+        .header-right {
+            width: 100%;
+            justify-content: flex-start;
+            flex-wrap: wrap;
+        }
+    }
+
+    .filter-panel {
+        flex-direction: column;
+        align-items: stretch;
+
+        .btn {
+            align-self: stretch;
+            width: 100%;
+        }
     }
 }
 
@@ -199,6 +223,7 @@
             background-color: #218838;
         }
     }
+
 }
 
 /* Responsive Table Wrapper */
@@ -319,17 +344,5 @@
         }
     }
 
-    .timesheet-actions {
-        flex-direction: column;
-        width: 100%;
 
-        .btn {
-            width: 100%;
-            justify-content: center;
-        }
-    }
-
-    .timesheet-table-wrapper {
-        margin-top: 10px;
-    }
 }

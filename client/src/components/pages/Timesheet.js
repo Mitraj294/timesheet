@@ -426,116 +426,64 @@ const handleDownload = async () => {
   };
   return (
     <div className='Timesheet-container'>
-     <div className="timesheet-header">
-  {/* Left: Title + Breadcrumb */}
-  <div className="timesheet-title">
-    <h3>
-      <FontAwesomeIcon icon={faPen} /> Timesheet
-    </h3>
+<div className="timesheet-header">
+<div className="header-left">
+    <h3><FontAwesomeIcon icon={faPen} /> Timesheet</h3>
     <div className="breadcrumb">
-      <Link to="/dashboard" className="breadcrumb-link">Dashboard</Link>
-      <span className="breadcrumb-separator">/</span>
+      <Link to="/dashboard">Dashboard</Link>
+      <span className="breadcrumb-separator"> / </span>
       <span className="breadcrumb-current">Timesheet</span>
     </div>
   </div>
-
-  {/* Right: Action Buttons */}
-  <div className="timesheet-actions">
-    <button
-      className="btn btn-red"
-      onClick={() => setShowDownloadFilters(prev => !prev)}
-    >
+  <div className="header-right">
+    <button className="btn btn-red" onClick={() => setShowDownloadFilters(prev => !prev)}>
       <FontAwesomeIcon icon={faDownload} /> Download Report
     </button>
-    <button
-      className="btn btn-purple"
-      onClick={() => setShowSendFilters(prev => !prev)}
-    >
+    <button className="btn btn-purple" onClick={() => setShowSendFilters(prev => !prev)}>
       <FontAwesomeIcon icon={faEnvelope} /> Send Report
     </button>
   </div>
-</div>
 
 
-{/* Download Filters */}
-{showDownloadFilters && (
+
+
+
+
+
+
+  {showDownloadFilters && (
   <div className="filter-panel">
-    <select
-      value={selectedEmployee}
-      onChange={e => setSelectedEmployee(e.target.value)}
-      className="filter-select"
-    >
+    <select value={selectedEmployee} onChange={e => setSelectedEmployee(e.target.value)} className="filter-select">
       <option value="">All Employees</option>
       {employees.map(emp => (
         <option key={emp._id} value={emp._id}>{emp.name}</option>
       ))}
     </select>
-
-    <DatePicker
-      selected={startDate}
-      onChange={setStartDate}
-      placeholderText="From"
-      dateFormat="yyyy-MM-dd"
-      className="filter-datepicker"
-    />
-    <DatePicker
-      selected={endDate}
-      onChange={setEndDate}
-      minDate={startDate}
-      placeholderText="To"
-      dateFormat="yyyy-MM-dd"
-      className="filter-datepicker"
-    />
-
-    <button  className="btn btn-red" onClick={handleDownload}>
+    <DatePicker selected={startDate} onChange={setStartDate} placeholderText="From" dateFormat="yyyy-MM-dd" className="filter-datepicker" />
+    <DatePicker selected={endDate} onChange={setEndDate} minDate={startDate} placeholderText="To" dateFormat="yyyy-MM-dd" className="filter-datepicker" />
+    <button className="btn btn-red" onClick={handleDownload}>
       <FontAwesomeIcon icon={faDownload} /> Download
     </button>
   </div>
 )}
 
-{/* Send Filters */}
 {showSendFilters && (
   <div className="filter-panel">
-    <select
-      value={selectedEmployee}
-      onChange={e => setSelectedEmployee(e.target.value)}
-      className="filter-select"
-    >
+    <select value={selectedEmployee} onChange={e => setSelectedEmployee(e.target.value)} className="filter-select">
       <option value="">All Employees</option>
       {employees.map(emp => (
         <option key={emp._id} value={emp._id}>{emp.name}</option>
       ))}
     </select>
-
-    <DatePicker
-      selected={startDate}
-      onChange={setStartDate}
-      placeholderText="From"
-      dateFormat="yyyy-MM-dd"
-      className="filter-datepicker"
-    />
-    <DatePicker
-      selected={endDate}
-      onChange={setEndDate}
-      minDate={startDate}
-      placeholderText="To"
-      dateFormat="yyyy-MM-dd"
-      className="filter-datepicker"
-    />
-
-    <input
-      type="email"
-      placeholder="Recipient email"
-      value={email}
-      onChange={e => setEmail(e.target.value)}
-      className="filter-email"
-    />
-
-    <button className="btn btn-green" onClick={handleSendEmail}>
+    <DatePicker selected={startDate} onChange={setStartDate} placeholderText="From" dateFormat="yyyy-MM-dd" className="filter-datepicker" />
+    <DatePicker selected={endDate} onChange={setEndDate} minDate={startDate} placeholderText="To" dateFormat="yyyy-MM-dd" className="filter-datepicker" />
+    <input type="email" placeholder="Recipient email" value={email} onChange={e => setEmail(e.target.value)} className="filter-email" />
+    <button className="btn btn-purple" onClick={handleSendEmail}>
       <FontAwesomeIcon icon={faEnvelope} /> Send
     </button>
   </div>
 )}
+</div>
 
 
 

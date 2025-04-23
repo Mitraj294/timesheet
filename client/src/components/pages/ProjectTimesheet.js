@@ -436,11 +436,56 @@ const ProjectTimesheet = ({
 
   return (
     <div className="Timesheet-container">
-      <div className="timesheet-header">
-        <h3>
-          <FontAwesomeIcon icon={faPen} /> Timesheet
-        </h3>
-      </div>
+<div className="timesheet-header">
+<div className="header-left">
+    <h3><FontAwesomeIcon icon={faPen} /> Timesheet</h3>
+  
+  </div>
+  <div className="header-right">
+    <button className="btn btn-red" onClick={() => setShowDownloadFilters(prev => !prev)}>
+      <FontAwesomeIcon icon={faDownload} /> Download Report
+    </button>
+    <button className="btn btn-purple" onClick={() => setShowSendFilters(prev => !prev)}>
+      <FontAwesomeIcon icon={faEnvelope} /> Send Report
+    </button>
+  </div>
+
+
+
+
+{showDownloadFilters && (
+  <div className="filter-panel">
+    <select value={selectedProject} onChange={e => setSelectedProject(e.target.value)} className="filter-select">
+      <option value="">All Projects</option>
+      {projects.map(project => (
+        <option key={project._id} value={project._id}>{project.name}</option>
+      ))}
+    </select>
+    <DatePicker selected={startDate} onChange={setStartDate} placeholderText="From" dateFormat="yyyy-MM-dd" className="filter-datepicker" />
+    <DatePicker selected={endDate} onChange={setEndDate} minDate={startDate} placeholderText="To" dateFormat="yyyy-MM-dd" className="filter-datepicker" />
+    <button className="btn btn-red" onClick={handleDownloadProjectTimesheets}>
+      <FontAwesomeIcon icon={faDownload} /> Download
+    </button>
+  </div>
+)}
+
+{showSendFilters && (
+  <div className="filter-panel">
+    <select value={selectedProject} onChange={e => setSelectedProject(e.target.value)} className="filter-select">
+      <option value="">All Projects</option>
+      {projects.map(project => (
+        <option key={project._id} value={project._id}>{project.name}</option>
+      ))}
+    </select>
+    <DatePicker selected={startDate} onChange={setStartDate} placeholderText="From" dateFormat="yyyy-MM-dd" className="filter-datepicker" />
+    <DatePicker selected={endDate} onChange={setEndDate} minDate={startDate} placeholderText="To" dateFormat="yyyy-MM-dd" className="filter-datepicker" />
+    <input type="email" placeholder="Recipient email" value={email} onChange={e => setEmail(e.target.value)} className="filter-email" />
+    <button className="btn btn-purple" onClick={handleEmailProjectTimesheets}>
+      <FontAwesomeIcon icon={faEnvelope} /> Send
+    </button>
+  </div>
+)}
+ </div>
 
       <div className="timesheet-top-bar">
         <div className="project-filter">
@@ -497,102 +542,7 @@ const ProjectTimesheet = ({
         >
           <FontAwesomeIcon icon={faPlus} /> Create Timesheet
         </button>
-        <div className="timesheet-actions">
-  <button
-    className="btn btn-red"
-    onClick={() => setShowDownloadFilters(prev => !prev)}
-  >
-    <FontAwesomeIcon icon={faDownload} /> Download Report
-  </button>
-  <button
-    className="btn btn-purple"
-    onClick={() => setShowSendFilters(prev => !prev)}
-  >
-    <FontAwesomeIcon icon={faPaperPlane} /> Send Report
-  </button>
-</div>
-
-{/* Download Filters */}
-{showDownloadFilters && (
-  <div className="filter-panel">
-    <select
-      value={selectedProject}
-      onChange={e => setSelectedProject(e.target.value)}
-      className="filter-select"
-    >
-      <option value="">All Projects</option>
-      {projects.map(project => (
-        <option key={project._id} value={project._id}>{project.name}</option>
-      ))}
-    </select>
-
-    <DatePicker
-      selected={startDate}
-      onChange={setStartDate}
-      placeholderText="From"
-      dateFormat="yyyy-MM-dd"
-      className="filter-datepicker"
-    />
-    <DatePicker
-      selected={endDate}
-      onChange={setEndDate}
-      minDate={startDate}
-      placeholderText="To"
-      dateFormat="yyyy-MM-dd"
-      className="filter-datepicker"
-    />
-
-    <button className="btn btn-red" onClick={handleDownloadProjectTimesheets}>
-      <FontAwesomeIcon icon={faDownload} /> Download
-    </button>
-  </div>
-)}
-
-{/* Send Filters */}
-{showSendFilters && (
-  <div className="filter-panel">
-    <select
-      value={selectedProject}
-      onChange={e => setSelectedProject(e.target.value)}
-      className="filter-select"
-    >
-      <option value="">All Projects</option>
-      {projects.map(project => (
-        <option key={project._id} value={project._id}>{project.name}</option>
-      ))}
-    </select>
-
-    <DatePicker
-      selected={startDate}
-      onChange={setStartDate}
-      placeholderText="From"
-      dateFormat="yyyy-MM-dd"
-      className="filter-datepicker"
-    />
-    <DatePicker
-      selected={endDate}
-      onChange={setEndDate}
-      minDate={startDate}
-      placeholderText="To"
-      dateFormat="yyyy-MM-dd"
-      className="filter-datepicker"
-    />
-
-    <input
-      type="email"
-      placeholder="Recipient email"
-      value={email}
-      onChange={e => setEmail(e.target.value)}
-      className="filter-email"
-    />
-
-    <button className="btn btn-green" onClick={handleEmailProjectTimesheets}>
-      <FontAwesomeIcon icon={faEnvelope} /> Send
-    </button>
-  </div>
-)}
-
-
+     
       
       </div>
 
