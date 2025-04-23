@@ -128,8 +128,7 @@ const CreateRole = () => {
         };
 
         fetchData();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [roleId, isEditing, navigate]); // weekStart is stable within component lifecycle unless explicitly changed
+    }, [roleId, isEditing, navigate]); // Removed the eslint-disable comment from the line above
 
     // --- Handlers ---
 
