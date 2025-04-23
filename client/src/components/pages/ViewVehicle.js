@@ -18,7 +18,7 @@ import {
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 import '../../styles/Vehicles.scss';
-import '../../styles/_base.scss'
+
 
 const API_URL = process.env.REACT_APP_API_URL || 'https://timesheet-c4mj.onrender.com/api';
 

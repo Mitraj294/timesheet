@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import axios from 'axios';
-import '../../styles/Vehicles.scss';
+import '../../styles/ViewReview.scss';
 
 const API_URL = process.env.REACT_APP_API_URL || 'https://timesheet-c4mj.onrender.com/api';
 
@@ -118,56 +118,71 @@ const ViewReview = () => {
       </div>
 
       {/* Prompt for choosing download format */}
-      {showDownloadPrompt && (
-        <div className="download-prompt">
-          <h4>Choose Report Format</h4>
-          <button className="btn btn-green" onClick={() => handleDownload('pdf')}>Download as PDF</button>
-          <button className="btn btn-blue" onClick={() => handleDownload('excel')}>Download as Excel</button>
-          <button className="btn btn-gray" onClick={closeDownloadPrompt}>Cancel</button>
-        </div>
-      )}
+{/* Download Prompt */}
+{showDownloadPrompt && (
+  <div className="prompt-container">
+    <h4 className="prompt-title">Choose Report Format</h4>
 
-      {/* Prompt for sending email */}
-      {showEmailPrompt && (
-        <div className="download-prompt">
-          <h4>Send Report via Email</h4>
-          <input
-            type="email"
-            placeholder="Enter recipient email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="input-email"
-          />
-          <div className="format-options">
-            <label>
-              <input
-                type="radio"
-                name="format"
-                value="pdf"
-                checked={emailFormat === 'pdf'}
-                onChange={() => setEmailFormat('pdf')}
-              />
-              PDF
-            </label>
-            <label>
-              <input
-                type="radio"
-                name="format"
-                value="excel"
-                checked={emailFormat === 'excel'}
-                onChange={() => setEmailFormat('excel')}
-              />
-              Excel
-            </label>
-          </div>
-          <div className="email-actions">
-            <button className="btn btn-green" onClick={handleSendEmail} disabled={sending}>
-              {sending ? 'Sending...' : 'Send Email'}
-            </button>
-            <button className="btn btn-gray" onClick={closeEmailPrompt} disabled={sending}>Cancel</button>
-          </div>
-        </div>
-      )}
+    <div className="prompt-actions">
+      <button className="btn btn-green" onClick={() => handleDownload('pdf')}>
+        Download as PDF
+      </button>
+      <button className="btn btn-blue" onClick={() => handleDownload('excel')}>
+        Download as Excel
+      </button>
+      <button className="btn btn-gray" onClick={closeDownloadPrompt}>
+        Cancel
+      </button>
+    </div>
+  </div>
+)}
+
+{/* Email Prompt */}
+{showEmailPrompt && (
+  <div className="prompt-container">
+    <h4 className="prompt-title">Send Report via Email</h4>
+
+    <input
+      type="email"
+      placeholder="Enter recipient email"
+      value={email}
+      onChange={(e) => setEmail(e.target.value)}
+      className="prompt-input"
+    />
+
+    <div className="format-options">
+      <label>
+        <input
+          type="radio"
+          name="format"
+          value="pdf"
+          checked={emailFormat === 'pdf'}
+          onChange={() => setEmailFormat('pdf')}
+        />
+        PDF
+      </label>
+      <label>
+        <input
+          type="radio"
+          name="format"
+          value="excel"
+          checked={emailFormat === 'excel'}
+          onChange={() => setEmailFormat('excel')}
+        />
+        Excel
+      </label>
+    </div>
+
+    <div className="prompt-actions">
+      <button className="btn btn-green" onClick={handleSendEmail} disabled={sending}>
+        {sending ? 'Sending...' : 'Send Email'}
+      </button>
+      <button className="btn btn-gray" onClick={closeEmailPrompt} disabled={sending}>
+        Cancel
+      </button>
+    </div>
+  </div>
+)}
 
       {/* Review details */}
       <div className="view-review-header">
