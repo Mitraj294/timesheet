@@ -1,61 +1,318 @@
-@use 'sass:color';
+// /home/digilab/timesheet/client/src/styles/EmployeeForms.scss
 
+// Variables (optional, but good practice)
 $primary-color: #007bff;
 $secondary-color: #6c757d;
 $success-color: #28a745;
-$warning-color: #ffc107;
 $danger-color: #dc3545;
+$warning-color: #ffc107;
 $info-color: #17a2b8;
-$light-grey: #f8f9fa;
-$medium-grey: #e9ecef;
-$dark-grey: #6c757d;
-$text-color: #333;
+$light-color: #f8f9fa;
+$dark-color: #343a40;
 $border-color: #dee2e6;
-$border-radius: 5px;
-$box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
-$font-family: 'Segoe UI', sans-serif;
+$input-bg: #fff;
+$input-border-color: #ced4da;
+$input-focus-border-color: lighten($primary-color, 25%);
+$input-focus-box-shadow: 0 0 0 0.2rem rgba($primary-color, 0.25);
+$text-color: #495057;
+$label-color: #495057;
+$error-color: $danger-color;
+$form-bg: #ffffff;
+$page-bg: #f4f7f6; // Light background for the page
 
-$breakpoint-md: 768px;
-$breakpoint-sm: 576px;
+// General page container
+.form-page-container {
+    padding: 20px;
+    background-color: $page-bg;
+    min-height: calc(100vh - 60px); // Adjust based on navbar height
 
+    // Loading indicator styles
+    .loading-indicator {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 40px;
+        color: $secondary-color;
+        font-size: 1.1em;
+
+        svg {
+            margin-bottom: 15px;
+            color: $primary-color;
+        }
+    }
+}
+
+// Form Header Styles
+.form-header {
+    margin-bottom: 25px;
+    padding-bottom: 15px;
+    border-bottom: 1px solid $border-color;
+
+    .title-breadcrumbs {
+        display: flex;
+        flex-direction: column; // Stack title and breadcrumbs on small screens
+        gap: 5px;
+
+        @media (min-width: 768px) {
+            flex-direction: row; // Side-by-side on larger screens
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        h2 {
+            font-size: 1.8em;
+            color: $dark-color;
+            margin: 0;
+            display: flex;
+            align-items: center;
+            gap: 10px; // Space between icon and text
+
+            svg {
+                color: $primary-color; // Icon color
+            }
+        }
+
+        .breadcrumbs {
+            font-size: 0.9em;
+            color: $secondary-color;
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap; // Allow wrapping if needed
+
+            .breadcrumb-link {
+                color: $primary-color;
+                text-decoration: none;
+                font-weight: 500;
+
+                &:hover {
+                    text-decoration: underline;
+                }
+            }
+
+            .breadcrumb-separator {
+                margin: 0 6px;
+                color: lighten($secondary-color, 20%);
+            }
+
+            .breadcrumb-current {
+                font-weight: 500;
+                color: $text-color;
+            }
+        }
+    }
+}
+
+// Form Container Styles
+.form-container {
+    background-color: $form-bg;
+    padding: 25px 30px;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+    max-width: 800px; // Limit form width for readability
+    margin: 0 auto; // Center the form container
+}
+
+// General Form Styles
+.employee-form {
+    // Use this class on the <form> tag
+    display: flex;
+    flex-direction: column;
+    gap: 20px; // Space between form groups
+
+    // Error Message
+    .form-error-message {
+        background-color: lighten($error-color, 35%);
+        color: darken($error-color, 10%);
+        border: 1px solid lighten($error-color, 20%);
+        border-left: 5px solid $error-color;
+        padding: 12px 15px;
+        border-radius: 4px;
+        font-size: 0.95em;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    // Form Group (Label + Input wrapper)
+    .form-group {
+        display: flex;
+        flex-direction: column;
+        gap: 6px; // Space between label and input
+
+        label {
+            font-weight: 600;
+            font-size: 0.95em;
+            color: $label-color;
+            margin-bottom: 2px; // Small space below label
+        }
+
+        // Input, Select, Textarea base styles
+        input[type="text"],
+        input[type="email"],
+        input[type="tel"],
+        input[type="number"],
+        input[type="date"],
+        input[type="time"],
+        select,
+        textarea {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid $input-border-color;
+            border-radius: 4px;
+            font-size: 1em;
+            color: $text-color;
+            background-color: $input-bg;
+            transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+
+            &:focus {
+                outline: none;
+                border-color: $input-focus-border-color;
+                box-shadow: $input-focus-box-shadow;
+            }
+
+            &::placeholder {
+                color: lighten($secondary-color, 15%);
+                opacity: 1;
+            }
+
+            &:disabled,
+            &[readonly] {
+                background-color: $light-color;
+                opacity: 0.7;
+                cursor: not-allowed;
+            }
+        }
+
+        // Specific adjustments
+        textarea {
+            resize: vertical; // Allow vertical resize only
+            min-height: 80px;
+        }
+
+        select {
+            appearance: none; // Basic reset for custom arrow later if needed
+            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23343a40' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M2 5l6 6 6-6'/%3e%3c/svg%3e");
+            background-repeat: no-repeat;
+            background-position: right 0.75rem center;
+            background-size: 16px 12px;
+            padding-right: 2.5rem; // Make space for arrow
+        }
+
+        // Input with Icon wrapper
+        .input-with-icon {
+            position: relative;
+            display: flex;
+            align-items: center;
+
+            .input-icon {
+                position: absolute;
+                left: 12px;
+                color: $secondary-color;
+                font-size: 0.9em;
+                pointer-events: none; // Don't block input clicks
+            }
+
+            // Adjust input padding when icon is present
+            input,
+            textarea {
+                padding-left: 35px;
+            }
+
+            // Special alignment for textarea icon
+            .textarea-icon {
+                top: 12px; // Align near the top
+                align-self: flex-start;
+            }
+        }
+
+        // Summary display (e.g., Total Hours)
+        &.summary {
+            background-color: lighten($primary-color, 45%);
+            border: 1px solid lighten($primary-color, 35%);
+            padding: 10px 15px;
+            border-radius: 4px;
+            font-size: 0.95em;
+            color: darken($primary-color, 10%);
+
+            strong {
+                margin-right: 5px;
+            }
+        }
+
+        // Small helper text
+        small {
+            font-size: 0.8em;
+            color: $secondary-color;
+            margin-top: 2px;
+        }
+    }
+
+    // Checkbox Group Styles
+    .checkbox-group {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-top: 5px; // Add some top margin
+
+        input[type="checkbox"] {
+            width: auto; // Don't make checkbox full width
+            margin: 0;
+            flex-shrink: 0;
+            height: 1.1em;
+            width: 1.1em;
+            cursor: pointer;
+        }
+
+        label {
+            margin: 0;
+            font-weight: normal; // Normal weight for checkbox label
+            font-size: 0.95em;
+            color: $text-color;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+
+            svg {
+                color: $warning-color; // Style for the star icon
+            }
+        }
+    }
+
+    // Form Footer (for buttons)
+    .form-footer {
+        display: flex;
+        justify-content: flex-end; // Align buttons to the right
+        gap: 10px; // Space between buttons
+        margin-top: 25px;
+        padding-top: 20px;
+        border-top: 1px solid $border-color;
+    }
+}
+
+// Shared Button Styles (assuming you have base .btn styles)
 .btn {
-    padding: 0.6rem 1.2rem;
-    border: none;
-    border-radius: $border-radius;
-    font-weight: 500;
-    cursor: pointer;
-    transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease, opacity 0.2s ease;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    gap: 0.5rem;
-    white-space: nowrap;
-    font-size: 1rem;
-    line-height: 1.5;
-    font-family: $font-family;
-    text-decoration: none;
+    gap: 8px;
+    padding: 10px 20px;
+    font-size: 1em;
+    font-weight: 500;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.2s ease, opacity 0.2s ease;
+    text-decoration: none; // For Link components styled as buttons
 
     &:disabled {
         opacity: 0.65;
         cursor: not-allowed;
     }
-}
 
-.btn-primary {
-    background-color: $primary-color;
-    color: #fff;
-
-    &:hover:not(:disabled) {
-        background-color: color.adjust($primary-color, $lightness: -10%);
-    }
-}
-
-.btn-secondary {
-    background-color: $secondary-color;
-    color: #fff;
-
-    &:hover:not(:disabled) {
-        background-color: color.adjust($secondary-color, $lightness: -10%);
+    svg {
+        margin-right: 4px; // Consistent icon spacing
     }
 }
 
@@ -64,7 +321,7 @@ $breakpoint-sm: 576px;
     color: #fff;
 
     &:hover:not(:disabled) {
-        background-color: color.adjust($success-color, $lightness: -10%);
+        background-color: darken($success-color, 10%);
     }
 }
 
@@ -73,228 +330,63 @@ $breakpoint-sm: 576px;
     color: #fff;
 
     &:hover:not(:disabled) {
-        background-color: color.adjust($danger-color, $lightness: -10%);
+        background-color: darken($danger-color, 10%);
     }
 }
 
-.form-page-container {
-    padding: clamp(1rem, 2vw, 1.5rem);
-    max-width: 800px;
-    margin: 2rem auto;
-    font-family: $font-family;
-    background-color: $light-grey;
-}
+.btn-secondary {
+    background-color: $secondary-color;
+    color: #fff;
 
-.form-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    margin-bottom: 1.5rem;
-    flex-wrap: wrap;
-    gap: 1rem;
-    padding: 1rem;
-    background-color: #fff;
-    border-radius: $border-radius;
-    box-shadow: $box-shadow;
-
-    .title-breadcrumbs {
-        display: flex;
-        flex-direction: column;
-        gap: 0.25rem;
-        flex-grow: 1;
-
-        h2 {
-            font-size: clamp(1.4rem, 3vw, 1.75rem);
-            display: flex;
-            align-items: center;
-            gap: 0.6rem;
-            color: $text-color;
-            margin: 0;
-            font-weight: 600;
-        }
-
-        .breadcrumbs {
-            font-size: 0.875rem;
-            color: $dark-grey;
-            display: flex;
-            align-items: center;
-            flex-wrap: wrap;
-
-            .breadcrumb-link {
-                color: $primary-color;
-                text-decoration: none;
-                font-weight: 500;
-                white-space: nowrap;
-
-                &:hover {
-                    text-decoration: underline;
-                }
-            }
-
-            .breadcrumb-separator {
-                margin: 0 0.3rem;
-                color: color.adjust($dark-grey, $lightness: 15%);
-                white-space: nowrap;
-            }
-
-            .breadcrumb-current {
-                color: $dark-grey;
-                white-space: nowrap;
-            }
-        }
+    &:hover:not(:disabled) {
+        background-color: darken($secondary-color, 10%);
     }
 }
 
-.form-container {
-    background-color: #fff;
-    padding: clamp(1rem, 3vw, 2rem);
-    border-radius: $border-radius;
-    box-shadow: $box-shadow;
-    border: 1px solid $border-color;
-}
-
-.employee-form {
-    display: flex;
-    flex-direction: column;
-    gap: 1.25rem;
-
-    .form-group {
-        display: flex;
-        flex-direction: column;
-        gap: 0.4rem;
-
-        label {
-            font-weight: 600;
-            font-size: 0.95rem;
-            color: $text-color;
-        }
-
-        input[type="text"],
-        input[type="email"],
-        input[type="number"],
-        select,
-        textarea {
-            width: 100%;
-            padding: 0.6rem 0.8rem;
-            font-size: 1rem;
-            border: 1px solid $border-color;
-            border-radius: 4px;
-            box-sizing: border-box;
-            font-family: $font-family;
-            transition: border-color 0.2s ease, box-shadow 0.2s ease;
-
-            &:focus {
-                border-color: $primary-color;
-                box-shadow: 0 0 0 3px rgba($primary-color, 0.25);
-                outline: none;
-            }
-
-            &:disabled {
-                background-color: $light-grey;
-                cursor: not-allowed;
-                opacity: 0.7;
-            }
-        }
-
-        textarea {
-            resize: vertical;
-            min-height: 80px;
-        }
-
-        small {
-            font-size: 0.8rem;
-            color: $dark-grey;
-            margin-top: 0.2rem;
-        }
-    }
-
-    .form-error-message {
-        background-color: color.adjust($danger-color, $lightness: 45%);
-        color: color.adjust($danger-color, $lightness: -10%);
-        border: 1px solid color.adjust($danger-color, $lightness: 30%);
-        border-radius: $border-radius;
-        padding: 0.8rem 1rem;
-        font-size: 0.9rem;
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-    }
-
-    .form-footer {
-        display: flex;
-        justify-content: flex-end;
-        gap: 0.75rem;
-        margin-top: 1rem;
-        padding-top: 1.5rem;
-        border-top: 1px solid $border-color;
-    }
-}
-
-.loading-indicator,
-.error-message {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: 2rem;
-    margin: 1.5rem auto;
-    background-color: #fff;
-    border-radius: $border-radius;
-    box-shadow: $box-shadow;
-    text-align: center;
-    color: $dark-grey;
-    max-width: 600px;
-
-    p {
-        margin-top: 0.75rem;
-        font-size: 1rem;
-        margin-bottom: 0;
-    }
-
-    .btn-secondary {
-        margin-top: 1rem;
-    }
-}
-
-.error-message {
-    color: color.adjust($danger-color, $lightness: -10%);
-    border: 1px solid color.adjust($danger-color, $lightness: 30%);
-    background-color: color.adjust($danger-color, $lightness: 45%);
-}
-
-.page-loading {}
-
-.page-error {}
-
-@media (max-width: $breakpoint-sm) {
-    .form-page-container {
-        margin: 1rem auto;
+// Responsive adjustments
+@media (max-width: 767px) {
+    .form-container {
+        padding: 20px;
     }
 
     .form-header {
-        padding: 0.8rem;
+        .title-breadcrumbs {
+            h2 {
+                font-size: 1.5em;
+            }
 
-        .title-breadcrumbs h2 {
-            font-size: 1.25rem;
+            .breadcrumbs {
+                font-size: 0.85em;
+            }
         }
-
-        .breadcrumbs {
-            font-size: 0.8rem;
-        }
-    }
-
-    .form-container {
-        padding: 1rem;
     }
 
     .employee-form {
         .form-footer {
-            flex-direction: column-reverse;
-            align-items: stretch;
+            flex-direction: column-reverse; // Stack buttons vertically
+            gap: 12px;
 
             .btn {
-                width: 100%;
+                width: 100%; // Make buttons full width
             }
+        }
+    }
+}
+
+@media (max-width: 480px) {
+    .form-page-container {
+        padding: 15px;
+    }
+
+    .form-container {
+        padding: 15px;
+    }
+
+    .form-header {
+        margin-bottom: 20px;
+
+        h2 {
+            font-size: 1.3em;
         }
     }
 }
