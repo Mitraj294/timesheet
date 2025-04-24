@@ -157,13 +157,23 @@
 
     .roster-body {
         display: grid;
-        // Adjusted grid template for better flexibility initially
+        // Default 3-column layout when sidebars are potentially visible
         grid-template-columns: minmax(180px, auto) 1fr minmax(180px, auto);
         gap: 1.5rem;
 
+        // Modifier class for when sidebars are hidden
+        &.roster-body--full-width {
+            grid-template-columns: 1fr; // Only one column for the schedule grid
+        }
+
         @media (max-width: 1024px) {
-            // Stack sidebars and main content on medium screens
+            // Stack sidebars and main content on medium screens (already 1 column)
             grid-template-columns: 1fr;
+
+            // Ensure the full-width modifier doesn't conflict if needed, though 1fr is the same
+            &.roster-body--full-width {
+                grid-template-columns: 1fr;
+            }
         }
 
         .roles-sidebar,

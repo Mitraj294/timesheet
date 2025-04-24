@@ -1,150 +1,351 @@
+// --- Base Variables (Consider moving to a global _variables.scss) ---
+$primary-color: #007bff;
+$secondary-color: #6c757d;
+$success-color: #28a745;
+$warning-color: #ffc107;
+$danger-color: #dc3545;
+$light-grey: #f8f9fa;
+$medium-grey: #e9ecef;
+$dark-grey: #6c757d;
+$text-color: #333;
+$border-color: #dee2e6;
+$border-radius: 5px; // Consistent border radius
+$box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05); // Subtle shadow
+
+// --- Employees Container ---
 .employees-container {
-    padding: 20px;
+    padding: clamp(1rem, 2vw, 1.5rem); // Responsive padding
     max-width: 1200px;
-    margin: auto;
+    margin: 0 auto; // Center container
+    font-family: 'Segoe UI', sans-serif; // Consistent font
+    background-color: #f9f9f9; // Match RosterPage background
+    min-height: calc(100vh - 60px); // Adjust based on actual header height if fixed
+}
 
-    .employees-header {
+// --- Header Section (Consistent with RosterPage) ---
+.employees-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center; // Vertically align items
+    margin-bottom: 1.5rem;
+    flex-wrap: wrap; // Allow wrapping on smaller screens
+    gap: 1rem; // Gap between title/breadcrumbs and button when wrapped
+    padding: 1rem; // Padding inside the header area
+    background-color: #fff; // White background for header card
+    border-radius: $border-radius;
+    box-shadow: $box-shadow;
+
+    .title-breadcrumbs {
         display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 20px;
-        background: #f8f9fa;
-        padding: 15px;
-        border-radius: 8px;
-        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        flex-direction: column;
+        gap: 0.25rem; // Small gap between title and breadcrumbs
 
-        /* Title and Breadcrumb */
-        .title-breadcrumb {
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-        }
-
-        h1 {
-            font-size: 24px;
-            font-weight: bold;
+        h2 {
+            font-size: clamp(1.4rem, 3vw, 1.75rem); // Responsive font size
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 0.6rem;
+            color: $text-color;
             margin: 0;
+            font-weight: 600;
         }
 
-        .breadcrumb {
-            font-size: 14px;
-            color: #6c757d;
-            display: flex;
+        .breadcrumbs {
+            font-size: 0.875rem;
+            color: $dark-grey;
+            display: flex; // Keep breadcrumbs inline
             align-items: center;
-            gap: 5px;
-        }
+            flex-wrap: wrap; // Allow breadcrumbs to wrap if needed
 
-        .breadcrumb-link {
-            text-decoration: none;
-            color: #007bff;
+            .breadcrumb-link {
+                color: $primary-color;
+                text-decoration: none;
+                font-weight: 500;
 
-            &:hover {
-                text-decoration: underline;
+                &:hover {
+                    text-decoration: underline;
+                }
             }
-        }
 
-        /* Add Employee Button */
-        .add-employee-btn {
-            background-color: #007bff;
-            color: white;
-            border: none;
-            padding: 15px;
-            font-size: 16px;
-            cursor: pointer;
-            border-radius: 5px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            height: 60px;
-            /* Matches height of title + breadcrumb */
+            .breadcrumb-separator {
+                margin: 0 0.3rem;
+                color: lighten($dark-grey, 15%);
+            }
 
-            &:hover {
-                background-color: #0056b3;
+            .breadcrumb-current {
+                color: $dark-grey;
             }
         }
     }
 
-    /* Employee Table */
-    .employee-table {
-        width: 100%;
-        border-collapse: collapse;
-        margin-top: 10px;
-        background: #fff;
-        border-radius: 8px;
-        overflow: hidden;
+    // Add Employee Button - Using general button styles
+    .add-employee-btn {
+        // Uses .btn and .btn-primary from global/RosterPage styles
+        // Add any specific overrides if needed, e.g., min-width
+        flex-shrink: 0; // Prevent button from shrinking too much
+    }
+}
 
-        th,
-        td {
-            padding: 12px;
-            border: 1px solid #ddd;
+// --- Loading and Error States ---
+.loading-indicator,
+.error-message {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+    margin-top: 1rem;
+    background-color: #fff;
+    border-radius: $border-radius;
+    box-shadow: $box-shadow;
+    text-align: center;
+    color: $dark-grey;
+
+    p {
+        margin-top: 0.75rem;
+        font-size: 1rem;
+    }
+}
+
+.error-message {
+    color: $danger-color;
+    border: 1px solid lighten($danger-color, 30%);
+    background-color: lighten($danger-color, 45%);
+
+    p {
+        color: darken($danger-color, 10%);
+    }
+
+    .btn-secondary {
+        // Style for retry button
+        margin-top: 1rem;
+        background-color: $secondary-color;
+        color: #fff;
+
+        &:hover {
+            background-color: darken($secondary-color, 10%);
+        }
+    }
+}
+
+
+// --- Employee Table Wrapper (for horizontal scroll) ---
+.employee-table-wrapper {
+    width: 100%;
+    overflow-x: auto; // Enable horizontal scroll on smaller screens
+    background-color: #fff;
+    border-radius: $border-radius;
+    box-shadow: $box-shadow;
+    -webkit-overflow-scrolling: touch; // Smooth scrolling on iOS
+}
+
+// --- Employee Table ---
+.employee-table {
+    width: 100%;
+    border-collapse: collapse;
+    min-width: 800px; // Minimum width before scrollbar appears (adjust as needed)
+
+    th,
+    td {
+        padding: 0.8rem 1rem; // Consistent padding
+        border: 1px solid $border-color;
+        text-align: left; // Align text left for readability
+        font-size: 0.95rem;
+        vertical-align: middle; // Align content vertically
+    }
+
+    th {
+        background-color: $light-grey;
+        font-weight: 600; // Slightly bolder headers
+        color: darken($dark-grey, 10%);
+        white-space: nowrap; // Prevent headers from wrapping
+    }
+
+    tbody tr {
+        transition: background-color 0.2s ease;
+
+        &:nth-child(even) {
+            background-color: lighten($light-grey, 2%);
+        }
+
+        &:hover {
+            background-color: $medium-grey; // Subtle hover effect
+        }
+    }
+
+    td {
+        color: $text-color;
+
+        &.no-data-cell {
             text-align: center;
+            color: $dark-grey;
+            font-style: italic;
+            padding: 1.5rem;
         }
+    }
 
-        th {
-            background-color: #f4f4f4;
-            font-weight: bold;
-        }
+    // Actions Column Styles
+    .employee-actions {
+        text-align: center; // Center icons within the cell
+        white-space: nowrap; // Prevent action buttons from wrapping
 
-        tr:nth-child(even) {
-            background-color: #f9f9f9;
-        }
-
-        .edit-btn,
-        .delete-btn {
-            padding: 8px 12px;
+        // Use general icon button styles
+        .btn-icon {
+            background: none;
             border: none;
+            padding: 0.4rem 0.6rem; // Padding around the icon
             cursor: pointer;
-            border-radius: 5px;
-            font-size: 14px;
-            display: inline-flex;
-            align-items: center;
-            gap: 5px;
-        }
-
-        .edit-btn {
-            background-color: #ffc107;
-            color: white;
+            border-radius: $border-radius;
+            font-size: 1.1rem; // Icon size
+            line-height: 1;
+            margin: 0 0.2rem; // Small space between icons
+            transition: background-color 0.2s ease, color 0.2s ease;
+            vertical-align: middle; // Align icons properly if text were present
 
             &:hover {
-                background-color: #e0a800;
+                background-color: $medium-grey; // Subtle background on hover
             }
-        }
 
-        .delete-btn {
-            background-color: #dc3545;
-            color: white;
-            margin-left: 5px;
+            // Specific colors for actions
+            &.btn-icon-yellow {
+                color: darken($warning-color, 15%);
 
-            &:hover {
-                background-color: #c82333;
+                &:hover {
+                    color: darken($warning-color, 25%);
+                }
+            }
+
+            &.btn-icon-red {
+                color: $danger-color;
+
+                &:hover {
+                    color: darken($danger-color, 15%);
+                }
             }
         }
     }
 }
 
-/* Responsive Design */
+// --- Responsive Adjustments ---
+
+// Medium Screens (Tablets) - Header might wrap, table might scroll
 @media (max-width: 768px) {
     .employees-header {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 10px;
-    }
-
-    .breadcrumb {
-        justify-content: flex-start;
+        // flex-direction: column; // Already handled by flex-wrap
+        // align-items: flex-start; // Already handled by flex-wrap
+        padding: 0.8rem; // Slightly reduce header padding
     }
 
     .employee-table {
-        overflow-x: auto;
-        display: block;
 
         th,
         td {
-            font-size: 14px;
-            padding: 8px;
+            padding: 0.6rem 0.8rem; // Reduce cell padding
+            font-size: 0.9rem; // Slightly smaller font
+        }
+
+        // min-width might be adjusted here if needed, but overflow handles it
+    }
+}
+
+// Small Screens (Mobiles) - Header definitely wraps, table scrolls
+@media (max-width: 576px) {
+    .employees-container {
+        padding: 0.5rem; // Reduce container padding
+    }
+
+    .employees-header {
+        .title-breadcrumbs h2 {
+            font-size: 1.25rem; // Smaller title
+        }
+
+        .breadcrumbs {
+            font-size: 0.8rem; // Smaller breadcrumbs
+        }
+
+        .add-employee-btn {
+            width: 100%; // Make button full width if it wraps to its own line
+            justify-content: center; // Center button text/icon
+            margin-top: 0.5rem; // Add space if button wraps below title
+        }
+    }
+
+    .employee-table {
+        // Optional: Implement card-like display for mobile if table scroll isn't desired
+        // This requires significant changes to the JS rendering logic as well.
+        // For now, we rely on horizontal scroll via .employee-table-wrapper.
+
+        th,
+        td {
+            padding: 0.5rem 0.6rem; // Further reduce padding
+            font-size: 0.85rem; // Further reduce font size
+        }
+
+        // Hide less critical columns on very small screens if needed
+        // Example:
+        // th:nth-child(4), td:nth-child(4), // Hide Admin
+        // th:nth-child(5), td:nth-child(5) { // Hide Overtime
+        //   display: none;
+        // }
+
+        .employee-actions .btn-icon {
+            font-size: 1rem; // Slightly smaller icons
+            padding: 0.3rem 0.5rem;
         }
     }
 }
+
+// --- General Button Styles (Assume these might exist globally or in RosterPage.scss) ---
+// --- If not, define them here or import from a shared file ---
+.btn {
+    padding: 0.6rem 1.2rem;
+    border: none;
+    border-radius: $border-radius;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease, opacity 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    white-space: nowrap;
+    font-size: 1rem;
+    line-height: 1.5; // Ensure consistent line height
+
+    &:disabled {
+        opacity: 0.65;
+        cursor: not-allowed;
+    }
+
+    svg {
+        // margin-right: 0.4rem; // Handled by gap
+    }
+}
+
+.btn-primary {
+    background-color: $primary-color;
+    color: #fff;
+
+    &:hover:not(:disabled) {
+        background-color: darken($primary-color, 10%);
+    }
+
+    &:disabled {
+        background-color: lighten($primary-color, 20%);
+    }
+}
+
+.btn-secondary {
+    background-color: $secondary-color;
+    color: #fff;
+
+    &:hover:not(:disabled) {
+        background-color: darken($secondary-color, 10%);
+    }
+
+    &:disabled {
+        background-color: lighten($secondary-color, 20%);
+    }
+}
+
+// Add other button color variations (.btn-green, .btn-red, etc.) if needed globally

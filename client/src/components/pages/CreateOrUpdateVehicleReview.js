@@ -1,12 +1,24 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, Link } from 'react-router-dom';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import {
+  faCar,
+  faClipboardList,
+  faSpinner,
+  faExclamationCircle,
+  faSave,
+  faEdit,
+} from '@fortawesome/free-solid-svg-icons';
+import '../../styles/CreateVehicleReview.scss';
 
-const API_URL = process.env.REACT_APP_API_URL || 'https://timesheet-c4mj.onrender.com/api';
+const API_URL =
+  process.env.REACT_APP_API_URL || 'https://timesheet-c4mj.onrender.com/api';
 
 const CreateOrUpdateVehicleReview = () => {
   const { vehicleId, reviewId } = useParams();
   const navigate = useNavigate();
+  const isEditMode = Boolean(reviewId);
 
   const [formData, setFormData] = useState({
     dateReviewed: '',
@@ -20,181 +32,349 @@ const CreateOrUpdateVehicleReview = () => {
 
   const [employees, setEmployees] = useState([]);
   const [vehicle, setVehicle] = useState(null);
-
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
-    // Fetch vehicle data
-    axios
-      .get(`${API_URL}/vehicles/${vehicleId}`)
-      .then((response) => setVehicle(response.data))
-      .catch((error) => console.error('Error fetching vehicle:', error));
-  
-    // Fetch employees
-    axios
-      .get(`${API_URL}/employees`, {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem('token')}`,
-        },
-      })
-      .then((response) => setEmployees(response.data))
-      .catch((error) => console.error('Error fetching employees:', error));
-  
-    // Fetch existing review if editing
-    if (reviewId) {
-      console.log('Fetching review with ID:', reviewId);
-      axios
-        .get(`${API_URL}/vehicles/reviews/${reviewId}`, {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem('token')}`,
-          },
-        })
-        .then((response) => {
-          console.log('Review fetched:', response.data);
-          setFormData(response.data);
-        })
-        .catch((error) => {
-          console.error('Error fetching review:', error);
-          alert('Review not found');
-        });
-    }
-  
-  }, [vehicleId, reviewId]);
+    const fetchData = async () => {
+      setIsLoading(true);
+      setError(null);
+      const token = localStorage.getItem('token');
+      if (!token) {
+        setError('Authentication required.');
+        setIsLoading(false);
+        navigate('/login');
+        return;
+      }
+      const config = { headers: { Authorization: `Bearer ${token}` } };
+
+      try {
+        const vehiclePromise = axios.get(`${API_URL}/vehicles/${vehicleId}`, config);
+        const employeesPromise = axios.get(`${API_URL}/employees`, config);
+        const reviewPromise = reviewId
+          ? axios.get(`${API_URL}/vehicles/reviews/${reviewId}`, config)
+          : Promise.resolve(null);
+
+        const [vehicleRes, employeesRes, reviewRes] = await Promise.all([
+          vehiclePromise,
+          employeesPromise,
+          reviewPromise,
+        ]);
+
+        setVehicle(vehicleRes.data);
+        setEmployees(employeesRes.data || []);
+
+        if (reviewId && reviewRes?.data) {
+          const reviewData = reviewRes.data;
+          setFormData({
+            dateReviewed: reviewData.dateReviewed?.split('T')[0] || '',
+            employeeId: reviewData.employeeId?._id || reviewData.employeeId || '',
+            oilChecked: reviewData.oilChecked || false,
+            vehicleChecked: reviewData.vehicleChecked || false,
+            vehicleBroken: reviewData.vehicleBroken || false,
+            hours: reviewData.hours?.toString() || '',
+            notes: reviewData.notes || '',
+          });
+        } else if (!reviewId) {
+          setFormData({
+            dateReviewed: new Date().toISOString().split('T')[0],
+            employeeId: '',
+            oilChecked: false,
+            vehicleChecked: false,
+            vehicleBroken: false,
+            hours: vehicle?.hours?.toString() || '',
+            notes: '',
+          });
+        }
+      } catch (err) {
+        console.error('Error fetching data:', err);
+        setError(err.response?.data?.message || 'Failed to load required data.');
+        if (err.response?.status === 401) {
+          navigate('/login');
+        }
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [vehicleId, reviewId, navigate]);
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
-    setFormData({
-      ...formData,
+    setFormData((prev) => ({
+      ...prev,
       [name]: type === 'checkbox' ? checked : value,
-    });
+    }));
   };
 
-  const handleSubmit = (e) => {
+  const validateForm = () => {
+    if (!formData.dateReviewed) return 'Date Reviewed is required.';
+    if (!formData.employeeId) return 'Employee is required.';
+    if (
+      formData.hours === '' ||
+      isNaN(parseFloat(formData.hours)) ||
+      parseFloat(formData.hours) < 0
+    )
+      return 'Valid Hours are required.';
+    return null;
+  };
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    setError(null);
+
+    const validationError = validateForm();
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
+
+    setIsLoading(true);
     const token = localStorage.getItem('token');
-  
-    const config = {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    };
-  
+    if (!token) {
+      setError('Authentication required.');
+      setIsLoading(false);
+      navigate('/login');
+      return;
+    }
+
+    const config = { headers: { Authorization: `Bearer ${token}` } };
     const payload = {
       ...formData,
       vehicle: vehicleId,
+      hours: parseFloat(formData.hours),
     };
-  
-    const request = reviewId
-      ? axios.put(`${API_URL}/vehicles/reviews/${reviewId}`, payload, config)
-      : axios.post(`${API_URL}/vehicles/reviews`, payload, config);
-  
-    request
-      .then((response) => {
-        console.log('Review submitted successfully:', response.data);
-        navigate(`/vehicles/view/${vehicleId}`);
-      })
-      .catch((error) => {
-        console.error('Error submitting review:', error);
-        alert('Error submitting review');
-      });
+
+    try {
+      if (reviewId) {
+        await axios.put(
+          `${API_URL}/vehicles/reviews/${reviewId}`,
+          payload,
+          config
+        );
+      } else {
+        await axios.post(`${API_URL}/vehicles/reviews`, payload, config);
+      }
+      navigate(`/vehicles/view/${vehicleId}`);
+    } catch (err) {
+      console.error('Error submitting review:', err);
+      setError(
+        err.response?.data?.message || 'Failed to submit review.'
+      );
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
-    <div className="main-content authenticated">
-      <div className="alert-wrapper"></div>
-      <div className="vehicles-page">
-        <div className="vehicles-header">
-          <h4>{reviewId ? 'Edit' : 'Create'} Vehicle Review</h4>
-          <div className="breadcrumbs">
-            <a href="/dashboard">Dashboard</a> / <a href="/vehicles">Vehicles</a> /{' '}
-            <a href={`/vehicles/view/${vehicleId}`}>View Vehicle</a> /{' '}
-            {reviewId ? 'Edit Review' : 'Create Review'}
+    <div className='vehicle-review-form-page-container'>
+      <div className='vehicle-review-form-header'>
+        <div className='title-breadcrumbs'>
+          <h2>
+            <FontAwesomeIcon icon={faClipboardList} />{' '}
+            {isEditMode ? 'Edit Vehicle Review' : 'Create Vehicle Review'}
+          </h2>
+          <div className='breadcrumbs'>
+            <Link
+              to='/dashboard'
+              className='breadcrumb-link'
+            >
+              Dashboard
+            </Link>
+            <span className='breadcrumb-separator'> / </span>
+            <Link
+              to='/vehicles'
+              className='breadcrumb-link'
+            >
+              Vehicles
+            </Link>
+            <span className='breadcrumb-separator'> / </span>
+            <Link
+              to={`/vehicles/view/${vehicleId}`}
+              className='breadcrumb-link'
+            >
+              {vehicle?.name ?? 'View Vehicle'}
+            </Link>
+            <span className='breadcrumb-separator'> / </span>
+            <span className='breadcrumb-current'>
+              {isEditMode ? 'Edit Review' : 'Create Review'}
+            </span>
           </div>
         </div>
+      </div>
 
-        {vehicle && (
-          <div className="vehicle-details-header">
+      {isLoading && !vehicle && (
+        <div className='loading-indicator page-loading'>
+          <FontAwesomeIcon
+            icon={faSpinner}
+            spin
+            size='2x'
+          />
+          <p>Loading...</p>
+        </div>
+      )}
+
+      {error && !isLoading && (
+        <div className='error-message page-error'>
+          <FontAwesomeIcon icon={faExclamationCircle} />
+          <p>{error}</p>
+        </div>
+      )}
+
+      {!isLoading && vehicle && (
+        <div className='vehicle-review-form-container'>
+          <div className='vehicle-details-header'>
             <h5>
-              {vehicle.name} - WOF/Reg: {vehicle.wofRego}
+              <FontAwesomeIcon icon={faCar} /> {vehicle.name}
+              {vehicle.wofRego && ` (WOF/Reg: ${vehicle.wofRego})`}
             </h5>
           </div>
-        )}
 
-        <form className="review-form" onSubmit={handleSubmit}>
-          <label>
-            Date Reviewed:
-            <input
-              required
-              type="date"
-              name="dateReviewed"
-              value={formData.dateReviewed?.split('T')[0] || ''}
-              onChange={handleChange}
-            />
-          </label>
+          <form
+            onSubmit={handleSubmit}
+            className='vehicle-review-form'
+            noValidate
+          >
+            {error && (
+              <div className='form-error-message'>
+                <FontAwesomeIcon icon={faExclamationCircle} /> {error}
+              </div>
+            )}
 
-          <label>
-            Employee:
-            <select name="employeeId" required value={formData.employeeId} onChange={handleChange}>
-              <option value="">-- Select Employee --</option>
-              {employees.map((employee) => (
-                <option key={employee._id} value={employee._id}>
-                  {employee.name}
-                </option>
-              ))}
-            </select>
-          </label>
+            <div className='form-group'>
+              <label htmlFor='dateReviewed'>Date Reviewed*</label>
+              <input
+                id='dateReviewed'
+                required
+                type='date'
+                name='dateReviewed'
+                value={formData.dateReviewed}
+                onChange={handleChange}
+                disabled={isLoading}
+              />
+            </div>
 
-          <label>
-            Oil Checked:
-            <input
-              type="checkbox"
-              name="oilChecked"
-              checked={formData.oilChecked}
-              onChange={handleChange}
-            />
-          </label>
+            <div className='form-group'>
+              <label htmlFor='employeeId'>Employee*</label>
+              <select
+                id='employeeId'
+                name='employeeId'
+                required
+                value={formData.employeeId}
+                onChange={handleChange}
+                disabled={isLoading}
+              >
+                <option value=''>-- Select Employee --</option>
+                {employees.map((employee) => (
+                  <option
+                    key={employee._id}
+                    value={employee._id}
+                  >
+                    {employee.name}
+                  </option>
+                ))}
+              </select>
+            </div>
 
-          <label>
-            Vehicle Checked:
-            <input
-              type="checkbox"
-              name="vehicleChecked"
-              checked={formData.vehicleChecked}
-              onChange={handleChange}
-            />
-          </label>
+            <div className='form-group'>
+              <label htmlFor='hours'>Hours*</label>
+              <input
+                id='hours'
+                min='0'
+                step='any'
+                type='number'
+                name='hours'
+                value={formData.hours}
+                onChange={handleChange}
+                required
+                disabled={isLoading}
+                placeholder='Hours'
+              />
+            </div>
 
-          <label>
-            Vehicle Broken:
-            <input
-              type="checkbox"
-              name="vehicleBroken"
-              checked={formData.vehicleBroken}
-              onChange={handleChange}
-            />
-          </label>
+            <div className='form-group form-group-checkbox'>
+              <input
+                id='oilChecked'
+                type='checkbox'
+                name='oilChecked'
+                checked={formData.oilChecked}
+                onChange={handleChange}
+                disabled={isLoading}
+              />
+              <label htmlFor='oilChecked'>Oil Checked</label>
+            </div>
 
-          <label>
-            Hours:
-            <input
-              min="0"
-              step="0.1"
-              type="number"
-              name="hours"
-              value={formData.hours}
-              onChange={handleChange}
-            />
-          </label>
+            <div className='form-group form-group-checkbox'>
+              <input
+                id='vehicleChecked'
+                type='checkbox'
+                name='vehicleChecked'
+                checked={formData.vehicleChecked}
+                onChange={handleChange}
+                disabled={isLoading}
+              />
+              <label htmlFor='vehicleChecked'>Vehicle Checked</label>
+            </div>
 
-          <label>
-            Notes:
-            <textarea name="notes" value={formData.notes} onChange={handleChange}></textarea>
-          </label>
+            <div className='form-group form-group-checkbox'>
+              <input
+                id='vehicleBroken'
+                type='checkbox'
+                name='vehicleBroken'
+                checked={formData.vehicleBroken}
+                onChange={handleChange}
+                disabled={isLoading}
+              />
+              <label htmlFor='vehicleBroken'>Vehicle Broken/Issues?</label>
+            </div>
 
-          <button type="submit" className="btn btn-purple">
-            {reviewId ? 'Update Review' : 'Submit Review'}
-          </button>
-        </form>
-      </div>
+            <div className='form-group'>
+              <label htmlFor='notes'>Notes</label>
+              <textarea
+                id='notes'
+                name='notes'
+                value={formData.notes}
+                onChange={handleChange}
+                rows='4'
+                disabled={isLoading}
+                placeholder='Add any relevant notes about the vehicle check...'
+              ></textarea>
+            </div>
+
+            <div className='form-footer'>
+              <button
+                type='button'
+                className='btn btn-danger'
+                onClick={() => navigate(`/vehicles/view/${vehicleId}`)}
+                disabled={isLoading}
+              >
+                Cancel
+              </button>
+              <button
+                type='submit'
+                className='btn btn-primary'
+                disabled={isLoading}
+              >
+                {isLoading ? (
+                  <>
+                    <FontAwesomeIcon
+                      icon={faSpinner}
+                      spin
+                    />{' '}
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    <FontAwesomeIcon icon={isEditMode ? faEdit : faSave} />
+                    {isEditMode ? 'Update Review' : 'Submit Review'}
+                  </>
+                )}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
     </div>
   );
 };

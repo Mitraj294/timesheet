@@ -41,7 +41,7 @@ const Sidebar = () => {
     { path: "/rosterpage", icon: faCalendar, label: "Rosters" },
     { path: "/clients", icon: faUsers, label: "Clients" },
     { path: "/employees", icon: faIdCard, label: "Employees" },
-    { path: "/tabletview", icon: faTabletAlt, label: "Tablet View" },
+   // { path: "/tabletview", icon: faTabletAlt, label: "Tablet View" },
     { path: "/vehicles", icon: faCar, label: "Vehicles" },
   ];
 

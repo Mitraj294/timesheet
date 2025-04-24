@@ -1,933 +1,515 @@
-// Vehicles.scss
+@use 'sass:color';
 
-.vehicles-page {
-    padding: 2rem;
-    font-family: 'Inter', sans-serif;
-    background-color: #fafbfc;
-    color: #333;
-    min-height: 100vh;
+$primary-color: #007bff;
+$secondary-color: #6c757d;
+$success-color: #28a745;
+$warning-color: #ffc107;
+$danger-color: #dc3545;
+$info-color: #17a2b8;
+$purple-color: #8b5cf6;
+$light-grey: #f8f9fa;
+$medium-grey: #e9ecef;
+$dark-grey: #6c757d;
+$text-color: #333;
+$border-color: #dee2e6;
+$border-radius: 5px;
+$box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+$font-family: 'Segoe UI', sans-serif;
 
-    h4 {
-        font-size: 1.8rem;
-        font-weight: 600;
-        margin-bottom: 0.5rem;
-    }
+$breakpoint-md: 768px;
+$breakpoint-sm: 576px;
 
-    .breadcrumbs {
-        font-size: 0.95rem;
-        color: #666;
-        margin-bottom: 1.5rem;
 
-        a {
-            color: #4a90e2;
-            text-decoration: none;
-            font-weight: 500;
+.btn {
+    padding: 0.6rem 1.2rem;
+    border: none;
+    border-radius: $border-radius;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease, opacity 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    white-space: nowrap;
+    font-size: 1rem;
+    line-height: 1.5;
+    font-family: $font-family;
+    text-decoration: none;
 
-            &:hover {
-                text-decoration: underline;
-            }
-        }
-    }
-
-    .vehicles-actions {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 1rem;
-        margin-bottom: 2rem;
-
-        .btn {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            padding: 0.6rem 1.2rem;
-            border: none;
-            border-radius: 8px;
-            font-size: 0.95rem;
-            font-weight: 500;
-            cursor: pointer;
-            transition: background-color 0.3s ease;
-
-            &-green {
-                background-color: #10b981;
-                color: #fff;
-
-                &:hover {
-                    background-color: #0f9b75;
-                }
-            }
-
-            &-purple {
-                background-color: #8b5cf6;
-                color: #fff;
-
-                &:hover {
-                    background-color: #7a4ceb;
-                }
-            }
-
-            &-primary {
-                background-color: #6b4eff;
-                color: #fff;
-
-                &:hover {
-                    background-color: #5a3ee5;
-                }
-            }
-
-            &-danger {
-                background-color: #ef4444;
-                color: #fff;
-
-                &:hover {
-                    background-color: #dc2626;
-                }
-            }
-        }
-    }
-
-    .send-report-container,
-    .download-date-range {
-        background: #fff;
-        border: 1px solid #e0e0e0;
-        border-radius: 12px;
-        padding: 1.5rem;
-        margin-bottom: 1.5rem;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-
-        .date-picker-range {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 1rem;
-            margin-bottom: 1rem;
-
-            .react-datepicker-wrapper,
-            input {
-                flex: 1;
-                min-width: 140px;
-
-                input {
-                    width: 100%;
-                    padding: 0.7rem 1rem;
-                    border: 1px solid #ccc;
-                    border-radius: 8px;
-                    font-size: 1rem;
-                    transition: border-color 0.3s;
-
-                    &:focus {
-                        border-color: #7b61ff;
-                        outline: none;
-                    }
-                }
-            }
-        }
-
-        .send-report-email {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 1rem;
-            align-items: center;
-
-            input {
-                flex: 1;
-                padding: 0.75rem 1rem;
-                border: 1px solid #ccc;
-                border-radius: 8px;
-                font-size: 1rem;
-                transition: border-color 0.3s;
-
-                &:focus {
-                    border-color: #7b61ff;
-                    outline: none;
-                }
-            }
-
-            .btn-purple {
-                padding: 0.75rem 1.25rem;
-                background-color: #8b5cf6;
-                color: #fff;
-                border: none;
-                border-radius: 8px;
-                cursor: pointer;
-                display: flex;
-                align-items: center;
-                gap: 0.5rem;
-                transition: background-color 0.3s;
-
-                &:hover {
-                    background-color: #7a4ceb;
-                }
-
-                &:disabled {
-                    background-color: #c8b5f9;
-                    cursor: not-allowed;
-                }
-            }
-        }
-
-        .btn-primary {
-            padding: 0.75rem 1.25rem;
-            background-color: #3498db;
-            color: #fff;
-            border: none;
-            border-radius: 8px;
-            cursor: pointer;
-            display: inline-flex;
-            align-items: center;
-            gap: 0.5rem;
-            transition: background-color 0.3s;
-
-            &:hover {
-                background-color: #2d83c0;
-            }
-        }
-
-        p {
-            margin-top: 0.75rem;
-            font-size: 0.95rem;
-            color: #555;
-        }
-    }
-
-    .vehicles-search {
-        position: relative;
-        max-width: 320px;
-        margin-bottom: 1.5rem;
-
-        input {
-            width: 100%;
-            padding: 0.7rem 1rem;
-            padding-left: 2.5rem;
-            border: 1px solid #ccc;
-            border-radius: 8px;
-            font-size: 1rem;
-
-            &:focus {
-                outline: none;
-                border-color: #7b61ff;
-            }
-        }
-
-        .search-icon {
-            position: absolute;
-            left: 0.8rem;
-            top: 50%;
-            transform: translateY(-50%);
-            color: #888;
-            font-size: 1.2rem;
-        }
-    }
-
-    .vehicles-grid {
-        overflow-x: auto;
-        margin-bottom: 2rem;
-        border: 1px solid #e0e0e0;
-        border-radius: 12px;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-
-        .vehicles-row {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-            gap: 0.5rem;
-            align-items: center;
-            padding: 0.75rem 1rem;
-            background: #fff;
-            border-bottom: 1px solid #e5e7eb;
-
-            &.header {
-                background-color: #4a90e2;
-                color: #fff;
-                font-weight: 600;
-            }
-
-            &:nth-child(even):not(.header) {
-                background-color: #f9fafb;
-            }
-
-            &:last-child {
-                border-bottom: none;
-            }
-
-            div {
-                font-size: 0.95rem;
-            }
-
-            .action-buttons {
-                display: flex;
-                gap: 0.5rem;
-
-                button {
-                    background: none;
-                    border: none;
-                    cursor: pointer;
-                    padding: 0.3rem;
-                    font-size: 1rem;
-
-                    &.btn-icon {
-                        border-radius: 6px;
-                        padding: 0.4rem;
-                    }
-
-                    &:hover {
-                        opacity: 0.8;
-                    }
-                }
-
-                .eye-icon {
-                    color: #22c55e;
-                }
-
-                .edit-icon {
-                    color: #6366f1;
-                }
-
-                .btn-danger {
-                    color: #ef4444;
-                }
-            }
-        }
-
-        .no-reviews-message {
-            text-align: center;
-            padding: 1.5rem;
-            color: #666;
-            font-size: 1rem;
-        }
-    }
-
-    @media (max-width: 768px) {
-
-        .vehicles-header,
-        .vehicles-actions {
-            flex-direction: column;
-            align-items: flex-start;
-            gap: 0.75rem;
-        }
-
-        .vehicles-actions .btn {
-            width: 100%;
-        }
-
-        .send-report-container,
-        .download-date-range {
-
-            .date-picker-range,
-            .send-report-email {
-                flex-direction: column;
-            }
-
-            .btn-primary,
-            .send-report-email .btn-purple {
-                width: 100%;
-            }
-        }
-
-        .vehicles-grid .vehicles-row {
-            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-        }
+    &:disabled {
+        opacity: 0.65;
+        cursor: not-allowed;
     }
 }
 
+.vehicles-page {
+    padding: clamp(1rem, 2vw, 1.5rem);
+    max-width: 1200px;
+    margin: 0 auto;
+    font-family: $font-family;
+    background-color: $light-grey;
+    min-height: calc(100vh - 60px);
+}
 
-// ViewVehicle.scss
+.vehicles-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+    flex-wrap: wrap;
+    gap: 1rem;
+    padding: 1rem;
+    background-color: #fff;
+    border-radius: $border-radius;
+    box-shadow: $box-shadow;
 
-.vehicles-page.view-vehicle {
-    padding: 2rem;
-    font-family: 'Inter', sans-serif;
-    background-color: #fafbfc;
-    color: #333;
-    min-height: 100vh;
-
-    .vehicles-header {
+    .title-breadcrumbs {
         display: flex;
         flex-direction: column;
         gap: 0.25rem;
-        margin-bottom: 1.5rem;
+        flex-grow: 1;
 
-        h4 {
-            font-size: 1.8rem;
-            font-weight: 700;
+        h2 {
+            font-size: clamp(1.4rem, 3vw, 1.75rem);
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+            color: $text-color;
             margin: 0;
+            font-weight: 600;
         }
 
         .breadcrumbs {
+            font-size: 0.875rem;
+            color: $dark-grey;
             display: flex;
+            align-items: center;
             flex-wrap: wrap;
-            font-size: 0.95rem;
-            color: #666;
-            gap: 0.5rem;
-            margin-top: 0.25rem;
 
-            a {
-                color: #4a90e2;
+            .breadcrumb-link {
+                color: $primary-color;
                 text-decoration: none;
                 font-weight: 500;
+                white-space: nowrap;
 
                 &:hover {
                     text-decoration: underline;
                 }
             }
 
-            span {
-                font-weight: 600;
-            }
-        }
-    }
-
-    .vehicles-actions {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 1rem;
-        margin-bottom: 1.5rem;
-
-        .btn {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            padding: 0.6rem 1.2rem;
-            border: none;
-            border-radius: 8px;
-            font-size: 0.95rem;
-            font-weight: 500;
-            cursor: pointer;
-            transition: background-color 0.3s ease;
-
-            &-green {
-                background-color: #10b981;
-                color: #fff;
-
-                &:hover {
-                    background-color: #0f9b75;
-                }
+            .breadcrumb-separator {
+                margin: 0 0.3rem;
+                color: color.adjust($dark-grey, $lightness: 15%);
+                white-space: nowrap;
             }
 
-            &-purple {
-                background-color: #8b5cf6;
-                color: #fff;
-
-                &:hover {
-                    background-color: #7a4ceb;
-                }
+            .breadcrumb-current {
+                color: $dark-grey;
+                white-space: nowrap;
             }
-
-            &-primary {
-                background-color: #6b4eff;
-                color: #fff;
-
-                &:hover {
-                    background-color: #5a3ee5;
-                }
-            }
-
-            &-danger {
-                background-color: #ef4444;
-                color: #fff;
-
-                &:hover {
-                    background-color: #dc2626;
-                }
-            }
-        }
-    }
-
-    .send-report-container,
-    .download-date-range {
-        background: #fff;
-        border: 1px solid #e0e0e0;
-        border-radius: 12px;
-        padding: 1.5rem;
-        margin-bottom: 1.5rem;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-
-        .date-picker-range {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 1rem;
-            margin-bottom: 1rem;
-
-            .react-datepicker-wrapper,
-            input {
-                flex: 1;
-                min-width: 140px;
-
-                input {
-                    width: 100%;
-                    padding: 0.7rem 1rem;
-                    border: 1px solid #ccc;
-                    border-radius: 8px;
-                    font-size: 1rem;
-                    transition: border-color 0.3s;
-
-                    &:focus {
-                        border-color: #7b61ff;
-                        outline: none;
-                    }
-                }
-            }
-        }
-
-        .send-report-email {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 1rem;
-            align-items: center;
-
-            input {
-                flex: 1;
-                padding: 0.75rem 1rem;
-                border: 1px solid #ccc;
-                border-radius: 8px;
-                font-size: 1rem;
-                transition: border-color 0.3s;
-
-                &:focus {
-                    border-color: #7b61ff;
-                    outline: none;
-                }
-            }
-
-            .btn-purple {
-                padding: 0.75rem 1.25rem;
-                background-color: #8b5cf6;
-                color: #fff;
-                border: none;
-                border-radius: 8px;
-                cursor: pointer;
-                display: flex;
-                align-items: center;
-                gap: 0.5rem;
-                transition: background-color 0.3s;
-
-                &:hover {
-                    background-color: #7a4ceb;
-                }
-
-                &:disabled {
-                    background-color: #c8b5f9;
-                    cursor: not-allowed;
-                }
-            }
-        }
-    }
-
-    .vehicle-name-section {
-        margin: 2rem 0 1.5rem;
-
-        .vehicle-name-heading {
-            font-size: 2rem;
-            font-weight: 700;
-            color: #222;
-            margin: 0;
-        }
-    }
-
-    .vehicles-search {
-        position: relative;
-        max-width: 320px;
-        margin-bottom: 1.5rem;
-
-        input {
-            width: 100%;
-            padding: 0.7rem 1rem;
-            padding-left: 2.5rem;
-            border: 1px solid #ccc;
-            border-radius: 8px;
-            font-size: 1rem;
-
-            &:focus {
-                outline: none;
-                border-color: #7b61ff;
-            }
-        }
-
-        .search-icon {
-            position: absolute;
-            left: 0.8rem;
-            top: 50%;
-            transform: translateY(-50%);
-            color: #888;
-            font-size: 1.2rem;
-        }
-    }
-
-    .vehicles-grid {
-        overflow-x: auto;
-        margin-bottom: 2rem;
-        border: 1px solid #e0e0e0;
-        border-radius: 12px;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-
-        .vehicles-row {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-            gap: 0.5rem;
-            align-items: center;
-            padding: 0.75rem 1rem;
-            background: #fff;
-            border-bottom: 1px solid #e5e7eb;
-
-            &.header {
-                background-color: #4a90e2;
-                color: #fff;
-                font-weight: 600;
-            }
-
-            &:nth-child(even):not(.header) {
-                background-color: #f9fafb;
-            }
-
-            &:last-child {
-                border-bottom: none;
-            }
-
-            div {
-                font-size: 0.95rem;
-            }
-
-            .action-buttons {
-                display: flex;
-                gap: 0.5rem;
-
-                button {
-                    background: none;
-                    border: none;
-                    cursor: pointer;
-                    padding: 0.3rem;
-                    font-size: 1rem;
-
-                    &.btn-icon {
-                        border-radius: 6px;
-                        padding: 0.4rem;
-                    }
-
-                    &:hover {
-                        opacity: 0.8;
-                    }
-                }
-
-                .eye-icon {
-                    color: #22c55e;
-                }
-
-                .edit-icon {
-                    color: #6366f1;
-                }
-
-                .btn-danger {
-                    color: #ef4444;
-                }
-            }
-        }
-
-        .no-reviews-message {
-            text-align: center;
-            padding: 1.5rem;
-            color: #666;
-            font-size: 1rem;
-        }
-    }
-
-    @media (max-width: 768px) {
-
-        .vehicles-header,
-        .vehicles-actions {
-            flex-direction: column;
-            align-items: flex-start;
-            gap: 0.75rem;
-        }
-
-        .vehicles-actions .btn {
-            width: 100%;
-        }
-
-        .send-report-container,
-        .download-date-range {
-
-            .date-picker-range,
-            .send-report-email {
-                flex-direction: column;
-            }
-
-            .btn-primary,
-            .send-report-email .btn-purple {
-                width: 100%;
-            }
-        }
-
-        .vehicles-grid .vehicles-row {
-            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
         }
     }
 }
 
+.vehicles-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    margin-bottom: 1.5rem;
 
-// ViewReview.scss
+    .btn,
+    a.btn {
+        text-decoration: none;
 
-.vehicles-page.view-review {
+    }
+
+    a.btn.btn-primary {
+        background-color: $success-color;
+        border-color: $success-color;
+
+        &:hover:not(:disabled) {
+            background-color: color.adjust($success-color, $lightness: -10%);
+        }
+    }
+
+    .btn-send-report {
+        background-color: $purple-color;
+        color: #fff;
+
+        &:hover:not(:disabled) {
+            background-color: color.adjust($purple-color, $lightness: -10%);
+        }
+    }
+
+    .btn-download-report {
+        background-color: $danger-color;
+        color: #fff;
+
+        &:hover:not(:disabled) {
+            background-color: color.adjust($danger-color, $lightness: -10%);
+        }
+    }
+}
+
+.report-options-container {
+    background-color: #fff;
+    padding: 1.5rem;
+    border-radius: $border-radius;
+    box-shadow: $box-shadow;
+    margin-bottom: 1.5rem;
+    border: 1px solid $border-color;
+
+    h4 {
+        margin-top: 0;
+        margin-bottom: 1rem;
+        font-weight: 600;
+        color: $text-color;
+        border-bottom: 1px solid $border-color;
+        padding-bottom: 0.5rem;
+    }
+
+    .date-picker-range {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 1rem;
+        margin-bottom: 1rem;
+
+        .date-picker-wrapper {
+            flex-grow: 1;
+            min-width: 180px;
+        }
+
+        .date-input {
+            width: 100%;
+            padding: 0.6rem 0.8rem;
+            font-size: 1rem;
+            border: 1px solid $border-color;
+            border-radius: 4px;
+            box-sizing: border-box;
+            font-family: $font-family;
+
+            &:focus {
+                border-color: $primary-color;
+                box-shadow: 0 0 0 3px rgba($primary-color, 0.25);
+            }
+        }
+    }
+
+    .send-report-email {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 1rem;
+        align-items: center;
+
+        input[type="email"] {
+            flex-grow: 1;
+            padding: 0.6rem 0.8rem;
+            font-size: 1rem;
+            border: 1px solid $border-color;
+            border-radius: 4px;
+            min-width: 200px;
+            font-family: $font-family;
+
+            &:focus {
+                border-color: $primary-color;
+                box-shadow: 0 0 0 3px rgba($primary-color, 0.25);
+            }
+        }
+    }
+
+    .error-text {
+        color: color.adjust($danger-color, $lightness: -10%);
+        font-size: 0.9rem;
+        margin-bottom: 1rem;
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+    }
+
+    .btn-send-report {
+        background-color: $purple-color;
+        color: #fff;
+
+        &:hover:not(:disabled) {
+            background-color: color.adjust($purple-color, $lightness: -10%);
+        }
+    }
+
+    .btn-download-report {
+        background-color: $danger-color;
+        color: #fff;
+
+        &:hover:not(:disabled) {
+            background-color: color.adjust($danger-color, $lightness: -10%);
+        }
+    }
+}
+
+.vehicles-search {
+    position: relative;
+    margin-bottom: 1.5rem;
+
+    input[type="text"] {
+        width: 100%;
+        padding: 0.7rem 1rem 0.7rem 2.5rem;
+        font-size: 1rem;
+        border: 1px solid $border-color;
+        border-radius: $border-radius;
+        box-sizing: border-box;
+        font-family: $font-family;
+
+        &:focus {
+            border-color: $primary-color;
+            box-shadow: 0 0 0 3px rgba($primary-color, 0.25);
+        }
+    }
+
+    .search-icon {
+        position: absolute;
+        left: 0.8rem;
+        top: 50%;
+        transform: translateY(-50%);
+        color: $dark-grey;
+        pointer-events: none;
+    }
+}
+
+.loading-indicator,
+.error-message {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
     padding: 2rem;
-    max-width: 800px;
-    margin: 0 auto;
-    font-family: 'Inter', sans-serif;
-    color: #333;
+    margin: 1.5rem auto;
+    background-color: #fff;
+    border-radius: $border-radius;
+    box-shadow: $box-shadow;
+    text-align: center;
+    color: $dark-grey;
+    max-width: 600px;
 
-    .vehicles-header {
-        h4 {
-            font-size: 1.8rem;
+    p {
+        margin-top: 0.75rem;
+        font-size: 1rem;
+    }
+}
+
+.error-message {
+    color: color.adjust($danger-color, $lightness: -10%);
+    border: 1px solid color.adjust($danger-color, $lightness: 30%);
+    background-color: color.adjust($danger-color, $lightness: 45%);
+}
+
+.vehicles-grid {
+    background-color: #fff;
+    border-radius: $border-radius;
+    box-shadow: $box-shadow;
+    overflow: hidden;
+    border: 1px solid $border-color;
+
+    .vehicles-row {
+        display: grid;
+        grid-template-columns: 1fr 2fr 1fr 1fr 1fr;
+        align-items: center;
+        border-bottom: 1px solid $border-color;
+
+        &:last-child {
+            border-bottom: none;
+        }
+
+        &>div {
+            padding: 0.8rem 1rem;
+            font-size: 0.95rem;
+            color: $text-color;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        &.header {
+            background-color: $light-grey;
             font-weight: 600;
-            margin: 0;
+            color: color.adjust($dark-grey, $lightness: -10%);
+            border-bottom-width: 2px;
+
+            &>div {
+                white-space: normal;
+            }
+        }
+
+        &:not(.header):not(.no-results):hover {
+            background-color: $medium-grey;
+        }
+
+        &.no-results {
+            display: block;
+            text-align: center;
+            padding: 1.5rem;
+            color: $dark-grey;
+            font-style: italic;
+        }
+
+        .actions {
+            display: flex;
+            justify-content: center;
+            gap: 0.5rem;
+            padding: 0.6rem 1rem;
+
+            .btn-icon {
+                background: none;
+                border: none;
+                padding: 0.3rem;
+                cursor: pointer;
+                border-radius: $border-radius;
+                font-size: 1.1rem;
+                line-height: 1;
+                transition: background-color 0.2s ease, color 0.2s ease;
+                color: $dark-grey;
+                vertical-align: middle;
+
+                &:hover:not(:disabled) {
+                    background-color: color.adjust($medium-grey, $lightness: -5%);
+                }
+
+                &:disabled {
+                    opacity: 0.5;
+                    cursor: not-allowed;
+                }
+
+                &.btn-icon-blue {
+                    color: $primary-color;
+
+                    &:hover:not(:disabled) {
+                        color: color.adjust($primary-color, $lightness: -15%);
+                    }
+                }
+
+                &.btn-icon-yellow {
+                    color: color.adjust($warning-color, $lightness: -10%);
+
+                    &:hover:not(:disabled) {
+                        color: color.adjust($warning-color, $lightness: -25%);
+                    }
+                }
+
+                &.btn-icon-red {
+                    color: $danger-color;
+
+                    &:hover:not(:disabled) {
+                        color: color.adjust($danger-color, $lightness: -15%);
+                    }
+                }
+            }
+        }
+    }
+}
+
+@media (max-width: $breakpoint-md) {
+    .vehicles-grid {
+        background-color: transparent;
+        box-shadow: none;
+        border-radius: 0;
+        border: none;
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+
+        .vehicles-row.header {
+            display: none;
+        }
+
+        .vehicles-row.vehicle-card {
+            display: block;
+            background-color: #fff;
+            border: 1px solid $border-color;
+            border-radius: $border-radius;
+            box-shadow: $box-shadow;
+            padding: 1rem;
+            border-bottom: 1px solid $border-color;
+
+            &:last-child {
+                border-bottom: 1px solid $border-color;
+            }
+
+            &>div {
+                padding: 0.4rem 0;
+                font-size: 0.9rem;
+                white-space: normal;
+                display: flex;
+                justify-content: space-between;
+                border-bottom: 1px dashed color.adjust($border-color, $lightness: 5%);
+
+                &:last-child {
+                    border-bottom: none;
+                }
+
+                &::before {
+                    content: attr(data-label);
+                    font-weight: 600;
+                    color: $dark-grey;
+                    margin-right: 0.5rem;
+                    flex-shrink: 0;
+                }
+
+                &.actions {
+                    justify-content: flex-end;
+                    padding-top: 0.8rem;
+                    margin-top: 0.5rem;
+                }
+            }
+        }
+
+        .vehicles-row.no-results {
+            background-color: #fff;
+            border-radius: $border-radius;
+            box-shadow: $box-shadow;
+            padding: 1.5rem;
+            border: 1px solid $border-color;
+        }
+    }
+
+    .report-options-container {
+        padding: 1rem;
+    }
+}
+
+@media (max-width: $breakpoint-sm) {
+    .vehicles-header {
+        .title-breadcrumbs h2 {
+            font-size: 1.25rem;
         }
 
         .breadcrumbs {
-            margin-top: 0.5rem;
-            font-size: 0.9rem;
-            color: #777;
-
-            a {
-                color: #4a90e2;
-                text-decoration: none;
-                font-weight: 500;
-
-                &:hover {
-                    text-decoration: underline;
-                }
-            }
-
-            span {
-                margin: 0 0.4rem;
-                font-weight: 600;
-            }
-        }
-
-        .view-review-header {
-            display: flex;
-            justify-content: flex-end;
-            gap: 1rem;
-            margin-top: 1rem;
-
-            .btn {
-                padding: 0.6rem 1.2rem;
-                border: none;
-                border-radius: 8px;
-                font-size: 0.95rem;
-                font-weight: 500;
-                cursor: pointer;
-                transition: background-color 0.3s ease;
-
-                &-purple {
-                    background-color: #8b5cf6;
-                    color: #fff;
-
-                    &:hover {
-                        background-color: #7a4ceb;
-                    }
-                }
-
-                &-danger {
-                    background-color: #ef4444;
-                    color: #fff;
-
-                    &:hover {
-                        background-color: #dc2626;
-                    }
-                }
-            }
+            font-size: 0.8rem;
         }
     }
 
-    .prompt-container {
-        background: #fff;
-        border: 1px solid #e2e8f0;
-        border-radius: 12px;
-        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.05);
-        padding: 2rem;
-        margin: 2rem auto;
-        max-width: 450px;
-        text-align: center;
+    .vehicles-actions {
 
-        .prompt-title {
-            font-size: 1.4rem;
-            font-weight: 600;
-            margin-bottom: 1.5rem;
-            color: #333;
-        }
-
-        .prompt-input {
-            width: 100%;
-            padding: 0.75rem 1rem;
-            border: 1px solid #ccd0d5;
-            border-radius: 8px;
-            font-size: 1rem;
-            margin-bottom: 1.25rem;
-
-            &:focus {
-                outline: none;
-                border-color: #7b61ff;
-            }
-        }
-
-        .format-options {
-            display: flex;
+        .btn,
+        a.btn {
+            flex-grow: 1;
+            flex-basis: 100%;
             justify-content: center;
-            gap: 2rem;
-            margin-bottom: 1.5rem;
 
-            label {
-                display: flex;
-                align-items: center;
-                gap: 0.5rem;
-                font-size: 1rem;
-                cursor: pointer;
-
-                input {
-                    transform: scale(1.1);
-                }
-            }
-        }
-
-        .prompt-actions {
-            display: flex;
-            justify-content: center;
-            gap: 1rem;
-            flex-wrap: wrap;
-
-            .btn {
-                padding: 0.7rem 1.5rem;
-                border: none;
-                border-radius: 8px;
-                font-size: 1rem;
-                font-weight: 500;
-                cursor: pointer;
-                transition: background-color 0.3s ease;
-
-                &-green {
-                    background-color: #10b981;
-                    color: #fff;
-
-                    &:hover {
-                        background-color: #0f9b75;
-                    }
-                }
-
-                &-primary {
-                    background-color: #6b4eff;
-                    color: #fff;
-
-                    &:hover {
-                        background-color: #5a3ee5;
-                    }
-                }
-
-                &-gray {
-                    background-color: #a0aec0;
-                    color: #fff;
-
-                    &:hover {
-                        background-color: #718096;
-                    }
-                }
-            }
         }
     }
 
-    .view-review-header+.view-review-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-top: 2rem;
-        flex-wrap: wrap;
-        gap: 1rem;
+    .report-options-container {
 
-        .left h1 {
-            font-size: 2rem;
-            font-weight: 600;
-            margin: 0;
-        }
-
-        .middle {
-            .review-meta {
-                display: flex;
-                gap: 2rem;
-                flex-wrap: wrap;
-
-                >div {
-                    p {
-                        margin: 0;
-                        font-size: 0.85rem;
-                        color: #555;
-                    }
-
-                    h4 {
-                        margin: 0.25rem 0 0;
-                        font-size: 1.1rem;
-                        font-weight: 500;
-                        color: #333;
-                    }
-                }
-            }
-        }
-    }
-
-    .review-table {
-        margin-top: 2rem;
-        background: #fff;
-        border-radius: 12px;
-        box-shadow: 0 8px 16px rgba(0, 0, 0, 0.08);
-        overflow: hidden;
-
-        .row {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 1rem 1.5rem;
-            border-bottom: 1px solid #e2e8f0;
-
-            &:last-child {
-                border-bottom: none;
-            }
-
-            .label {
-                flex: 1;
-                font-weight: 500;
-                color: #555;
-            }
-
-            .value {
-                flex: 1;
-                text-align: right;
-                font-weight: 600;
-                color: #333;
-
-                &.status span {
-                    font-size: 1rem;
-
-                    &.green {
-                        color: #38a169;
-                    }
-
-                    &.red {
-                        color: #e53e3e;
-                    }
-                }
-            }
-        }
-    }
-
-    @media (max-width: 600px) {
-        .vehicles-header .view-review-header {
-            justify-content: center;
-        }
-
-        .review-table .row {
+        .date-picker-range,
+        .send-report-email {
             flex-direction: column;
-            align-items: flex-start;
-            gap: 0.5rem;
+            align-items: stretch;
 
-            .value {
-                text-align: left;
+            .date-picker-wrapper,
+            input[type="email"],
+            button {
+                min-width: 0;
+                width: 100%;
             }
-        }
-
-        .prompt-container {
-            padding: 1.5rem;
         }
     }
 }

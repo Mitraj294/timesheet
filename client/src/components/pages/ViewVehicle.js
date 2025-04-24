@@ -1,10 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { useDispatch, useSelector } from "react-redux";
+import { useSelector } from 'react-redux';
 import axios from 'axios';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
-  faArrowLeft,
   faDownload,
   faPlus,
   faEye,
@@ -14,60 +13,73 @@ import {
   faPen,
   faTrash,
   faPaperPlane,
+  faCar,
+  faSpinner,
+  faExclamationCircle,
 } from '@fortawesome/free-solid-svg-icons';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
-import '../../styles/Vehicles.scss';
+import '../../styles/ViewVehicle.scss';
 
-
-const API_URL = process.env.REACT_APP_API_URL || 'https://timesheet-c4mj.onrender.com/api';
+const API_URL =
+  process.env.REACT_APP_API_URL || 'https://timesheet-c4mj.onrender.com/api';
 
 const ViewVehicle = () => {
-    const [sendEmail, setSendEmail] = useState('');
-    const [sending, setSending] = useState(false);
-    const [showSendReport, setShowSendReport] = useState(false);
-
   const { vehicleId } = useParams();
+  const navigate = useNavigate();
+
   const [vehicle, setVehicle] = useState(null);
   const [vehicleHistory, setVehicleHistory] = useState([]);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
   const [showDateRangePicker, setShowDateRangePicker] = useState(false);
   const [startDate, setStartDate] = useState(null);
   const [endDate, setEndDate] = useState(null);
   const [downloading, setDownloading] = useState(false);
+  const [downloadError, setDownloadError] = useState(null);
+  const [showSendReport, setShowSendReport] = useState(false);
+  const [sendEmail, setSendEmail] = useState('');
+  const [sending, setSending] = useState(false);
+  const [sendError, setSendError] = useState(null);
 
-  const navigate = useNavigate();
+  const { user } = useSelector((state) => state.auth || {});
 
-  const { user } = useSelector((state) => state.auth); // Get logged-in user
   useEffect(() => {
-
     const fetchVehicleWithReviews = async () => {
+      setLoading(true);
+      setError(null);
+      setDownloadError(null);
+      setSendError(null);
       try {
         const token = localStorage.getItem('token');
-        
-        // Use API_URL for vehicle request
-        const vehicleRes = await axios.get(`${API_URL}/vehicles/${vehicleId}`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        if (!token) throw new Error('Authentication required.');
+
+        const config = { headers: { Authorization: `Bearer ${token}` } };
+
+        const [vehicleRes, reviewsRes] = await Promise.all([
+          axios.get(`${API_URL}/vehicles/${vehicleId}`, config),
+          axios.get(`${API_URL}/vehicles/vehicle/${vehicleId}/reviews`, config),
+        ]);
+
         setVehicle(vehicleRes.data);
-    
-        // Use API_URL for reviews request
-        const reviewsRes = await axios.get(`${API_URL}/vehicles/vehicle/${vehicleId}/reviews`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-    
-        setVehicleHistory(reviewsRes.data.reviews);
+        setVehicleHistory(reviewsRes.data.reviews || []);
       } catch (err) {
-        console.error('Error fetching vehicle with reviews:', err);
-        alert('Failed to load vehicle or reviews.');
+        console.error('Error fetching vehicle data:', err);
+        setError(
+          err.response?.data?.message || 'Failed to load vehicle data.'
+        );
+        if (err.response?.status === 401) {
+          navigate('/login');
+        }
       } finally {
         setLoading(false);
       }
     };
-    
+
     fetchVehicleWithReviews();
-    }, [vehicleId]);
+  }, [vehicleId, navigate]);
 
   const filteredHistory = vehicleHistory.filter((entry) => {
     const employeeName = entry.employeeId?.name?.toLowerCase() || '';
@@ -78,22 +90,25 @@ const ViewVehicle = () => {
     navigate(`/vehicles/${vehicleId}/review`);
   };
 
-  const handleDeleteReview = async (reviewId) => {
-    const confirmDelete = window.confirm('Are you sure you want to delete this review? This action cannot be undone.');
+  const handleDeleteReview = async (reviewId, employeeName) => {
+    const confirmDelete = window.confirm(
+      `Are you sure you want to delete this review by ${
+        employeeName || 'this employee'
+      }? This action cannot be undone.`
+    );
     if (!confirmDelete) return;
-  
+
     try {
       const token = localStorage.getItem('token');
-      
-      // Use API_URL for the delete request
       await axios.delete(`${API_URL}/vehicles/reviews/${reviewId}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-  
-      setVehicleHistory((prev) => prev.filter((review) => review._id !== reviewId));
+      setVehicleHistory((prev) =>
+        prev.filter((review) => review._id !== reviewId)
+      );
     } catch (err) {
       console.error('Error deleting review:', err);
-      alert('Error deleting review');
+      setError(err.response?.data?.message || 'Error deleting review');
     }
   };
 
@@ -103,16 +118,15 @@ const ViewVehicle = () => {
 
   const handleDownloadExcelReport = async () => {
     if (!startDate || !endDate) {
-      alert('Please select a start and end date.');
+      setDownloadError('Please select a start and end date.');
       return;
     }
-  
+    setDownloadError(null);
     setDownloading(true);
-  
     try {
       const token = localStorage.getItem('token');
       const response = await axios.get(
-        `${API_URL}/vehicles/${vehicleId}/download-report`,  // Use API_URL here
+        `${API_URL}/vehicles/${vehicleId}/download-report`,
         {
           headers: { Authorization: `Bearer ${token}` },
           responseType: 'blob',
@@ -122,108 +136,171 @@ const ViewVehicle = () => {
           },
         }
       );
-  
+
       const blob = new Blob([response.data], {
-        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        type:
+          response.headers['content-type'] ||
+          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
       });
-  
       const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `${vehicle?.name?.replace(/\s+/g, '_') || 'vehicle'}_report_${startDate.toLocaleDateString()}_to_${endDate.toLocaleDateString()}.xlsx`;
-      a.click();
+      const link = document.createElement('a');
+      link.href = url;
+      const safeVehicleName = vehicle?.name?.replace(/\s+/g, '_') || 'vehicle';
+      const formattedStartDate = startDate.toISOString().split('T')[0];
+      const formattedEndDate = endDate.toISOString().split('T')[0];
+      link.download = `${safeVehicleName}_report_${formattedStartDate}_to_${formattedEndDate}.xlsx`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
       window.URL.revokeObjectURL(url);
+      setShowDateRangePicker(false);
     } catch (error) {
       console.error('Error downloading Excel report:', error);
-      alert('Failed to download report.');
+      setDownloadError('Failed to download report.');
     } finally {
       setDownloading(false);
     }
   };
+
   const handleSendVehicleReport = async () => {
     if (!startDate || !endDate || !sendEmail) {
-      alert('Please select a date range and enter an email address.');
+      setSendError('Please select a date range and enter an email address.');
       return;
     }
-  
+    if (!/\S+@\S+\.\S+/.test(sendEmail)) {
+      setSendError('Please enter a valid email address.');
+      return;
+    }
+    setSendError(null);
     setSending(true);
     try {
       const token = localStorage.getItem('token');
-      console.log('Sending vehicle report for vehicleId:', vehicleId);  // Log the vehicleId
-  
       await axios.post(
-        `${API_URL}/vehicles/report/email/${vehicleId}`,  // Use API_URL here
+        `${API_URL}/vehicles/report/email/${vehicleId}`,
         {
           startDate: startDate.toISOString(),
           endDate: endDate.toISOString(),
           email: sendEmail,
         },
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
+        { headers: { Authorization: `Bearer ${token}` } }
       );
-  
-      alert('Vehicle report sent successfully via email.');
+      setShowSendReport(false);
       setSendEmail('');
+      setStartDate(null);
+      setEndDate(null);
     } catch (error) {
       console.error('Error sending report:', error);
-      alert('An error occurred while sending the report.');
+      setSendError(error.response?.data?.message || 'Failed to send report.');
     } finally {
       setSending(false);
     }
   };
-  
-  
-  
 
+  if (loading && !vehicle) {
+    return (
+      <div className='loading-indicator page-loading'>
+        <FontAwesomeIcon
+          icon={faSpinner}
+          spin
+          size='2x'
+        />
+        <p>Loading vehicle details...</p>
+      </div>
+    );
+  }
 
-  if (loading) {
-    return <div>Loading...</div>;
+  if (error && !vehicle) {
+    return (
+      <div className='error-message page-error'>
+        <FontAwesomeIcon icon={faExclamationCircle} />
+        <p>{error}</p>
+        <Link
+          to='/vehicles'
+          className='btn btn-secondary'
+        >
+          Back to Vehicles
+        </Link>
+      </div>
+    );
   }
 
   return (
-    <div className="vehicles-page">
-      <div className="vehicles-header">
-        <h4>View Vehicle</h4>
-        <div className="breadcrumbs">
-          <Link to="/dashboard">Dashboard</Link>
-          <span>/</span>
-          <Link to="/vehicles">Vehicles</Link>
-          <span>/</span>
-          <span>View Vehicle</span>
+    <div className='view-vehicle-page'>
+      <div className='view-vehicle-header'>
+        <div className='title-breadcrumbs'>
+          <h2>
+            <FontAwesomeIcon icon={faCar} /> {vehicle?.name ?? 'Vehicle Details'}
+          </h2>
+          <div className='breadcrumbs'>
+            <Link
+              to='/dashboard'
+              className='breadcrumb-link'
+            >
+              Dashboard
+            </Link>
+            <span className='breadcrumb-separator'> / </span>
+            <Link
+              to='/vehicles'
+              className='breadcrumb-link'
+            >
+              Vehicles
+            </Link>
+            <span className='breadcrumb-separator'> / </span>
+            <span className='breadcrumb-current'>View</span>
+          </div>
         </div>
       </div>
 
-      <div className="vehicles-actions">
-      {user?.role === "employer" && (
-        <button className="btn btn-green" onClick={handleCreateReviewClick}>
-          <FontAwesomeIcon icon={faPlus} /> Create Review
+      <div className='view-vehicle-actions'>
+        {user?.role === 'employer' && (
+          <button
+            className='btn btn-success'
+            onClick={handleCreateReviewClick}
+          >
+            <FontAwesomeIcon icon={faPlus} /> Create Review
+          </button>
+        )}
+        <button
+          className='btn btn-send-report'
+          onClick={() => {
+            setShowSendReport(!showSendReport);
+            setShowDateRangePicker(false);
+          }}
+          aria-expanded={showSendReport}
+        >
+          <FontAwesomeIcon icon={faPaperPlane} /> Send Report
         </button>
-      )}
-              <button
-                  className="btn btn-purple"
-                  onClick={() => setShowSendReport(!showSendReport)}
-                >
-                  <FontAwesomeIcon icon={faPaperPlane} /> Send Report
-                </button>
-        
-        <button className="btn btn-red" onClick={() => setShowDateRangePicker(!showDateRangePicker)}>
+        <button
+          className='btn btn-download-report'
+          onClick={() => {
+            setShowDateRangePicker(!showDateRangePicker);
+            setShowSendReport(false);
+          }}
+          aria-expanded={showDateRangePicker}
+        >
           <FontAwesomeIcon icon={faDownload} /> Download Report
         </button>
       </div>
 
-   {/* Send Report Section */}
       {showSendReport && (
-        <div className="send-report-container">
-          <div className="date-picker-range">
+        <div className='report-options-container send-report-container'>
+          <h4>Send Vehicle Report</h4>
+          {sendError && (
+            <p className='error-text'>
+              <FontAwesomeIcon icon={faExclamationCircle} /> {sendError}
+            </p>
+          )}
+          <div className='date-picker-range'>
             <DatePicker
               selected={startDate}
               onChange={(date) => setStartDate(date)}
               selectsStart
               startDate={startDate}
               endDate={endDate}
-              placeholderText="Start Date"
-              dateFormat="yyyy-MM-dd"
+              placeholderText='Start Date'
+              dateFormat='yyyy-MM-dd'
+              className='date-input'
+              wrapperClassName='date-picker-wrapper'
             />
             <DatePicker
               selected={endDate}
@@ -231,42 +308,66 @@ const ViewVehicle = () => {
               selectsEnd
               startDate={startDate}
               endDate={endDate}
-              placeholderText="End Date"
-              dateFormat="yyyy-MM-dd"
+              placeholderText='End Date'
+              dateFormat='yyyy-MM-dd'
               minDate={startDate}
+              className='date-input'
+              wrapperClassName='date-picker-wrapper'
             />
           </div>
-          <div className="send-report-email">
+          <div className='send-report-email'>
             <input
-              type="email"
-              placeholder="Enter recipient email"
+              type='email'
+              placeholder='Enter recipient email'
               value={sendEmail}
-              onChange={(e) => setSendEmail(e.target.value)}
+              onChange={(e) => {
+                setSendEmail(e.target.value);
+                setSendError(null);
+              }}
+              aria-label='Recipient Email'
             />
             <button
-              className="btn btn-purple"
+              className='btn btn-send-report'
               onClick={handleSendVehicleReport}
-              disabled={sending}
+              disabled={sending || !startDate || !endDate || !sendEmail}
             >
-              <FontAwesomeIcon icon={faPaperPlane} /> {sending ? 'Sending...' : 'Send Report'}
+              {sending ? (
+                <>
+                  <FontAwesomeIcon
+                    icon={faSpinner}
+                    spin
+                  />{' '}
+                  Sending...
+                </>
+              ) : (
+                <>
+                  <FontAwesomeIcon icon={faPaperPlane} /> Send
+                </>
+              )}
             </button>
           </div>
         </div>
       )}
 
-      {/* Download Report Section */}
-
       {showDateRangePicker && (
-        <div className="download-date-range">
-          <div className="date-picker-range">
+        <div className='report-options-container download-date-range'>
+          <h4>Download Vehicle Report</h4>
+          {downloadError && (
+            <p className='error-text'>
+              <FontAwesomeIcon icon={faExclamationCircle} /> {downloadError}
+            </p>
+          )}
+          <div className='date-picker-range'>
             <DatePicker
               selected={startDate}
               onChange={(date) => setStartDate(date)}
               selectsStart
               startDate={startDate}
               endDate={endDate}
-              placeholderText="Start Date"
-              dateFormat="yyyy-MM-dd"
+              placeholderText='Start Date'
+              dateFormat='yyyy-MM-dd'
+              className='date-input'
+              wrapperClassName='date-picker-wrapper'
             />
             <DatePicker
               selected={endDate}
@@ -274,82 +375,146 @@ const ViewVehicle = () => {
               selectsEnd
               startDate={startDate}
               endDate={endDate}
-              placeholderText="End Date"
-              dateFormat="yyyy-MM-dd"
+              placeholderText='End Date'
+              dateFormat='yyyy-MM-dd'
               minDate={startDate}
+              className='date-input'
+              wrapperClassName='date-picker-wrapper'
             />
           </div>
-          <button className="btn btn-blue" onClick={handleDownloadExcelReport}>
-            <FontAwesomeIcon icon={faDownload} /> Download Excel
+          <button
+            className='btn btn-download-report'
+            onClick={handleDownloadExcelReport}
+            disabled={downloading || !startDate || !endDate}
+          >
+            {downloading ? (
+              <>
+                <FontAwesomeIcon
+                  icon={faSpinner}
+                  spin
+                />{' '}
+                Downloading...
+              </>
+            ) : (
+              <>
+                <FontAwesomeIcon icon={faDownload} /> Download Excel
+              </>
+            )}
           </button>
-          {downloading && <p>Generating report, please wait...</p>}
         </div>
       )}
 
-      <div className="vehicle-name-section">
-        <h2 className="vehicle-name-heading">{vehicle?.name ?? 'Vehicle'}</h2>
-      </div>
+      {error && (
+        <div className='error-message'>
+          <FontAwesomeIcon icon={faExclamationCircle} />
+          <p>{error}</p>
+        </div>
+      )}
 
-      <div className="vehicles-search">
+      <div className='view-vehicle-search'>
         <input
-          type="text"
-          placeholder="Search by Employee"
+          type='text'
+          placeholder='Search Reviews by Employee...'
           value={search}
           onChange={(e) => setSearch(e.target.value)}
+          aria-label='Search Reviews'
         />
-        <FontAwesomeIcon icon={faSearch} className="search-icon" />
+        <FontAwesomeIcon
+          icon={faSearch}
+          className='search-icon'
+        />
       </div>
 
-      <div className="vehicles-grid">
-        <div className="vehicles-row header">
+      <div className='view-vehicle-grid'>
+        <div className='view-vehicle-row header'>
           <div>Date</div>
-          <div>Employee Name</div>
+          <div>Employee</div>
           <div>WOF/Rego</div>
+          {/* Updated Headers */}
           <div>Oil Checked</div>
           <div>Vehicle Checked</div>
           <div>Vehicle Broken</div>
           <div>Hours</div>
-          <div>Action</div>
+          <div>Actions</div>
         </div>
 
-        {filteredHistory.length === 0 ? (
-          <div className="no-reviews-message">No reviews found for the employee: {search}</div>
+        {loading && (
+          <div className='loading-indicator'>
+            <FontAwesomeIcon
+              icon={faSpinner}
+              spin
+            />{' '}
+            Loading history...
+          </div>
+        )}
+
+        {!loading && filteredHistory.length === 0 ? (
+          <div className='view-vehicle-row no-results'>
+            No reviews match your search criteria.
+          </div>
         ) : (
+          !loading &&
           filteredHistory.map((item) => (
-            <div key={item._id} className="vehicles-row">
-              <div>{item.dateReviewed ? new Date(item.dateReviewed).toLocaleDateString() : '--'}</div>
-              <div>{item.employeeId?.name || '--'}</div>
-              <div>{item.vehicle?.wofRego ?? 'N/A'}</div>
-              <div>
+            <div
+              key={item._id}
+              className='view-vehicle-row review-card'
+            >
+              <div data-label='Date'>
+                {item.dateReviewed
+                  ? new Date(item.dateReviewed).toLocaleDateString()
+                  : '--'}
+              </div>
+              <div data-label='Employee'>{item.employeeId?.name || '--'}</div>
+              <div data-label='WOF/Rego'>{vehicle?.wofRego ?? '--'}</div>
+              {/* Updated data-labels */}
+              <div data-label='Oil Checked'>
                 <FontAwesomeIcon
                   icon={item.oilChecked ? faCheck : faTimes}
-                  className={item.oilChecked ? 'green' : 'red'}
+                  className={item.oilChecked ? 'icon-green' : 'icon-red'}
                 />
               </div>
-              <div>
+              <div data-label='Vehicle Checked'>
                 <FontAwesomeIcon
                   icon={item.vehicleChecked ? faCheck : faTimes}
-                  className={item.vehicleChecked ? 'green' : 'red'}
+                  className={item.vehicleChecked ? 'icon-green' : 'icon-red'}
                 />
               </div>
-              <div>{item.vehicleBroken ? 'Yes' : 'No'}</div>
-              <div>{item.hours || '--'}</div>
-              <div className="action-buttons">
-                <button onClick={() => handleViewReviewClick(item)}>
-                  <FontAwesomeIcon icon={faEye} className="eye-icon" />
+              <div data-label='Vehicle Broken'>
+                {item.vehicleBroken ? 'Yes' : 'No'}
+              </div>
+              <div data-label='Hours'>{item.hours || '--'}</div>
+              <div
+                data-label='Actions'
+                className='actions'
+              >
+                <button
+                  onClick={() => handleViewReviewClick(item)}
+                  className='btn-icon btn-icon-blue'
+                  title='View Review Details'
+                >
+                  <FontAwesomeIcon icon={faEye} />
                 </button>
-                {(user?.role === "employer" || (user?.role === "employee" && user?.name === item.employeeId?.name)) && (
-  
-              <button>
-                  <Link to={`/vehicles/${vehicleId}/reviews/${item._id}/edit`}>
-                    <FontAwesomeIcon icon={faPen} className="edit-icon" />
+                {(user?.role === 'employer' ||
+                  user?.name === item.employeeId?.name) && (
+                  <Link
+                    to={`/vehicles/${vehicleId}/reviews/${item._id}/edit`}
+                    className='btn-icon btn-icon-yellow'
+                    title='Edit Review'
+                  >
+                    <FontAwesomeIcon icon={faPen} />
                   </Link>
-                </button>)}
-                {(user?.role === "employer" || (user?.role === "employee" && user?.name === item.employeeId?.name)) && (
- 
-                <button onClick={() => handleDeleteReview(item._id)} className="btn-icon btn-red">
-                  <FontAwesomeIcon icon={faTrash} />
-                </button>
+                )}
+                {(user?.role === 'employer' ||
+                  user?.name === item.employeeId?.name) && (
+                  <button
+                    onClick={() =>
+                      handleDeleteReview(item._id, item.employeeId?.name)
+                    }
+                    className='btn-icon btn-icon-red'
+                    title='Delete Review'
+                  >
+                    <FontAwesomeIcon icon={faTrash} />
+                  </button>
                 )}
               </div>
             </div>
@@ -361,4 +526,3 @@ const ViewVehicle = () => {
 };
 
 export default ViewVehicle;
-

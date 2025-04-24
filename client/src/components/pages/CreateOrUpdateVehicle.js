@@ -1,21 +1,18 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, Link } from 'react-router-dom';
 import axios from 'axios';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
-  faUser,
-  faClock,
-  faIdBadge,
   faEdit,
   faPlus,
-  faCalendar,
-  faCheck,
-  faExclamationTriangle,
+  faCar,
+  faSpinner,
+  faExclamationCircle,
 } from '@fortawesome/free-solid-svg-icons';
 import '../../styles/CreateVehicle.scss';
 
-const API_URL = process.env.REACT_APP_API_URL || 'https://timesheet-c4mj.onrender.com/api';
-
+const API_URL =
+  process.env.REACT_APP_API_URL || 'https://timesheet-c4mj.onrender.com/api';
 
 const CreateOrUpdateVehicle = () => {
   const { vehicleId } = useParams();
@@ -26,58 +23,49 @@ const CreateOrUpdateVehicle = () => {
     name: '',
     hours: '',
     wofRego: '',
-    employeeName: '',
-    dateReviewed: '',
-    oilChecked: false,
-    vehicleChecked: false,
-    vehicleBroken: false,
   });
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState(null);
 
-  const [employees, setEmployees] = useState([]);
-  
   useEffect(() => {
-
-    const fetchEmployees = async () => {
-      try {
-        const token = localStorage.getItem('token');
-        const res = await axios.get(`${API_URL}/employees`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        setEmployees(res.data);
-      } catch (err) {
-        console.error('Error fetching employees:', err);
-      }
-    };
-  
-    fetchEmployees();
-
-    
     if (isEditMode) {
-
       const fetchVehicle = async () => {
+        setIsLoading(true);
+        setError(null);
         try {
           const token = localStorage.getItem('token');
+          if (!token) throw new Error('Authentication required.');
+
           const res = await axios.get(`${API_URL}/vehicles/${vehicleId}`, {
             headers: { Authorization: `Bearer ${token}` },
           });
           const data = res.data;
           setVehicleData({
             name: data.name || '',
-            hours: data.hours || '',
+            hours: data.hours?.toString() || '',
             wofRego: data.wofRego || '',
-            employeeName: data.employeeName || '',
-            dateReviewed: data.dateReviewed?.split('T')[0] || '',
-            oilChecked: data.oilChecked || false,
-            vehicleChecked: data.vehicleChecked || false,
-            vehicleBroken: data.vehicleBroken || false,
           });
         } catch (err) {
           console.error('Error fetching vehicle:', err);
+          setError(
+            err.response?.data?.message || 'Failed to load vehicle data.'
+          );
+          if (err.response?.status === 401) {
+            navigate('/login');
+          }
+        } finally {
+          setIsLoading(false);
         }
       };
       fetchVehicle();
+    } else {
+      setVehicleData({
+        name: '',
+        hours: '',
+        wofRego: '',
+      });
     }
-  }, [isEditMode, vehicleId]);
+  }, [isEditMode, vehicleId, navigate]);
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -87,48 +75,108 @@ const CreateOrUpdateVehicle = () => {
     }));
   };
 
+  const validateForm = () => {
+    if (!vehicleData.name.trim()) return 'Vehicle Name is required.';
+    if (
+      vehicleData.hours === '' ||
+      isNaN(parseFloat(vehicleData.hours)) ||
+      parseFloat(vehicleData.hours) < 0
+    )
+      return 'Valid Hours are required.';
+    return null;
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setError(null);
+
+    const validationError = validateForm();
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
+
+    setIsLoading(true);
     try {
       const token = localStorage.getItem('token');
-      const config = {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+      if (!token) throw new Error('Authentication required.');
+
+      const config = { headers: { Authorization: `Bearer ${token}` } };
+      const dataToSubmit = {
+        ...vehicleData,
+        hours: parseFloat(vehicleData.hours),
       };
-  
+
       if (isEditMode) {
-        await axios.put(`${API_URL}/vehicles/${vehicleId}`, vehicleData, config);
+        await axios.put(
+          `${API_URL}/vehicles/${vehicleId}`,
+          dataToSubmit,
+          config
+        );
       } else {
-        await axios.post(`${API_URL}/vehicles`, vehicleData, config);
+        await axios.post(`${API_URL}/vehicles`, dataToSubmit, config);
       }
-  
+
       navigate('/vehicles');
     } catch (err) {
       console.error('Failed to save vehicle:', err);
+      setError(
+        err.response?.data?.message ||
+          `Failed to ${isEditMode ? 'update' : 'create'} vehicle.`
+      );
       if (err.response?.status === 401) {
-        alert('Unauthorized. Please log in again.');
-        localStorage.removeItem('token');
         navigate('/login');
       }
+    } finally {
+      setIsLoading(false);
     }
   };
 
   return (
-    <div className='create-vehicle-page'>
-      <div className='header'>
-        <h4>{isEditMode ? 'Update Vehicle' : 'Create Vehicle'}</h4>
-        <div className='breadcrumbs'>
-          <a href='/employer/dashboard'>Dashboard</a> /
-          <a href='/vehicles'> Vehicles</a> /
-          {isEditMode ? ' Update Vehicle' : ' Create Vehicle'}
+    <div className='vehicle-form-page-container'>
+      <div className='vehicle-form-header'>
+        <div className='title-breadcrumbs'>
+          <h2>
+            <FontAwesomeIcon icon={faCar} />{' '}
+            {isEditMode ? 'Update Vehicle' : 'Create Vehicle'}
+          </h2>
+          <div className='breadcrumbs'>
+            <Link
+              to='/dashboard'
+              className='breadcrumb-link'
+            >
+              Dashboard
+            </Link>
+            <span className='breadcrumb-separator'> / </span>
+            <Link
+              to='/vehicles'
+              className='breadcrumb-link'
+            >
+              Vehicles
+            </Link>
+            <span className='breadcrumb-separator'> / </span>
+            <span className='breadcrumb-current'>
+              {isEditMode ? 'Update' : 'Create'}
+            </span>
+          </div>
         </div>
+        {/* Back button removed */}
       </div>
 
-      <div className='card'>
-        <form onSubmit={handleSubmit}>
-          {/* Name */}
+      <div className='vehicle-form-container'>
+        <form
+          onSubmit={handleSubmit}
+          className='vehicle-form'
+          noValidate
+        >
+          {error && (
+            <div className='form-error-message'>
+              <FontAwesomeIcon icon={faExclamationCircle} /> {error}
+            </div>
+          )}
+
           <div className='form-group'>
+            <label htmlFor='name'>Name*</label>
             <input
               type='text'
               id='name'
@@ -136,17 +184,13 @@ const CreateOrUpdateVehicle = () => {
               value={vehicleData.name}
               onChange={handleChange}
               required
-              placeholder=' '
-            />
-            <label htmlFor='name'>Name*</label>
-            <FontAwesomeIcon
-              icon={faUser}
-              className='form-icon'
+              disabled={isLoading}
+              placeholder='Vehicle Name'
             />
           </div>
 
-          {/* Hours */}
           <div className='form-group'>
+            <label htmlFor='hours'>Hours*</label>
             <input
               type='number'
               id='hours'
@@ -154,41 +198,54 @@ const CreateOrUpdateVehicle = () => {
               value={vehicleData.hours}
               onChange={handleChange}
               required
-              placeholder=' '
-            />
-            <label htmlFor='hours'>Hours*</label>
-            <FontAwesomeIcon
-              icon={faClock}
-              className='form-icon'
+              disabled={isLoading}
+              placeholder='Hours'
+              min='0'
+              step='any'
             />
           </div>
 
-          {/* WOF/Rego */}
           <div className='form-group'>
+            <label htmlFor='wofRego'>WOF/Rego</label>
             <input
               type='text'
               id='wofRego'
               name='wofRego'
               value={vehicleData.wofRego}
               onChange={handleChange}
-              placeholder=' '
-            />
-            <label htmlFor='wofRego'>WOF/Rego</label>
-            <FontAwesomeIcon
-              icon={faIdBadge}
-              className='form-icon'
+              disabled={isLoading}
+              placeholder='WOF/Rego Details'
             />
           </div>
 
-          
-
-          <div className='form-actions'>
+          <div className='form-footer'>
+            <button
+              type='button'
+              className='btn btn-danger' // Changed class for red color
+              onClick={() => navigate('/vehicles')}
+              disabled={isLoading}
+            >
+              Cancel
+            </button>
             <button
               type='submit'
-              className='btn btn-violet'
+              className='btn btn-primary'
+              disabled={isLoading}
             >
-              <FontAwesomeIcon icon={isEditMode ? faEdit : faPlus} />
-              <span>{isEditMode ? 'Update Vehicle' : 'Create Vehicle'}</span>
+              {isLoading ? (
+                <>
+                  <FontAwesomeIcon
+                    icon={faSpinner}
+                    spin
+                  />{' '}
+                  Saving...
+                </>
+              ) : (
+                <>
+                  <FontAwesomeIcon icon={isEditMode ? faEdit : faPlus} />
+                  {isEditMode ? 'Update Vehicle' : 'Create Vehicle'}
+                </>
+              )}
             </button>
           </div>
         </form>
@@ -198,4 +255,3 @@ const CreateOrUpdateVehicle = () => {
 };
 
 export default CreateOrUpdateVehicle;
-

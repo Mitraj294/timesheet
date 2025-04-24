@@ -1,29 +1,29 @@
 // --- Base Modal Overlay ---
-// Assuming .modal-overlay might be used elsewhere, keep it generic
 .modal-overlay {
     position: fixed;
-    inset: 0; // shorthand for top, right, bottom, left = 0
-    background: rgba(0, 0, 0, 0.6); // Slightly darker overlay
+    inset: 0;
+    background: rgba(0, 0, 0, 0.6);
     display: flex;
     justify-content: center;
-    align-items: center;
+    align-items: flex-start; // Align modal to top to allow scrolling within modal if needed
     z-index: 1000;
-    padding: 1rem; // Add padding for smaller viewports
-    overflow-y: auto; // Allow overlay itself to scroll if content overflows viewport
+    padding: 1rem; // Padding around the modal
+    overflow-y: auto; // Allow the overlay itself to scroll if modal is taller than viewport
 }
 
 // --- Create Role Specific Modal Box ---
 .modal-box.create-role {
     background: #fff;
-    padding: 2rem;
-    width: 100%; // Take full width within overlay padding
-    max-width: 700px; // Adjusted max-width
+    padding: clamp(1.5rem, 3vw, 2rem); // Responsive padding
+    width: 100%;
+    max-width: 700px; // Max width for larger screens
     border-radius: 8px;
     box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
-    // Removed overflow-y and max-height, handled by .modal-overlay now
-    display: flex; // Use flexbox for internal layout
+    display: flex;
     flex-direction: column;
-    gap: 1.5rem; // Consistent gap between sections (header, form groups, footer)
+    gap: clamp(1.25rem, 3vw, 1.75rem); // Responsive gap between sections
+    margin-top: 2rem; // Add some top margin within the overlay
+    margin-bottom: 2rem; // Add bottom margin to ensure space when scrolling
 }
 
 // --- Header ---
@@ -33,15 +33,18 @@
     align-items: center;
     padding-bottom: 1rem;
     border-bottom: 1px solid #eee;
+    flex-wrap: wrap; // Allow wrapping if title is very long
+    gap: 0.5rem; // Gap between title and button if they wrap
 
     h2 {
-        font-size: 1.4rem; // Slightly adjusted size
+        font-size: clamp(1.25rem, 2.5vw, 1.4rem); // Responsive font size
         font-weight: 600;
         display: flex;
         align-items: center;
         gap: 0.6rem;
-        margin: 0; // Remove default margin
+        margin: 0;
         color: #333;
+        flex-grow: 1; // Allow title to take available space
     }
 }
 
@@ -49,13 +52,15 @@
 .create-role__close-btn {
     background: none;
     border: none;
-    font-size: 1.3rem; // Slightly larger for easier clicking
+    font-size: 1.3rem;
     color: #666;
     cursor: pointer;
-    padding: 0.25rem; // Add padding hit area
+    padding: 0.25rem;
     line-height: 1;
+    flex-shrink: 0; // Prevent button from shrinking
 
-    &:hover {
+    &:hover:not(:disabled) {
+        // Only apply hover when not disabled
         color: #000;
     }
 
@@ -67,9 +72,9 @@
 
 // --- Error Message ---
 .create-role__error-message {
-    background-color: #ffebee; // Light red background
-    color: #c62828; // Darker red text
-    border: 1px solid #e57373; // Red border
+    background-color: #ffebee;
+    color: #c62828;
+    border: 1px solid #e57373;
     border-radius: 4px;
     padding: 0.75rem 1rem;
     font-size: 0.9rem;
@@ -83,34 +88,50 @@
 .create-role__group {
     display: flex;
     flex-direction: column;
-    gap: 0.5rem; // Space between label and input
+    gap: 0.5rem;
 
-    label {
-        font-weight: 500; // Slightly lighter weight
+    label,
+    legend {
+        // Apply to legend as well
+        font-weight: 500;
         font-size: 0.95rem;
         color: #444;
-        display: flex; // Align icon with text if needed
+        display: flex;
         align-items: center;
         gap: 0.4rem;
+        margin-bottom: 0.25rem; // Slight space below label
+    }
+
+    // Remove default fieldset padding/margin/border
+    &.create-role__schedule-container {
+        border: none;
+        padding: 0;
+        margin: 0;
+        margin-top: 1.5rem; // Add space before schedule section
+        padding-top: 1.5rem; // Add padding above
+        border-top: 1px solid #eee; // Separator line
     }
 }
 
 // --- Common Input & Dropdown Styles ---
 .create-role__input,
 .create-role__dropdown,
-.create-role__textarea {
+.create-role__textarea,
+.create-role__time-input {
+    // Include time input here
     width: 100%;
     padding: 0.6rem 0.8rem;
     font-size: 1rem;
     border: 1px solid #ccc;
-    border-radius: 4px; // Consistent radius
+    border-radius: 4px;
     outline: none;
-    box-sizing: border-box; // Include padding and border in width/height
-    transition: border-color 0.2s ease-in-out;
+    box-sizing: border-box;
+    transition: border-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out; // Added box-shadow transition
+    background-color: #fff; // Ensure background is white
 
     &:focus {
-        border-color: #007bff; // Use a standard focus color
-        box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25); // Subtle focus ring
+        border-color: #007bff;
+        box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.25); // Slightly larger focus ring
     }
 
     &:disabled {
@@ -121,46 +142,48 @@
 }
 
 .create-role__textarea {
-    resize: vertical; // Allow only vertical resize
-    min-height: 80px; // Set a minimum height
+    resize: vertical;
+    min-height: 80px;
 }
 
 // --- Multi-Select Specific Styles ---
 .create-role__multiselect {
     display: flex;
     flex-direction: column;
-    gap: 0.75rem; // Space between tags area and dropdown
+    gap: 0.75rem;
 
     .create-role__selected-tags {
         display: flex;
         flex-wrap: wrap;
         gap: 0.5rem;
-        padding: 0.5rem; // Add some padding around tags
-        border: 1px solid #eee; // Optional: border around tags area
+        padding: 0.5rem;
+        border: 1px solid #eee;
         border-radius: 4px;
-        min-height: 40px; // Ensure area has some height even when empty
+        min-height: 40px; // Ensure area has some height
+        background-color: #f8f9fa; // Slightly different background for tag area
 
         .create-role__tag {
-            display: inline-flex; // Use inline-flex for alignment
+            display: inline-flex;
             align-items: center;
             background: #e0e0e0;
             padding: 0.3rem 0.7rem;
-            border-radius: 15px; // Pill shape
+            border-radius: 15px;
             font-size: 0.9rem;
             color: #333;
+            white-space: nowrap; // Prevent tag text from wrapping
 
             .create-role__remove-tag-btn {
                 margin-left: 0.5rem;
                 background: none;
                 border: none;
                 cursor: pointer;
-                color: #d32f2f; // Red color for remove icon
+                color: #d32f2f;
                 padding: 0;
                 line-height: 1;
-                font-size: 0.8em; // Make icon slightly smaller
+                font-size: 0.8em;
 
-                &:hover {
-                    color: #a00; // Darker red on hover
+                &:hover:not(:disabled) {
+                    color: #a00;
                 }
 
                 &:disabled {
@@ -174,52 +197,55 @@
             font-style: italic;
             color: #888;
             font-size: 0.9rem;
-            padding: 0.3rem 0; // Match tag padding roughly
+            padding: 0.3rem 0;
+            width: 100%; // Take full width to align text left
         }
     }
 
     .create-role__employee-select {
-        max-width: 350px; // Limit width of the add employee dropdown
-        align-self: flex-start; // Align dropdown to the start
+        // No max-width needed here, let it be 100% by default from common styles
+        align-self: flex-start; // Keep alignment
     }
 }
 
 // --- Schedule Section Styles ---
 .create-role__schedule-container {
-    margin-top: 2rem; // Add more space before schedule section
-    padding-top: 1.5rem; // Add padding above
-    border-top: 1px solid #eee; // Separator line
+    // Styles moved to .create-role__group adjustments above
 
     .create-role__day-wise-times {
         display: flex;
         flex-direction: column;
-        gap: 1rem; // Space between each day's row
+        gap: 1rem;
 
         .create-role__time-row {
-            display: grid; // Use grid for better alignment
-            grid-template-columns: 50px 1fr auto 1fr; // Label | Input | "to" | Input
+            display: grid;
+            // Grid setup for Desktop/Tablet: Label | Start Time | "to" | End Time
+            grid-template-columns: 50px 1fr auto 1fr;
             align-items: center;
             gap: 0.75rem;
 
-            label {
-                font-weight: 500; // Normal weight for day label
+            .create-role__day-label {
+                // Specific class for day label
+                font-weight: 500;
                 font-size: 0.9rem;
                 text-align: right;
                 color: #555;
-                margin: 0; // Override default label margin from group
+                margin: 0; // Override potential inherited margins
+                padding-right: 0.5rem; // Space between label and input
             }
 
             .create-role__time-input {
-                padding: 0.4rem 0.6rem; // Slightly smaller padding
+                padding: 0.4rem 0.6rem;
                 font-size: 0.95rem;
-                width: 100%; // Take available grid space
-                min-width: 80px; // Ensure minimum usable width
+                // width: 100%; // Inherited
+                min-width: 80px; // Minimum width for usability
             }
 
             .create-role__time-separator {
                 font-size: 0.9rem;
                 color: #666;
                 text-align: center;
+                padding: 0 0.25rem; // Add slight horizontal padding
             }
         }
     }
@@ -227,98 +253,133 @@
 
 // --- Footer ---
 .create-role__footer {
-    margin-top: 1.5rem; // Consistent gap
-    padding-top: 1.5rem; // Add padding above
-    border-top: 1px solid #eee; // Separator line
+    margin-top: 1.5rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid #eee;
     display: flex;
-    justify-content: flex-end; // Align buttons to the right
-    gap: 0.75rem; // Space between buttons
+    justify-content: flex-end;
+    flex-wrap: wrap; // Allow buttons to wrap on smaller screens if needed
+    gap: 0.75rem;
 
-    // Use global .btn styles defined in RosterPage.scss or a global file
-    // Add specific overrides if needed, e.g., for .btn-primary if it's unique here
-    .btn-primary {
-        background-color: #007bff; // Example primary color
+    // Assuming global .btn styles exist (padding, border-radius, base font, etc.)
+    .btn {
+        // Base button styles (if not defined globally)
+        padding: 0.6rem 1.2rem;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 1rem;
+        font-weight: 500;
+        display: inline-flex; // For icon alignment
+        align-items: center;
+        justify-content: center;
+        transition: background-color 0.2s ease, opacity 0.2s ease;
+
+        svg {
+            margin-right: 0.4rem;
+        }
+
+        &:disabled {
+            opacity: 0.65;
+            cursor: not-allowed;
+        }
+    }
+
+    .btn-grey {
+        background-color: #6c757d; // Standard grey
         color: #fff;
-        // Inherit padding, border-radius, etc. from global .btn
+
+        &:hover:not(:disabled) {
+            background-color: #5a6268;
+        }
+    }
+
+    .btn-primary {
+        background-color: #007bff;
+        color: #fff;
 
         &:hover:not(:disabled) {
             background-color: #0056b3;
         }
 
         &:disabled {
-            background-color: #b3d7ff; // Lighter blue when disabled
-            cursor: not-allowed;
-        }
-    }
-
-    // Style for loading state within button
-    .btn {
-        svg {
-            margin-right: 0.4rem;
+            background-color: #007bff; // Keep color but use opacity for disabled state
         }
     }
 }
 
 // --- Responsive Adjustments ---
+
+// Medium Screens (Tablets)
 @media (max-width: 768px) {
+    .modal-overlay {
+        align-items: flex-start; // Keep alignment
+        padding: 0.5rem; // Reduce padding slightly
+    }
+
     .modal-box.create-role {
-        padding: 1.5rem; // Reduce padding on smaller screens
-        gap: 1.25rem;
-    }
-
-    .create-role__header h2 {
-        font-size: 1.25rem;
-    }
-
-    .create-role__multiselect .create-role__employee-select {
-        max-width: 100%; // Allow dropdown to take full width
+        margin-top: 1rem; // Reduce top margin
+        margin-bottom: 1rem;
     }
 
     .create-role__schedule-container .create-role__day-wise-times .create-role__time-row {
-        grid-template-columns: 40px 1fr auto 1fr; // Adjust label width if needed
-        gap: 0.5rem; // Reduce gap
+        // Slightly adjust grid for tablets if needed, but current might be fine
+        grid-template-columns: 45px 1fr auto 1fr; // Slightly smaller label column
+        gap: 0.6rem;
 
-        label {
+        .create-role__day-label {
             font-size: 0.85rem;
         }
     }
 }
 
-@media (max-width: 480px) {
-    .create-role__schedule-container .create-role__day-wise-times .create-role__time-row {
-        // Stack time inputs below label on very small screens
-        grid-template-columns: 1fr; // Full width for all items
-        gap: 0.5rem;
+// Small Screens (Mobiles)
+@media (max-width: 576px) {
 
-        label {
-            text-align: left; // Align label left
+    // Adjusted breakpoint for better mobile layout trigger
+    .modal-box.create-role {
+        gap: 1rem; // Reduce gap further
+    }
+
+    .create-role__header h2 {
+        font-size: 1.15rem; // Further reduce title size
+    }
+
+    .create-role__schedule-container .create-role__day-wise-times .create-role__time-row {
+        // Stack elements vertically on small screens
+        grid-template-columns: 1fr; // Single column layout
+        gap: 0.5rem; // Gap between stacked items
+
+        .create-role__day-label {
             grid-column: 1 / -1; // Span full width
+            text-align: left; // Align label left
+            padding-right: 0; // Remove right padding
+            margin-bottom: 0.25rem; // Add space below label
         }
 
-        .create-role__time-input:first-of-type {
-            // First time input
+        // Place start time input
+        input[type="time"]:nth-of-type(1) {
             grid-column: 1 / -1;
         }
 
         .create-role__time-separator {
             grid-column: 1 / -1;
-            margin: 0.25rem 0; // Add some vertical space
+            text-align: center; // Center the "to" text
+            margin: 0.1rem 0; // Minimal vertical margin
         }
 
-        .create-role__time-input:last-of-type {
-            // Second time input
+        // Place end time input
+        input[type="time"]:nth-of-type(2) {
             grid-column: 1 / -1;
         }
     }
 
     .create-role__footer {
-        flex-direction: column-reverse; // Stack buttons vertically
+        flex-direction: column-reverse; // Stack buttons vertically (Submit on top)
         gap: 0.5rem;
 
         .btn {
             width: 100%; // Make buttons full width
-            justify-content: center; // Center button text
-            margin-right: 0 !important; // Remove specific margin from cancel button
         }
     }
 }
