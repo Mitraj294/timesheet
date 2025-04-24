@@ -1,118 +1,382 @@
-.dashboard-container {
-    max-width: 1200px;
-    margin: auto;
-    padding: 20px;
-    font-family: "Arial", sans-serif;
+@use 'sass:color';
+
+// --- Standard Variables ---
+$primary-color: #007bff;
+$secondary-color: #6c757d;
+$success-color: #28a745;
+$warning-color: #ffc107;
+$danger-color: #dc3545;
+$info-color: #17a2b8;
+$purple-color: #8b5cf6;
+$light-grey: #f8f9fa;
+$medium-grey: #e9ecef;
+$dark-grey: #6c757d;
+$text-color: #333;
+$border-color: #dee2e6;
+$border-radius: 5px;
+$box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+$font-family: 'Segoe UI', sans-serif;
+
+$breakpoint-lg: 1024px;
+$breakpoint-md: 768px;
+$breakpoint-sm: 576px;
+
+// --- Page Container ---
+.view-dashboard-page {
+    padding: clamp(1rem, 2vw, 1.5rem);
+    max-width: 1400px; // Allow wider view
+    margin: 0 auto;
+    font-family: $font-family;
+    background-color: $light-grey;
+    min-height: calc(100vh - 60px); // Adjust based on header height
 }
 
-/* FILTERS SECTION */
-.dashboard-filters {
-    background: #f8f9fa;
-    padding: 15px;
-    border-radius: 8px;
-    box-shadow: 0px 2px 8px rgba(0, 0, 0, 0.1);
-    margin-bottom: 20px;
+// --- Filters Section ---
+.dashboard-filters-container {
+    background: #fff; // Use white background like other containers
+    padding: 1.5rem;
+    border-radius: $border-radius;
+    box-shadow: $box-shadow;
+    margin-bottom: 1.5rem;
+    border: 1px solid $border-color;
 
-    h4 {
-        margin: 0;
-        font-size: 22px;
-        color: #333;
-    }
+    .greeting {
+        margin-bottom: 1rem;
+        padding-bottom: 1rem;
+        border-bottom: 1px solid $border-color;
 
-    p {
-        font-size: 14px;
-        color: #666;
+        h4 {
+            margin: 0;
+            font-size: 1.5rem; // Slightly larger greeting
+            font-weight: 600;
+            color: $text-color;
+        }
+
+        p {
+            font-size: 1rem;
+            color: $dark-grey;
+            margin: 0.25rem 0 0 0;
+        }
     }
 
     .filters {
         display: flex;
-        gap: 15px;
-        margin-top: 10px;
+        flex-wrap: wrap; // Allow wrapping on smaller screens
+        gap: 1.5rem; // Increase gap
     }
 
     .select-container {
-        flex: 1;
+        flex: 1; // Allow selects to grow
+        min-width: 200px; // Minimum width before wrapping
 
         label {
             display: block;
-            font-size: 14px;
-            margin-bottom: 5px;
+            font-size: 0.9rem; // Standard label size
+            margin-bottom: 0.4rem;
             font-weight: 600;
-            color: #333;
+            color: $text-color;
         }
 
-        .custom-select {
-            width: 100%;
+        // Style react-select component
+        .react-select-container {
+            .react-select__control {
+                border: 1px solid $border-color;
+                border-radius: 4px;
+                min-height: 40px; // Adjust height to match inputs
+                box-shadow: none; // Remove default react-select shadow
+
+                &:hover {
+                    border-color: color.adjust($border-color, $lightness: -10%);
+                }
+
+                &--is-focused {
+                    border-color: $primary-color;
+                    box-shadow: 0 0 0 3px rgba($primary-color, 0.25);
+                }
+            }
+
+            .react-select__value-container {
+                padding: 0.2rem 0.8rem;
+            }
+
+            .react-select__indicator-separator {
+                display: none;
+            }
+
+            .react-select__menu {
+                border-radius: 4px;
+                box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+                z-index: 10; // Ensure dropdown is above other content
+            }
+
+            .react-select__option {
+                &:hover {
+                    background-color: $light-grey;
+                }
+
+                &--is-focused {
+                    background-color: $light-grey;
+                }
+
+                // Style focus same as hover
+                &--is-selected {
+                    background-color: $primary-color;
+                    color: white;
+
+                    &:hover {
+                        background-color: color.adjust($primary-color, $lightness: -5%);
+                    }
+                }
+            }
         }
     }
 }
 
-/*  SUMMARY SECTION */
-.dashboard-grid {
+// --- Summary Grid & Cards ---
+.dashboard-summary-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
-    gap: 15px;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); // Adjust minmax
+    gap: 1.5rem;
+    margin-bottom: 1.5rem;
 }
 
-.dashboard-card {
+.summary-card {
+    // Renamed from dashboard-card for clarity
     background: #ffffff;
-    padding: 20px;
-    border-radius: 10px;
-    text-align: center;
-    box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.1);
-    transition: transform 0.2s ease-in-out;
+    padding: 1.25rem; // Adjust padding
+    border-radius: $border-radius;
+    display: flex; // Use flexbox for icon and content alignment
+    align-items: center;
+    gap: 1rem;
+    box-shadow: $box-shadow;
+    border: 1px solid $border-color;
+    transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
 
     &:hover {
-        transform: translateY(-5px);
+        transform: translateY(-3px);
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08);
     }
 
-    h3 {
-        font-size: 24px;
-        font-weight: bold;
-        color: #007bff;
-        margin: 0;
+    .summary-icon {
+        font-size: 2rem; // Adjust icon size
+        padding: 0.75rem;
+        border-radius: 50%; // Make icon background circular
+        color: #fff; // White icon color
+        flex-shrink: 0; // Prevent icon from shrinking
+
+        // Specific icon colors
+        &.users {
+            background-color: $primary-color;
+        }
+
+        &.hours {
+            background-color: $success-color;
+        }
+
+        &.avg-hours {
+            background-color: $info-color;
+        }
+
+        &.lunch {
+            background-color: $warning-color;
+            color: $text-color;
+        }
+
+        // Warning color might need dark text
+        &.leaves {
+            background-color: $danger-color;
+        }
+
+        &.clients {
+            background-color: $purple-color;
+        }
+
+        &.projects {
+            background-color: color.adjust($secondary-color, $lightness: -10%);
+        }
     }
+
+    .summary-content {
+        text-align: left; // Align text left
+
+        h3 {
+            font-size: 1.75rem; // Adjust heading size
+            font-weight: 600;
+            color: $text-color;
+            margin: 0 0 0.2rem 0;
+            line-height: 1.2;
+        }
+
+        p {
+            font-size: 0.9rem;
+            color: $dark-grey;
+            margin: 0;
+        }
+    }
+}
+
+// --- Chart Cards ---
+.chart-card {
+    background: #ffffff;
+    padding: 1.5rem;
+    border-radius: $border-radius;
+    box-shadow: $box-shadow;
+    border: 1px solid $border-color;
+    margin-bottom: 1.5rem;
+
+    h4 {
+        margin-top: 0;
+        margin-bottom: 1rem;
+        font-size: 1.2rem;
+        font-weight: 600;
+        color: $text-color;
+        text-align: center;
+    }
+
+    .chart-total {
+        text-align: center;
+        margin-bottom: 1rem;
+        font-size: 1rem;
+        color: $dark-grey;
+
+        span {
+            font-weight: 600;
+            color: $text-color;
+        }
+    }
+
+    .chart-container {
+        position: relative; // Needed for responsive charts
+        height: 300px; // Default height, adjust as needed
+        width: 100%;
+
+        &.bar-chart-container {
+            height: 350px; // Slightly taller for bar chart
+        }
+
+        &.pie-chart-container {
+            height: 280px; // Adjust height for pie charts
+            max-width: 400px; // Limit max width for pie charts
+            margin: 0 auto; // Center pie charts
+        }
+
+        canvas {
+            // Canvas itself doesn't need width/height here if container is sized
+        }
+    }
+}
+
+// Grid for Pie Charts
+.dashboard-pie-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); // Responsive columns
+    gap: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+
+
+// --- Loading/Error States ---
+.loading-indicator,
+.error-message {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+    margin: 1.5rem auto;
+    background-color: #fff;
+    border-radius: $border-radius;
+    box-shadow: $box-shadow;
+    text-align: center;
+    color: $dark-grey;
+    max-width: 600px;
 
     p {
-        font-size: 14px;
-        color: #666;
-        margin: 5px 0;
-    }
-
-    .dashboard-icon {
-        font-size: 30px;
-        margin-top: 10px;
-        color: #007bff;
+        margin-top: 0.75rem;
+        font-size: 1rem;
+        margin-bottom: 0;
     }
 }
 
-/*  GRAPH SECTION */
-.dashboard-card canvas {
-    width: 100%;
-    max-height: 300px;
+.error-message {
+    color: color.adjust($danger-color, $lightness: -10%);
+    border: 1px solid color.adjust($danger-color, $lightness: 30%);
+    background-color: color.adjust($danger-color, $lightness: 45%);
 }
 
-/* Responsive Design */
-@media (max-width: 768px) {
-    .dashboard-filters .filters {
-        flex-direction: column;
+
+// --- Responsive Design ---
+@media (max-width: $breakpoint-lg) {
+
+    // 1024px
+    .dashboard-summary-grid {
+        grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); // Adjust minmax for slightly smaller screens
+    }
+}
+
+@media (max-width: $breakpoint-md) {
+
+    // 768px
+    .dashboard-filters-container .filters {
+        flex-direction: column; // Stack filters vertically
+        gap: 1rem;
     }
 
-    .dashboard-grid {
-        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    .dashboard-summary-grid {
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); // Allow 2-3 cards per row
+    }
+
+    .dashboard-pie-grid {
+        grid-template-columns: 1fr; // Stack pie charts
     }
 }
 
-.dashboard-card {
-    // Add styling for the cards
-}
+@media (max-width: $breakpoint-sm) {
 
-.dashboard-card-content {
-    display: flex;
-    justify-content: space-between;
-}
+    // 576px
+    .view-dashboard-page {
+        padding: 1rem;
+    }
 
-.dashboard-card-graph {
-    margin-top: 20px;
-    text-align: center;
+    .dashboard-filters-container {
+        padding: 1rem;
+    }
+
+    .dashboard-summary-grid {
+        grid-template-columns: 1fr; // Stack summary cards
+    }
+
+    .summary-card {
+        padding: 1rem;
+
+        .summary-icon {
+            font-size: 1.5rem;
+            padding: 0.6rem;
+        }
+
+        .summary-content h3 {
+            font-size: 1.5rem;
+        }
+
+        .summary-content p {
+            font-size: 0.85rem;
+        }
+    }
+
+    .chart-card {
+        padding: 1rem;
+
+        h4 {
+            font-size: 1.1rem;
+        }
+
+        .chart-container {
+            height: 250px;
+        }
+
+        // Reduce chart height
+        .chart-container.bar-chart-container {
+            height: 300px;
+        }
+    }
 }

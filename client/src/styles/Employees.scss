@@ -1,302 +1,25 @@
-// --- Base Variables (Consider moving to a global _variables.scss) ---
+@use 'sass:color';
+
 $primary-color: #007bff;
 $secondary-color: #6c757d;
 $success-color: #28a745;
 $warning-color: #ffc107;
 $danger-color: #dc3545;
+$info-color: #17a2b8;
+$purple-color: #8b5cf6;
 $light-grey: #f8f9fa;
 $medium-grey: #e9ecef;
 $dark-grey: #6c757d;
 $text-color: #333;
 $border-color: #dee2e6;
-$border-radius: 5px; // Consistent border radius
-$box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05); // Subtle shadow
+$border-radius: 5px;
+$box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+$font-family: 'Segoe UI', sans-serif;
 
-// --- Employees Container ---
-.employees-container {
-    padding: clamp(1rem, 2vw, 1.5rem); // Responsive padding
-    max-width: 1200px;
-    margin: 0 auto; // Center container
-    font-family: 'Segoe UI', sans-serif; // Consistent font
-    background-color: #f9f9f9; // Match RosterPage background
-    min-height: calc(100vh - 60px); // Adjust based on actual header height if fixed
-}
-
-// --- Header Section (Consistent with RosterPage) ---
-.employees-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center; // Vertically align items
-    margin-bottom: 1.5rem;
-    flex-wrap: wrap; // Allow wrapping on smaller screens
-    gap: 1rem; // Gap between title/breadcrumbs and button when wrapped
-    padding: 1rem; // Padding inside the header area
-    background-color: #fff; // White background for header card
-    border-radius: $border-radius;
-    box-shadow: $box-shadow;
-
-    .title-breadcrumbs {
-        display: flex;
-        flex-direction: column;
-        gap: 0.25rem; // Small gap between title and breadcrumbs
-
-        h2 {
-            font-size: clamp(1.4rem, 3vw, 1.75rem); // Responsive font size
-            display: flex;
-            align-items: center;
-            gap: 0.6rem;
-            color: $text-color;
-            margin: 0;
-            font-weight: 600;
-        }
-
-        .breadcrumbs {
-            font-size: 0.875rem;
-            color: $dark-grey;
-            display: flex; // Keep breadcrumbs inline
-            align-items: center;
-            flex-wrap: wrap; // Allow breadcrumbs to wrap if needed
-
-            .breadcrumb-link {
-                color: $primary-color;
-                text-decoration: none;
-                font-weight: 500;
-
-                &:hover {
-                    text-decoration: underline;
-                }
-            }
-
-            .breadcrumb-separator {
-                margin: 0 0.3rem;
-                color: lighten($dark-grey, 15%);
-            }
-
-            .breadcrumb-current {
-                color: $dark-grey;
-            }
-        }
-    }
-
-    // Add Employee Button - Using general button styles
-    .add-employee-btn {
-        // Uses .btn and .btn-primary from global/RosterPage styles
-        // Add any specific overrides if needed, e.g., min-width
-        flex-shrink: 0; // Prevent button from shrinking too much
-    }
-}
-
-// --- Loading and Error States ---
-.loading-indicator,
-.error-message {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: 2rem;
-    margin-top: 1rem;
-    background-color: #fff;
-    border-radius: $border-radius;
-    box-shadow: $box-shadow;
-    text-align: center;
-    color: $dark-grey;
-
-    p {
-        margin-top: 0.75rem;
-        font-size: 1rem;
-    }
-}
-
-.error-message {
-    color: $danger-color;
-    border: 1px solid lighten($danger-color, 30%);
-    background-color: lighten($danger-color, 45%);
-
-    p {
-        color: darken($danger-color, 10%);
-    }
-
-    .btn-secondary {
-        // Style for retry button
-        margin-top: 1rem;
-        background-color: $secondary-color;
-        color: #fff;
-
-        &:hover {
-            background-color: darken($secondary-color, 10%);
-        }
-    }
-}
+$breakpoint-md: 768px;
+$breakpoint-sm: 576px;
 
 
-// --- Employee Table Wrapper (for horizontal scroll) ---
-.employee-table-wrapper {
-    width: 100%;
-    overflow-x: auto; // Enable horizontal scroll on smaller screens
-    background-color: #fff;
-    border-radius: $border-radius;
-    box-shadow: $box-shadow;
-    -webkit-overflow-scrolling: touch; // Smooth scrolling on iOS
-}
-
-// --- Employee Table ---
-.employee-table {
-    width: 100%;
-    border-collapse: collapse;
-    min-width: 800px; // Minimum width before scrollbar appears (adjust as needed)
-
-    th,
-    td {
-        padding: 0.8rem 1rem; // Consistent padding
-        border: 1px solid $border-color;
-        text-align: left; // Align text left for readability
-        font-size: 0.95rem;
-        vertical-align: middle; // Align content vertically
-    }
-
-    th {
-        background-color: $light-grey;
-        font-weight: 600; // Slightly bolder headers
-        color: darken($dark-grey, 10%);
-        white-space: nowrap; // Prevent headers from wrapping
-    }
-
-    tbody tr {
-        transition: background-color 0.2s ease;
-
-        &:nth-child(even) {
-            background-color: lighten($light-grey, 2%);
-        }
-
-        &:hover {
-            background-color: $medium-grey; // Subtle hover effect
-        }
-    }
-
-    td {
-        color: $text-color;
-
-        &.no-data-cell {
-            text-align: center;
-            color: $dark-grey;
-            font-style: italic;
-            padding: 1.5rem;
-        }
-    }
-
-    // Actions Column Styles
-    .employee-actions {
-        text-align: center; // Center icons within the cell
-        white-space: nowrap; // Prevent action buttons from wrapping
-
-        // Use general icon button styles
-        .btn-icon {
-            background: none;
-            border: none;
-            padding: 0.4rem 0.6rem; // Padding around the icon
-            cursor: pointer;
-            border-radius: $border-radius;
-            font-size: 1.1rem; // Icon size
-            line-height: 1;
-            margin: 0 0.2rem; // Small space between icons
-            transition: background-color 0.2s ease, color 0.2s ease;
-            vertical-align: middle; // Align icons properly if text were present
-
-            &:hover {
-                background-color: $medium-grey; // Subtle background on hover
-            }
-
-            // Specific colors for actions
-            &.btn-icon-yellow {
-                color: darken($warning-color, 15%);
-
-                &:hover {
-                    color: darken($warning-color, 25%);
-                }
-            }
-
-            &.btn-icon-red {
-                color: $danger-color;
-
-                &:hover {
-                    color: darken($danger-color, 15%);
-                }
-            }
-        }
-    }
-}
-
-// --- Responsive Adjustments ---
-
-// Medium Screens (Tablets) - Header might wrap, table might scroll
-@media (max-width: 768px) {
-    .employees-header {
-        // flex-direction: column; // Already handled by flex-wrap
-        // align-items: flex-start; // Already handled by flex-wrap
-        padding: 0.8rem; // Slightly reduce header padding
-    }
-
-    .employee-table {
-
-        th,
-        td {
-            padding: 0.6rem 0.8rem; // Reduce cell padding
-            font-size: 0.9rem; // Slightly smaller font
-        }
-
-        // min-width might be adjusted here if needed, but overflow handles it
-    }
-}
-
-// Small Screens (Mobiles) - Header definitely wraps, table scrolls
-@media (max-width: 576px) {
-    .employees-container {
-        padding: 0.5rem; // Reduce container padding
-    }
-
-    .employees-header {
-        .title-breadcrumbs h2 {
-            font-size: 1.25rem; // Smaller title
-        }
-
-        .breadcrumbs {
-            font-size: 0.8rem; // Smaller breadcrumbs
-        }
-
-        .add-employee-btn {
-            width: 100%; // Make button full width if it wraps to its own line
-            justify-content: center; // Center button text/icon
-            margin-top: 0.5rem; // Add space if button wraps below title
-        }
-    }
-
-    .employee-table {
-        // Optional: Implement card-like display for mobile if table scroll isn't desired
-        // This requires significant changes to the JS rendering logic as well.
-        // For now, we rely on horizontal scroll via .employee-table-wrapper.
-
-        th,
-        td {
-            padding: 0.5rem 0.6rem; // Further reduce padding
-            font-size: 0.85rem; // Further reduce font size
-        }
-
-        // Hide less critical columns on very small screens if needed
-        // Example:
-        // th:nth-child(4), td:nth-child(4), // Hide Admin
-        // th:nth-child(5), td:nth-child(5) { // Hide Overtime
-        //   display: none;
-        // }
-
-        .employee-actions .btn-icon {
-            font-size: 1rem; // Slightly smaller icons
-            padding: 0.3rem 0.5rem;
-        }
-    }
-}
-
-// --- General Button Styles (Assume these might exist globally or in RosterPage.scss) ---
-// --- If not, define them here or import from a shared file ---
 .btn {
     padding: 0.6rem 1.2rem;
     border: none;
@@ -310,42 +33,567 @@ $box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05); // Subtle shadow
     gap: 0.5rem;
     white-space: nowrap;
     font-size: 1rem;
-    line-height: 1.5; // Ensure consistent line height
+    line-height: 1.5;
+    font-family: $font-family;
+    text-decoration: none;
 
     &:disabled {
         opacity: 0.65;
         cursor: not-allowed;
     }
-
-    svg {
-        // margin-right: 0.4rem; // Handled by gap
-    }
 }
 
+// Suggestion: Add a general .btn-primary style if needed for buttons like "Add Employee"
+// that aren't links (<a> tags).
 .btn-primary {
-    background-color: $primary-color;
+    background-color: $primary-color; // Or use $success-color if preferred
     color: #fff;
 
     &:hover:not(:disabled) {
-        background-color: darken($primary-color, 10%);
-    }
-
-    &:disabled {
-        background-color: lighten($primary-color, 20%);
+        background-color: color.adjust($primary-color, $lightness: -10%); // Adjust color accordingly
     }
 }
 
 .btn-secondary {
+    // Added for the retry button
     background-color: $secondary-color;
     color: #fff;
 
     &:hover:not(:disabled) {
-        background-color: darken($secondary-color, 10%);
-    }
-
-    &:disabled {
-        background-color: lighten($secondary-color, 20%);
+        background-color: color.adjust($secondary-color, $lightness: -10%);
     }
 }
 
-// Add other button color variations (.btn-green, .btn-red, etc.) if needed globally
+
+.vehicles-page {
+    padding: clamp(1rem, 2vw, 1.5rem);
+    max-width: 1200px;
+    margin: 0 auto;
+    font-family: $font-family;
+    background-color: $light-grey;
+    min-height: calc(100vh - 60px); // Adjust 60px if your header/nav height is different
+}
+
+.vehicles-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center; // Changed from center to flex-start for better alignment if button wraps
+    margin-bottom: 1.5rem;
+    flex-wrap: wrap; // Allow wrapping for smaller screens
+    gap: 1rem; // Add gap for wrapped items
+    padding: 1rem;
+    background-color: #fff;
+    border-radius: $border-radius;
+    box-shadow: $box-shadow;
+
+    .title-breadcrumbs {
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+        flex-grow: 1; // Allow title to take available space
+
+        h2 {
+            font-size: clamp(1.4rem, 3vw, 1.75rem);
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+            color: $text-color;
+            margin: 0;
+            font-weight: 600;
+        }
+
+        .breadcrumbs {
+            font-size: 0.875rem;
+            color: $dark-grey;
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap; // Allow breadcrumbs to wrap if needed
+
+            .breadcrumb-link {
+                color: $primary-color;
+                text-decoration: none;
+                font-weight: 500;
+                white-space: nowrap;
+
+                &:hover {
+                    text-decoration: underline;
+                }
+            }
+
+            .breadcrumb-separator {
+                margin: 0 0.3rem;
+                color: color.adjust($dark-grey, $lightness: 15%);
+                white-space: nowrap;
+            }
+
+            .breadcrumb-current {
+                color: $dark-grey;
+                white-space: nowrap;
+            }
+        }
+    }
+
+    // Style for the button directly within the header (used in Employees.js)
+    .btn {
+        flex-shrink: 0; // Prevent button from shrinking too much
+    }
+}
+
+// Styles specific to the Vehicles.js action bar (Create, Send, Download)
+.vehicles-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    margin-bottom: 1.5rem;
+
+    .btn,
+    a.btn {
+        text-decoration: none;
+    }
+
+    // Specific style for the "Create Vehicle" Link button
+    a.btn.btn-primary {
+        background-color: $success-color; // Using success color here
+        color: #fff;
+        border-color: $success-color;
+
+        &:hover:not(:disabled) {
+            background-color: color.adjust($success-color, $lightness: -10%);
+        }
+    }
+
+    .btn-send-report {
+        background-color: $purple-color;
+        color: #fff;
+
+        &:hover:not(:disabled) {
+            background-color: color.adjust($purple-color, $lightness: -10%);
+        }
+    }
+
+    .btn-download-report {
+        background-color: $danger-color; // Using danger color here
+        color: #fff;
+
+        &:hover:not(:disabled) {
+            background-color: color.adjust($danger-color, $lightness: -10%);
+        }
+    }
+}
+
+// Styles for the Send/Download report sections in Vehicles.js
+.report-options-container {
+    background-color: #fff;
+    padding: 1.5rem;
+    border-radius: $border-radius;
+    box-shadow: $box-shadow;
+    margin-bottom: 1.5rem;
+    border: 1px solid $border-color;
+
+    h4 {
+        margin-top: 0;
+        margin-bottom: 1rem;
+        font-weight: 600;
+        color: $text-color;
+        border-bottom: 1px solid $border-color;
+        padding-bottom: 0.5rem;
+    }
+
+    .date-picker-range {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 1rem;
+        margin-bottom: 1rem;
+
+        .date-picker-wrapper {
+            flex-grow: 1;
+            min-width: 180px; // Ensure date pickers have minimum width
+        }
+
+        // Styling for react-datepicker input
+        .date-input {
+            width: 100%;
+            padding: 0.6rem 0.8rem;
+            font-size: 1rem;
+            border: 1px solid $border-color;
+            border-radius: 4px;
+            box-sizing: border-box;
+            font-family: $font-family;
+
+            &:focus {
+                border-color: $primary-color;
+                box-shadow: 0 0 0 3px rgba($primary-color, 0.25);
+                outline: none;
+            }
+        }
+    }
+
+    .send-report-email {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 1rem;
+        align-items: center;
+
+        input[type="email"] {
+            flex-grow: 1;
+            padding: 0.6rem 0.8rem;
+            font-size: 1rem;
+            border: 1px solid $border-color;
+            border-radius: 4px;
+            min-width: 200px; // Give email input some base width
+            font-family: $font-family;
+
+            &:focus {
+                border-color: $primary-color;
+                box-shadow: 0 0 0 3px rgba($primary-color, 0.25);
+                outline: none;
+            }
+        }
+    }
+
+    .error-text {
+        color: color.adjust($danger-color, $lightness: -10%);
+        font-size: 0.9rem;
+        margin-bottom: 1rem;
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+    }
+
+    // Reusing button styles defined in .vehicles-actions
+    .btn-send-report {
+        background-color: $purple-color;
+        color: #fff;
+
+        &:hover:not(:disabled) {
+            background-color: color.adjust($purple-color, $lightness: -10%);
+        }
+    }
+
+    .btn-download-report {
+        background-color: $danger-color;
+        color: #fff;
+
+        &:hover:not(:disabled) {
+            background-color: color.adjust($danger-color, $lightness: -10%);
+        }
+    }
+}
+
+// Search input styles (used by both pages)
+.vehicles-search {
+    position: relative;
+    margin-bottom: 1.5rem;
+
+    input[type="text"] {
+        width: 100%;
+        padding: 0.7rem 1rem 0.7rem 2.5rem; // Padding left for icon
+        font-size: 1rem;
+        border: 1px solid $border-color;
+        border-radius: $border-radius;
+        box-sizing: border-box;
+        font-family: $font-family;
+
+        &:focus {
+            border-color: $primary-color;
+            box-shadow: 0 0 0 3px rgba($primary-color, 0.25);
+            outline: none;
+        }
+    }
+
+    .search-icon {
+        position: absolute;
+        left: 0.8rem;
+        top: 50%;
+        transform: translateY(-50%);
+        color: $dark-grey;
+        pointer-events: none; // Icon shouldn't be clickable
+    }
+}
+
+// Loading and Error message styles (used by both pages)
+.loading-indicator,
+.error-message {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+    margin: 1.5rem auto; // Center horizontally
+    background-color: #fff;
+    border-radius: $border-radius;
+    box-shadow: $box-shadow;
+    text-align: center;
+    color: $dark-grey;
+    max-width: 600px; // Limit width for better readability
+
+    p {
+        margin-top: 0.75rem;
+        font-size: 1rem;
+        margin-bottom: 0; // Remove default bottom margin if any
+    }
+
+    // Style for the retry button within the error message
+    .btn-secondary {
+        margin-top: 1rem;
+    }
+}
+
+.error-message {
+    color: color.adjust($danger-color, $lightness: -10%);
+    border: 1px solid color.adjust($danger-color, $lightness: 30%);
+    background-color: color.adjust($danger-color, $lightness: 45%); // Lighter red background
+}
+
+// Grid styles (used by both pages)
+.vehicles-grid {
+    background-color: #fff;
+    border-radius: $border-radius;
+    box-shadow: $box-shadow;
+    overflow: hidden; // Important for border-radius on container
+    border: 1px solid $border-color;
+
+    .vehicles-row {
+        display: grid;
+        // grid-template-columns are set inline via style prop in the components
+        align-items: center; // Vertically align content in cells
+        border-bottom: 1px solid $border-color;
+
+        &:last-child {
+            border-bottom: none; // Remove border from last row
+        }
+
+        // Default cell styles
+        &>div {
+            padding: 0.8rem 1rem;
+            font-size: 0.95rem;
+            color: $text-color;
+            overflow: hidden; // Prevent content overflow
+            text-overflow: ellipsis; // Show ellipsis (...) for overflow
+            white-space: nowrap; // Keep content on one line initially
+        }
+
+        // Header row specific styles
+        &.header {
+            background-color: $light-grey;
+            font-weight: 600;
+            color: color.adjust($dark-grey, $lightness: -10%);
+            border-bottom-width: 2px; // Thicker border below header
+
+            // Allow header text to wrap if needed
+            &>div {
+                white-space: normal;
+            }
+        }
+
+        // Hover effect for data rows (excluding header and no-results message)
+        &:not(.header):not(.no-results):hover {
+            background-color: $medium-grey;
+        }
+
+        // Style for the "No results" message row
+        &.no-results {
+            display: block; // Override grid display
+            text-align: center;
+            padding: 1.5rem;
+            color: $dark-grey;
+            font-style: italic;
+        }
+
+        // Action buttons container within a row
+        .actions {
+            display: flex;
+            justify-content: center; // Center buttons horizontally
+            align-items: center; // Align buttons vertically
+            gap: 0.5rem; // Space between buttons
+            padding: 0.6rem 1rem; // Adjust padding for action cell
+
+            // Individual icon button styles
+            .btn-icon {
+                background: none;
+                border: none;
+                padding: 0.3rem; // Small padding around icon
+                cursor: pointer;
+                border-radius: $border-radius;
+                font-size: 1.1rem; // Icon size
+                line-height: 1; // Ensure icon aligns well
+                transition: background-color 0.2s ease, color 0.2s ease;
+                color: $dark-grey; // Default icon color
+                vertical-align: middle; // Align with text if needed
+
+                &:hover:not(:disabled) {
+                    background-color: color.adjust($medium-grey, $lightness: -5%); // Slight background on hover
+                }
+
+                &:disabled {
+                    opacity: 0.5;
+                    cursor: not-allowed;
+                }
+
+                // Specific colors for different action types
+                &.btn-icon-blue {
+                    // View
+                    color: $primary-color;
+
+                    &:hover:not(:disabled) {
+                        color: color.adjust($primary-color, $lightness: -15%);
+                    }
+                }
+
+                &.btn-icon-yellow {
+                    // Edit
+                    color: color.adjust($warning-color, $lightness: -10%);
+
+                    &:hover:not(:disabled) {
+                        color: color.adjust($warning-color, $lightness: -25%);
+                    }
+                }
+
+                &.btn-icon-red {
+                    // Delete
+                    color: $danger-color;
+
+                    &:hover:not(:disabled) {
+                        color: color.adjust($danger-color, $lightness: -15%);
+                    }
+                }
+            }
+        }
+    }
+}
+
+// Responsive adjustments (Medium screens and below)
+@media (max-width: $breakpoint-md) {
+    .vehicles-grid {
+        // Remove grid container styles, let cards stack
+        background-color: transparent;
+        box-shadow: none;
+        border-radius: 0;
+        border: none;
+        display: flex; // Change to flex for gap property
+        flex-direction: column;
+        gap: 1rem; // Space between cards
+
+        .vehicles-row.header {
+            display: none; // Hide the header row on smaller screens
+        }
+
+        // Style each data row as a card
+        .vehicles-row.vehicle-card {
+            display: block; // Override grid display
+            background-color: #fff;
+            border: 1px solid $border-color;
+            border-radius: $border-radius;
+            box-shadow: $box-shadow;
+            padding: 1rem;
+            border-bottom: 1px solid $border-color; // Keep bottom border for separation
+
+            &:last-child {
+                border-bottom: 1px solid $border-color; // Ensure last card also has border
+            }
+
+            // Style individual data points within the card
+            &>div {
+                padding: 0.4rem 0; // Vertical padding for data points
+                font-size: 0.9rem;
+                white-space: normal; // Allow text wrapping
+                display: flex; // Use flex to align label and value
+                justify-content: space-between; // Push value to the right
+                align-items: baseline; // Align text baselines
+                border-bottom: 1px dashed color.adjust($border-color, $lightness: 5%); // Separator line
+
+                &:last-child {
+                    border-bottom: none; // No line after the last item (usually actions)
+                }
+
+                // Add the label using ::before pseudo-element
+                &::before {
+                    content: attr(data-label); // Get label from data-label attribute
+                    font-weight: 600;
+                    color: $dark-grey;
+                    margin-right: 0.5rem; // Space between label and value
+                    flex-shrink: 0; // Prevent label from shrinking
+                }
+
+                // Adjust actions container within the card
+                &.actions {
+                    justify-content: flex-end; // Align buttons to the right
+                    padding-top: 0.8rem; // Add space above actions
+                    margin-top: 0.5rem; // Ensure separation
+                    border-bottom: none; // Actions shouldn't have a bottom border
+
+                    &::before {
+                        display: none; // Don't show "Actions:" label
+                    }
+                }
+            }
+        }
+
+        // Style the "No results" message when in card view
+        .vehicles-row.no-results {
+            background-color: #fff;
+            border-radius: $border-radius;
+            box-shadow: $box-shadow;
+            padding: 1.5rem;
+            border: 1px solid $border-color;
+            margin-top: 0; // Reset margin if needed
+        }
+    }
+
+    // Adjust padding for report options container
+    .report-options-container {
+        padding: 1rem;
+    }
+}
+
+// Responsive adjustments (Small screens and below)
+@media (max-width: $breakpoint-sm) {
+    .vehicles-header {
+        align-items: flex-start; // Align items top when wrapping
+
+        .title-breadcrumbs h2 {
+            font-size: 1.25rem; // Smaller heading
+        }
+
+        .breadcrumbs {
+            font-size: 0.8rem; // Smaller breadcrumbs
+        }
+    }
+
+    // Make action buttons full width on small screens
+    .vehicles-actions {
+
+        .btn,
+        a.btn {
+            flex-grow: 1; // Allow buttons to grow
+            flex-basis: 100%; // Try to take full width
+            justify-content: center; // Center text/icon within button
+        }
+    }
+
+    // Stack date pickers and email input vertically
+    .report-options-container {
+
+        .date-picker-range,
+        .send-report-email {
+            flex-direction: column;
+            align-items: stretch; // Make items full width
+
+            .date-picker-wrapper,
+            input[type="email"],
+            button {
+                min-width: 0; // Remove min-width
+                width: 100%; // Make full width
+            }
+        }
+    }
+
+    // Adjust card padding and font size slightly
+    .vehicles-grid .vehicles-row.vehicle-card {
+        padding: 0.8rem;
+
+        &>div {
+            font-size: 0.85rem;
+        }
+    }
+}

@@ -2,10 +2,11 @@ import React, { useEffect, useState, useRef, useMemo } from "react";
 import axios from "axios";
 import { useSelector, useDispatch } from "react-redux";
 import { getEmployees } from "../../redux/actions/employeeActions";
-import { getTimesheets } from "../../redux/actions/timesheetActions";
+// Removed getTimesheets import as timesheets are fetched locally
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import Select from "react-select";
+import Select from "react-select"; // Keep react-select
 import {
+  faTachometerAlt, // Changed icon for Dashboard
   faUsers,
   faClock,
   faStopwatch,
@@ -13,95 +14,106 @@ import {
   faCalendarAlt,
   faTasks,
   faBriefcase,
-  faPen,
-  faArrowLeft,
-  faArrowRight,
-  faPlus,
-  faChevronDown,
-  faChevronUp,
-  faTrash,
+  faSpinner, // Keep spinner
+  faExclamationCircle, // Keep error icon
+  // Removed unused icons like faPen, faArrow*, faPlus, faChevron*, faTrash
 } from "@fortawesome/free-solid-svg-icons";
 import Chart from "chart.js/auto";
-import { format } from "date-fns";
-import "../../styles/Dashboard.scss";
-
+// Removed date-fns format as Luxon is used
+import "../../styles/Dashboard.scss"; // Keep specific SCSS
+import { DateTime } from "luxon"; // Keep Luxon
 
 const API_URL = process.env.REACT_APP_API_URL || 'https://timesheet-c4mj.onrender.com/api';
 
-//UTILITY FUNCTIONS  
+// --- UTILITY FUNCTIONS (Unchanged) ---
 
 // Convert decimal hours to "HH:MM" format.
 const convertDecimalToTime = (decimalHours) => {
-  if (isNaN(decimalHours)) return "00:00";
+  if (isNaN(decimalHours) || decimalHours == null) return "00:00"; // Added null check
   const hours = Math.floor(decimalHours);
   const minutes = Math.round((decimalHours - hours) * 60);
-  return `${hours}:${minutes < 10 ? "0" : ""}${minutes}`;
+  return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`; // Pad hours too
 };
 
 // Group data by a given key and sum the totalHours values.
 const groupBy = (key, data = []) => {
   return data.reduce((acc, entry) => {
-    if (!entry[key]) return acc;
-    const id = entry[key]?.["_id"] ?? entry[key] ?? "Unknown";
-    if (!id) return acc;
-    acc[id] = (acc[id] || 0) + (parseFloat(entry.totalHours) || 0);
+    if (!entry || !entry[key]) return acc; // Added check for entry existence
+    const idField = entry[key];
+    const id = typeof idField === 'object' && idField !== null ? idField._id : idField;
+    const name = typeof idField === 'object' && idField !== null ? idField.name : id; // Get name for label later
+
+    if (!id) return acc; // Skip if no valid ID
+
+    if (!acc[id]) {
+      acc[id] = { totalHours: 0, name: name || id }; // Store name along with hours
+    }
+    acc[id].totalHours += (parseFloat(entry.totalHours) || 0);
     return acc;
   }, {});
 };
 
-// Get the Monday of the week for a given date.
+
+// Get the Monday of the week for a given date using Luxon.
 const getWeekStart = (date) => {
-  const d = new Date(date);
-  const day = d.getDay();
-  const diff = day === 0 ? -6 : 1 - day;
-  d.setDate(d.getDate() + diff);
-  d.setHours(0, 0, 0, 0);
-  return d;
+  return DateTime.fromJSDate(date).startOf('week').toJSDate();
 };
 
-// Get the period range based on view type //Weekly, Fortnightly, Monthly
+// Get the period range based on view type using Luxon.
 const getPeriodRange = (view) => {
-  const today = new Date();
-  let start, end;
+  const today = DateTime.local();
+  let startDt, endDt;
   if (view === "Weekly") {
-    start = getWeekStart(today);
-    end = new Date(start);
-    end.setDate(start.getDate() + 6);
+    startDt = today.startOf('week');
+    endDt = startDt.endOf('week');
   } else if (view === "Fortnightly") {
-    start = getWeekStart(today);
-    if (today.getDate() - start.getDate() >= 7) {
-      start.setDate(start.getDate() - 7);
-    }
-    end = new Date(start);
-    end.setDate(start.getDate() + 13);
+    startDt = today.startOf('week');
+    // Determine if we are in the first or second week of the fortnight relative to some anchor if needed
+    // Simple approach: show current week and previous week
+    startDt = startDt.minus({ weeks: 1 });
+    endDt = startDt.plus({ days: 13 }).endOf('day');
   } else if (view === "Monthly") {
-    start = getWeekStart(today);
-    start.setDate(start.getDate() - 21);
-    end = new Date(start);
-    end.setDate(start.getDate() + 27);
+    // Show 4 weeks starting from the week containing the 1st of the month
+    startDt = today.startOf('month').startOf('week');
+    endDt = startDt.plus({ days: 27 }).endOf('day'); // 4 weeks * 7 days - 1 day
+  } else {
+    // Default to weekly if view is unknown
+    startDt = today.startOf('week');
+    endDt = startDt.endOf('week');
   }
-  return { start, end };
+  return { start: startDt.toJSDate(), end: endDt.toJSDate() };
 };
 
-// Get the previous period range by subtracting the length of the current period.
-const getPreviousPeriodRange = (currentRange) => {
-  const { start, end } = currentRange;
-  const periodLength = end.getTime() - start.getTime() + 24 * 60 * 60 * 1000;
-  const prevStart = new Date(start.getTime() - periodLength);
-  const prevEnd = new Date(end.getTime() - periodLength);
-  return { start: prevStart, end: prevEnd };
+// Get the previous period range using Luxon.
+const getPreviousPeriodRange = (currentRange, view) => {
+  const startDt = DateTime.fromJSDate(currentRange.start);
+  let prevStartDt;
+  if (view === "Weekly") {
+    prevStartDt = startDt.minus({ weeks: 1 });
+  } else if (view === "Fortnightly") {
+    prevStartDt = startDt.minus({ weeks: 2 });
+  } else if (view === "Monthly") {
+    // Assuming monthly view is 4 weeks, go back 4 weeks
+    prevStartDt = startDt.minus({ weeks: 4 });
+  } else {
+    prevStartDt = startDt.minus({ weeks: 1 }); // Default previous week
+  }
+  const prevEndDt = prevStartDt.plus({ days: DateTime.fromJSDate(currentRange.end).diff(startDt, 'days').days }).endOf('day');
+  return { start: prevStartDt.toJSDate(), end: prevEndDt.toJSDate() };
 };
 
-// Calculate daily totals from the provided data for a given period start.
+
+// Calculate daily totals from the provided data for a given period start using Luxon.
 const getDayTotals = (data, periodStart) => {
   const dailyTotals = [];
+  const startDt = DateTime.fromJSDate(periodStart);
   for (let i = 0; i < 7; i++) {
-    const day = new Date(periodStart);
-    day.setDate(day.getDate() + i);
+    const currentDay = startDt.plus({ days: i });
     const total = data
       .filter((t) => {
-        const d = new Date(t.date);
-        return d.toDateString() === day.toDateString();
+        if (!t || !t.date) return false;
+        const entryDt = DateTime.fromISO(t.date);
+        return entryDt.hasSame(currentDay, 'day');
       })
       .reduce((sum, t) => sum + (parseFloat(t.totalHours) || 0), 0);
     dailyTotals.push(total);
@@ -109,16 +121,18 @@ const getDayTotals = (data, periodStart) => {
   return dailyTotals;
 };
 
-// Calculate weekly totals from the provided data for a given number of weeks.
+// Calculate weekly totals from the provided data for a given number of weeks using Luxon.
 const getWeeklyTotals = (data, periodStart, weeks) => {
   const weeklyTotals = [];
+  const startDt = DateTime.fromJSDate(periodStart);
   for (let w = 0; w < weeks; w++) {
-    const weekStart = new Date(periodStart);
-    weekStart.setDate(weekStart.getDate() + w * 7);
+    const weekStartDt = startDt.plus({ weeks: w });
+    const weekEndDt = weekStartDt.endOf('week');
     const weekTotal = data
       .filter((t) => {
-        const d = new Date(t.date);
-        return d >= weekStart && d <= new Date(weekStart.getTime() + 7 * 24 * 60 * 60 * 1000);
+        if (!t || !t.date) return false;
+        const entryDt = DateTime.fromISO(t.date);
+        return entryDt >= weekStartDt && entryDt <= weekEndDt;
       })
       .reduce((sum, t) => sum + (parseFloat(t.totalHours) || 0), 0);
     weeklyTotals.push(weekTotal);
@@ -126,553 +140,431 @@ const getWeeklyTotals = (data, periodStart, weeks) => {
   return weeklyTotals;
 };
 
- //DASHBOARD COMPONENT 
+// --- DASHBOARD COMPONENT ---
 
 const Dashboard = () => {
   const dispatch = useDispatch();
-  const { employees } = useSelector((state) => state.employees);
-  const { user } = useSelector((state) => state.auth);
+  const { employees = [], loading: employeesLoading } = useSelector((state) => state.employees || {}); // Destructure loading state
+  const { user } = useSelector((state) => state.auth || {});
 
-  // States for timesheets and filters.
   const [allTimesheets, setAllTimesheets] = useState([]);
   const [employeeTimesheets, setEmployeeTimesheets] = useState([]);
   const [selectedEmployee, setSelectedEmployee] = useState({ value: "All", label: "All Employees" });
   const [viewType, setViewType] = useState({ value: "Weekly", label: "View by Weekly" });
   const [clients, setClients] = useState([]);
+  const [projects, setProjects] = useState([]); // Added projects state
+  const [isLoading, setIsLoading] = useState(true); // Combined loading state
+  const [error, setError] = useState(null); // Combined error state
 
-  const [projects, setProjects] = useState([]);
-  const [currentDate, setCurrentDate] = useState(new Date());
-  const [isLoading, setIsLoading] = useState(false);
-  const [expandedRows, setExpandedRows] = useState({});
-
-  // Refs for Chart.js instances.
   const chartRef = useRef(null);
   const clientsChartRef = useRef(null);
   const projectsChartRef = useRef(null);
 
-  // DATA FETCHING  
+  // --- DATA FETCHING ---
   useEffect(() => {
-    fetchAllTimesheets();
-    dispatch(getTimesheets());
-    dispatch(getEmployees());
-  }, [dispatch]);
+    const fetchAllData = async () => {
+      setIsLoading(true);
+      setError(null);
+      const token = localStorage.getItem("token");
+      if (!token) {
+        setError("Authentication required.");
+        setIsLoading(false);
+        // Consider redirecting: navigate('/login');
+        return;
+      }
+      const config = { headers: { Authorization: `Bearer ${token}` } };
 
-  // Fetch clients only if the user is an employer.
-  useEffect(() => {
-    if (user && user.token && user.role === "employer") {
-      const fetchClients = async () => {
-        try {
-          const response = await axios.get(`${API_URL}/clients`, {
-            headers: { Authorization: `Bearer ${user.token}` },
-          });
-          setClients(response.data.clients || []);
-        } catch (error) {
-          console.error("Error fetching clients:", error);
+      try {
+        // Fetch employees via Redux if not already loaded
+        if (!employees.length && !employeesLoading) {
+          dispatch(getEmployees()); // Let Redux handle employee fetching
         }
-      };
-      
-      fetchClients();
-    }
-  }, [user]);
 
-  // Update employee timesheets when the selected employee changes.
+        // Fetch timesheets, clients, projects directly
+        const [tsRes, clientRes, projectRes] = await Promise.all([
+          axios.get(`${API_URL}/timesheets`, config),
+          axios.get(`${API_URL}/clients`, config),
+          axios.get(`${API_URL}/projects`, config) // Fetch projects
+        ]);
+
+        setAllTimesheets(tsRes.data?.timesheets || []);
+        setClients(clientRes.data || []); // Assuming API returns array directly
+        setProjects(projectRes.data || []); // Assuming API returns array directly
+
+      } catch (err) {
+        console.error("Failed to fetch dashboard data:", err);
+        setError(err.response?.data?.message || "Failed to load dashboard data.");
+        // Handle potential auth errors
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchAllData();
+  }, [dispatch, employees.length, employeesLoading]); // Depend on Redux state
+
+  // Update employee timesheets when selection or allTimesheets change
   useEffect(() => {
     if (selectedEmployee.value === "All") {
       setEmployeeTimesheets(allTimesheets);
     } else {
-      fetchEmployeeTimesheets(selectedEmployee.value);
+      setEmployeeTimesheets(
+        allTimesheets.filter(ts => (ts.employeeId?._id || ts.employeeId) === selectedEmployee.value)
+      );
     }
   }, [selectedEmployee, allTimesheets]);
 
-  // Fetch all timesheets.
-  const fetchAllTimesheets = async () => {
-    try {
-      const token = localStorage.getItem("token");
-      const response = await axios.get(`${API_URL}/timesheets`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      setAllTimesheets(response.data?.timesheets || []);
-    } catch (err) {
-      console.error("Failed to fetch all timesheets:", err);
-    }
-  };
-  
-
-  // Fetch timesheets for a specific employee.
-  const fetchEmployeeTimesheets = async (employeeId) => {
-    try {
-      const token = localStorage.getItem("token");
-      const response = await axios.get(`${API_URL}/timesheets/employee/${employeeId}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      setEmployeeTimesheets(
-        response.data.timesheets && response.data.timesheets.length > 0
-          ? response.data.timesheets
-          : []
-      );
-    } catch (err) {
-      console.error(`Failed to fetch timesheets for Employee ${employeeId}:`, err);
-      setEmployeeTimesheets([]);
-    }
-  };
-  
-
-  // Fetch clients.
-  const fetchClients = async () => {
-    try {
-      const token = localStorage.getItem("token");
-      const response = await axios.get(`${API_URL}/clients`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      setClients(response.data.clients || []);
-    } catch (err) {
-      console.error("Failed to fetch clients:", err);
-    }
-  };
-  
-
-  // DROPDOWN OPTIONS  
-  const employeeOptions = [
+  // --- DROPDOWN OPTIONS ---
+  const employeeOptions = useMemo(() => [
     { value: "All", label: "All Employees" },
     ...(employees ? employees.map((emp) => ({ value: emp._id, label: emp.name })) : []),
-  ];
+  ], [employees]);
+
   const viewOptions = [
     { value: "Weekly", label: "View by Weekly" },
     { value: "Fortnightly", label: "View by Fortnightly" },
     { value: "Monthly", label: "View by Monthly" },
   ];
-  const clientOptions = useMemo(() => {
-    return [
-      { value: "All", label: "All Clients" },
-      ...clients.map((client) => ({ value: client._id, label: client.name })),
-    ];
-  }, [clients]);
 
-  // DATA PROCESSING & SUMMARY  
-  // Filter timesheets with no leave for work-hour calculations.
-  const validTimesheets = employeeTimesheets.filter((t) => t.leaveType === "None");
+  // --- DATA PROCESSING & SUMMARY ---
+  const validTimesheets = useMemo(() => employeeTimesheets.filter((t) => !t.leaveType || t.leaveType === "None"), [employeeTimesheets]);
 
-  // Total hours for all employees.
-  const totalHoursAllSummary = allTimesheets.reduce(
-    (acc, sheet) => acc + (sheet.totalHours || 0),
-    0
-  );
-  // For average, only include timesheets where leaveType is null/undefined or "None".
-  const validTimesheetsForAvg = allTimesheets.filter((ts) => !ts.leaveType || ts.leaveType === "None");
-  const avgHoursAllSummary = validTimesheetsForAvg.length
-    ? (totalHoursAllSummary / validTimesheetsForAvg.length).toFixed(2)
-    : "00:00";
-
-  // Get the current and previous period ranges.
   const currentPeriod = useMemo(() => getPeriodRange(viewType.value), [viewType.value]);
-  const previousPeriod = useMemo(() => getPreviousPeriodRange(currentPeriod), [currentPeriod]);
+  const previousPeriod = useMemo(() => getPreviousPeriodRange(currentPeriod, viewType.value), [currentPeriod, viewType.value]);
 
-  // Filter timesheets in the current period.
   const filteredCurrentTimesheets = useMemo(() => {
     return validTimesheets.filter((t) => {
-      if (!t.date) return false;
-      const d = new Date(t.date);
-      return d >= currentPeriod.start && d <= currentPeriod.end;
+      if (!t || !t.date) return false;
+      const d = DateTime.fromISO(t.date);
+      return d >= DateTime.fromJSDate(currentPeriod.start) && d <= DateTime.fromJSDate(currentPeriod.end);
     });
   }, [validTimesheets, currentPeriod]);
 
-  // Filter timesheets in the previous period.
   const filteredPreviousTimesheets = useMemo(() => {
     return validTimesheets.filter((t) => {
-      if (!t.date) return false;
-      const d = new Date(t.date);
-      return d >= previousPeriod.start && d <= previousPeriod.end;
+      if (!t || !t.date) return false;
+      const d = DateTime.fromISO(t.date);
+      return d >= DateTime.fromJSDate(previousPeriod.start) && d <= DateTime.fromJSDate(previousPeriod.end);
     });
   }, [validTimesheets, previousPeriod]);
 
-  // Calculate selected employee summary.
-  const totalHoursEmployeeSummary = filteredCurrentTimesheets.reduce(
-    (acc, sheet) => acc + (sheet.totalHours || 0),
-    0
-  );
-  const avgHoursEmployeeSummary = filteredCurrentTimesheets.length
-    ? (totalHoursEmployeeSummary / filteredCurrentTimesheets.length).toFixed(2)
-    : "00:00";
+  // --- Summary Calculations ---
+  const totalHoursAllSummary = useMemo(() => allTimesheets.reduce((acc, sheet) => acc + (parseFloat(sheet.totalHours) || 0), 0), [allTimesheets]);
+  const validTimesheetsForAvgAll = useMemo(() => allTimesheets.filter((ts) => !ts.leaveType || ts.leaveType === "None"), [allTimesheets]);
+  const avgHoursAllSummary = validTimesheetsForAvgAll.length ? (totalHoursAllSummary / validTimesheetsForAvgAll.length) : 0;
 
-  // Format summary values.
-  const formattedTotalHoursAll = totalHoursAllSummary > 0 ? convertDecimalToTime(totalHoursAllSummary) : "00:00";
-  const formattedAvgHoursAll = avgHoursAllSummary !== "00:00" ? convertDecimalToTime(parseFloat(avgHoursAllSummary)) : "00:00";
-  const formattedTotalHoursEmployee = totalHoursEmployeeSummary > 0 ? convertDecimalToTime(totalHoursEmployeeSummary) : "00:00";
-  const formattedAvgHoursEmployee = avgHoursEmployeeSummary !== "00:00" ? convertDecimalToTime(parseFloat(avgHoursEmployeeSummary)) : "00:00";
+  const totalHoursEmployeeSummary = useMemo(() => filteredCurrentTimesheets.reduce((acc, sheet) => acc + (parseFloat(sheet.totalHours) || 0), 0), [filteredCurrentTimesheets]);
+  const avgHoursEmployeeSummary = filteredCurrentTimesheets.length ? (totalHoursEmployeeSummary / filteredCurrentTimesheets.length) : 0;
 
-  const formattedTotalHours = selectedEmployee.value === "All" ? formattedTotalHoursAll : formattedTotalHoursEmployee;
+  const formattedTotalHoursAll = convertDecimalToTime(totalHoursAllSummary);
+  const formattedAvgHoursAll = convertDecimalToTime(avgHoursAllSummary);
+  const formattedTotalHoursEmployee = convertDecimalToTime(totalHoursEmployeeSummary);
+  const formattedAvgHoursEmployee = convertDecimalToTime(avgHoursEmployeeSummary);
 
-  // Projects Pie Chart Calculation (for all clients, filtered by selected employee and period).
-  const totalHoursProjectFiltered = allTimesheets
-    .filter((t) => {
-      // If "All" employees selected, include all; else, filter by selected employee.
-      if (selectedEmployee.value !== "All" && (t.employeeId?._id || t.employeeId) !== selectedEmployee.value)
-        return false;
-      return true;
-    })
-    .filter((t) => {
-      // Filter by period.
-      if (!t.date) return false;
-      const d = new Date(t.date);
-      const { start, end } = getPeriodRange(viewType.value);
-      return d >= start && d <= end;
-    })
-    .reduce((acc, sheet) => acc + (parseFloat(sheet.totalHours) || 0), 0);
-  
+  // Determine which total/avg to display
+  const displayTotalHours = selectedEmployee.value === "All" ? formattedTotalHoursAll : formattedTotalHoursEmployee;
+  const displayAvgHours = selectedEmployee.value === "All" ? formattedAvgHoursAll : formattedAvgHoursEmployee;
 
-  // Total leaves: Count timesheets with leaveType not equal to "None", "Public Holiday", or "Annual".
-  const totalLeaves = employeeTimesheets.filter(
-    (t) => t.leaveType && !["None", "Public Holiday", "Annual"].includes(t.leaveType)
-  ).length;
-
-  // Lunch break calculations.
-  const lunchBreakEntries = validTimesheets.filter((t) => t.lunchBreak === "Yes");
-  const totalLunchDuration = lunchBreakEntries.reduce((acc, t) => {
+  // Other summary stats
+  const totalLeaves = useMemo(() => employeeTimesheets.filter(t => t.leaveType && !["None", "Public Holiday", "Annual"].includes(t.leaveType)).length, [employeeTimesheets]);
+  const lunchBreakEntries = useMemo(() => validTimesheets.filter((t) => t.lunchBreak === "Yes"), [validTimesheets]);
+  const totalLunchDuration = useMemo(() => lunchBreakEntries.reduce((acc, t) => {
+    if (!t.lunchDuration || !t.lunchDuration.includes(':')) return acc;
     const [h, m] = t.lunchDuration.split(":").map(Number);
     return acc + (h + m / 60);
-  }, 0);
+  }, 0), [lunchBreakEntries]);
   const avgLunchBreak = lunchBreakEntries.length > 0 ? convertDecimalToTime(totalLunchDuration / lunchBreakEntries.length) : "00:00";
+  const projectsWorked = useMemo(() => new Set(validTimesheets.map((t) => t.projectId?._id || t.projectId).filter(Boolean)).size, [validTimesheets]);
+  const clientsWorked = useMemo(() => new Set(validTimesheets.map((t) => t.clientId?._id || t.clientId).filter(Boolean)).size, [validTimesheets]);
 
-  // Count projects and clients worked.
-  const projectsWorked = new Set(validTimesheets.map((t) => t.projectId?._id || t.projectId).filter(Boolean)).size;
-  const clientsWorked = new Set(validTimesheets.map((t) => t.clientId?._id || t.clientId).filter(Boolean)).size;
-
-  // GRAPH DATA CALCULATION  
-  // Calculate daily totals.
-  const getDayTotalsCalc = (data, periodStart) => {
-    const dailyTotals = [];
-    for (let i = 0; i < 7; i++) {
-      const day = new Date(periodStart);
-      day.setDate(day.getDate() + i);
-      const total = data
-        .filter((t) => {
-          const d = new Date(t.date);
-          return d.toDateString() === day.toDateString();
-        })
-        .reduce((sum, t) => sum + (parseFloat(t.totalHours) || 0), 0);
-      dailyTotals.push(total);
-    }
-    return dailyTotals;
-  };
-
-  // Calculate weekly totals.
-  const getWeeklyTotalsCalc = (data, periodStart, weeksCount) => {
-    const weeklyTotals = [];
-    for (let w = 0; w < weeksCount; w++) {
-      const weekStart = new Date(periodStart);
-      weekStart.setDate(weekStart.getDate() + w * 7);
-      const weekTotal = data
-        .filter((t) => {
-          const d = new Date(t.date);
-          return d >= weekStart && d < new Date(weekStart.getTime() + 7 * 24 * 60 * 60 * 1000);
-        })
-        .reduce((sum, t) => sum + (parseFloat(t.totalHours) || 0), 0);
-      weeklyTotals.push(weekTotal);
-    }
-    return weeklyTotals;
-  };
-
-  // Prepare bar chart data based on view type.
+  // --- GRAPH DATA CALCULATION ---
   const { labels, currentData, previousData, thisPeriodLabel, lastPeriodLabel } = useMemo(() => {
     let labels = [];
     let currentData = [];
     let previousData = [];
     let thisPeriodLabel = "";
     let lastPeriodLabel = "";
+    const currentStart = currentPeriod.start;
+    const previousStart = previousPeriod.start;
+
     if (viewType.value === "Weekly") {
       labels = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-      const currentWeekStart = getWeekStart(new Date());
-      const previousWeekStart = new Date(currentWeekStart);
-      previousWeekStart.setDate(currentWeekStart.getDate() - 7);
-      currentData = getDayTotalsCalc(filteredCurrentTimesheets, currentWeekStart);
-      previousData = getDayTotalsCalc(filteredPreviousTimesheets, previousWeekStart);
+      currentData = getDayTotals(filteredCurrentTimesheets, currentStart);
+      previousData = getDayTotals(filteredPreviousTimesheets, previousStart);
       thisPeriodLabel = "This Week";
       lastPeriodLabel = "Last Week";
     } else if (viewType.value === "Fortnightly") {
       labels = ["Week 1", "Week 2"];
-      const currentFortnight = getPeriodRange("Fortnightly");
-      const previousFortnight = getPreviousPeriodRange(currentFortnight);
-      currentData = getWeeklyTotalsCalc(filteredCurrentTimesheets, currentFortnight.start, 2);
-      previousData = getWeeklyTotalsCalc(filteredPreviousTimesheets, previousFortnight.start, 2);
+      currentData = getWeeklyTotals(filteredCurrentTimesheets, currentStart, 2);
+      previousData = getWeeklyTotals(filteredPreviousTimesheets, previousStart, 2);
       thisPeriodLabel = "This Fortnight";
       lastPeriodLabel = "Last Fortnight";
     } else if (viewType.value === "Monthly") {
       labels = ["Week 1", "Week 2", "Week 3", "Week 4"];
-      const currentMonth = getPeriodRange("Monthly");
-      const previousMonth = getPreviousPeriodRange(currentMonth);
-      currentData = getWeeklyTotalsCalc(filteredCurrentTimesheets, currentMonth.start, 4);
-      previousData = getWeeklyTotalsCalc(filteredPreviousTimesheets, previousMonth.start, 4);
+      currentData = getWeeklyTotals(filteredCurrentTimesheets, currentStart, 4);
+      previousData = getWeeklyTotals(filteredPreviousTimesheets, previousStart, 4);
       thisPeriodLabel = "This Month";
       lastPeriodLabel = "Last Month";
     }
     return { labels, currentData, previousData, thisPeriodLabel, lastPeriodLabel };
-  }, [viewType, filteredCurrentTimesheets, filteredPreviousTimesheets]);
+  }, [viewType.value, filteredCurrentTimesheets, filteredPreviousTimesheets, currentPeriod, previousPeriod]); // Added dependencies
 
-  // CHARTS RENDERING  
-  // Render Bar Chart.
+  // --- CHARTS RENDERING ---
   useEffect(() => {
-    const ctx = document.getElementById("graphCanvas");
+    const ctx = document.getElementById("graphCanvas")?.getContext("2d"); // Use getContext
     if (!ctx) return;
-    if (chartRef.current) {
-      chartRef.current.destroy();
-      chartRef.current = null;
-    }
+    if (chartRef.current) chartRef.current.destroy();
+
     chartRef.current = new Chart(ctx, {
       type: "bar",
       data: {
         labels,
         datasets: [
-          {
-            label: thisPeriodLabel,
-            data: currentData,
-            backgroundColor: "rgba(54, 162, 235, 0.5)",
-            borderColor: "rgba(54, 162, 235, 1)",
-            borderWidth: 1,
-          },
-          {
-            label: lastPeriodLabel,
-            data: previousData,
-            backgroundColor: "rgba(255, 99, 132, 0.5)",
-            borderColor: "rgba(255, 99, 132, 1)",
-            borderWidth: 1,
-          },
-        ],
-      },
-    });
-  }, [labels, currentData, previousData, thisPeriodLabel, lastPeriodLabel]);
-
-  // Prepare data for Clients Pie Chart.
-  const filteredForPie = useMemo(() => {
-    const data = selectedEmployee.value === "All" ? allTimesheets : employeeTimesheets;
-    return data.filter((t) => {
-      if (!t.date) return false;
-      const d = new Date(t.date);
-      const { start, end } = getPeriodRange(viewType.value);
-      return d >= start && d <= end;
-    });
-  }, [selectedEmployee, allTimesheets, employeeTimesheets, viewType]);
-
-  // Render Clients Pie Chart.
-  useEffect(() => {
-    if (clientsChartRef.current) {
-      clientsChartRef.current.destroy();
-      clientsChartRef.current = null;
-    }
-    const clientCtx = document.getElementById("clientsGraph");
-    if (!clientCtx) return;
-    const hoursByClient = groupBy("clientId", filteredForPie);
-    const clientLabels = Object.keys(hoursByClient).map((id) => {
-      // Find client name from filtered data, or fallback to the ID.
-      const clientObj = filteredForPie.find((item) => {
-        const client = item.clientId;
-        const clientId = typeof client === "string" ? client : client?._id;
-        return clientId === id;
-      })?.clientId;
-      return clientObj?.name || id;
-    });
-    clientsChartRef.current = new Chart(clientCtx, {
-      type: "pie",
-      data: {
-        labels: clientLabels,
-        datasets: [
-          {
-            data: Object.values(hoursByClient),
-            backgroundColor: ["#7b61ff", "#a6c0fe", "#d782d9", "#4f86f7"],
-          },
+          { label: thisPeriodLabel, data: currentData, backgroundColor: "rgba(54, 162, 235, 0.6)", borderColor: "rgba(54, 162, 235, 1)", borderWidth: 1 },
+          { label: lastPeriodLabel, data: previousData, backgroundColor: "rgba(255, 99, 132, 0.6)", borderColor: "rgba(255, 99, 132, 1)", borderWidth: 1 },
         ],
       },
       options: {
         responsive: true,
-        plugins: { legend: { position: "bottom" } },
-      },
+        maintainAspectRatio: false, // Allow chart to resize height
+        scales: { y: { beginAtZero: true, title: { display: true, text: 'Hours Worked' } } },
+        plugins: { legend: { position: 'top' } }
+      }
     });
-  }, [filteredForPie, clients]);
+    // Cleanup function
+    return () => {
+        if (chartRef.current) {
+            chartRef.current.destroy();
+            chartRef.current = null;
+        }
+    };
+  }, [labels, currentData, previousData, thisPeriodLabel, lastPeriodLabel]);
 
-  // Render Projects Pie Chart.
+  // Clients Pie Chart Data & Rendering
+  const clientChartData = useMemo(() => {
+    const hoursByClient = groupBy("clientId", filteredCurrentTimesheets); // Use filteredCurrentTimesheets
+    const data = Object.values(hoursByClient).map(item => item.totalHours);
+    const labels = Object.values(hoursByClient).map(item => item.name || 'Unknown Client');
+    return { labels, data };
+  }, [filteredCurrentTimesheets]); // Depend only on filtered data
+
   useEffect(() => {
-    if (projectsChartRef.current) {
-      projectsChartRef.current.destroy();
-      projectsChartRef.current = null;
+    const clientCtx = document.getElementById("clientsGraph")?.getContext("2d");
+    if (!clientCtx || clientChartData.data.length === 0) {
+         if (clientsChartRef.current) clientsChartRef.current.destroy(); // Destroy if no data
+         return;
     }
-    const projectCtx = document.getElementById("projectsGraph");
-    if (!projectCtx) return;
+    if (clientsChartRef.current) clientsChartRef.current.destroy();
 
-    // Filter timesheets by selected employee and period.
-    let filteredProjects = selectedEmployee.value === "All"
-      ? allTimesheets
-      : allTimesheets.filter((t) => (t.employeeId?._id || t.employeeId) === selectedEmployee.value);
-
-    const { start, end } = getPeriodRange(viewType.value);
-    filteredProjects = filteredProjects.filter((t) => {
-      if (!t.date) return false;
-      const d = new Date(t.date);
-      return d >= start && d <= end;
+    clientsChartRef.current = new Chart(clientCtx, {
+      type: "pie",
+      data: {
+        labels: clientChartData.labels,
+        datasets: [{ data: clientChartData.data, backgroundColor: ["#7b61ff", "#a6c0fe", "#d782d9", "#4f86f7", "#ffcb8a", "#a1e8cc"] }], // Added more colors
+      },
+      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: "bottom", labels: { boxWidth: 12 } } } },
     });
+     return () => {
+        if (clientsChartRef.current) {
+            clientsChartRef.current.destroy();
+            clientsChartRef.current = null;
+        }
+    };
+  }, [clientChartData]); // Depend on processed chart data
 
-    // Group by projectId and sum total hours.
-    const hoursByProject = {};
-    filteredProjects.forEach((item) => {
-      const id = item.projectId?._id || item.projectId;
-      hoursByProject[id] = (hoursByProject[id] || 0) + (parseFloat(item.totalHours) || 0);
-    });
+  // Projects Pie Chart Data & Rendering
+  const projectChartData = useMemo(() => {
+    const hoursByProject = groupBy("projectId", filteredCurrentTimesheets); // Use filteredCurrentTimesheets
+    const data = Object.values(hoursByProject).map(item => item.totalHours);
+    const labels = Object.values(hoursByProject).map(item => item.name || 'Unknown Project');
+    return { labels, data };
+  }, [filteredCurrentTimesheets]); // Depend only on filtered data
 
-    // Map project IDs to project names.
-    const projectLabels = Object.keys(hoursByProject).map((id) => {
-      // Try to find the project info in the timesheets first.
-      const projectItem = filteredProjects.find((item) => (item.projectId?._id || item.projectId) === id);
-      // If not found, fallback to the projects state.
-      const projectObj = projectItem?.projectId || projects.find((p) => p._id === id);
-      return projectObj?.name || id;
-    });
-    const projectData = Object.values(hoursByProject);
+  useEffect(() => {
+    const projectCtx = document.getElementById("projectsGraph")?.getContext("2d");
+    if (!projectCtx || projectChartData.data.length === 0) {
+        if (projectsChartRef.current) projectsChartRef.current.destroy(); // Destroy if no data
+        return;
+    }
+    if (projectsChartRef.current) projectsChartRef.current.destroy();
 
     projectsChartRef.current = new Chart(projectCtx, {
       type: "pie",
       data: {
-        labels: projectLabels,
-        datasets: [
-          {
-            data: projectData,
-            backgroundColor: [
-              "#9b59b6",
-              "#3498db",
-              "#2ecc71",
-              "#e74c3c",
-              "#f39c12",
-              "#1abc9c",
-              "#34495e",
-            ],
-          },
-        ],
+        labels: projectChartData.labels,
+        datasets: [{ data: projectChartData.data, backgroundColor: ["#9b59b6", "#3498db", "#2ecc71", "#e74c3c", "#f39c12", "#1abc9c", "#34495e"] }],
       },
-      options: {
-        responsive: true,
-        plugins: { legend: { position: "bottom" } },
-      },
+      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: "bottom", labels: { boxWidth: 12 } } } },
     });
-    
-  }, [allTimesheets, selectedEmployee, viewType, projects]);
+     return () => {
+        if (projectsChartRef.current) {
+            projectsChartRef.current.destroy();
+            projectsChartRef.current = null;
+        }
+    };
+  }, [projectChartData]); // Depend on processed chart data
 
-  // RENDERING THE DASHBOARD  
+  // --- RENDER ---
   return (
-    <div className="dashboard-container">
-      {/* Filters Section */}
-      <div className="dashboard-filters">
-        <h4>Hello, {user?.name || "User"}!</h4>
-        <p>Here is your company status report.</p>
+    <div className="view-dashboard-page"> {/* Use standard page class */}
+      {/* Filters Section - Using standard container */}
+      <div className="dashboard-filters-container"> {/* Changed class */}
+        <div className="greeting">
+            <h4>Hello, {user?.name || "User"}!</h4>
+            <p>Here is your company status report.</p>
+        </div>
         <div className="filters">
           <div className="select-container">
-            <label>Select Employee:</label>
+            <label htmlFor="employeeSelect">Select Employee:</label>
             <Select
+              inputId="employeeSelect" // Added id for label association
               options={employeeOptions}
               value={selectedEmployee}
               onChange={setSelectedEmployee}
-              className="custom-select"
+              className="react-select-container" // Class for react-select wrapper
+              classNamePrefix="react-select" // Prefix for internal elements
+              isDisabled={isLoading} // Disable while loading
             />
           </div>
           <div className="select-container">
-            <label>Period of Time:</label>
+            <label htmlFor="viewTypeSelect">Period of Time:</label>
             <Select
+              inputId="viewTypeSelect" // Added id for label association
               options={viewOptions}
               value={viewType}
               onChange={setViewType}
-              className="custom-select"
+              className="react-select-container"
+              classNamePrefix="react-select"
+              isDisabled={isLoading}
             />
           </div>
         </div>
       </div>
 
-      {/* Summary Section */}
-      <div className="dashboard-grid">
-        {selectedEmployee.value === "All" ? (
-          <>
-            <div className="dashboard-card">
-              <h3>{employees.length || 0}</h3>
-              <p>Number of Employees</p>
-              <FontAwesomeIcon icon={faUsers} className="dashboard-icon" />
-            </div>
-            <div className="dashboard-card">
-              <h3>{formattedTotalHoursAll}</h3>
-              <p>Total Employee Hours</p>
-              <FontAwesomeIcon icon={faClock} className="dashboard-icon" />
-            </div>
-            <div className="dashboard-card">
-              <h3>{formattedAvgHoursAll}</h3>
-              <p>Avg. Employee Hours</p>
-              <FontAwesomeIcon icon={faStopwatch} className="dashboard-icon" />
-            </div>
-          </>
-        ) : (
-          <>
-            <div className="dashboard-card">
-              <h3>{formattedAvgHoursEmployee}</h3>
-              <p>Avg. Hours Worked</p>
-              <FontAwesomeIcon icon={faStopwatch} className="dashboard-icon" />
-            </div>
-            <div className="dashboard-card">
-              <h3>{formattedTotalHoursEmployee}</h3>
-              <p>Total Hours Worked</p>
-              <FontAwesomeIcon icon={faClock} className="dashboard-icon" />
-            </div>
-            <div className="dashboard-card">
-              <h3>{avgLunchBreak} hrs</h3>
-              <p>Avg. Lunch Break</p>
-              <FontAwesomeIcon icon={faUtensils} className="dashboard-icon" />
-            </div>
-            <div className="dashboard-card">
-              <h3>{totalLeaves}</h3>
-              <p>Total Leaves Taken</p>
-              <FontAwesomeIcon icon={faCalendarAlt} className="dashboard-icon" />
-            </div>
-            <div className="dashboard-card">
-              <h3>{clientsWorked || 0}</h3>
-              <p>Clients Worked</p>
-              <FontAwesomeIcon icon={faBriefcase} className="dashboard-icon blue" />
-            </div>
-            <div className="dashboard-card">
-              <h3>{projectsWorked || 0}</h3>
-              <p>Projects Worked</p>
-              <FontAwesomeIcon icon={faTasks} className="dashboard-icon red" />
-            </div>
-          </>
-        )}
-      </div>
-
-      {/* Bar Chart Section */}
-      <div className="dashboard-card">
-        <h4>
-          This {viewType.value} vs Last {viewType.value}
-        </h4>
-        <canvas id="graphCanvas" className="dashboard-graph"></canvas>
-      </div>
-
-      {/* Pie Charts Section */}
-      <div className="dashboard-grid">
-        {/* Clients Pie Chart */}
-        <div className="dashboard-card">
-          <h4>Hours Spent on Clients</h4>
-          <div className="dashboard-card-content">
-            <h5>
-              Total Hours: <span>{formattedTotalHours}</span>
-            </h5>
-          </div>
-          <div className="dashboard-card-graph">
-            <canvas id="clientsGraph" className="dashboard-pie-graph"></canvas>
-          </div>
+      {/* Loading State */}
+      {isLoading && (
+        <div className='loading-indicator'>
+          <FontAwesomeIcon icon={faSpinner} spin size='2x' />
+          <p>Loading dashboard data...</p>
         </div>
-        {/* Projects Pie Chart  */}
-        <div className="dashboard-card">
-          <h4>Hours Spent on Projects</h4>
-          <div className="dashboard-card-content">
-            <h5>
-              Total Hours: <span>{formattedTotalHours}</span>
-            </h5>
-          </div>
-          <div className="dashboard-card-graph">
-            <canvas id="projectsGraph" className="dashboard-pie-graph"></canvas>
-          </div>
+      )}
+
+      {/* Error State */}
+      {error && !isLoading && (
+        <div className='error-message'>
+          <FontAwesomeIcon icon={faExclamationCircle} />
+          <p>{error}</p>
+          {/* Optional: Add a retry button */}
         </div>
-      </div>
+      )}
+
+      {/* Summary Section - Keep original grid structure but use standard card class */}
+      {!isLoading && !error && (
+        <>
+          <div className="dashboard-summary-grid"> {/* Changed class */}
+            {selectedEmployee.value === "All" ? (
+              <>
+                <div className="summary-card"> {/* Use standard card class */}
+                  <FontAwesomeIcon icon={faUsers} className="summary-icon users" />
+                  <div className="summary-content">
+                    <h3>{employees.length || 0}</h3>
+                    <p>Employees</p>
+                  </div>
+                </div>
+                <div className="summary-card">
+                  <FontAwesomeIcon icon={faClock} className="summary-icon hours" />
+                  <div className="summary-content">
+                    <h3>{displayTotalHours}</h3>
+                    <p>Total Hours (All)</p>
+                  </div>
+                </div>
+                <div className="summary-card">
+                  <FontAwesomeIcon icon={faStopwatch} className="summary-icon avg-hours" />
+                  <div className="summary-content">
+                    <h3>{displayAvgHours}</h3>
+                    <p>Avg. Hours (All)</p>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="summary-card">
+                  <FontAwesomeIcon icon={faClock} className="summary-icon hours" />
+                  <div className="summary-content">
+                    <h3>{displayTotalHours}</h3>
+                    <p>Total Hours Worked</p>
+                  </div>
+                </div>
+                 <div className="summary-card">
+                  <FontAwesomeIcon icon={faStopwatch} className="summary-icon avg-hours" />
+                  <div className="summary-content">
+                    <h3>{displayAvgHours}</h3>
+                    <p>Avg. Hours Worked</p>
+                  </div>
+                </div>
+                <div className="summary-card">
+                  <FontAwesomeIcon icon={faUtensils} className="summary-icon lunch" />
+                   <div className="summary-content">
+                    <h3>{avgLunchBreak}</h3>
+                    <p>Avg. Lunch Break</p>
+                  </div>
+                </div>
+                <div className="summary-card">
+                  <FontAwesomeIcon icon={faCalendarAlt} className="summary-icon leaves" />
+                   <div className="summary-content">
+                    <h3>{totalLeaves}</h3>
+                    <p>Total Leaves Taken</p>
+                  </div>
+                </div>
+                <div className="summary-card">
+                  <FontAwesomeIcon icon={faBriefcase} className="summary-icon clients" />
+                   <div className="summary-content">
+                    <h3>{clientsWorked || 0}</h3>
+                    <p>Clients Worked</p>
+                  </div>
+                </div>
+                <div className="summary-card">
+                  <FontAwesomeIcon icon={faTasks} className="summary-icon projects" />
+                   <div className="summary-content">
+                    <h3>{projectsWorked || 0}</h3>
+                    <p>Projects Worked</p>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* Bar Chart Section - Use standard card container */}
+          <div className="chart-card"> {/* Use standard card class */}
+            <h4>This {viewType.label.split(' ')[2]} vs Last {viewType.label.split(' ')[2]} Hours</h4>
+            <div className="chart-container bar-chart-container"> {/* Wrapper for canvas */}
+                <canvas id="graphCanvas"></canvas>
+            </div>
+          </div>
+
+          {/* Pie Charts Section - Use standard grid and card containers */}
+          <div className="dashboard-pie-grid"> {/* Changed class */}
+            <div className="chart-card"> {/* Use standard card class */}
+              <h4>Hours Spent on Clients</h4>
+              <div className="chart-total">
+                Total: <span>{displayTotalHours}</span>
+              </div>
+              <div className="chart-container pie-chart-container"> {/* Wrapper for canvas */}
+                <canvas id="clientsGraph"></canvas>
+              </div>
+            </div>
+            <div className="chart-card"> {/* Use standard card class */}
+              <h4>Hours Spent on Projects</h4>
+               <div className="chart-total">
+                 Total: <span>{displayTotalHours}</span>
+              </div>
+              <div className="chart-container pie-chart-container"> {/* Wrapper for canvas */}
+                <canvas id="projectsGraph"></canvas>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 };

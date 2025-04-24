@@ -1,66 +1,300 @@
-.employee-form-container {
-    max-width: 600px;
-    margin: 2rem auto;
-    padding: 2rem;
-    background: #fff;
-    border-radius: 8px;
-    box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.1);
+@use 'sass:color';
+
+$primary-color: #007bff;
+$secondary-color: #6c757d;
+$success-color: #28a745;
+$warning-color: #ffc107;
+$danger-color: #dc3545;
+$info-color: #17a2b8;
+$light-grey: #f8f9fa;
+$medium-grey: #e9ecef;
+$dark-grey: #6c757d;
+$text-color: #333;
+$border-color: #dee2e6;
+$border-radius: 5px;
+$box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+$font-family: 'Segoe UI', sans-serif;
+
+$breakpoint-md: 768px;
+$breakpoint-sm: 576px;
+
+.btn {
+    padding: 0.6rem 1.2rem;
+    border: none;
+    border-radius: $border-radius;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease, opacity 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    white-space: nowrap;
+    font-size: 1rem;
+    line-height: 1.5;
+    font-family: $font-family;
+    text-decoration: none;
+
+    &:disabled {
+        opacity: 0.65;
+        cursor: not-allowed;
+    }
 }
 
-.title-breadcrumb {
-    text-align: center;
-    margin-bottom: 1.5rem;
+.btn-primary {
+    background-color: $primary-color;
+    color: #fff;
 
-    .page-title {
-        font-size: 1.8rem;
-        font-weight: bold;
-        margin-bottom: 0.5rem;
+    &:hover:not(:disabled) {
+        background-color: color.adjust($primary-color, $lightness: -10%);
     }
+}
 
-    .breadcrumb {
-        font-size: 0.9rem;
+.btn-secondary {
+    background-color: $secondary-color;
+    color: #fff;
 
-        .breadcrumb-link {
-            color: #007bff;
-            text-decoration: none;
+    &:hover:not(:disabled) {
+        background-color: color.adjust($secondary-color, $lightness: -10%);
+    }
+}
 
-            &:hover {
-                text-decoration: underline;
+.btn-success {
+    background-color: $success-color;
+    color: #fff;
+
+    &:hover:not(:disabled) {
+        background-color: color.adjust($success-color, $lightness: -10%);
+    }
+}
+
+.btn-danger {
+    background-color: $danger-color;
+    color: #fff;
+
+    &:hover:not(:disabled) {
+        background-color: color.adjust($danger-color, $lightness: -10%);
+    }
+}
+
+.form-page-container {
+    padding: clamp(1rem, 2vw, 1.5rem);
+    max-width: 800px;
+    margin: 2rem auto;
+    font-family: $font-family;
+    background-color: $light-grey;
+}
+
+.form-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 1.5rem;
+    flex-wrap: wrap;
+    gap: 1rem;
+    padding: 1rem;
+    background-color: #fff;
+    border-radius: $border-radius;
+    box-shadow: $box-shadow;
+
+    .title-breadcrumbs {
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+        flex-grow: 1;
+
+        h2 {
+            font-size: clamp(1.4rem, 3vw, 1.75rem);
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+            color: $text-color;
+            margin: 0;
+            font-weight: 600;
+        }
+
+        .breadcrumbs {
+            font-size: 0.875rem;
+            color: $dark-grey;
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+
+            .breadcrumb-link {
+                color: $primary-color;
+                text-decoration: none;
+                font-weight: 500;
+                white-space: nowrap;
+
+                &:hover {
+                    text-decoration: underline;
+                }
+            }
+
+            .breadcrumb-separator {
+                margin: 0 0.3rem;
+                color: color.adjust($dark-grey, $lightness: 15%);
+                white-space: nowrap;
+            }
+
+            .breadcrumb-current {
+                color: $dark-grey;
+                white-space: nowrap;
             }
         }
     }
 }
 
+.form-container {
+    background-color: #fff;
+    padding: clamp(1rem, 3vw, 2rem);
+    border-radius: $border-radius;
+    box-shadow: $box-shadow;
+    border: 1px solid $border-color;
+}
+
 .employee-form {
     display: flex;
     flex-direction: column;
-    gap: 1rem;
+    gap: 1.25rem;
 
-    input,
-    select {
-        width: 100%;
-        padding: 10px;
-        font-size: 1rem;
-        border: 1px solid #ccc;
-        border-radius: 5px;
+    .form-group {
+        display: flex;
+        flex-direction: column;
+        gap: 0.4rem;
+
+        label {
+            font-weight: 600;
+            font-size: 0.95rem;
+            color: $text-color;
+        }
+
+        input[type="text"],
+        input[type="email"],
+        input[type="number"],
+        select,
+        textarea {
+            width: 100%;
+            padding: 0.6rem 0.8rem;
+            font-size: 1rem;
+            border: 1px solid $border-color;
+            border-radius: 4px;
+            box-sizing: border-box;
+            font-family: $font-family;
+            transition: border-color 0.2s ease, box-shadow 0.2s ease;
+
+            &:focus {
+                border-color: $primary-color;
+                box-shadow: 0 0 0 3px rgba($primary-color, 0.25);
+                outline: none;
+            }
+
+            &:disabled {
+                background-color: $light-grey;
+                cursor: not-allowed;
+                opacity: 0.7;
+            }
+        }
+
+        textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+
+        small {
+            font-size: 0.8rem;
+            color: $dark-grey;
+            margin-top: 0.2rem;
+        }
     }
 
-    label {
-        font-size: 1rem;
-        font-weight: 500;
+    .form-error-message {
+        background-color: color.adjust($danger-color, $lightness: 45%);
+        color: color.adjust($danger-color, $lightness: -10%);
+        border: 1px solid color.adjust($danger-color, $lightness: 30%);
+        border-radius: $border-radius;
+        padding: 0.8rem 1rem;
+        font-size: 0.9rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
     }
 
-    button {
-        background: #28a745;
-        color: #fff;
-        padding: 10px;
-        font-size: 1rem;
-        border: none;
-        border-radius: 5px;
-        cursor: pointer;
+    .form-footer {
+        display: flex;
+        justify-content: flex-end;
+        gap: 0.75rem;
+        margin-top: 1rem;
+        padding-top: 1.5rem;
+        border-top: 1px solid $border-color;
+    }
+}
 
-        &:hover {
-            background: #218838;
+.loading-indicator,
+.error-message {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+    margin: 1.5rem auto;
+    background-color: #fff;
+    border-radius: $border-radius;
+    box-shadow: $box-shadow;
+    text-align: center;
+    color: $dark-grey;
+    max-width: 600px;
+
+    p {
+        margin-top: 0.75rem;
+        font-size: 1rem;
+        margin-bottom: 0;
+    }
+
+    .btn-secondary {
+        margin-top: 1rem;
+    }
+}
+
+.error-message {
+    color: color.adjust($danger-color, $lightness: -10%);
+    border: 1px solid color.adjust($danger-color, $lightness: 30%);
+    background-color: color.adjust($danger-color, $lightness: 45%);
+}
+
+.page-loading {}
+
+.page-error {}
+
+@media (max-width: $breakpoint-sm) {
+    .form-page-container {
+        margin: 1rem auto;
+    }
+
+    .form-header {
+        padding: 0.8rem;
+
+        .title-breadcrumbs h2 {
+            font-size: 1.25rem;
+        }
+
+        .breadcrumbs {
+            font-size: 0.8rem;
+        }
+    }
+
+    .form-container {
+        padding: 1rem;
+    }
+
+    .employee-form {
+        .form-footer {
+            flex-direction: column-reverse;
+            align-items: stretch;
+
+            .btn {
+                width: 100%;
+            }
         }
     }
 }
