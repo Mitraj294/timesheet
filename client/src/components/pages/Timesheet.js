@@ -446,11 +446,6 @@ const handleDownload = async () => {
 
 
 
-
-
-
-
-
   {showDownloadFilters && (
   <div className="filter-panel">
     <select value={selectedEmployee} onChange={e => setSelectedEmployee(e.target.value)} className="filter-select">
