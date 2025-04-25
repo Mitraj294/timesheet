@@ -1,34 +1,35 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom'; // Added Link for breadcrumbs potentially
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
 import { startOfWeek, addDays, format, parseISO } from 'date-fns';
 import { DateTime } from 'luxon';
-import '../../styles/CreateRole.scss'; // Ensure path is correct
+import '../../styles/Forms.scss'; // *** Use Forms.scss ***
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
-    faUser,
+    faUserTag, // Changed icon for Role
     faTimes,
     faPalette,
     faCalendar,
     faXmark,
-    faSpinner, // Added for loading state
-    faExclamationCircle, // Added for error display
+    faSpinner,
+    faExclamationCircle,
+    faSave, // Added Save icon
+    faPen, // Added Edit icon
 } from '@fortawesome/free-solid-svg-icons';
 
 const API_URL = process.env.REACT_APP_API_URL || 'https://timesheet-c4mj.onrender.com/api';
-const COLORS = ['Blue', 'Red', 'Green', 'Purple', 'Yellow', 'Default']; // Added more color options potentially
+const COLORS = ['Blue', 'Red', 'Green', 'Purple', 'Yellow', 'Default'];
 
 // Helper function for UTC conversion (similar to RosterPage)
 const convertLocalTimeToUTC = (localTimeStr, dateStr) => {
-    if (!localTimeStr || !dateStr) return ''; // Return empty string instead of '00:00' if not set
+    if (!localTimeStr || !dateStr) return '';
     try {
-        // Use a fixed date part for conversion, only time matters for HH:mm format
         const localDateTime = DateTime.fromISO(`${dateStr}T${localTimeStr}`, { zone: 'local' });
         if (!localDateTime.isValid) return '';
         return localDateTime.toUTC().toFormat('HH:mm');
     } catch (error) {
         console.error("Error converting local time to UTC:", error);
-        return ''; // Fallback on error
+        return '';
     }
 };
 
@@ -38,7 +39,7 @@ const formatTimeUTCtoLocal = (timeStr, dateStr) => {
     try {
         const utcDateTime = DateTime.fromISO(`${dateStr}T${timeStr}:00Z`, { zone: 'utc' });
         if (!utcDateTime.isValid) return '';
-        return utcDateTime.toLocal().toFormat('HH:mm'); // Use HH:mm for input type=time
+        return utcDateTime.toLocal().toFormat('HH:mm');
     } catch (error) {
         console.error("Error formatting UTC time to local:", error);
         return '';
@@ -54,20 +55,18 @@ const CreateRole = () => {
     // State
     const [roleName, setRoleName] = useState('');
     const [roleDescription, setRoleDescription] = useState('');
-    const [color, setColor] = useState(COLORS[0]); // Default to first color
-    const [allEmployees, setAllEmployees] = useState([]); // Renamed for clarity
+    const [color, setColor] = useState(COLORS[0]);
+    const [allEmployees, setAllEmployees] = useState([]);
     const [selectedEmployees, setSelectedEmployees] = useState([]);
-    const [schedule, setSchedule] = useState({}); // { 'yyyy-MM-dd': { from: 'HH:mm', to: 'HH:mm' } }
-    const [isLoading, setIsLoading] = useState(false);
+    const [schedule, setSchedule] = useState({});
+    const [isLoading, setIsLoading] = useState(false); // Combined loading state
     const [error, setError] = useState(null);
 
     // Derived State/Constants
     const weekStart = startOfWeek(new Date(), { weekStartsOn: 1 });
     const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
 
-    // --- Effects ---
-
-    // Fetch initial data (employees and role if editing)
+    // Fetch initial data
     useEffect(() => {
         const fetchData = async () => {
             setIsLoading(true);
@@ -76,7 +75,7 @@ const CreateRole = () => {
             if (!token) {
                 setError('Authentication required. Please log in.');
                 setIsLoading(false);
-                navigate('/login'); // Redirect if no token
+                navigate('/login');
                 return;
             }
 
@@ -84,7 +83,7 @@ const CreateRole = () => {
             const employeePromise = axios.get(`${API_URL}/employees`, { headers });
             const rolePromise = isEditing
                 ? axios.get(`${API_URL}/roles/${roleId}`, { headers })
-                : Promise.resolve(null); // Resolve immediately if not editing
+                : Promise.resolve(null);
 
             try {
                 const [employeeRes, roleRes] = await Promise.all([employeePromise, rolePromise]);
@@ -96,22 +95,29 @@ const CreateRole = () => {
                     setRoleName(data.roleName || '');
                     setRoleDescription(data.roleDescription || '');
                     setColor(data.color || COLORS[0]);
-                    // Ensure assignedEmployees are just IDs
                     setSelectedEmployees((data.assignedEmployees || []).map(emp => typeof emp === 'object' ? emp._id : emp));
 
-                    // Format schedule from UTC (backend) to Local (frontend input)
                     const formattedSchedule = {};
                     (data.schedule || []).forEach((entry) => {
-                        const dayStr = entry.day; // Assuming entry.day is 'yyyy-MM-dd'
-                        // Check if the entry belongs to the current week being displayed/edited
-                        const entryWeekStart = format(startOfWeek(parseISO(dayStr), { weekStartsOn: 1 }), 'yyyy-MM-dd');
-                        const currentDisplayWeekStart = format(weekStart, 'yyyy-MM-dd');
+                        const dayStr = entry.day;
+                        // Check if dayStr is valid before parsing
+                        if (dayStr && dayStr.match(/^\d{4}-\d{2}-\d{2}$/)) {
+                            try {
+                                const entryWeekStart = format(startOfWeek(parseISO(dayStr), { weekStartsOn: 1 }), 'yyyy-MM-dd');
+                                const currentDisplayWeekStart = format(weekStart, 'yyyy-MM-dd');
 
-                        if (entryWeekStart === currentDisplayWeekStart) {
-                            formattedSchedule[dayStr] = {
-                                from: formatTimeUTCtoLocal(entry.startTime, dayStr),
-                                to: formatTimeUTCtoLocal(entry.endTime, dayStr),
-                            };
+                                if (entryWeekStart === currentDisplayWeekStart) {
+                                    formattedSchedule[dayStr] = {
+                                        from: formatTimeUTCtoLocal(entry.startTime, dayStr),
+                                        to: formatTimeUTCtoLocal(entry.endTime, dayStr),
+                                    };
+                                }
+                            } catch (parseError) {
+                                console.error(`Error parsing date string: ${dayStr}`, parseError);
+                                // Handle the error, e.g., skip this entry or set default values
+                            }
+                        } else {
+                            console.warn(`Invalid or missing date string in schedule entry: ${dayStr}`);
                         }
                     });
                     setSchedule(formattedSchedule);
@@ -128,16 +134,15 @@ const CreateRole = () => {
         };
 
         fetchData();
-    }, [roleId, isEditing, navigate]); // Removed the eslint-disable comment from the line above
+    }, [roleId, isEditing, navigate]); // Added navigate to dependency array
 
-    // --- Handlers ---
-
+    // Handlers
     const handleAddEmployee = useCallback((e) => {
         const empId = e.target.value;
         if (empId && !selectedEmployees.includes(empId)) {
             setSelectedEmployees((prev) => [...prev, empId]);
         }
-        e.target.value = ""; // Reset dropdown after selection
+        e.target.value = "";
     }, [selectedEmployees]);
 
     const removeEmployee = useCallback((empIdToRemove) => {
@@ -157,23 +162,20 @@ const CreateRole = () => {
         });
     }, []);
 
-    // --- Submission Logic ---
-
+    // Submission Logic
     const validateInputs = () => {
         if (!roleName.trim()) return 'Role Name is required.';
         if (!roleDescription.trim()) return 'Role Description is required.';
-        // Basic time validation (ensure 'to' is after 'from' if both exist)
         for (const dayStr in schedule) {
             const { from, to } = schedule[dayStr];
             if (from && to && from >= to) {
                 return `End time must be after start time for ${format(parseISO(dayStr), 'EEE')}.`;
             }
         }
-        return null; // No validation errors
+        return null;
     };
 
     const prepareSubmitData = () => {
-        // Prepare schedule: Convert local times back to UTC HH:mm for the backend
         const scheduleArray = weekDays
             .map((day) => {
                 const dayStr = format(day, 'yyyy-MM-dd');
@@ -181,39 +183,31 @@ const CreateRole = () => {
                 const localStart = daySchedule?.from;
                 const localEnd = daySchedule?.to;
 
-                // Only include day if at least one time is set
-                if (!localStart && !localEnd) {
-                    return null;
-                }
+                if (!localStart && !localEnd) return null;
 
-                // Convert valid times to UTC
                 const startTime = localStart ? convertLocalTimeToUTC(localStart, dayStr) : '';
                 const endTime = localEnd ? convertLocalTimeToUTC(localEnd, dayStr) : '';
 
-                // Include entry only if conversion was successful or times were intentionally empty
                  if ((localStart && !startTime) || (localEnd && !endTime)) {
-                     // Handle conversion error case if needed, maybe throw error?
                      console.warn(`Time conversion issue for ${dayStr}`);
-                     // Depending on requirements, maybe skip this day or return default times?
-                     // For now, we'll include it with potentially empty times if conversion failed.
                  }
 
                 return { day: dayStr, startTime: startTime || '', endTime: endTime || '' };
             })
-            .filter(Boolean); // Remove null entries where no times were set
+            .filter(Boolean);
 
         return {
             roleName: roleName.trim(),
             roleDescription: roleDescription.trim(),
             color,
-            assignedEmployees: selectedEmployees, // Already just IDs
+            assignedEmployees: selectedEmployees,
             schedule: scheduleArray,
         };
     };
 
     const handleSubmit = async (e) => {
-        e.preventDefault(); // Prevent default form submission
-        setError(null); // Clear previous errors
+        e.preventDefault();
+        setError(null);
 
         const validationError = validateInputs();
         if (validationError) {
@@ -234,24 +228,12 @@ const CreateRole = () => {
 
         try {
             const config = { headers: { Authorization: `Bearer ${token}` } };
-            let response;
-
-            // Note: The role name conflict check across weeks might be complex and potentially
-            // better handled fully on the backend for atomicity and race condition avoidance.
-            // The frontend check is kept here as per the original logic but consider its limitations.
-
             if (isEditing) {
-                response = await axios.put(`${API_URL}/roles/${roleId}`, roleData, config);
+                await axios.put(`${API_URL}/roles/${roleId}`, roleData, config);
             } else {
-                // Optional: Add frontend check for duplicate name in the *same week* before POST
-                // This requires fetching existing roles again, which adds overhead.
-                response = await axios.post(`${API_URL}/roles`, roleData, config);
+                await axios.post(`${API_URL}/roles`, roleData, config);
             }
-
-            console.log('Role submission response:', response.data);
-            // Consider using a success message state instead of alert
-            // alert(`Role ${isEditing ? 'updated' : 'created'} successfully!`);
-            navigate('/rosterpage'); // Redirect on success
+            navigate('/rosterpage');
 
         } catch (err) {
             console.error('Error submitting role:', err.response?.data || err.message);
@@ -261,117 +243,137 @@ const CreateRole = () => {
         }
     };
 
-    // --- Render ---
-
+    // Render
     const availableEmployees = allEmployees.filter(
         (emp) => !selectedEmployees.includes(emp._id)
     );
 
+    // Loading state for initial fetch
+    if (isLoading && !isEditing) { // Show loading only on initial fetch for create mode
+        return (
+            <div className="vehicles-page">
+                <div className='loading-indicator'>
+                    <FontAwesomeIcon icon={faSpinner} spin size='2x' />
+                    <p>Loading data...</p>
+                </div>
+            </div>
+        );
+    }
+     if (isLoading && isEditing && !roleName) { // Show loading on initial fetch for edit mode
+        return (
+            <div className="vehicles-page">
+                <div className='loading-indicator'>
+                    <FontAwesomeIcon icon={faSpinner} spin size='2x' />
+                    <p>Loading role data...</p>
+                </div>
+            </div>
+        );
+    }
+
+
     return (
-        // Using a div overlay, assuming it's rendered conditionally elsewhere
-        // or is part of a route that always shows it as a modal overlay.
-        <div className="modal-overlay">
-            <form className="modal-box create-role" onSubmit={handleSubmit}>
-                <div className="create-role__header">
+        <div className="vehicles-page"> {/* Use standard page class */}
+            <div className="vehicles-header"> {/* Use standard header */}
+                <div className="title-breadcrumbs">
                     <h2>
-                        <FontAwesomeIcon icon={faUser} /> {isEditing ? 'Edit Role' : 'Create New Role'}
+                        <FontAwesomeIcon icon={faUserTag} /> {isEditing ? 'Edit Role' : 'Create New Role'}
                     </h2>
-                    <button
-                        type="button"
-                        className="create-role__close-btn"
-                        onClick={() => navigate('/rosterpage')}
-                        aria-label="Close"
-                        disabled={isLoading}
-                    >
-                        <FontAwesomeIcon icon={faTimes} />
-                    </button>
-                </div>
-
-                {/* Error Display */}
-                {error && (
-                    <div className="create-role__error-message">
-                        <FontAwesomeIcon icon={faExclamationCircle} /> {error}
+                    <div className="breadcrumbs">
+                        <Link to="/dashboard" className="breadcrumb-link">Dashboard</Link>
+                        <span className="breadcrumb-separator"> / </span>
+                        <Link to="/rosterpage" className="breadcrumb-link">Roster</Link>
+                        <span className="breadcrumb-separator"> / </span>
+                        <span className="breadcrumb-current">{isEditing ? 'Edit Role' : 'Create Role'}</span>
                     </div>
-                )}
-
-                {/* Form Fields */}
-                <div className="create-role__group">
-                    <label htmlFor="roleName">Role Name*</label>
-                    <input
-                        id="roleName"
-                        type="text"
-                        className="create-role__input"
-                        value={roleName}
-                        onChange={(e) => setRoleName(e.target.value)}
-                        placeholder="e.g., Senior Developer"
-                        required
-                        disabled={isLoading}
-                    />
                 </div>
+                {/* No header actions needed */}
+            </div>
 
-                <div className="create-role__group">
-                    <label htmlFor="roleDescription">Role Description*</label>
-                    <textarea
-                        id="roleDescription"
-                        className="create-role__input create-role__textarea"
-                        rows="3"
-                        value={roleDescription}
-                        onChange={(e) => setRoleDescription(e.target.value)}
-                        placeholder="Describe the role responsibilities"
-                        required
-                        disabled={isLoading}
-                    />
-                </div>
+            <div className="form-container"> {/* Use standard form container */}
+                <form onSubmit={handleSubmit} className="employee-form" noValidate> {/* Use standard form class */}
+                    {error && (
+                        <div className="form-error-message">
+                            <FontAwesomeIcon icon={faExclamationCircle} /> {error}
+                        </div>
+                    )}
 
-                <div className="create-role__group">
-                    <label htmlFor="roleColor">
-                        <FontAwesomeIcon icon={faPalette} /> Color*
-                    </label>
-                    <select
-                        id="roleColor"
-                        className="create-role__dropdown"
-                        value={color}
-                        onChange={(e) => setColor(e.target.value)}
-                        disabled={isLoading}
-                    >
-                        {COLORS.map((col) => (
-                            <option key={col} value={col}>
-                                {col}
-                            </option>
-                        ))}
-                    </select>
-                </div>
+                    <div className="form-group">
+                        <label htmlFor="roleName">Role Name*</label>
+                        <input
+                            id="roleName"
+                            type="text"
+                            value={roleName}
+                            onChange={(e) => setRoleName(e.target.value)}
+                            placeholder="e.g., Senior Developer"
+                            required
+                            disabled={isLoading}
+                        />
+                    </div>
 
-                {/* Employee Multi-Select */}
-                <div className="create-role__group">
-                    <label htmlFor="employeeSelect">Assign Employees</label>
-                    <div className="create-role__multiselect">
-                        <div className="create-role__selected-tags">
-                            {selectedEmployees.length === 0 && <span className="create-role__no-selection">No employees assigned</span>}
+                    <div className="form-group">
+                        <label htmlFor="roleDescription">Role Description*</label>
+                        <textarea
+                            id="roleDescription"
+                            rows="3"
+                            value={roleDescription}
+                            onChange={(e) => setRoleDescription(e.target.value)}
+                            placeholder="Describe the role responsibilities"
+                            required
+                            disabled={isLoading}
+                        />
+                    </div>
+
+                    <div className="form-group">
+                        <label htmlFor="roleColor">
+                            <FontAwesomeIcon icon={faPalette} /> Color*
+                        </label>
+                        <select
+                            id="roleColor"
+                            value={color}
+                            onChange={(e) => setColor(e.target.value)}
+                            disabled={isLoading}
+                        >
+                            {COLORS.map((col) => (
+                                <option key={col} value={col}>
+                                    {col}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+
+                    {/* Employee Multi-Select - Adapted for standard form */}
+                    <div className="form-group">
+                        <label htmlFor="employeeSelect">Assign Employees</label>
+                        {/* Display selected employees */}
+                        {/* Apply classes instead of inline styles */}
+                        <div className="selected-employees-tags">
+                            {selectedEmployees.length === 0 && <span className="no-selection-text">No employees assigned</span>}
                             {selectedEmployees.map((empId) => {
                                 const emp = allEmployees.find((e) => e._id === empId);
-                                return emp ? ( // Check if employee exists before rendering tag
-                                    <span key={empId} className="create-role__tag">
+                                return emp ? (
+                                    // Use a class for the tag styling
+                                    <span key={empId} className="employee-tag">
                                         {emp.name}
                                         <button
                                             type="button"
-                                            className="create-role__remove-tag-btn"
                                             onClick={() => removeEmployee(empId)}
                                             aria-label={`Remove ${emp.name}`}
                                             disabled={isLoading}
+                                            // Use a class for the remove button styling
+                                            className="remove-tag-btn"
                                         >
-                                            <FontAwesomeIcon icon={faXmark} />
+                                            <FontAwesomeIcon icon={faXmark} size="sm" />
                                         </button>
                                     </span>
-                                ) : null; // Don't render tag if employee data isn't loaded/found
+                                ) : null;
                             })}
                         </div>
+                        {/* Dropdown to add employees */}
                         <select
                             id="employeeSelect"
                             onChange={handleAddEmployee}
-                            className="create-role__dropdown create-role__employee-select"
                             disabled={isLoading || availableEmployees.length === 0}
-                            value="" // Controlled component needs value, reset in handler
+                            value="" // Keep dropdown clear after selection
                         >
                             <option value="" disabled>
                                 {availableEmployees.length > 0 ? '-- Select Employee to Add --' : '-- No more employees available --'}
@@ -383,69 +385,72 @@ const CreateRole = () => {
                             ))}
                         </select>
                     </div>
-                </div>
 
-                {/* Schedule Section */}
-                <div className="create-role__group create-role__schedule-container">
-                    <label>
-                        <FontAwesomeIcon icon={faCalendar} /> Weekly Schedule (Current Week)
-                    </label>
-                    <div className="create-role__day-wise-times">
-                        {weekDays.map((day) => {
-                            const dayStr = format(day, 'yyyy-MM-dd');
-                            const dayLabel = format(day, 'EEE');
-                            return (
-                                <div key={dayStr} className="create-role__time-row">
-                                    <label htmlFor={`from-${dayStr}`}>{dayLabel}</label>
-                                    <input
-                                        id={`from-${dayStr}`}
-                                        type="time"
-                                        className="create-role__time-input"
-                                        value={schedule[dayStr]?.from || ''}
-                                        onChange={(e) => handleTimeChange(dayStr, 'from', e.target.value)}
-                                        disabled={isLoading}
-                                    />
-                                    <span className="create-role__time-separator">to</span>
-                                    <input
-                                        id={`to-${dayStr}`}
-                                        type="time"
-                                        className="create-role__time-input"
-                                        value={schedule[dayStr]?.to || ''}
-                                        onChange={(e) => handleTimeChange(dayStr, 'to', e.target.value)}
-                                        disabled={isLoading}
-                                    />
-                                </div>
-                            );
-                        })}
+                    {/* Schedule Section - Adapted for standard form */}
+                    <div className="form-group">
+                        <label>
+                            <FontAwesomeIcon icon={faCalendar} /> Weekly Schedule (Current Week)
+                        </label>
+                        {/* Removed inline styles from schedule grid/rows */}
+                        <div className="schedule-grid">
+                            {weekDays.map((day) => {
+                                const dayStr = format(day, 'yyyy-MM-dd');
+                                const dayLabel = format(day, 'EEE');
+                                return (
+                                    <div key={dayStr} className="schedule-day-row">
+                                        {/* Removed inline style from label */}
+                                        <label htmlFor={`from-${dayStr}`} className="schedule-day-label">{dayLabel}</label>
+                                        <input
+                                            id={`from-${dayStr}`}
+                                            type="time"
+                                            value={schedule[dayStr]?.from || ''}
+                                            onChange={(e) => handleTimeChange(dayStr, 'from', e.target.value)}
+                                            disabled={isLoading}
+                                        />
+                                        {/* Removed inline style from span */}
+                                        <span className="schedule-time-separator">to</span>
+                                        <input
+                                            id={`to-${dayStr}`}
+                                            type="time"
+                                            value={schedule[dayStr]?.to || ''}
+                                            onChange={(e) => handleTimeChange(dayStr, 'to', e.target.value)}
+                                            disabled={isLoading}
+                                        />
+                                    </div>
+                                );
+                            })}
+                        </div>
                     </div>
-                </div>
 
-                {/* Footer/Submit Button */}
-                <div className="create-role__footer">
-                    <button
-                        type="button"
-                        className="btn btn-grey" // Use consistent button style
-                        onClick={() => navigate('/rosterpage')}
-                        disabled={isLoading}
-                        style={{ marginRight: '0.5rem' }}
-                    >
-                        Cancel
-                    </button>
-                    <button
-                        type="submit"
-                        className="btn btn-primary" // Consider using btn-green for consistency?
-                        disabled={isLoading}
-                    >
-                        {isLoading ? (
-                            <>
-                                <FontAwesomeIcon icon={faSpinner} spin /> Saving...
-                            </>
-                        ) : (
-                            isEditing ? 'Update Role' : 'Create Role'
-                        )}
-                    </button>
-                </div>
-            </form>
+                    {/* Footer/Submit Button */}
+                    <div className="form-footer">
+                        <button
+                            type="button"
+                            className="btn btn-danger" // Changed to danger for cancel
+                            onClick={() => navigate('/rosterpage')}
+                            disabled={isLoading}
+                        >
+                           <FontAwesomeIcon icon={faTimes} /> Cancel
+                        </button>
+                        <button
+                            type="submit"
+                            className="btn btn-success" // Changed to success for save/update
+                            disabled={isLoading}
+                        >
+                            {isLoading ? (
+                                <>
+                                    <FontAwesomeIcon icon={faSpinner} spin /> Saving...
+                                </>
+                            ) : (
+                                <>
+                                    <FontAwesomeIcon icon={isEditing ? faPen : faSave} />
+                                    {isEditing ? ' Update Role' : ' Create Role'}
+                                </>
+                            )}
+                        </button>
+                    </div>
+                </form>
+            </div>
         </div>
     );
 };

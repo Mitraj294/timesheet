@@ -1,0 +1,525 @@
+@use 'sass:color';
+
+// Variables (copied from Vehicles.scss)
+$primary-color: #007bff;
+$secondary-color: #6c757d;
+$success-color: #28a745;
+$warning-color: #ffc107;
+$danger-color: #dc3545;
+$info-color: #17a2b8;
+$purple-color: #8b5cf6;
+$light-grey: #f8f9fa;
+$medium-grey: #e9ecef;
+$dark-grey: #6c757d;
+$text-color: #333;
+$border-color: #dee2e6;
+$border-radius: 5px;
+$box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+$font-family: 'Segoe UI', sans-serif;
+
+$breakpoint-md: 768px;
+$breakpoint-sm: 576px;
+
+// --- Base Styles ---
+.vehicles-page {
+    // Use the same page wrapper class
+    padding: clamp(1rem, 2vw, 1.5rem);
+    max-width: 1200px;
+    margin: 0 auto;
+    font-family: $font-family;
+    background-color: $light-grey;
+    min-height: calc(100vh - 60px); // Assuming a fixed header height
+}
+
+// --- Header Styles (Copied from Vehicles.scss) ---
+.vehicles-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+    flex-wrap: wrap;
+    gap: 1rem;
+    padding: 1rem;
+    background-color: #fff;
+    border-radius: $border-radius;
+    box-shadow: $box-shadow;
+
+    .title-breadcrumbs {
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+        flex-grow: 1;
+        min-width: 200px;
+
+        h2 {
+            font-size: clamp(1.4rem, 3vw, 1.75rem);
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+            color: $text-color;
+            margin: 0;
+            font-weight: 600;
+        }
+
+        .breadcrumbs {
+            font-size: 0.875rem;
+            color: $dark-grey;
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+
+            .breadcrumb-link {
+                color: $primary-color;
+                text-decoration: none;
+                font-weight: 500;
+                white-space: nowrap;
+
+                &:hover {
+                    text-decoration: underline;
+                }
+            }
+
+            .breadcrumb-separator {
+                margin: 0 0.3rem;
+                color: color.adjust($dark-grey, $lightness: 15%);
+                white-space: nowrap;
+            }
+
+            .breadcrumb-current {
+                color: $dark-grey;
+                white-space: nowrap;
+            }
+        }
+    }
+
+    // Header actions container (might not be used in forms, but keep for consistency)
+    .header-actions {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        flex-shrink: 0;
+        flex-wrap: nowrap;
+
+        .btn,
+        a.btn {
+            text-decoration: none;
+        }
+    }
+}
+
+// --- Button Styles (Copied from Vehicles.scss) ---
+.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.5rem 1rem;
+    font-size: 0.9rem;
+    font-weight: 500;
+    line-height: 1.5;
+    text-align: center;
+    text-decoration: none;
+    vertical-align: middle;
+    cursor: pointer;
+    user-select: none;
+    background-color: transparent;
+    border: 1px solid transparent;
+    border-radius: 0.25rem;
+    transition: color 0.15s ease-in-out, background-color 0.15s ease-in-out, border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+    white-space: nowrap;
+
+    &:disabled {
+        opacity: 0.65;
+        cursor: not-allowed;
+    }
+
+    .svg-inline--fa {
+        margin-right: 0.4em;
+    }
+
+    span+.svg-inline--fa {
+        margin-right: 0;
+        margin-left: 0.4em;
+    }
+
+    .svg-inline--fa:only-child {
+        margin-right: 0;
+    }
+}
+
+// Button Color Variants
+.btn-success {
+    color: #fff;
+    background-color: $success-color;
+    border-color: $success-color;
+
+    &:hover:not(:disabled) {
+        background-color: color.adjust($success-color, $lightness: -7%);
+        border-color: color.adjust($success-color, $lightness: -10%);
+    }
+
+    &:disabled {
+        background-color: $success-color;
+        border-color: $success-color;
+    }
+}
+
+.btn-danger {
+    color: #fff;
+    background-color: $danger-color;
+    border-color: $danger-color;
+
+    &:hover:not(:disabled) {
+        background-color: color.adjust($danger-color, $lightness: -7%);
+        border-color: color.adjust($danger-color, $lightness: -10%);
+    }
+
+    &:disabled {
+        background-color: mix(white, $danger-color, 35%);
+        border-color: mix(white, $danger-color, 35%);
+    }
+}
+
+.btn-secondary {
+    // Added for potential use (like retry buttons)
+    color: #fff;
+    background-color: $secondary-color;
+    border-color: $secondary-color;
+
+    &:hover:not(:disabled) {
+        background-color: color.adjust($secondary-color, $lightness: -7%);
+        border-color: color.adjust($secondary-color, $lightness: -10%);
+    }
+
+    &:disabled {
+        background-color: $secondary-color;
+        border-color: $secondary-color;
+    }
+}
+
+// Add other btn variants (primary, warning, purple, info) if needed for forms
+
+// --- Loading/Error Styles (Copied from Vehicles.scss) ---
+.loading-indicator,
+.error-message {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+    margin: 1.5rem auto;
+    background-color: #fff;
+    border-radius: $border-radius;
+    box-shadow: $box-shadow;
+    text-align: center;
+    color: $dark-grey;
+    max-width: 600px;
+
+    p {
+        margin-top: 0.75rem;
+        font-size: 1rem;
+    }
+}
+
+.error-message {
+    color: color.adjust($danger-color, $lightness: -10%);
+    border: 1px solid color.adjust($danger-color, $lightness: 30%);
+    background-color: color.adjust($danger-color, $lightness: 45%);
+}
+
+.loading-indicator.page-loading,
+.error-message.page-error {
+    min-height: 300px;
+}
+
+// --- Form Specific Styles ---
+.form-container {
+    background-color: #fff;
+    padding: clamp(1.5rem, 3vw, 2.5rem);
+    border-radius: $border-radius;
+    box-shadow: $box-shadow;
+    max-width: 800px; // Limit form width for readability
+    margin: 0 auto; // Center the form container
+}
+
+// Use a consistent form class (e.g., .standard-form or keep .employee-form if widely used)
+.employee-form {
+    // Or rename to .standard-form
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem; // Space between form groups
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem; // Space between label and input
+
+    label {
+        font-weight: 600;
+        font-size: 0.9rem;
+        color: $text-color;
+    }
+
+    input[type="text"],
+    input[type="email"],
+    input[type="tel"],
+    input[type="number"],
+    input[type="date"],
+    input[type="time"],
+    select,
+    textarea {
+        width: 100%;
+        padding: 0.7rem 0.9rem;
+        font-size: 1rem;
+        border: 1px solid $border-color;
+        border-radius: 4px;
+        box-sizing: border-box;
+        font-family: $font-family;
+        transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+
+        &:focus {
+            border-color: $primary-color;
+            box-shadow: 0 0 0 3px rgba($primary-color, 0.25);
+            outline: none;
+        }
+
+        &:disabled {
+            background-color: $light-grey;
+            cursor: not-allowed;
+            opacity: 0.7;
+        }
+    }
+
+    textarea {
+        resize: vertical; // Allow vertical resizing
+        min-height: 80px;
+    }
+
+    small {
+        // Style for helper text (e.g., "Select client first")
+        font-size: 0.8rem;
+        color: $dark-grey;
+        margin-top: -0.2rem; // Adjust spacing
+    }
+
+    &.summary {
+        // Style for the calculated hours display
+        font-size: 1rem;
+        margin-top: 0.5rem;
+        padding: 0.5rem 0;
+        border-top: 1px dashed $border-color;
+
+        strong {
+            margin-right: 0.5em;
+        }
+    }
+}
+
+// Styles for inputs with icons (like in CreateClient)
+.input-with-icon {
+    position: relative;
+    display: flex; // Use flex to align icon and input
+
+    .input-icon {
+        position: absolute;
+        left: 0.9rem;
+        top: 50%;
+        transform: translateY(-50%);
+        color: $dark-grey;
+        pointer-events: none; // Prevent icon from blocking input focus
+        z-index: 2; // Ensure icon is above input background
+    }
+
+    input,
+    textarea {
+        padding-left: 2.5rem; // Make space for the icon
+    }
+
+    // Specific alignment for textarea icon
+    .textarea-icon {
+        top: 0.9rem; // Adjust vertical position for textarea
+        transform: translateY(0);
+    }
+}
+
+// Styles for checkbox groups
+.checkbox-group {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    margin-top: 0.5rem; // Add some top margin
+
+    input[type="checkbox"] {
+        width: auto; // Override default width
+        margin: 0;
+        accent-color: $primary-color; // Style checkbox color
+        cursor: pointer;
+    }
+
+    label {
+        font-weight: normal; // Normal weight for checkbox labels
+        font-size: 0.95rem;
+        cursor: pointer;
+        display: flex; // Align icon and text in label
+        align-items: center;
+        gap: 0.4rem;
+    }
+}
+
+// Form error message style
+.form-error-message {
+    background-color: color.adjust($danger-color, $lightness: 45%);
+    color: color.adjust($danger-color, $lightness: -10%);
+    border: 1px solid color.adjust($danger-color, $lightness: 30%);
+    padding: 0.8rem 1rem;
+    border-radius: $border-radius;
+    margin-bottom: 1rem; // Space below error
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.9rem;
+}
+
+// Form footer for buttons
+.form-footer {
+    display: flex;
+    justify-content: flex-end; // Align buttons to the right
+    gap: 0.75rem;
+    margin-top: 1.5rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid $border-color;
+}
+
+// --- Styles for CreateRole specific elements --- Added Section ---
+.selected-employees-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-bottom: 0.75rem;
+    padding: 0.5rem;
+    border: 1px solid $border-color;
+    border-radius: 4px;
+    min-height: 40px;
+
+    .no-selection-text {
+        font-style: italic;
+        color: $dark-grey;
+        padding: 0.2rem 0;
+    }
+
+    .employee-tag {
+        background: $medium-grey;
+        padding: 0.3rem 0.6rem;
+        border-radius: 3px;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 0.9rem;
+
+        .remove-tag-btn {
+            background: none;
+            border: none;
+            color: $danger-color;
+            cursor: pointer;
+            padding: 0;
+            line-height: 1;
+            margin-left: 0.2rem;
+
+            &:hover {
+                color: color.adjust($danger-color, $lightness: -10%);
+            }
+
+            &:disabled {
+                opacity: 0.5;
+                cursor: not-allowed;
+            }
+        }
+    }
+}
+
+.schedule-grid {
+    display: grid;
+    gap: 0.75rem;
+    margin-top: 0.5rem;
+    padding: 1rem;
+    border: 1px solid $border-color;
+    border-radius: 4px;
+    background-color: $light-grey;
+
+    .schedule-day-row {
+        display: grid;
+        grid-template-columns: 50px 1fr auto 1fr;
+        align-items: center;
+        gap: 0.75rem;
+
+        .schedule-day-label {
+            font-weight: 500;
+            justify-self: start;
+            color: $dark-grey;
+        }
+
+        .schedule-time-separator {
+            text-align: center;
+            color: $dark-grey;
+        }
+
+        input[type="time"] {
+            padding: 0.4rem 0.6rem;
+        }
+    }
+}
+
+// --- End Styles for CreateRole specific elements ---
+
+// --- Responsive Adjustments for Forms ---
+@media (max-width: $breakpoint-sm) {
+    .vehicles-header {
+
+        // Copied from Vehicles.scss responsive
+        .title-breadcrumbs h2 {
+            font-size: 1.25rem;
+        }
+
+        .breadcrumbs {
+            font-size: 0.8rem;
+        }
+
+        .header-actions {
+            flex-wrap: wrap;
+            justify-content: flex-end;
+            width: 100%;
+            gap: 0.5rem;
+
+            >.btn,
+            >a.btn {
+                flex-basis: 100%;
+                justify-content: center;
+            }
+        }
+    }
+
+    .form-container {
+        padding: 1.5rem; // Reduce padding on small screens
+    }
+
+    .form-footer {
+        flex-direction: column-reverse; // Stack buttons vertically, submit on top
+        gap: 0.5rem;
+
+        .btn {
+            width: 100%; // Make buttons full width
+        }
+    }
+
+    // Add responsive adjustments for schedule if needed
+    .schedule-grid {
+        .schedule-day-row {
+            grid-template-columns: 40px 1fr auto 1fr; // Adjust for smaller screens
+            gap: 0.5rem;
+
+            .schedule-day-label {
+                font-size: 0.85rem;
+            }
+        }
+    }
+}

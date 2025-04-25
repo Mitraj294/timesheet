@@ -44,6 +44,8 @@ const Vehicles = () => {
     const fetchVehicles = async () => {
       setLoading(true);
       setError(null);
+      setDownloadError(null); // Clear errors on fetch
+      setSendError(null); // Clear errors on fetch
       try {
         const token = localStorage.getItem('token');
         if (!token) throw new Error('No authentication token found.');
@@ -54,9 +56,11 @@ const Vehicles = () => {
         setVehicles(res.data || []);
       } catch (err) {
         console.error('Error fetching vehicles:', err);
-        setError(err.message || 'Failed to fetch vehicles.');
+        const errorMessage = err.response?.data?.message || err.message || 'Failed to fetch vehicles.';
+        setError(errorMessage);
         if (
           err.response?.status === 401 ||
+          err.response?.status === 403 ||
           err.message === 'No authentication token found.'
         ) {
           localStorage.removeItem('token');
@@ -77,6 +81,7 @@ const Vehicles = () => {
     }
     setDownloadError(null);
     setDownloading(true);
+    setError(null); // Clear main error
     try {
       const token = localStorage.getItem('token');
       const response = await axios.get(`${API_URL}/vehicles/download/all`, {
@@ -103,9 +108,13 @@ const Vehicles = () => {
       link.click();
       link.remove();
       window.URL.revokeObjectURL(url);
+      // Optionally close the date picker on success
+      // setShowDateRangePicker(false);
+      // setStartDate(null);
+      // setEndDate(null);
     } catch (error) {
       console.error('Error downloading report:', error);
-      setDownloadError('Failed to download report. Please try again.');
+      setDownloadError(error.response?.data?.message || 'Failed to download report. Please try again.');
     } finally {
       setDownloading(false);
     }
@@ -122,6 +131,7 @@ const Vehicles = () => {
     }
     setSendError(null);
     setSending(true);
+    setError(null); // Clear main error
     try {
       const token = localStorage.getItem('token');
       await axios.post(
@@ -133,10 +143,12 @@ const Vehicles = () => {
         },
         { headers: { Authorization: `Bearer ${token}` } }
       );
+      // Reset and close on success
       setShowSendReport(false);
       setSendEmail('');
       setStartDate(null);
       setEndDate(null);
+      // Add success feedback (e.g., toast)
     } catch (err) {
       console.error('Error sending report:', err);
       setSendError(err.response?.data?.message || 'Failed to send report.');
@@ -153,15 +165,17 @@ const Vehicles = () => {
     )
       return;
 
+    setError(null); // Clear previous errors
     try {
       const token = localStorage.getItem('token');
       await axios.delete(`${API_URL}/vehicles/${vehicleId}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       setVehicles((prev) => prev.filter((v) => v._id !== vehicleId));
+      // Add success feedback (e.g., toast)
     } catch (error) {
       console.error('Error deleting vehicle:', error);
-      setError(`Failed to delete vehicle "${vehicleName}".`);
+      setError(error.response?.data?.message || `Failed to delete vehicle "${vehicleName}".`);
     }
   };
 
@@ -169,8 +183,33 @@ const Vehicles = () => {
     v?.name?.toLowerCase().includes(search.toLowerCase())
   );
 
+  // Toggle function for Send Report section
+  const toggleSendReport = () => {
+    const currentlyShowing = showSendReport;
+    setShowSendReport(!currentlyShowing);
+    setShowDateRangePicker(false); // Close download if opening send
+    setSendError(null); // Clear errors when toggling
+    if (!currentlyShowing) { // Reset dates if opening
+        setStartDate(null);
+        setEndDate(null);
+    }
+  };
+
+  // Toggle function for Download Report section
+  const toggleDownloadReport = () => {
+    const currentlyShowing = showDateRangePicker;
+    setShowDateRangePicker(!currentlyShowing);
+    setShowSendReport(false); // Close send if opening download
+    setDownloadError(null); // Clear errors when toggling
+    if (!currentlyShowing) { // Reset dates if opening
+        setStartDate(null);
+        setEndDate(null);
+    }
+  };
+
   return (
     <div className='vehicles-page'>
+      {/* Header */}
       <div className='vehicles-header'>
         <div className='title-breadcrumbs'>
           <h2>
@@ -187,41 +226,46 @@ const Vehicles = () => {
             <span className='breadcrumb-current'>Vehicles</span>
           </div>
         </div>
-      </div>
-
-      <div className='vehicles-actions'>
-        {user?.role === 'employer' && (
-          <Link
-            to='/employer/vehicles/create'
-            className='btn btn-primary'
+        {/* --- START: MOVED BUTTONS HERE --- */}
+        <div className="header-actions"> {/* Container for header buttons */}
+          {user?.role === 'employer' && (
+            <Link
+              to='/employer/vehicles/create'
+              className='btn btn-success' // Changed to success for consistency with Add buttons
+            >
+              <FontAwesomeIcon icon={faPlus} /> Create Vehicle
+            </Link>
+          )}
+          <button
+            className='btn btn-purple' // Using standard bootstrap-like classes
+            onClick={toggleSendReport}
+            aria-expanded={showSendReport}
+            aria-controls="send-report-options" // Added aria-controls
           >
-            <FontAwesomeIcon icon={faPlus} /> Create Vehicle
-          </Link>
-        )}
-        <button
-          className='btn btn-send-report'
-          onClick={() => {
-            setShowSendReport(!showSendReport);
-            setShowDateRangePicker(false);
-          }}
-          aria-expanded={showSendReport}
-        >
-          <FontAwesomeIcon icon={faPaperPlane} /> Send Report
-        </button>
-        <button
-          className='btn btn-download-report'
-          onClick={() => {
-            setShowDateRangePicker(!showDateRangePicker);
-            setShowSendReport(false);
-          }}
-          aria-expanded={showDateRangePicker}
-        >
-          <FontAwesomeIcon icon={faDownload} /> Download Report
-        </button>
+            <FontAwesomeIcon icon={faPaperPlane} /> Send Report
+          </button>
+          <button
+            className='btn btn-danger' // Using standard bootstrap-like classes
+            onClick={toggleDownloadReport}
+            aria-expanded={showDateRangePicker}
+            aria-controls="download-report-options" // Added aria-controls
+          >
+            <FontAwesomeIcon icon={faDownload} /> Download Report
+          </button>
+        </div>
+
       </div>
 
+      {/* Action bar like Vehicles.js - THIS DIV IS NOW REMOVED */}
+      {/*
+      <div className='vehicles-actions'>
+         // Buttons were here
+      </div>
+      */}
+
+      {/* Send Report Options - Conditionally Rendered */}
       {showSendReport && (
-        <div className='report-options-container send-report-container'>
+        <div id="send-report-options" className='report-options-container send-report-container'>
           <h4>Send Vehicle Report</h4>
           {sendError && (
             <p className='error-text'>
@@ -239,6 +283,7 @@ const Vehicles = () => {
               dateFormat='yyyy-MM-dd'
               className='date-input'
               wrapperClassName='date-picker-wrapper'
+              aria-label="Report Start Date"
             />
             <DatePicker
               selected={endDate}
@@ -251,6 +296,7 @@ const Vehicles = () => {
               minDate={startDate}
               className='date-input'
               wrapperClassName='date-picker-wrapper'
+              aria-label="Report End Date"
             />
           </div>
           <div className='send-report-email'>
@@ -260,22 +306,19 @@ const Vehicles = () => {
               value={sendEmail}
               onChange={(e) => {
                 setSendEmail(e.target.value);
-                setSendError(null);
+                if (sendError) setSendError(null); // Clear error on typing
               }}
               aria-label='Recipient Email'
+              required // Added required attribute
             />
             <button
-              className='btn btn-send-report'
+              className='btn btn-purple' // Changed to primary for the action button
               onClick={handleSendReport}
-              disabled={sending || !startDate || !endDate || !sendEmail}
+              disabled={sending || !startDate || !endDate || !sendEmail || !/\S+@\S+\.\S+/.test(sendEmail)} // Added email validation to disabled state
             >
               {sending ? (
                 <>
-                  <FontAwesomeIcon
-                    icon={faSpinner}
-                    spin
-                  />{' '}
-                  Sending...
+                  <FontAwesomeIcon icon={faSpinner} spin /> Sending...
                 </>
               ) : (
                 <>
@@ -287,8 +330,9 @@ const Vehicles = () => {
         </div>
       )}
 
+      {/* Download Report Options - Conditionally Rendered */}
       {showDateRangePicker && (
-        <div className='report-options-container download-date-range'>
+        <div id="download-report-options" className='report-options-container download-date-range'>
           <h4>Download Vehicle Report</h4>
           {downloadError && (
             <p className='error-text'>
@@ -306,6 +350,7 @@ const Vehicles = () => {
               dateFormat='yyyy-MM-dd'
               className='date-input'
               wrapperClassName='date-picker-wrapper'
+              aria-label="Report Start Date"
             />
             <DatePicker
               selected={endDate}
@@ -318,20 +363,17 @@ const Vehicles = () => {
               minDate={startDate}
               className='date-input'
               wrapperClassName='date-picker-wrapper'
+              aria-label="Report End Date"
             />
           </div>
           <button
-            className='btn btn-download-report'
+            className='btn btn-download-report' // Changed to primary for the action button
             onClick={handleDownloadReport}
             disabled={downloading || !startDate || !endDate}
           >
             {downloading ? (
               <>
-                <FontAwesomeIcon
-                  icon={faSpinner}
-                  spin
-                />{' '}
-                Downloading...
+                <FontAwesomeIcon icon={faSpinner} spin /> Downloading...
               </>
             ) : (
               <>
@@ -342,6 +384,7 @@ const Vehicles = () => {
         </div>
       )}
 
+      {/* Search Bar */}
       <div className='vehicles-search'>
         <input
           type='text'
@@ -356,25 +399,28 @@ const Vehicles = () => {
         />
       </div>
 
+      {/* Loading State */}
       {loading && (
         <div className='loading-indicator'>
-          <FontAwesomeIcon
-            icon={faSpinner}
-            spin
-            size='2x'
-          />
+          <FontAwesomeIcon icon={faSpinner} spin size='2x' />
           <p>Loading vehicles...</p>
         </div>
       )}
+
+      {/* Error State (for fetch/delete errors) */}
       {error && !loading && (
         <div className='error-message'>
           <FontAwesomeIcon icon={faExclamationCircle} />
           <p>{error}</p>
+          {/* Optional: Add a retry button for fetch errors */}
+          {/* <button className="btn btn-secondary" onClick={fetchVehicles}>Retry</button> */}
         </div>
       )}
 
+      {/* Vehicle Grid/List */}
       {!loading && !error && (
         <div className='vehicles-grid'>
+          {/* Header Row */}
           <div className='vehicles-row header'>
             <div>Date Created</div>
             <div>Vehicle Name</div>
@@ -383,9 +429,10 @@ const Vehicles = () => {
             <div>Actions</div>
           </div>
 
+          {/* Data Rows */}
           {filteredVehicles.length === 0 ? (
             <div className='vehicles-row no-results'>
-              No vehicles match your search.
+              {vehicles.length === 0 ? 'No vehicles have been added yet.' : 'No vehicles match your search.'}
             </div>
           ) : (
             filteredVehicles.map((vehicle) => (
@@ -409,6 +456,7 @@ const Vehicles = () => {
                     to={`/vehicles/view/${vehicle._id}`}
                     className='btn-icon btn-icon-blue'
                     title='View Details'
+                    aria-label={`View details for ${vehicle.name}`}
                   >
                     <FontAwesomeIcon icon={faEye} />
                   </Link>
@@ -417,6 +465,7 @@ const Vehicles = () => {
                       to={`/vehicles/update/${vehicle._id}`}
                       className='btn-icon btn-icon-yellow'
                       title='Edit Vehicle'
+                      aria-label={`Edit ${vehicle.name}`}
                     >
                       <FontAwesomeIcon icon={faPen} />
                     </Link>
@@ -428,6 +477,7 @@ const Vehicles = () => {
                         handleDeleteVehicle(vehicle._id, vehicle.name)
                       }
                       title='Delete Vehicle'
+                      aria-label={`Delete ${vehicle.name}`}
                     >
                       <FontAwesomeIcon icon={faTrash} />
                     </button>
@@ -443,4 +493,3 @@ const Vehicles = () => {
 };
 
 export default Vehicles;
-//

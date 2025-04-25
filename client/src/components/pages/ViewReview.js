@@ -9,18 +9,21 @@ import {
   faExclamationCircle,
   faClipboardList,
   faCar,
-  faCalendarAlt,
-  faUser,
+  faCalendarAlt, // Added for consistency if needed elsewhere
+  faUser, // Added for consistency if needed elsewhere
   faCheck,
   faTimes,
   faStickyNote,
   faRulerVertical,
   faGasPump,
   faWrench,
-  faSearch,
-  faFileContract,
+  faSearch, // Keep search icon
+  faFileContract, // Keep specific icon
 } from '@fortawesome/free-solid-svg-icons';
-import '../../styles/ViewReview.scss';
+import DatePicker from 'react-datepicker'; // Keep DatePicker
+import 'react-datepicker/dist/react-datepicker.css';
+// Import the dedicated SCSS file
+import '../../styles/ViewReview.scss'; // Use ViewReview.scss
 
 const API_URL =
   process.env.REACT_APP_API_URL || 'https://timesheet-c4mj.onrender.com/api';
@@ -32,6 +35,7 @@ const ViewReview = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  // Keep prompt states
   const [showDownloadPrompt, setShowDownloadPrompt] = useState(false);
   const [showEmailPrompt, setShowEmailPrompt] = useState(false);
   const [email, setEmail] = useState('');
@@ -80,6 +84,7 @@ const ViewReview = () => {
   const handleDownload = async (format) => {
     setDownloadError(null);
     setDownloading(true);
+    setError(null); // Clear main error
     try {
       const token = localStorage.getItem('token');
       const response = await axios.get(
@@ -114,13 +119,13 @@ const ViewReview = () => {
         link.click();
         link.remove();
         window.URL.revokeObjectURL(url);
-        setShowDownloadPrompt(false);
+        setShowDownloadPrompt(false); // Close prompt on success
       } else {
         throw new Error('No data received for download.');
       }
     } catch (error) {
       console.error('Error downloading report:', error);
-      setDownloadError('Failed to download report.');
+      setDownloadError(error.response?.data?.message || 'Failed to download report.');
     } finally {
       setDownloading(false);
     }
@@ -134,6 +139,7 @@ const ViewReview = () => {
 
     setSendError(null);
     setSending(true);
+    setError(null); // Clear main error
 
     try {
       const token = localStorage.getItem('token');
@@ -143,7 +149,7 @@ const ViewReview = () => {
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
-      setShowEmailPrompt(false);
+      setShowEmailPrompt(false); // Close prompt on success
       setEmail('');
     } catch (error) {
       console.error('Error sending email:', error);
@@ -166,14 +172,14 @@ const ViewReview = () => {
     );
   }
 
-  if (error) {
+  if (error && !reviewData) { // Show full page error only if reviewData failed to load
     return (
       <div className='error-message page-error'>
         <FontAwesomeIcon icon={faExclamationCircle} />
         <p>{error}</p>
         <Link
           to={
-            reviewData?.vehicle?._id
+            reviewData?.vehicle?._id // Try to link back to specific vehicle if possible
               ? `/vehicles/view/${reviewData.vehicle._id}`
               : '/vehicles'
           }
@@ -185,7 +191,7 @@ const ViewReview = () => {
     );
   }
 
-  if (!reviewData) {
+  if (!reviewData) { // Handle case where loading finished but no data (should be rare if error handling works)
     return (
       <div className='error-message page-error'>
         <FontAwesomeIcon icon={faExclamationCircle} />
@@ -203,8 +209,10 @@ const ViewReview = () => {
   const vehicleTargetId = reviewData.vehicle?._id || reviewData.vehicle;
 
   return (
-    <div className='view-review-page'>
-      <div className='view-review-header'>
+    // Use standard page class
+    <div className='vehicles-page'>
+      {/* Use standard header */}
+      <div className='vehicles-header'>
         <div className='title-breadcrumbs'>
           <h2>
             <FontAwesomeIcon icon={faClipboardList} /> Review Details
@@ -238,26 +246,33 @@ const ViewReview = () => {
             <span className='breadcrumb-current'>View Review</span>
           </div>
         </div>
+        {/* Use standard header actions */}
+        <div className='header-actions'>
+          <button
+            className='btn btn-purple' // Use standard class
+            onClick={() => setShowEmailPrompt(true)}
+            aria-controls="email-prompt-view-review"
+            aria-expanded={showEmailPrompt}
+          >
+            <FontAwesomeIcon icon={faPaperPlane} /> Send Report
+          </button>
+          <button
+            className='btn btn-danger' // Use standard class
+            onClick={() => setShowDownloadPrompt(true)}
+            aria-controls="download-prompt-view-review"
+            aria-expanded={showDownloadPrompt}
+          >
+            <FontAwesomeIcon icon={faDownload} /> Download Report
+          </button>
+        </div>
       </div>
 
-      <div className='view-review-actions'>
-        <button
-          className='btn btn-send-report'
-          onClick={() => setShowEmailPrompt(true)}
-        >
-          <FontAwesomeIcon icon={faPaperPlane} /> Send Report
-        </button>
-        <button
-          className='btn btn-download-report'
-          onClick={() => setShowDownloadPrompt(true)}
-        >
-          <FontAwesomeIcon icon={faDownload} /> Download Report
-        </button>
-      </div>
+      {/* Removed the old view-review-actions div */}
 
+      {/* Download Prompt */}
       {showDownloadPrompt && (
         <div className='prompt-overlay'>
-          <div className='prompt-container'>
+          <div id="download-prompt-view-review" className='prompt-container'>
             <h4 className='prompt-title'>Choose Download Format</h4>
             {downloadError && (
               <p className='error-text'>
@@ -266,35 +281,21 @@ const ViewReview = () => {
             )}
             <div className='prompt-actions'>
               <button
-                className='btn btn-primary'
+                className='btn btn-primary' // Standard class
                 onClick={() => handleDownload('pdf')}
                 disabled={downloading}
               >
-                {downloading ? (
-                  <FontAwesomeIcon
-                    icon={faSpinner}
-                    spin
-                  />
-                ) : (
-                  'PDF'
-                )}
+                {downloading ? <FontAwesomeIcon icon={faSpinner} spin /> : 'PDF'}
               </button>
               <button
-                className='btn btn-success'
+                className='btn btn-success' // Standard class
                 onClick={() => handleDownload('excel')}
                 disabled={downloading}
               >
-                {downloading ? (
-                  <FontAwesomeIcon
-                    icon={faSpinner}
-                    spin
-                  />
-                ) : (
-                  'Excel'
-                )}
+                {downloading ? <FontAwesomeIcon icon={faSpinner} spin /> : 'Excel'}
               </button>
               <button
-                className='btn btn-danger'
+                className='btn btn-secondary' // Use secondary for cancel
                 onClick={() => setShowDownloadPrompt(false)}
                 disabled={downloading}
               >
@@ -305,9 +306,10 @@ const ViewReview = () => {
         </div>
       )}
 
+      {/* Email Prompt */}
       {showEmailPrompt && (
         <div className='prompt-overlay'>
-          <div className='prompt-container'>
+          <div id="email-prompt-view-review" className='prompt-container'>
             <h4 className='prompt-title'>Send Report via Email</h4>
             {sendError && (
               <p className='error-text'>
@@ -324,6 +326,7 @@ const ViewReview = () => {
               }}
               className='prompt-input'
               aria-label='Recipient Email'
+              required
             />
             <div className='format-options'>
               <label>
@@ -349,24 +352,18 @@ const ViewReview = () => {
             </div>
             <div className='prompt-actions'>
               <button
-                className='btn btn-primary'
+                className='btn btn-purple' // Standard class
                 onClick={handleSendEmail}
-                disabled={sending}
+                disabled={sending || !email || !/\S+@\S+\.\S+/.test(email)}
               >
                 {sending ? (
-                  <>
-                    <FontAwesomeIcon
-                      icon={faSpinner}
-                      spin
-                    />{' '}
-                    Sending...
-                  </>
+                  <> <FontAwesomeIcon icon={faSpinner} spin /> Sending... </>
                 ) : (
                   'Send Email'
                 )}
               </button>
               <button
-                className='btn btn-danger'
+                className='btn btn-secondary' // Use secondary for cancel
                 onClick={() => setShowEmailPrompt(false)}
                 disabled={sending}
               >
@@ -377,6 +374,15 @@ const ViewReview = () => {
         </div>
       )}
 
+       {/* Display general errors below header/prompts */}
+       {error && (
+        <div className='error-message' style={{ marginBottom: '1.5rem' }}>
+          <FontAwesomeIcon icon={faExclamationCircle} />
+          <p>{error}</p>
+        </div>
+      )}
+
+      {/* Keep specific content structure for ViewReview */}
       <div className='view-review-top-info'>
         <h3 className='vehicle-name'>
           <FontAwesomeIcon icon={faCar} /> {reviewData.vehicle?.name || 'N/A'}
@@ -427,6 +433,7 @@ const ViewReview = () => {
             <FontAwesomeIcon icon={faWrench} /> Vehicle Broken/Issues
           </span>
           <span className={`detail-value status ${reviewData.vehicleBroken ? 'status-no' : 'status-yes'}`}>
+            {/* Note: Icon logic reversed here compared to others */}
             <FontAwesomeIcon icon={reviewData.vehicleBroken ? faTimes : faCheck} />{' '}
             {reviewData.vehicleBroken ? 'Yes' : 'No'}
           </span>
@@ -437,7 +444,7 @@ const ViewReview = () => {
           </span>
           <span className='detail-value'>{reviewData.hours || '--'} hrs</span>
         </div>
-        <div className='detail-item '>
+        <div className='detail-item detail-item-full'> {/* Added class for full width */}
           <span className='detail-label'>
             <FontAwesomeIcon icon={faStickyNote} /> Notes
           </span>

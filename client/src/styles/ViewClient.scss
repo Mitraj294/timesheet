@@ -17,6 +17,7 @@ $border-radius: 5px;
 $box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
 $font-family: 'Segoe UI', sans-serif;
 
+$breakpoint-lg: 992px; // Added for summary card layout
 $breakpoint-md: 768px;
 $breakpoint-sm: 576px;
 
@@ -202,13 +203,13 @@ $breakpoint-sm: 576px;
         min-width: 200px;
 
         h2 {
-            font-size: clamp(1.4rem, 3vw, 1.75rem); // Adjusted size to match Vehicles.scss
+            font-size: clamp(1.4rem, 3vw, 1.75rem);
             display: flex;
             align-items: center;
-            gap: 0.6rem; // Adjusted gap
+            gap: 0.6rem;
             color: $text-color;
             margin: 0;
-            font-weight: 600; // Adjusted weight
+            font-weight: 600;
         }
 
         .breadcrumbs {
@@ -256,125 +257,6 @@ $breakpoint-sm: 576px;
     }
 }
 
-// Report options container (copied from Vehicles.scss)
-.report-options-container {
-    background-color: #fff;
-    padding: 1.5rem;
-    border-radius: $border-radius;
-    box-shadow: $box-shadow;
-    margin-bottom: 1.5rem;
-    border: 1px solid $border-color;
-
-    h4 {
-        margin-top: 0;
-        margin-bottom: 1rem;
-        font-weight: 600;
-        color: $text-color;
-        border-bottom: 1px solid $border-color;
-        padding-bottom: 0.5rem;
-    }
-
-    .date-picker-range {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 1rem;
-        margin-bottom: 1rem;
-
-        .date-picker-wrapper {
-            flex-grow: 1;
-            min-width: 180px;
-        }
-
-        .date-input {
-            width: 100%;
-            padding: 0.6rem 0.8rem;
-            font-size: 1rem;
-            border: 1px solid $border-color;
-            border-radius: 4px;
-            box-sizing: border-box;
-            font-family: $font-family;
-
-            &:focus {
-                border-color: $primary-color;
-                box-shadow: 0 0 0 3px rgba($primary-color, 0.25);
-            }
-        }
-    }
-
-    .send-report-email {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 1rem;
-        align-items: center;
-        margin-top: 1rem;
-
-        input[type="email"] {
-            flex-grow: 1;
-            padding: 0.6rem 0.8rem;
-            font-size: 1rem;
-            border: 1px solid $border-color;
-            border-radius: 4px;
-            min-width: 200px;
-            font-family: $font-family;
-
-            &:focus {
-                border-color: $primary-color;
-                box-shadow: 0 0 0 3px rgba($primary-color, 0.25);
-            }
-        }
-
-        >.btn-purple {
-            // Use standard class
-            margin-top: 0;
-        }
-    }
-
-    .error-text {
-        color: color.adjust($danger-color, $lightness: -10%);
-        font-size: 0.9rem;
-        margin-bottom: 1rem;
-        display: flex;
-        align-items: center;
-        gap: 0.4rem;
-    }
-
-    >.btn-danger,
-    >.btn-purple {
-        // Use standard classes
-        margin-top: 1rem;
-    }
-}
-
-// Search bar styles (using .vehicles-search class)
-.vehicles-search {
-    position: relative;
-    margin-bottom: 1.5rem;
-
-    input[type="text"] {
-        width: 100%;
-        padding: 0.7rem 1rem 0.7rem 2.5rem;
-        font-size: 1rem;
-        border: 1px solid $border-color;
-        border-radius: $border-radius;
-        box-sizing: border-box;
-        font-family: $font-family;
-
-        &:focus {
-            border-color: $primary-color;
-            box-shadow: 0 0 0 3px rgba($primary-color, 0.25);
-        }
-    }
-
-    .search-icon {
-        position: absolute;
-        left: 0.8rem;
-        top: 50%;
-        transform: translateY(-50%);
-        color: $dark-grey;
-        pointer-events: none;
-    }
-}
-
 // Loading/Error indicators (copied from Vehicles.scss)
 .loading-indicator,
 .error-message {
@@ -405,10 +287,131 @@ $breakpoint-sm: 576px;
 
 .loading-indicator.page-loading,
 .error-message.page-error {
-    min-height: 300px; // Keep specific page loading height if needed
+    min-height: 300px;
 }
 
-// Grid styles (using .vehicles-grid classes)
+// --- START: Client Summary Section Styles ---
+.client-summary-section {
+    margin-bottom: 2rem;
+
+    .section-heading {
+        font-size: 1.4rem;
+        font-weight: 600;
+        color: $text-color;
+        margin-bottom: 1rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 1px solid $border-color;
+    }
+
+    .client-summary-cards {
+        display: grid;
+        gap: 1.5rem;
+        grid-template-columns: 2fr 1fr;
+
+        .summary-card {
+            background-color: #fff;
+            border-radius: $border-radius;
+            box-shadow: $box-shadow;
+            padding: 1.5rem;
+            display: flex;
+            gap: 1.5rem;
+            align-items: center;
+
+            .card-content {
+                flex-grow: 1;
+            }
+        }
+
+        .client-details-card {
+            .client-avatar-icon {
+                color: $primary-color;
+                flex-shrink: 0;
+            }
+
+            .client-name-summary {
+                font-size: 1.3rem;
+                font-weight: 600;
+                margin-bottom: 1rem;
+                color: $text-color;
+            }
+
+            .contact-info {
+                display: flex;
+                flex-direction: column;
+                gap: 0.8rem;
+
+                .info-item {
+                    display: flex;
+                    align-items: center;
+                    gap: 0.6rem;
+
+                    .info-icon {
+                        color: $dark-grey;
+                        font-size: 1rem;
+                        width: 1.1em;
+                        text-align: center;
+                    }
+
+                    p {
+                        margin: 0;
+                        font-size: 0.95rem;
+                        color: $text-color;
+                    }
+                }
+            }
+        }
+
+        .client-hours-card {
+            justify-content: space-between;
+
+            .hours-label {
+                font-size: 0.9rem;
+                color: $dark-grey;
+                margin-bottom: 0.25rem;
+                text-transform: uppercase;
+                font-weight: 500;
+            }
+
+            .hours-value {
+                font-size: 2rem;
+                font-weight: 700;
+                color: $success-color;
+                margin: 0;
+            }
+
+            .hours-icon {
+                font-size: 2.5rem;
+                color: color.adjust($success-color, $lightness: 20%);
+            }
+        }
+    }
+}
+
+// --- END: Client Summary Section Styles ---
+
+// Projects Section Styles
+.projects-section {
+    margin-top: 2rem;
+
+    .section-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1rem;
+
+        h3 {
+            font-size: 1.4rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: $text-color;
+            margin: 0;
+        }
+    }
+}
+
+// Grid styles (using .vehicles-grid classes for projects)
 .vehicles-grid {
     background-color: #fff;
     border-radius: $border-radius;
@@ -418,7 +421,6 @@ $breakpoint-sm: 576px;
 
     .vehicles-row {
         display: grid;
-        // grid-template-columns: defined inline in component based on data
         align-items: center;
         border-bottom: 1px solid $border-color;
 
@@ -433,7 +435,6 @@ $breakpoint-sm: 576px;
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
-            // Default text align left, override below if needed
             text-align: left;
         }
 
@@ -464,14 +465,6 @@ $breakpoint-sm: 576px;
 
         .loading-indicator {
             font-style: normal;
-        }
-
-        // Center align specific columns (like checkmarks)
-        div[data-label="Oil Checked"],
-        div[data-label="Vehicle Checked"],
-        div[data-label="Vehicle Broken"] {
-            // Center Yes/No as well
-            text-align: center;
         }
 
         .actions {
@@ -534,21 +527,16 @@ $breakpoint-sm: 576px;
                 }
             }
         }
-
-        // Icon colors (copied from Vehicles.scss context)
-        .icon-green {
-            color: $success-color;
-            font-size: 1.1em;
-        }
-
-        .icon-red {
-            color: $danger-color;
-            font-size: 1.1em;
-        }
     }
 }
 
-// Responsive Adjustments (copied from Vehicles.scss)
+// Responsive Adjustments
+@media (max-width: $breakpoint-lg) {
+    .client-summary-section .client-summary-cards {
+        grid-template-columns: 1fr;
+    }
+}
+
 @media (max-width: $breakpoint-md) {
     .vehicles-grid {
         background-color: transparent;
@@ -564,7 +552,6 @@ $breakpoint-sm: 576px;
         }
 
         .vehicles-row.vehicle-card {
-            // Use .vehicle-card class
             display: block;
             background-color: #fff;
             border: 1px solid $border-color;
@@ -583,9 +570,9 @@ $breakpoint-sm: 576px;
                 white-space: normal;
                 display: flex;
                 justify-content: space-between;
-                align-items: center; // Align items vertically
+                align-items: center;
                 border-bottom: 1px dashed color.adjust($border-color, $lightness: 5%);
-                text-align: right; // Align value right
+                text-align: right;
 
                 &:last-child {
                     border-bottom: none;
@@ -597,7 +584,7 @@ $breakpoint-sm: 576px;
                     color: $dark-grey;
                     margin-right: 0.5rem;
                     flex-shrink: 0;
-                    text-align: left; // Keep label left
+                    text-align: left;
                 }
 
                 &.actions {
@@ -621,10 +608,6 @@ $breakpoint-sm: 576px;
             padding: 1.5rem;
             border: 1px solid $border-color;
         }
-    }
-
-    .report-options-container {
-        padding: 1rem;
     }
 }
 
@@ -657,43 +640,64 @@ $breakpoint-sm: 576px;
         }
     }
 
-    // Remove .vehicles-actions specific styles if they existed
+    .client-summary-section {
+        .client-summary-cards {
+            gap: 1rem;
 
-    .report-options-container {
+            .summary-card {
+                padding: 1rem;
+                gap: 1rem;
+            }
 
-        .date-picker-range,
-        .send-report-email {
-            flex-direction: column;
-            align-items: stretch;
+            .client-details-card {
+                // --- START: Modified styles ---
+                flex-direction: row; // Keep it as a row
+                align-items: center; // Vertically center icon and details
 
-            .date-picker-wrapper,
-            input[type="email"],
-            button {
-                min-width: 0;
-                width: 100%;
+                .client-avatar-icon {
+                    font-size: 2.5rem; // Adjust size if needed
+                    margin-bottom: 0; // Remove bottom margin
+                    margin-right: 1rem; // Add some space to the right
+                }
+
+                // --- END: Modified styles ---
+
+                .client-name-summary {
+                    font-size: 1.1rem;
+                    margin-bottom: 0.8rem;
+                }
+
+                .contact-info {
+                    gap: 0.6rem;
+
+                    .info-item p {
+                        font-size: 0.9rem;
+                    }
+                }
+            }
+
+            .client-hours-card {
+                flex-direction: row;
+                justify-content: space-between;
+                align-items: center;
+
+                .card-content {
+                    text-align: left;
+                }
+
+                .hours-value {
+                    font-size: 1.8rem;
+                }
+
+                .hours-icon {
+                    font-size: 2.2rem;
+                    align-self: center;
+                }
             }
         }
-
-        .btn-danger {
-            color: #fff;
-            background-color: $danger-color;
-            border-color: $danger-color;
-
-            &:hover:not(:disabled) {
-                background-color: color.adjust($danger-color, $lightness: -7%);
-                border-color: color.adjust($danger-color, $lightness: -10%);
-            }
-
-            &:disabled {
-                background-color: mix(white, $danger-color, 35%);
-                border-color: mix(white, $danger-color, 35%);
-            }
-        }
-
-        // Ensure download button is full width
     }
 
-    // Grid card styles for small screens (label/value side-by-side)
+    // Grid card styles for projects (label/value side-by-side)
     // Inherited from breakpoint-md, no specific overrides needed here
     .vehicles-grid {
         .vehicles-row.vehicle-card {

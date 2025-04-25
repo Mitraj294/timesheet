@@ -15,7 +15,7 @@ import {
   faSave,
   faTimes,
 } from '@fortawesome/free-solid-svg-icons';
-import '../../styles/EmployeeForms.scss';
+import '../../styles/Forms.scss'; // *** Use Forms.scss ***
 
 const API_URL =
   process.env.REACT_APP_API_URL || 'https://timesheet-c4mj.onrender.com/api';
@@ -42,7 +42,7 @@ const EmployeeForm = () => {
   };
 
   const [formData, setFormData] = useState(initialFormState);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(false); // Combined loading state
   const [error, setError] = useState(null);
 
   useEffect(() => {
@@ -74,22 +74,16 @@ const EmployeeForm = () => {
     } else if (!id) {
       setFormData(initialFormState);
     }
-    setError(null);
-  }, [id, employees]);
+    // setError(null); // Don't clear error here, might hide the "not found" error
+  }, [id, employees]); // Removed setError from dependency array
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
-    if (name === 'isAdmin' || name === 'overtime') {
-       setFormData((prevState) => ({
-        ...prevState,
-        [name]: value,
-      }));
-    } else {
-       setFormData((prevState) => ({
-        ...prevState,
-        [name]: type === 'checkbox' ? checked : value,
-      }));
-    }
+    // Keep the logic for isAdmin/overtime as select values
+    setFormData((prevState) => ({
+      ...prevState,
+      [name]: type === 'checkbox' ? checked : value,
+    }));
   };
 
   const validateForm = () => {
@@ -146,7 +140,7 @@ const EmployeeForm = () => {
             body: JSON.stringify({
               name: formData.name,
               email: formData.email,
-              password: '123456',
+              password: '123456', // Consider a more secure default or process
               role: 'employee',
             }),
           });
@@ -165,6 +159,8 @@ const EmployeeForm = () => {
           employeeData.userId = registeredUser.user._id;
         } else {
            console.log('User already exists, creating employee record without new registration.');
+           // Optionally link to existing user ID if needed and available
+           // employeeData.userId = userCheckData.userId; // If API returns ID
         }
       }
 
@@ -184,29 +180,35 @@ const EmployeeForm = () => {
     }
   };
 
-  if (employeesLoading) {
+  // Loading state for initial employee list fetch
+  if (employeesLoading && !employees.length) {
      return (
-        <div className='loading-indicator page-loading'>
-          <FontAwesomeIcon icon={faSpinner} spin size='2x' />
-          <p>Loading Employee Data...</p>
+        <div className='vehicles-page'> {/* Use standard page class */}
+            <div className='loading-indicator'>
+              <FontAwesomeIcon icon={faSpinner} spin size='2x' />
+              <p>Loading Employee Data...</p>
+            </div>
         </div>
       );
   }
 
+  // Error state for initial employee list fetch
   if (employeesError && !employees.length) {
      return (
-        <div className='error-message page-error'>
-          <FontAwesomeIcon icon={faExclamationCircle} />
-          <p>Error loading employee data: {employeesError.message || JSON.stringify(employeesError)}</p>
-           <button className="btn btn-secondary" onClick={() => dispatch(getEmployees())}>Retry</button>
+        <div className='vehicles-page'> {/* Use standard page class */}
+            <div className='error-message'>
+              <FontAwesomeIcon icon={faExclamationCircle} />
+              <p>Error loading employee data: {employeesError.message || JSON.stringify(employeesError)}</p>
+               <button className="btn btn-secondary" onClick={() => dispatch(getEmployees())}>Retry</button>
+            </div>
         </div>
       );
   }
 
 
   return (
-    <div className='form-page-container'>
-      <div className='form-header'>
+    <div className='vehicles-page'> {/* Use standard page class */}
+      <div className='vehicles-header'> {/* Use standard header */}
         <div className='title-breadcrumbs'>
           <h2>
             <FontAwesomeIcon icon={isEditMode ? faUserEdit : faUserPlus} />{' '}
@@ -228,8 +230,8 @@ const EmployeeForm = () => {
         </div>
       </div>
 
-      <div className='form-container'>
-        <form onSubmit={handleSubmit} className='employee-form' noValidate>
+      <div className='form-container'> {/* Use standard form container */}
+        <form onSubmit={handleSubmit} className='employee-form' noValidate> {/* Use standard form class */}
           {error && (
             <div className='form-error-message'>
               <FontAwesomeIcon icon={faExclamationCircle} /> {error}
@@ -274,7 +276,7 @@ const EmployeeForm = () => {
               value={formData.email}
               onChange={handleChange}
               required
-              disabled={isLoading || isEditMode}
+              disabled={isLoading || isEditMode} // Disable email editing
             />
              {isEditMode && <small>Email cannot be changed after creation.</small>}
           </div>
@@ -357,10 +359,10 @@ const EmployeeForm = () => {
             </select>
           </div>
 
-          <div className='form-footer'>
+          <div className='form-footer'> {/* Use standard footer */}
             <button
               type='button'
-              className='btn btn-danger'
+              className='btn btn-danger' // Standard button class
               onClick={() => navigate('/employees')}
               disabled={isLoading}
             >
@@ -368,7 +370,7 @@ const EmployeeForm = () => {
             </button>
             <button
               type='submit'
-              className='btn btn-success'
+              className='btn btn-success' // Standard button class
               disabled={isLoading}
             >
               {isLoading ? (

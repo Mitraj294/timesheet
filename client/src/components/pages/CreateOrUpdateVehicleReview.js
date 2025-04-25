@@ -9,8 +9,9 @@ import {
   faExclamationCircle,
   faSave,
   faEdit,
+  faTimes,
 } from '@fortawesome/free-solid-svg-icons';
-import '../../styles/CreateVehicleReview.scss';
+import '../../styles/Forms.scss'; // *** Use Forms.scss ***
 
 const API_URL =
   process.env.REACT_APP_API_URL || 'https://timesheet-c4mj.onrender.com/api';
@@ -21,7 +22,7 @@ const CreateOrUpdateVehicleReview = () => {
   const isEditMode = Boolean(reviewId);
 
   const [formData, setFormData] = useState({
-    dateReviewed: '',
+    dateReviewed: new Date().toISOString().split('T')[0], // Default to today
     employeeId: '',
     oilChecked: false,
     vehicleChecked: false,
@@ -75,16 +76,11 @@ const CreateOrUpdateVehicleReview = () => {
             hours: reviewData.hours?.toString() || '',
             notes: reviewData.notes || '',
           });
-        } else if (!reviewId) {
-          setFormData({
-            dateReviewed: new Date().toISOString().split('T')[0],
-            employeeId: '',
-            oilChecked: false,
-            vehicleChecked: false,
-            vehicleBroken: false,
-            hours: vehicle?.hours?.toString() || '',
-            notes: '',
-          });
+        } else if (!reviewId && vehicleRes.data) {
+          setFormData(prev => ({
+            ...prev,
+            hours: vehicleRes.data.hours?.toString() || '',
+          }));
         }
       } catch (err) {
         console.error('Error fetching data:', err);
@@ -168,32 +164,19 @@ const CreateOrUpdateVehicleReview = () => {
   };
 
   return (
-    <div className='vehicle-review-form-page-container'>
-      <div className='vehicle-review-form-header'>
+    <div className='vehicles-page'> {/* Use standard page class */}
+      <div className='vehicles-header'> {/* Use standard header */}
         <div className='title-breadcrumbs'>
           <h2>
             <FontAwesomeIcon icon={faClipboardList} />{' '}
             {isEditMode ? 'Edit Vehicle Review' : 'Create Vehicle Review'}
           </h2>
           <div className='breadcrumbs'>
-            <Link
-              to='/dashboard'
-              className='breadcrumb-link'
-            >
-              Dashboard
-            </Link>
+            <Link to='/dashboard' className='breadcrumb-link'> Dashboard </Link>
             <span className='breadcrumb-separator'> / </span>
-            <Link
-              to='/vehicles'
-              className='breadcrumb-link'
-            >
-              Vehicles
-            </Link>
+            <Link to='/vehicles' className='breadcrumb-link'> Vehicles </Link>
             <span className='breadcrumb-separator'> / </span>
-            <Link
-              to={`/vehicles/view/${vehicleId}`}
-              className='breadcrumb-link'
-            >
+            <Link to={`/vehicles/view/${vehicleId}`} className='breadcrumb-link'>
               {vehicle?.name ?? 'View Vehicle'}
             </Link>
             <span className='breadcrumb-separator'> / </span>
@@ -205,26 +188,22 @@ const CreateOrUpdateVehicleReview = () => {
       </div>
 
       {isLoading && !vehicle && (
-        <div className='loading-indicator page-loading'>
-          <FontAwesomeIcon
-            icon={faSpinner}
-            spin
-            size='2x'
-          />
+        <div className='loading-indicator'> {/* Use standard loading */}
+          <FontAwesomeIcon icon={faSpinner} spin size='2x' />
           <p>Loading...</p>
         </div>
       )}
 
       {error && !isLoading && (
-        <div className='error-message page-error'>
+        <div className='error-message'> {/* Use standard error */}
           <FontAwesomeIcon icon={faExclamationCircle} />
           <p>{error}</p>
         </div>
       )}
 
       {!isLoading && vehicle && (
-        <div className='vehicle-review-form-container'>
-          <div className='vehicle-details-header'>
+        <div className='form-container'> {/* Use standard form container */}
+          <div className='vehicle-details-header' style={{ marginBottom: '1.5rem', paddingBottom: '1rem', borderBottom: '1px solid #dee2e6' }}>
             <h5>
               <FontAwesomeIcon icon={faCar} /> {vehicle.name}
               {vehicle.wofRego && ` (WOF/Reg: ${vehicle.wofRego})`}
@@ -233,7 +212,7 @@ const CreateOrUpdateVehicleReview = () => {
 
           <form
             onSubmit={handleSubmit}
-            className='vehicle-review-form'
+            className='employee-form' // Use standard form class
             noValidate
           >
             {error && (
@@ -267,10 +246,7 @@ const CreateOrUpdateVehicleReview = () => {
               >
                 <option value=''>-- Select Employee --</option>
                 {employees.map((employee) => (
-                  <option
-                    key={employee._id}
-                    value={employee._id}
-                  >
+                  <option key={employee._id} value={employee._id}>
                     {employee.name}
                   </option>
                 ))}
@@ -293,7 +269,7 @@ const CreateOrUpdateVehicleReview = () => {
               />
             </div>
 
-            <div className='form-group form-group-checkbox'>
+            <div className='form-group checkbox-group'>
               <input
                 id='oilChecked'
                 type='checkbox'
@@ -305,7 +281,7 @@ const CreateOrUpdateVehicleReview = () => {
               <label htmlFor='oilChecked'>Oil Checked</label>
             </div>
 
-            <div className='form-group form-group-checkbox'>
+            <div className='form-group checkbox-group'>
               <input
                 id='vehicleChecked'
                 type='checkbox'
@@ -317,7 +293,7 @@ const CreateOrUpdateVehicleReview = () => {
               <label htmlFor='vehicleChecked'>Vehicle Checked</label>
             </div>
 
-            <div className='form-group form-group-checkbox'>
+            <div className='form-group checkbox-group'>
               <input
                 id='vehicleBroken'
                 type='checkbox'
@@ -342,28 +318,22 @@ const CreateOrUpdateVehicleReview = () => {
               ></textarea>
             </div>
 
-            <div className='form-footer'>
+            <div className='form-footer'> {/* Use standard footer */}
               <button
                 type='button'
-                className='btn btn-danger'
+                className='btn btn-danger' // Standard button class
                 onClick={() => navigate(`/vehicles/view/${vehicleId}`)}
                 disabled={isLoading}
               >
-                Cancel
+                <FontAwesomeIcon icon={faTimes} /> Cancel
               </button>
               <button
                 type='submit'
-                className='btn btn-primary'
+                className='btn btn-success' // Standard button class
                 disabled={isLoading}
               >
                 {isLoading ? (
-                  <>
-                    <FontAwesomeIcon
-                      icon={faSpinner}
-                      spin
-                    />{' '}
-                    Saving...
-                  </>
+                  <> <FontAwesomeIcon icon={faSpinner} spin /> Saving... </>
                 ) : (
                   <>
                     <FontAwesomeIcon icon={isEditMode ? faEdit : faSave} />

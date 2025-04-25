@@ -532,21 +532,21 @@ const Dashboard = () => {
                   <div className="summary-content">
                     {/* Show spinner if employees are loading, otherwise show count */}
                     <h3>{isEmployeeDropdownLoading ? <FontAwesomeIcon icon={faSpinner} spin /> : (employees.length || 0)}</h3>
-                    <p>Employees</p>
+                    <p>Total Employees</p>
                   </div>
                 </div>
                 <div className="summary-card">
                   <FontAwesomeIcon icon={faClock} className="summary-icon hours" />
                   <div className="summary-content">
                     <h3>{displayTotalHours}</h3>
-                    <p>Total Hours (All)</p>
+                    <p>Total Hours</p>
                   </div>
                 </div>
                 <div className="summary-card">
                   <FontAwesomeIcon icon={faStopwatch} className="summary-icon avg-hours" />
                   <div className="summary-content">
                     <h3>{displayAvgHours}</h3>
-                    <p>Avg. Hours (All)</p>
+                    <p>Avg. Hours</p>
                   </div>
                 </div>
               </>

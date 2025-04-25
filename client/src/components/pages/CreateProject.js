@@ -3,23 +3,24 @@ import { Link, useParams, useNavigate } from "react-router-dom";
 import axios from "axios";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
-  faBriefcase, // Changed icon for Project
-  faCalendarAlt, // Changed icon
-  faMapMarkerAlt, // Changed icon
+  faBriefcase,
+  faCalendarAlt,
+  faMapMarkerAlt,
   faClock,
   faStickyNote,
-  faSave, // Changed icon
+  faSave,
   faTimes,
   faSpinner,
   faExclamationCircle,
-  faStar, // Icon for Important
+  faStar,
+  faPen, // Added for edit mode
 } from "@fortawesome/free-solid-svg-icons";
-import "../../styles/EmployeeForms.scss"; // Use shared form styles
+import "../../styles/Forms.scss"; // *** Use Forms.scss ***
 
 const API_URL = process.env.REACT_APP_API_URL || 'https://timesheet-c4mj.onrender.com/api';
 
 const CreateProject = () => {
-  const { clientId, projectId } = useParams(); // Get client and project IDs
+  const { clientId, projectId } = useParams();
   const navigate = useNavigate();
   const isEditing = Boolean(projectId);
 
@@ -33,24 +34,22 @@ const CreateProject = () => {
     isImportant: false
   });
 
-  const [isLoading, setIsLoading] = useState(false); // Loading state for fetching data (if editing)
-  const [isSubmitting, setIsSubmitting] = useState(false); // Loading state for form submission
-  const [error, setError] = useState(null); // Error state
+  const [isLoading, setIsLoading] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState(null);
 
-  // Fetch project details if editing
   useEffect(() => {
     if (isEditing) {
       setIsLoading(true);
       setError(null);
-      const token = localStorage.getItem("token"); // Assuming auth is needed
-      axios.get(`${API_URL}/projects/${projectId}`, { // Fetch specific project
+      const token = localStorage.getItem("token");
+      axios.get(`${API_URL}/projects/${projectId}`, {
         headers: { Authorization: `Bearer ${token}` }
       })
         .then((response) => {
           const project = response.data || {};
           setFormData({
             name: project.name || "",
-            // Ensure dates are formatted correctly for input type="date"
             startDate: project.startDate ? project.startDate.split("T")[0] : "",
             finishDate: project.finishDate ? project.finishDate.split("T")[0] : "",
             address: project.address || "",
@@ -67,8 +66,6 @@ const CreateProject = () => {
           setIsLoading(false);
         });
     }
-    // Removed the eslint-disable comment. Dependencies [projectId, isEditing] seem correct.
-    // API_URL is a constant, state setters (setIsLoading, setError, setFormData) are generally stable.
   }, [projectId, isEditing]);
 
 
@@ -93,7 +90,7 @@ const CreateProject = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError(null); // Clear previous errors
+    setError(null);
 
     const validationError = validateForm();
     if (validationError) {
@@ -106,7 +103,6 @@ const CreateProject = () => {
     if (!token) {
         setError("Authentication required. Please log in.");
         setIsSubmitting(false);
-        // Consider navigating to login: navigate('/login');
         return;
     }
     const config = {
@@ -116,31 +112,22 @@ const CreateProject = () => {
       }
     };
 
-    // Prepare payload, ensuring expectedHours is a number if provided
     const payload = {
       ...formData,
       expectedHours: formData.expectedHours ? parseFloat(formData.expectedHours) : null,
-      // Add clientId when creating a new project associated with a client
-      clientId: isEditing ? undefined : clientId // Only include clientId for POST
+      clientId: isEditing ? undefined : clientId
     };
-    // Remove clientId if updating, as it's usually part of the URL or immutable
     if (isEditing) {
         delete payload.clientId;
     }
 
-
     try {
       if (isEditing) {
-        // Update existing project
         await axios.put(`${API_URL}/projects/${projectId}`, payload, config);
       } else {
-        // Create new project (assuming endpoint structure)
-        // The endpoint might be just /projects or nested like /clients/:clientId/projects
-        // Adjust the URL based on your actual API structure for creating projects
-        await axios.post(`${API_URL}/projects`, payload, config); // Using /projects, adjust if needed
+        await axios.post(`${API_URL}/projects`, payload, config);
       }
-      // Consider success message via state/toast
-      navigate(`/clients/view/${clientId}`); // Navigate back to the client view page
+      navigate(`/clients/view/${clientId}`);
     } catch (err) {
       console.error("Error saving project:", err.response || err);
       setError(err.response?.data?.message || `Failed to ${isEditing ? 'update' : 'create'} project. Please try again.`);
@@ -149,10 +136,9 @@ const CreateProject = () => {
     }
   };
 
-  // Display loading indicator while fetching data for editing
   if (isLoading) {
     return (
-      <div className='form-page-container'>
+      <div className='vehicles-page'> {/* Use standard page class */}
         <div className='loading-indicator'>
           <FontAwesomeIcon icon={faSpinner} spin size='2x' />
           <p>Loading project data...</p>
@@ -162,19 +148,18 @@ const CreateProject = () => {
   }
 
   return (
-    <div className="form-page-container"> {/* Outer container */}
-       <div className="form-header"> {/* Header section */}
+    <div className="vehicles-page"> {/* Use standard page class */}
+       <div className="vehicles-header"> {/* Use standard header */}
         <div className="title-breadcrumbs">
           <h2>
-            <FontAwesomeIcon icon={faBriefcase} /> {/* Title icon */}
+            <FontAwesomeIcon icon={faBriefcase} />
             {isEditing ? "Update Project" : "Create Project"}
           </h2>
-          <div className="breadcrumbs"> {/* Use breadcrumbs class */}
+          <div className="breadcrumbs">
             <Link to="/dashboard" className="breadcrumb-link">Dashboard</Link>
             <span className="breadcrumb-separator"> / </span>
             <Link to="/clients" className="breadcrumb-link">Clients</Link>
             <span className="breadcrumb-separator"> / </span>
-            {/* Link back to the specific client's view page */}
             <Link to={`/clients/view/${clientId}`} className="breadcrumb-link">View Client</Link>
             <span className="breadcrumb-separator"> / </span>
             <span className="breadcrumb-current">{isEditing ? "Update Project" : "Create Project"}</span>
@@ -182,15 +167,14 @@ const CreateProject = () => {
         </div>
       </div>
 
-      <div className="form-container"> {/* Form container */}
-        <form onSubmit={handleSubmit} className="employee-form" noValidate> {/* Form with class */}
+      <div className="form-container"> {/* Use standard form container */}
+        <form onSubmit={handleSubmit} className="employee-form" noValidate> {/* Use standard form class */}
            {error && (
             <div className='form-error-message'>
               <FontAwesomeIcon icon={faExclamationCircle} /> {error}
             </div>
           )}
 
-          {/* Project Name */}
           <div className="form-group">
             <label htmlFor="projectName">Project Name*</label>
             <div className="input-with-icon">
@@ -208,7 +192,6 @@ const CreateProject = () => {
             </div>
           </div>
 
-          {/* Start Date */}
           <div className="form-group">
             <label htmlFor="startDate">Start Date</label>
             <div className="input-with-icon">
@@ -224,7 +207,6 @@ const CreateProject = () => {
             </div>
           </div>
 
-          {/* Finish Date */}
           <div className="form-group">
             <label htmlFor="finishDate">Finish Date</label>
             <div className="input-with-icon">
@@ -240,7 +222,6 @@ const CreateProject = () => {
             </div>
           </div>
 
-          {/* Address */}
           <div className="form-group">
             <label htmlFor="projectAddress">Address</label>
             <div className="input-with-icon">
@@ -257,7 +238,6 @@ const CreateProject = () => {
             </div>
           </div>
 
-          {/* Expected Hours */}
           <div className="form-group">
             <label htmlFor="expectedHours">Expected Hours</label>
             <div className="input-with-icon">
@@ -269,14 +249,13 @@ const CreateProject = () => {
                 placeholder="Estimated total hours"
                 value={formData.expectedHours}
                 onChange={handleChange}
-                min="0" // Prevent negative numbers
-                step="any" // Allow decimals
+                min="0"
+                step="any"
                 disabled={isSubmitting}
               />
             </div>
           </div>
 
-          {/* Notes */}
           <div className="form-group">
             <label htmlFor="projectNotes">Notes</label>
             <div className="input-with-icon">
@@ -293,7 +272,6 @@ const CreateProject = () => {
             </div>
           </div>
 
-          {/* Important Checkbox */}
           <div className="form-group checkbox-group">
             <input
               id="projectImportant"
@@ -308,12 +286,11 @@ const CreateProject = () => {
             </label>
           </div>
 
-          {/* Form Buttons */}
-          <div className="form-footer">
+          <div className="form-footer"> {/* Use standard footer */}
             <button
               type="button"
               className="btn btn-danger"
-              onClick={() => navigate(`/clients/view/${clientId}`)} // Navigate back to client view
+              onClick={() => navigate(`/clients/view/${clientId}`)}
               disabled={isSubmitting}
             >
               <FontAwesomeIcon icon={faTimes} /> Cancel
@@ -325,7 +302,7 @@ const CreateProject = () => {
                 </>
               ) : (
                 <>
-                  <FontAwesomeIcon icon={faSave} /> {isEditing ? "Update Project" : "Create Project"}
+                  <FontAwesomeIcon icon={isEditing ? faPen : faSave} /> {isEditing ? "Update Project" : "Create Project"}
                 </>
               )}
             </button>

@@ -83,17 +83,18 @@ const Employees = () => {
             <span className='breadcrumb-current'>Employees</span>
           </div>
         </div>
-        {/* Add Employee Button - Placed in header like title */}
-        {/* Note: Vehicles.js has a separate actions bar. Keeping button here for simplicity based on original Employees.js */}
-        {user?.role === 'employer' && (
-  <button
-    // Change this className:
-    className='btn btn-success' // <--- Changed from btn-primary
-    onClick={() => navigate('/employees/add')}
-  >
-    <FontAwesomeIcon icon={faPlus} /> Add Employee
-  </button>
-)}
+        {/* --- START: MOVED BUTTON HERE --- */}
+        <div className="header-actions"> {/* Container for header buttons */}
+          {user?.role === 'employer' && (
+            <button
+              className='btn btn-success' // Standard green button
+              onClick={() => navigate('/employees/add')}
+            >
+              <FontAwesomeIcon icon={faPlus} /> Add Employee
+            </button>
+          )}
+        </div>
+        {/* --- END: MOVED BUTTON HERE --- */}
       </div>
 
       {/* Add Search Input - using styles from Vehicles.scss */}

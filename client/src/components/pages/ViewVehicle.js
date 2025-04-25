@@ -19,7 +19,8 @@ import {
 } from '@fortawesome/free-solid-svg-icons';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
-import '../../styles/ViewVehicle.scss';
+// Import the dedicated SCSS file
+import '../../styles/ViewVehicle.scss'; // Use ViewVehicle.scss
 
 const API_URL =
   process.env.REACT_APP_API_URL || 'https://timesheet-c4mj.onrender.com/api';
@@ -98,6 +99,7 @@ const ViewVehicle = () => {
     );
     if (!confirmDelete) return;
 
+    setError(null);
     try {
       const token = localStorage.getItem('token');
       await axios.delete(`${API_URL}/vehicles/reviews/${reviewId}`, {
@@ -123,6 +125,7 @@ const ViewVehicle = () => {
     }
     setDownloadError(null);
     setDownloading(true);
+    setError(null);
     try {
       const token = localStorage.getItem('token');
       const response = await axios.get(
@@ -154,9 +157,11 @@ const ViewVehicle = () => {
       link.remove();
       window.URL.revokeObjectURL(url);
       setShowDateRangePicker(false);
+      setStartDate(null);
+      setEndDate(null);
     } catch (error) {
       console.error('Error downloading Excel report:', error);
-      setDownloadError('Failed to download report.');
+      setDownloadError(error.response?.data?.message || 'Failed to download report.');
     } finally {
       setDownloading(false);
     }
@@ -173,6 +178,7 @@ const ViewVehicle = () => {
     }
     setSendError(null);
     setSending(true);
+    setError(null);
     try {
       const token = localStorage.getItem('token');
       await axios.post(
@@ -195,6 +201,33 @@ const ViewVehicle = () => {
       setSending(false);
     }
   };
+
+  // Toggle function for Send Report section
+  const toggleSendReport = () => {
+    const currentlyShowing = showSendReport;
+    setShowSendReport(!currentlyShowing);
+    setShowDateRangePicker(false);
+    setSendError(null);
+    if (!currentlyShowing) {
+        setStartDate(null);
+        setEndDate(null);
+    }
+  };
+
+  // Toggle function for Download Report section
+  const toggleDownloadReport = () => {
+    const currentlyShowing = showDateRangePicker;
+    setShowDateRangePicker(!currentlyShowing);
+    setShowSendReport(false);
+    setDownloadError(null);
+    if (!currentlyShowing) {
+        setStartDate(null);
+        setEndDate(null);
+    }
+  };
+
+  // Define grid columns for the review history
+  const gridColumns = '1fr 1.5fr 1.5fr 0.8fr 0.8fr 0.8fr 0.8fr 1.2fr';
 
   if (loading && !vehicle) {
     return (
@@ -225,8 +258,10 @@ const ViewVehicle = () => {
   }
 
   return (
-    <div className='view-vehicle-page'>
-      <div className='view-vehicle-header'>
+    // Use standard page class
+    <div className='vehicles-page'>
+      {/* Use standard header */}
+      <div className='vehicles-header'>
         <div className='title-breadcrumbs'>
           <h2>
             <FontAwesomeIcon icon={faCar} /> {vehicle?.name ?? 'Vehicle Details'}
@@ -249,41 +284,38 @@ const ViewVehicle = () => {
             <span className='breadcrumb-current'>View</span>
           </div>
         </div>
-      </div>
-
-      <div className='view-vehicle-actions'>
-        {user?.role === 'employer' && (
+        {/* Use standard header actions container */}
+        <div className='header-actions'>
+          {user?.role === 'employer' && (
+            <button
+              className='btn btn-success'
+              onClick={handleCreateReviewClick}
+            >
+              <FontAwesomeIcon icon={faPlus} /> Create Review
+            </button>
+          )}
           <button
-            className='btn btn-success'
-            onClick={handleCreateReviewClick}
+            className='btn btn-purple' // Use consistent class
+            onClick={toggleSendReport}
+            aria-expanded={showSendReport}
+            aria-controls="send-report-options-view" // Unique ID for ARIA
           >
-            <FontAwesomeIcon icon={faPlus} /> Create Review
+            <FontAwesomeIcon icon={faPaperPlane} /> Send Report
           </button>
-        )}
-        <button
-          className='btn btn-send-report'
-          onClick={() => {
-            setShowSendReport(!showSendReport);
-            setShowDateRangePicker(false);
-          }}
-          aria-expanded={showSendReport}
-        >
-          <FontAwesomeIcon icon={faPaperPlane} /> Send Report
-        </button>
-        <button
-          className='btn btn-download-report'
-          onClick={() => {
-            setShowDateRangePicker(!showDateRangePicker);
-            setShowSendReport(false);
-          }}
-          aria-expanded={showDateRangePicker}
-        >
-          <FontAwesomeIcon icon={faDownload} /> Download Report
-        </button>
+          <button
+            className='btn btn-danger' // Use consistent class
+            onClick={toggleDownloadReport}
+            aria-expanded={showDateRangePicker}
+            aria-controls="download-report-options-view" // Unique ID for ARIA
+          >
+            <FontAwesomeIcon icon={faDownload} /> Download Report
+          </button>
+        </div>
       </div>
 
+      {/* Report Options Containers */}
       {showSendReport && (
-        <div className='report-options-container send-report-container'>
+        <div id="send-report-options-view" className='report-options-container send-report-container'>
           <h4>Send Vehicle Report</h4>
           {sendError && (
             <p className='error-text'>
@@ -301,6 +333,7 @@ const ViewVehicle = () => {
               dateFormat='yyyy-MM-dd'
               className='date-input'
               wrapperClassName='date-picker-wrapper'
+              aria-label="Report Start Date"
             />
             <DatePicker
               selected={endDate}
@@ -313,6 +346,7 @@ const ViewVehicle = () => {
               minDate={startDate}
               className='date-input'
               wrapperClassName='date-picker-wrapper'
+              aria-label="Report End Date"
             />
           </div>
           <div className='send-report-email'>
@@ -325,24 +359,17 @@ const ViewVehicle = () => {
                 setSendError(null);
               }}
               aria-label='Recipient Email'
+              required
             />
             <button
-              className='btn btn-send-report'
+              className='btn btn-purple' // Use consistent class
               onClick={handleSendVehicleReport}
-              disabled={sending || !startDate || !endDate || !sendEmail}
+              disabled={sending || !startDate || !endDate || !sendEmail || !/\S+@\S+\.\S+/.test(sendEmail)}
             >
               {sending ? (
-                <>
-                  <FontAwesomeIcon
-                    icon={faSpinner}
-                    spin
-                  />{' '}
-                  Sending...
-                </>
+                <> <FontAwesomeIcon icon={faSpinner} spin /> Sending... </>
               ) : (
-                <>
-                  <FontAwesomeIcon icon={faPaperPlane} /> Send
-                </>
+                <> <FontAwesomeIcon icon={faPaperPlane} /> Send </>
               )}
             </button>
           </div>
@@ -350,7 +377,7 @@ const ViewVehicle = () => {
       )}
 
       {showDateRangePicker && (
-        <div className='report-options-container download-date-range'>
+        <div id="download-report-options-view" className='report-options-container download-date-range'>
           <h4>Download Vehicle Report</h4>
           {downloadError && (
             <p className='error-text'>
@@ -368,6 +395,7 @@ const ViewVehicle = () => {
               dateFormat='yyyy-MM-dd'
               className='date-input'
               wrapperClassName='date-picker-wrapper'
+              aria-label="Report Start Date"
             />
             <DatePicker
               selected={endDate}
@@ -380,38 +408,33 @@ const ViewVehicle = () => {
               minDate={startDate}
               className='date-input'
               wrapperClassName='date-picker-wrapper'
+              aria-label="Report End Date"
             />
           </div>
           <button
-            className='btn btn-download-report'
+            className='btn btn-danger' // Use consistent class
             onClick={handleDownloadExcelReport}
             disabled={downloading || !startDate || !endDate}
           >
             {downloading ? (
-              <>
-                <FontAwesomeIcon
-                  icon={faSpinner}
-                  spin
-                />{' '}
-                Downloading...
-              </>
+              <> <FontAwesomeIcon icon={faSpinner} spin /> Downloading... </>
             ) : (
-              <>
-                <FontAwesomeIcon icon={faDownload} /> Download Excel
-              </>
+              <> <FontAwesomeIcon icon={faDownload} /> Download Excel </>
             )}
           </button>
         </div>
       )}
 
+      {/* Display general errors below report options */}
       {error && (
-        <div className='error-message'>
+        <div className='error-message' style={{ marginBottom: '1.5rem' }}>
           <FontAwesomeIcon icon={faExclamationCircle} />
           <p>{error}</p>
         </div>
       )}
 
-      <div className='view-vehicle-search'>
+      {/* Use standard search bar */}
+      <div className='vehicles-search'>
         <input
           type='text'
           placeholder='Search Reviews by Employee...'
@@ -425,12 +448,13 @@ const ViewVehicle = () => {
         />
       </div>
 
-      <div className='view-vehicle-grid'>
-        <div className='view-vehicle-row header'>
+      {/* Use standard grid structure */}
+      <div className='vehicles-grid'>
+        {/* Header Row */}
+        <div className='vehicles-row header' style={{ gridTemplateColumns: gridColumns }}>
           <div>Date</div>
           <div>Employee</div>
           <div>WOF/Rego</div>
-          {/* Updated Headers */}
           <div>Oil Checked</div>
           <div>Vehicle Checked</div>
           <div>Vehicle Broken</div>
@@ -438,26 +462,26 @@ const ViewVehicle = () => {
           <div>Actions</div>
         </div>
 
-        {loading && (
-          <div className='loading-indicator'>
-            <FontAwesomeIcon
-              icon={faSpinner}
-              spin
-            />{' '}
-            Loading history...
+        {/* Loading state specific to the grid */}
+        {loading && vehicleHistory.length === 0 && (
+          <div className='loading-indicator' style={{ gridColumn: '1 / -1' }}>
+            <FontAwesomeIcon icon={faSpinner} spin /> Loading history...
           </div>
         )}
 
+        {/* Data Rows */}
         {!loading && filteredHistory.length === 0 ? (
-          <div className='view-vehicle-row no-results'>
-            No reviews match your search criteria.
+          <div className='vehicles-row no-results'>
+            {vehicleHistory.length === 0 ? 'No reviews found for this vehicle.' : 'No reviews match your search criteria.'}
           </div>
         ) : (
           !loading &&
           filteredHistory.map((item) => (
             <div
               key={item._id}
-              className='view-vehicle-row review-card'
+              // Use standard row and card classes
+              className='vehicles-row vehicle-card'
+              style={{ gridTemplateColumns: gridColumns }}
             >
               <div data-label='Date'>
                 {item.dateReviewed
@@ -466,7 +490,6 @@ const ViewVehicle = () => {
               </div>
               <div data-label='Employee'>{item.employeeId?.name || '--'}</div>
               <div data-label='WOF/Rego'>{vehicle?.wofRego ?? '--'}</div>
-              {/* Updated data-labels */}
               <div data-label='Oil Checked'>
                 <FontAwesomeIcon
                   icon={item.oilChecked ? faCheck : faTimes}
@@ -485,12 +508,13 @@ const ViewVehicle = () => {
               <div data-label='Hours'>{item.hours || '--'}</div>
               <div
                 data-label='Actions'
-                className='actions'
+                className='actions' // Standard actions class
               >
                 <button
                   onClick={() => handleViewReviewClick(item)}
                   className='btn-icon btn-icon-blue'
                   title='View Review Details'
+                  aria-label={`View review by ${item.employeeId?.name || 'employee'}`}
                 >
                   <FontAwesomeIcon icon={faEye} />
                 </button>
@@ -500,6 +524,7 @@ const ViewVehicle = () => {
                     to={`/vehicles/${vehicleId}/reviews/${item._id}/edit`}
                     className='btn-icon btn-icon-yellow'
                     title='Edit Review'
+                    aria-label={`Edit review by ${item.employeeId?.name || 'employee'}`}
                   >
                     <FontAwesomeIcon icon={faPen} />
                   </Link>
@@ -512,6 +537,7 @@ const ViewVehicle = () => {
                     }
                     className='btn-icon btn-icon-red'
                     title='Delete Review'
+                    aria-label={`Delete review by ${item.employeeId?.name || 'employee'}`}
                   >
                     <FontAwesomeIcon icon={faTrash} />
                   </button>

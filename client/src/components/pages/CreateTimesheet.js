@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate, useParams, Link, useLocation } from 'react-router-dom';
-import { connect } from 'react-redux'; // Keep connect for Redux
+import { useNavigate, Link, useLocation } from 'react-router-dom';
+import { connect } from 'react-redux';
 import { getEmployees } from '../../redux/actions/employeeActions';
 import { getClients } from '../../redux/actions/clientActions';
 import { getProjects } from '../../redux/actions/projectActions';
@@ -12,9 +12,9 @@ import {
   faTimes,
   faSpinner,
   faExclamationCircle,
-  faClock, // Use a relevant icon for timesheet
+  faClock,
 } from '@fortawesome/free-solid-svg-icons';
-import '../../styles/EmployeeForms.scss'; // Import shared form styles
+import '../../styles/Forms.scss'; // *** Use Forms.scss ***
 import { DateTime } from 'luxon';
 
 const API_URL = process.env.REACT_APP_API_URL || 'https://timesheet-c4mj.onrender.com/api';
@@ -29,14 +29,14 @@ const CreateTimesheet = ({
 }) => {
   const navigate = useNavigate();
   const location = useLocation();
-  const timesheetToEdit = location.state?.timesheet; // Get potential timesheet data for editing
-  const isEditing = Boolean(timesheetToEdit?._id); // Determine edit mode
+  const timesheetToEdit = location?.state?.timesheet;
+  const isEditing = Boolean(timesheetToEdit?._id);
 
   const [formData, setFormData] = useState({
     employeeId: '',
     clientId: '',
     projectId: '',
-    date: '',
+    date: DateTime.now().toFormat('yyyy-MM-dd'), // Default to today
     startTime: '',
     endTime: '',
     lunchBreak: 'No',
@@ -46,12 +46,12 @@ const CreateTimesheet = ({
     hourlyWage: '',
     totalHours: 0,
     notes: '',
-    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone, // Set initial timezone
+    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
   });
 
-  const [isLoading, setIsLoading] = useState(false); // Loading state for submission
-  const [error, setError] = useState(null); // Error state for validation/submission
-  const [filteredProjects, setFilteredProjects] = useState([]); // State for projects filtered by client
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [filteredProjects, setFilteredProjects] = useState([]);
 
   const isLeaveSelected = [
     'Annual',
@@ -61,22 +61,19 @@ const CreateTimesheet = ({
     'Unpaid',
   ].includes(formData.leaveType);
 
-  // Fetch initial data
   useEffect(() => {
     getEmployees();
     getClients();
   }, [getEmployees, getClients]);
 
-  // Fetch projects when clientId changes
   useEffect(() => {
     if (formData.clientId) {
-      getProjects(formData.clientId); // Assuming getProjects fetches by client ID
+      getProjects(formData.clientId);
     } else {
-      setFilteredProjects([]); // Clear projects if no client selected
+      setFilteredProjects([]);
     }
   }, [formData.clientId, getProjects]);
 
-  // Update filtered projects when the main projects list or clientId changes
   useEffect(() => {
     if (formData.clientId && projects.length > 0) {
       setFilteredProjects(
@@ -91,8 +88,6 @@ const CreateTimesheet = ({
     }
   }, [projects, formData.clientId]);
 
-
-  // Pre-fill form if editing
   useEffect(() => {
     if (timesheetToEdit) {
       console.log('Editing timesheet:', timesheetToEdit);
@@ -103,11 +98,11 @@ const CreateTimesheet = ({
           : '';
       };
 
-      setFormData({
+      const initialFormData = {
         employeeId: timesheetToEdit.employeeId?._id || '',
         clientId: timesheetToEdit.clientId?._id || '',
         projectId: timesheetToEdit.projectId?._id || '',
-        date: timesheetToEdit.date ? DateTime.fromISO(timesheetToEdit.date).toFormat('yyyy-MM-dd') : '', // Format date correctly
+        date: timesheetToEdit.date ? DateTime.fromISO(timesheetToEdit.date).toFormat('yyyy-MM-dd') : '',
         startTime: toLocalTime(timesheetToEdit.startTime),
         endTime: toLocalTime(timesheetToEdit.endTime),
         lunchBreak: timesheetToEdit.lunchBreak || 'No',
@@ -118,31 +113,25 @@ const CreateTimesheet = ({
         totalHours: timesheetToEdit.totalHours || 0,
         notes: timesheetToEdit.notes || '',
         timezone: timesheetToEdit.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone,
-      });
+      };
+      setFormData(initialFormData);
 
       // Recalculate hours based on pre-filled times
-      calculateHours({
-        startTime: toLocalTime(timesheetToEdit.startTime),
-        endTime: toLocalTime(timesheetToEdit.endTime),
-        lunchBreak: timesheetToEdit.lunchBreak || 'No',
-        lunchDuration: timesheetToEdit.lunchDuration || '00:00'
-      });
-    } else {
-        // Set default date for new entries
-        setFormData(prev => ({ ...prev, date: DateTime.now().toFormat('yyyy-MM-dd') }));
+      calculateHours(initialFormData);
     }
+    // No else needed for default date, set in initial useState
   }, [timesheetToEdit]);
 
   const calculateHours = (currentFormData = formData) => {
-    const { startTime, endTime, lunchBreak, lunchDuration } = currentFormData;
+    const { startTime, endTime, lunchBreak, lunchDuration, leaveType } = currentFormData;
+    const isLeave = leaveType !== 'None'; // Check based on currentFormData
 
-    if (!startTime || !endTime || isLeaveSelected) {
-      setFormData((prev) => ({ ...prev, totalHours: 0 })); // Reset hours if times missing or leave selected
+    if (!startTime || !endTime || isLeave) {
+      setFormData((prev) => ({ ...prev, totalHours: 0 }));
       return;
     }
 
     try {
-        // Use Luxon for robust time difference calculation
         const startDateTime = DateTime.fromISO(`1970-01-01T${startTime}:00`, { zone: 'local' });
         const endDateTime = DateTime.fromISO(`1970-01-01T${endTime}:00`, { zone: 'local' });
 
@@ -162,7 +151,7 @@ const CreateTimesheet = ({
 
         setFormData((prev) => ({
             ...prev,
-            totalHours: total > 0 ? parseFloat(total.toFixed(2)) : 0, // Ensure it's a number
+            totalHours: total > 0 ? parseFloat(total.toFixed(2)) : 0,
         }));
     } catch (e) {
         console.error("Error calculating hours:", e);
@@ -189,16 +178,15 @@ const CreateTimesheet = ({
         lunchDuration: isLeave ? '00:00' : formData.lunchDuration,
         clientId: isLeave ? '' : formData.clientId,
         projectId: isLeave ? '' : formData.projectId,
-        notes: isLeave ? '' : formData.notes, // Clear notes if leave selected
-        description: !isLeave ? '' : formData.description, // Clear description if not leave
+        notes: isLeave ? '' : formData.notes,
+        description: !isLeave ? '' : formData.description,
       };
-       // Recalculate hours when leave type changes
+      // Recalculate hours when leave type changes
       calculateHours(updatedFormData);
     }
 
     setFormData(updatedFormData);
 
-    // Recalculate hours if time or lunch inputs change
     if (['startTime', 'endTime', 'lunchBreak', 'lunchDuration'].includes(name)) {
       calculateHours(updatedFormData);
     }
@@ -230,7 +218,7 @@ const CreateTimesheet = ({
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError(null); // Clear previous errors
+    setError(null);
 
     const validationError = validateForm();
     if (validationError) {
@@ -255,7 +243,6 @@ const CreateTimesheet = ({
         },
       };
 
-      // Check for duplicates only when creating a new entry
       if (!isEditing) {
         try {
           const checkRes = await axios.get(`${API_URL}/timesheets/check`, {
@@ -269,27 +256,22 @@ const CreateTimesheet = ({
 
           if (checkRes.data.exists) {
             setError('A timesheet for this employee on this date already exists. You can edit the existing entry.');
-            // Optionally navigate to edit, but showing error might be better UX first
-            // navigate('/timesheet/create', { state: { timesheet: checkRes.data.timesheet } });
             setIsLoading(false);
             return;
           }
         } catch (checkErr) {
-          // Log error but allow submission attempt to proceed if check fails
           console.error('Error checking for duplicate timesheet:', checkErr);
-          // setError('Could not verify existing timesheets. Proceeding with submission attempt.');
         }
       }
 
-      // Prepare payload, ensuring IDs are strings and handling leave case
       const requestData = {
         ...formData,
         clientId: isLeaveSelected ? null : String(formData.clientId),
         projectId: isLeaveSelected ? null : String(formData.projectId),
-        description: isLeaveSelected ? formData.description : '', // Ensure description is empty if not leave
-        notes: !isLeaveSelected ? formData.notes : '', // Ensure notes are empty if leave
-        totalHours: parseFloat(formData.totalHours) || 0, // Ensure totalHours is a number
-        hourlyWage: parseFloat(formData.hourlyWage) || 0, // Ensure wage is a number
+        description: isLeaveSelected ? formData.description : '',
+        notes: !isLeaveSelected ? formData.notes : '',
+        totalHours: parseFloat(formData.totalHours) || 0,
+        hourlyWage: parseFloat(formData.hourlyWage) || 0,
       };
 
       if (isEditing) {
@@ -306,7 +288,7 @@ const CreateTimesheet = ({
         );
       }
 
-      navigate('/timesheet'); // Navigate on success
+      navigate('/timesheet');
 
     } catch (error) {
       console.error(`Error ${isEditing ? 'updating' : 'creating'} timesheet:`, error.response || error);
@@ -320,8 +302,8 @@ const CreateTimesheet = ({
   };
 
   return (
-    <div className='form-page-container'>
-      <div className='form-header'>
+    <div className='vehicles-page'> {/* Use standard page class */}
+      <div className='vehicles-header'> {/* Use standard header */}
         <div className='title-breadcrumbs'>
           <h2>
             <FontAwesomeIcon icon={isEditing ? faPen : faClock} />{' '}
@@ -343,8 +325,8 @@ const CreateTimesheet = ({
         </div>
       </div>
 
-      <div className='form-container'>
-        <form onSubmit={handleSubmit} className='employee-form' noValidate>
+      <div className='form-container'> {/* Use standard form container */}
+        <form onSubmit={handleSubmit} className='employee-form' noValidate> {/* Use standard form class */}
           {error && (
             <div className='form-error-message'>
               <FontAwesomeIcon icon={faExclamationCircle} /> {error}
@@ -446,7 +428,7 @@ const CreateTimesheet = ({
                   value={formData.projectId || ''}
                   onChange={handleChange}
                   required={!isLeaveSelected}
-                  disabled={isLoading || !formData.clientId} // Disable if no client selected
+                  disabled={isLoading || !formData.clientId}
                 >
                   <option value=''>-- Select Project --</option>
                   {filteredProjects.map((p) => (
@@ -466,7 +448,7 @@ const CreateTimesheet = ({
                   name='startTime'
                   value={formData.startTime}
                   onChange={handleChange}
-                  step='60' // Only allow minute selection
+                  step='60'
                   required={!isLeaveSelected}
                   disabled={isLoading}
                 />
@@ -553,10 +535,10 @@ const CreateTimesheet = ({
              </div>
           )}
 
-          <div className='form-footer'>
+          <div className='form-footer'> {/* Use standard footer */}
             <button
               type='button'
-              className='btn btn-danger'
+              className='btn btn-danger' // Standard button class
               onClick={() => navigate('/timesheet')}
               disabled={isLoading}
             >
@@ -564,7 +546,7 @@ const CreateTimesheet = ({
             </button>
             <button
               type='submit'
-              className='btn btn-success'
+              className='btn btn-success' // Standard button class
               disabled={isLoading}
             >
               {isLoading ? (
@@ -588,11 +570,18 @@ const CreateTimesheet = ({
 const mapStateToProps = (state) => ({
   employees: state.employees?.employees || [],
   clients: state.clients?.clients || [],
-  projects: state.project?.projects || [], // Ensure correct path to projects
+  projects: state.project?.projects || [],
 });
+
+// Pass location prop if using React Router v5 or ensure it's available in v6
+const CreateTimesheetWithRouter = (props) => {
+    const location = useLocation(); // Hook for React Router v6
+    return <CreateTimesheet {...props} location={location} />;
+};
+
 
 export default connect(mapStateToProps, {
   getEmployees,
   getClients,
   getProjects,
-})(CreateTimesheet);
+})(CreateTimesheetWithRouter); // Export the wrapped component

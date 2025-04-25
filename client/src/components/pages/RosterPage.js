@@ -10,6 +10,8 @@ import {
   endOfWeek,
   isEqual,
 } from 'date-fns';
+import '../../styles/Forms.scss';
+
 import '../../styles/RosterPage.scss';
 import { DateTime } from 'luxon';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
@@ -20,6 +22,8 @@ import {
   faSyncAlt,
   faCalendar,
   faEye,
+  faTimes,
+  faSave,
   faTrash,
   faSpinner, // Added for loading states
   faExclamationCircle, // Added for error states
@@ -654,13 +658,24 @@ const RosterPage = () => {
 
       {/* Assign Shift Modal */}
       {showModal && selectedEmployee && (
+        // Keep modal-specific overlay and content classes
         <div className='modal-overlay' onClick={() => setShowModal(false)}>
           <div className='modal-content' onClick={e => e.stopPropagation()}>
             <h5>
               Assign Shift for {selectedEmployee.name}
-              <button id='closeModal' onClick={() => setShowModal(false)} title="Close">&times;</button>
+              {/* Use a button with standard styling potentially, or keep simple close */}
+              <button
+                  id='closeModal'
+                  className="modal-close-btn" // Added a class for potential styling
+                  onClick={() => setShowModal(false)}
+                  title="Close"
+                  aria-label="Close" // Added aria-label
+              >
+                  &times;
+              </button>
             </h5>
             <p>Select day(s) and enter times:</p>
+            {/* Keep specific layout classes for day buttons */}
             <div className='schedule-buttons'>
               {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((day) => (
                 <button
@@ -679,6 +694,7 @@ const RosterPage = () => {
               ))}
             </div>
             {selectedDays.length > 0 && (
+                // Keep specific layout classes for time inputs
                 <div className='day-wise-times'>
                 {selectedDays.map((day) => (
                     <div key={day} className='time-row'>
@@ -689,33 +705,43 @@ const RosterPage = () => {
                         value={startTime[day] || ''}
                         onChange={(e) => setStartTime((prev) => ({ ...prev, [day]: e.target.value }))}
                         required
+                        // Input styling will come from Forms.scss
                     />
-                    <span style={{ margin: '0 8px' }}>to</span>
+                    {/* Removed inline style, use CSS for spacing */}
+                    <span className="time-separator">to</span>
                     <input
                          id={`end-time-${day}`}
                         type='time'
                         value={endTime[day] || ''}
                         onChange={(e) => setEndTime((prev) => ({ ...prev, [day]: e.target.value }))}
                          required
+                         // Input styling will come from Forms.scss
                     />
                     </div>
                 ))}
                 </div>
             )}
+            {/* Use standard button classes from Forms.scss */}
             <div className='modal-footer'>
-              <button type="button" className='btn btn-grey' onClick={() => setShowModal(false)} style={{ marginRight: '0.5rem' }}>Cancel</button>
+              {/* Removed inline style, use CSS for spacing */}
+              <button type="button" className='btn btn-danger' onClick={() => setShowModal(false)}>
+                {/* Added Icon for consistency */}
+                <FontAwesomeIcon icon={faTimes} /> Cancel
+              </button>
               <button
                 type="button"
-                className='btn btn-green'
+                className='btn btn-success' // Changed from btn-green
                 disabled={selectedDays.length === 0 || selectedDays.some(day => !startTime[day] || !endTime[day])}
                 onClick={handleAssignShift}
               >
-                Confirm Shift
+                {/* Added Icon for consistency */}
+                <FontAwesomeIcon icon={faSave} /> Confirm Shift
               </button>
             </div>
           </div>
         </div>
       )}
+
     </div>
   );
 };

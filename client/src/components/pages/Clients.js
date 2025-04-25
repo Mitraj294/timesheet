@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router-dom"; // Added useNavigate
-import { useSelector } from "react-redux"; // Keep using useSelector for user role
+import { Link, useNavigate } from "react-router-dom";
+import { useSelector } from "react-redux";
 import axios from "axios";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
@@ -9,33 +9,33 @@ import {
   faPlus,
   faSearch,
   faEye,
-  faPen, // Changed from faEdit to faPen for consistency
+  faPen,
   faTrash,
-  faSpinner, // Added for loading state
-  faExclamationCircle, // Added for error state
+  faSpinner,
+  faExclamationCircle,
 } from "@fortawesome/free-solid-svg-icons";
-// Import the shared SCSS file
-import "../../styles/Vehicles.scss"; // *** Use Vehicles.scss ***
+
+import "../../styles/Vehicles.scss"; 
 
 const API_URL = process.env.REACT_APP_API_URL || "https://timesheet-c4mj.onrender.com/api";
 
 const Clients = () => {
   const [clients, setClients] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
-  const [loading, setLoading] = useState(true); // Added loading state
-  const [error, setError] = useState(null); // Added error state
-  const [downloading, setDownloading] = useState(false); // Added downloading state
-  const [downloadError, setDownloadError] = useState(null); // Added download error state
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [downloading, setDownloading] = useState(false);
+  const [downloadError, setDownloadError] = useState(null);
 
-  const { user } = useSelector((state) => state.auth || {}); // Get user role
-  const navigate = useNavigate(); // Use navigate hook
+  const { user } = useSelector((state) => state.auth || {});
+  const navigate = useNavigate();
 
   useEffect(() => {
     const fetchClients = async () => {
       setLoading(true);
       setError(null);
+      setDownloadError(null); 
       try {
-        // Assuming token is needed, add header if required by your API
         const token = localStorage.getItem('token');
         const config = token ? { headers: { Authorization: `Bearer ${token}` } } : {};
         const res = await axios.get(`${API_URL}/clients`, config);
@@ -43,9 +43,8 @@ const Clients = () => {
       } catch (err) {
         console.error("Error fetching clients:", err);
         setError(err.response?.data?.message || err.message || "Failed to fetch clients.");
-        // Optional: Handle auth errors like in Vehicles.js
         if (err.response?.status === 401 || err.response?.status === 403) {
-            localStorage.removeItem('token'); // Example cleanup
+            localStorage.removeItem('token');
             navigate('/login');
         }
       } finally {
@@ -53,37 +52,35 @@ const Clients = () => {
       }
     };
     fetchClients();
-  }, [navigate]); // Added navigate dependency
+  }, [navigate]);
 
-  const deleteClient = async (clientId, clientName) => { // Added clientName for confirmation
+  const deleteClient = async (clientId, clientName) => {
     if (!window.confirm(`Are you sure you want to delete client "${clientName}"?`)) return;
 
+    setError(null); 
     try {
-      // Assuming token is needed
       const token = localStorage.getItem('token');
       const config = token ? { headers: { Authorization: `Bearer ${token}` } } : {};
       await axios.delete(`${API_URL}/clients/${clientId}`, config);
       setClients(clients.filter((client) => client._id !== clientId));
-      // Consider adding success feedback (toast)
+    
     } catch (err) {
       console.error("Error deleting client:", err);
-      // Display error to user (e.g., using setError state or a toast)
       setError(`Failed to delete client "${clientName}". ${err.response?.data?.message || err.message}`);
-      // alert("Failed to delete client."); // Avoid using alert
     }
   };
 
   const filteredClients = clients.filter((client) =>
     client?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    client?.emailAddress?.toLowerCase().includes(searchTerm.toLowerCase()) || // Added email search
-    client?.phoneNumber?.toLowerCase().includes(searchTerm.toLowerCase()) // Added phone search
+    client?.emailAddress?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    client?.phoneNumber?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const handleDownloadClients = async () => {
     setDownloading(true);
     setDownloadError(null);
+    setError(null); // Clear main error
     try {
-      // Assuming token is needed
       const token = localStorage.getItem('token');
       const config = token ? { headers: { Authorization: `Bearer ${token}` }, responseType: "blob" } : { responseType: "blob" };
 
@@ -100,8 +97,7 @@ const Clients = () => {
       window.URL.revokeObjectURL(url);
     } catch (error) {
       console.error("Download failed:", error);
-      setDownloadError("Failed to download clients.");
-      // alert("Failed to download clients."); // Avoid alert
+      setDownloadError(error.response?.data?.message || "Failed to download clients.");
     } finally {
       setDownloading(false);
     }
@@ -125,14 +121,10 @@ const Clients = () => {
             <span className="breadcrumb-current">Clients</span>
           </div>
         </div>
-        {/* Actions moved to a separate bar below header, like Vehicles.js */}
-      </div>
-
-      {/* Action bar like Vehicles.js */}
-      <div className="vehicles-actions">
-         {/* Use standard button classes */}
-         <button
-            className="btn btn-download-report" // Using a distinct color like danger/red for download
+        {/* --- START: MOVED BUTTONS HERE --- */}
+        <div className="header-actions"> {/* Added container for buttons */}
+          <button
+            className="btn btn-danger" // Use standard danger class for download
             onClick={handleDownloadClients}
             disabled={downloading}
           >
@@ -150,10 +142,13 @@ const Clients = () => {
               <FontAwesomeIcon icon={faPlus} /> Add New Client
             </button>
           )}
+        </div>
+        {/* --- END: MOVED BUTTONS HERE --- */}
       </div>
+
        {/* Display download error if any */}
        {downloadError && (
-            <div className='error-message' style={{marginBottom: '1rem'}}> {/* Inline style for spacing */}
+            <div className='error-message' style={{marginBottom: '1rem'}}>
               <FontAwesomeIcon icon={faExclamationCircle} /> {downloadError}
             </div>
         )}
@@ -162,7 +157,7 @@ const Clients = () => {
       <div className="vehicles-search">
         <input
           type="text"
-          placeholder="Search by Name, Email, or Phone..." // Updated placeholder
+          placeholder="Search by Name, Email, or Phone..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           aria-label="Search Clients"
@@ -198,7 +193,6 @@ const Clients = () => {
             <div>Phone Number</div>
             <div>Address</div>
             <div>Notes</div>
-            {/* Actions only shown if employer */}
             {user?.role === "employer" && <div>Actions</div>}
           </div>
 
@@ -219,9 +213,8 @@ const Clients = () => {
                 <div data-label="Phone">{client.phoneNumber || '--'}</div>
                 <div data-label="Address">{client.address || '--'}</div>
                 <div data-label="Notes">{client.notes || '--'}</div>
-                {/* Actions only shown if employer */}
                 {user?.role === "employer" && (
-                  <div data-label="Actions" className="actions">
+                  <div data-label="Actions" className="actions"> {/* Use standard actions class */}
                     {/* Use icon buttons from Vehicles.scss */}
                     <button
                       className="btn-icon btn-icon-blue" // View button

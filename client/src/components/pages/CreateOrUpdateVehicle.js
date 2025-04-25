@@ -8,8 +8,10 @@ import {
   faCar,
   faSpinner,
   faExclamationCircle,
+  faTimes,
+  faSave,
 } from '@fortawesome/free-solid-svg-icons';
-import '../../styles/CreateVehicle.scss';
+import '../../styles/Forms.scss'; // *** Use Forms.scss ***
 
 const API_URL =
   process.env.REACT_APP_API_URL || 'https://timesheet-c4mj.onrender.com/api';
@@ -29,9 +31,9 @@ const CreateOrUpdateVehicle = () => {
 
   useEffect(() => {
     if (isEditMode) {
+      setIsLoading(true);
+      setError(null);
       const fetchVehicle = async () => {
-        setIsLoading(true);
-        setError(null);
         try {
           const token = localStorage.getItem('token');
           if (!token) throw new Error('Authentication required.');
@@ -68,10 +70,10 @@ const CreateOrUpdateVehicle = () => {
   }, [isEditMode, vehicleId, navigate]);
 
   const handleChange = (e) => {
-    const { name, value, type, checked } = e.target;
+    const { name, value } = e.target;
     setVehicleData((prev) => ({
       ...prev,
-      [name]: type === 'checkbox' ? checked : value,
+      [name]: value,
     }));
   };
 
@@ -133,40 +135,29 @@ const CreateOrUpdateVehicle = () => {
   };
 
   return (
-    <div className='vehicle-form-page-container'>
-      <div className='vehicle-form-header'>
+    <div className='vehicles-page'> {/* Use standard page class */}
+      <div className='vehicles-header'> {/* Use standard header */}
         <div className='title-breadcrumbs'>
           <h2>
             <FontAwesomeIcon icon={faCar} />{' '}
             {isEditMode ? 'Update Vehicle' : 'Create Vehicle'}
           </h2>
           <div className='breadcrumbs'>
-            <Link
-              to='/dashboard'
-              className='breadcrumb-link'
-            >
-              Dashboard
-            </Link>
+            <Link to='/dashboard' className='breadcrumb-link'> Dashboard </Link>
             <span className='breadcrumb-separator'> / </span>
-            <Link
-              to='/vehicles'
-              className='breadcrumb-link'
-            >
-              Vehicles
-            </Link>
+            <Link to='/vehicles' className='breadcrumb-link'> Vehicles </Link>
             <span className='breadcrumb-separator'> / </span>
             <span className='breadcrumb-current'>
               {isEditMode ? 'Update' : 'Create'}
             </span>
           </div>
         </div>
-        {/* Back button removed */}
       </div>
 
-      <div className='vehicle-form-container'>
+      <div className='form-container'> {/* Use standard form container */}
         <form
           onSubmit={handleSubmit}
-          className='vehicle-form'
+          className='employee-form' // Use standard form class
           noValidate
         >
           {error && (
@@ -218,31 +209,25 @@ const CreateOrUpdateVehicle = () => {
             />
           </div>
 
-          <div className='form-footer'>
+          <div className='form-footer'> {/* Use standard footer */}
             <button
               type='button'
-              className='btn btn-danger' // Changed class for red color
+              className='btn btn-danger' // Standard button class
               onClick={() => navigate('/vehicles')}
               disabled={isLoading}
             >
-              Cancel
+              <FontAwesomeIcon icon={faTimes} /> Cancel
             </button>
             <button
               type='submit'
-              className='btn btn-primary'
+              className='btn btn-success' // Standard button class
               disabled={isLoading}
             >
               {isLoading ? (
-                <>
-                  <FontAwesomeIcon
-                    icon={faSpinner}
-                    spin
-                  />{' '}
-                  Saving...
-                </>
+                <> <FontAwesomeIcon icon={faSpinner} spin /> Saving... </>
               ) : (
                 <>
-                  <FontAwesomeIcon icon={isEditMode ? faEdit : faPlus} />
+                  <FontAwesomeIcon icon={isEditMode ? faEdit : faSave} />
                   {isEditMode ? 'Update Vehicle' : 'Create Vehicle'}
                 </>
               )}
