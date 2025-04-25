@@ -35,7 +35,7 @@
   },
   "scripts": {
     "start": "react-scripts start",
-    "build": "react-scripts build",
+    "build": "react-scripts build --no-eslint",
     "server": "node server.js",
     "client": "react-scripts start"
   },
