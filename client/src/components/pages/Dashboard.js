@@ -5,7 +5,7 @@ import { getEmployees } from "../../redux/actions/employeeActions";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import Select from "react-select";
 import {
-  // faTachometerAlt, // Not used currently
+
   faUsers,
   faClock,
   faStopwatch,
@@ -22,7 +22,7 @@ import { DateTime } from "luxon";
 
 const API_URL = process.env.REACT_APP_API_URL || 'https://timesheet-c4mj.onrender.com/api';
 
-// --- Helper Functions (Assumed Correct) ---
+//  Helper Functions (Assumed Correct) 
 const convertDecimalToTime = (decimalHours) => {
   if (isNaN(decimalHours) || decimalHours == null) return "00:00";
   const hours = Math.floor(decimalHours);
@@ -126,34 +126,32 @@ const getWeeklyTotals = (data, periodStart, weeks) => {
   }
   return weeklyTotals;
 };
-// --- End Helper Functions ---
-
+//  Main Dashboard Component
 
 const Dashboard = () => {
   const dispatch = useDispatch();
 
-  // --- Select relevant state slices ---
+  //  Select relevant state slices 
   // No longer selecting the full state
   const { employees = [], loading: employeesLoading, error: employeesError } = useSelector((state) => state.employees || { employees: [], loading: true, error: null }); // Default to loading true
   const { user } = useSelector((state) => state.auth || {});
 
-  // --- Component State ---
+  //  Component State 
   const [allTimesheets, setAllTimesheets] = useState([]);
   const [employeeTimesheets, setEmployeeTimesheets] = useState([]);
   const [selectedEmployee, setSelectedEmployee] = useState({ value: "All", label: "All Employees" });
   const [viewType, setViewType] = useState({ value: "Weekly", label: "View by Weekly" });
-  // Clients and Projects state removed - assuming they are not directly used or fetched here anymore
+
   // const [clients, setClients] = useState([]);
   // const [projects, setProjects] = useState([]);
-  const [isLoading, setIsLoading] = useState(true); // Local loading state for dashboard-specific data (timesheets)
-  const [error, setError] = useState(null); // Local error state for dashboard-specific data
-
-  // --- Refs for Charts ---
+  const [isLoading, setIsLoading] = useState(true); 
+  const [error, setError] = useState(null); 
+  //  Refs for Charts 
   const chartRef = useRef(null);
   const clientsChartRef = useRef(null);
   const projectsChartRef = useRef(null);
 
-  // --- Effect for fetching dashboard data (Timesheets) and potentially Employees ---
+  //  Effect for fetching dashboard data (Timesheets) and potentially Employees 
   useEffect(() => {
     const fetchDashboardData = async () => {
       console.log("Dashboard: fetchDashboardData effect triggered.");
@@ -169,9 +167,7 @@ const Dashboard = () => {
       }
       const config = { headers: { Authorization: `Bearer ${token}` } };
 
-      // --- Dispatch getEmployees only if the employees array is currently empty ---
-      // We don't check the loading state here anymore. If it's empty, we try to fetch.
-      // Redux actions/reducers should handle preventing duplicate requests if needed.
+
       if (employees.length === 0) {
           console.log("Dashboard: Employees array is empty. Dispatching getEmployees().");
           dispatch(getEmployees());
@@ -180,13 +176,12 @@ const Dashboard = () => {
       }
 
       try {
-        console.log("Dashboard: Fetching timesheets..."); // Only fetching timesheets here now
-        // Fetch only timesheets for the dashboard component's responsibility
+        console.log("Dashboard: Fetching timesheets...");
         const tsRes = await axios.get(`${API_URL}/timesheets`, config);
         console.log("Dashboard: Timesheets fetched successfully.");
         setAllTimesheets(tsRes.data?.timesheets || []);
 
-        // Removed client/project fetching - assume fetched elsewhere if needed globally (e.g., App.js or specific components)
+        
         // const [tsRes, clientRes, projectRes] = await Promise.all([ ... ]);
         // setClients(clientRes.data || []);
         // setProjects(projectRes.data || []);
@@ -241,7 +236,7 @@ const Dashboard = () => {
       return options;
   }, [employees]); // Recalculate only when employees array from Redux changes
 
-  // --- Memoized Calculations (No changes needed in logic, ensure dependencies are correct) ---
+  //  Memoized Calculations (No changes needed in logic, ensure dependencies are correct) 
   const viewOptions = [
     { value: "Weekly", label: "View by Weekly" },
     { value: "Fortnightly", label: "View by Fortnightly" },
@@ -336,7 +331,7 @@ const Dashboard = () => {
     return { labels, currentData, previousData, thisPeriodLabel, lastPeriodLabel };
   }, [viewType.value, filteredCurrentTimesheets, filteredPreviousTimesheets, currentPeriod, previousPeriod]);
 
-  // --- Chart Rendering Effects (Ensure cleanup runs) ---
+  //  Chart Rendering Effects (Ensure cleanup runs) 
   useEffect(() => {
     const ctx = document.getElementById("graphCanvas")?.getContext("2d");
     if (!ctx) return; // Exit if context not found yet
@@ -460,7 +455,7 @@ const Dashboard = () => {
   }, [projectChartData]);
 
 
-  // --- JSX Rendering ---
+  //  JSX Rendering 
   // Use the Redux loading state for the employee dropdown, local state for the rest
   const isEmployeeDropdownLoading = employeesLoading;
   const isDashboardContentLoading = isLoading; // Use local state for timesheet loading
