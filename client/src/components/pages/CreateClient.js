@@ -65,8 +65,8 @@ const CreateClient = () => {
           setIsLoading(false);
         });
     }
-    // Intentionally omitting API_URL from dependency array as it's unlikely to change
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // Removed the eslint-disable comment. Dependencies [id, isEditing] seem correct.
+    // API_URL is a constant, state setters (setIsLoading, setError, setClientData) are generally stable.
   }, [id, isEditing]);
 
 

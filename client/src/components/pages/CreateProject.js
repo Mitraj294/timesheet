@@ -67,8 +67,8 @@ const CreateProject = () => {
           setIsLoading(false);
         });
     }
-    // Intentionally omitting API_URL from dependency array
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // Removed the eslint-disable comment. Dependencies [projectId, isEditing] seem correct.
+    // API_URL is a constant, state setters (setIsLoading, setError, setFormData) are generally stable.
   }, [projectId, isEditing]);
 
 
