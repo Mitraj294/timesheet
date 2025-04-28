@@ -1,24 +1,17 @@
 // /home/digilab/timesheet/client/src/components/pages/CreateTimesheet.js
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
-
-// --- UPDATED IMPORTS ---
 import { fetchClients, selectAllClients } from '../../redux/slices/clientSlice';
 import { fetchEmployees, selectAllEmployees } from '../../redux/slices/employeeSlice';
-// Import from projectSlice instead of projectActions
 import {
   fetchProjects,
-  clearProjects, // Action to clear projects when client changes
-  selectProjectsByClientId, // Selector to get projects for the selected client
+  clearProjects,
+  selectProjectsByClientId,
   selectProjectStatus,
   selectProjectError
 } from '../../redux/slices/projectSlice';
-// Remove old project action import
-// import { getProjects } from '../../redux/actions/projectActions';
-// --- END UPDATED IMPORTS ---
-
-import axios from 'axios'; // Keep axios for direct API calls if needed elsewhere
+import axios from 'axios';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
   faPen,
@@ -46,290 +39,410 @@ const CreateTimesheet = () => {
     employeeId: '',
     clientId: '',
     projectId: '',
-    date: DateTime.now().toFormat('yyyy-MM-dd'),
-    startTime: '',
-    endTime: '',
+    date: DateTime.now().toFormat('yyyy-MM-dd'), // Local date string
+    startTime: '', // Local time string HH:mm
+    endTime: '',   // Local time string HH:mm
     lunchBreak: 'No',
-    lunchDuration: '00:00',
+    lunchDuration: '00:30',
     leaveType: 'None',
     description: '',
     hourlyWage: '',
     totalHours: 0,
     notes: '',
+    // Store browser's timezone identifier - THIS IS IMPORTANT
     timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
   });
-  const [isLoading, setIsLoading] = useState(false); // Local loading for submission
-  const [error, setError] = useState(null); // Local error for form validation/submission
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState(null);
 
   // --- Selectors ---
   const employees = useSelector(selectAllEmployees);
   const clients = useSelector(selectAllClients);
-  // Select projects based on the currently selected client ID in the form
   const projectsForSelectedClient = useSelector((state) =>
     selectProjectsByClientId(state, formData.clientId)
   );
-  const projectStatus = useSelector(selectProjectStatus); // Get project loading status
-  const projectError = useSelector(selectProjectError); // Get project fetch error
+  const projectStatus = useSelector(selectProjectStatus);
+  const projectError = useSelector(selectProjectError);
 
-  const isLeaveSelected = [
-    'Annual',
-    'Public Holiday',
-    'Paid',
-    'Sick',
-    'Unpaid',
-  ].includes(formData.leaveType);
+  // Derived state
+  const isLeaveSelected = formData.leaveType !== 'None';
+
+  // --- Calculate Hours Function (Memoized) ---
+  const calculateHours = useCallback((currentFormData) => {
+    const { startTime, endTime, lunchBreak, lunchDuration, leaveType } = currentFormData;
+    const isLeave = leaveType !== 'None';
+
+    // console.log('[Client Calc] Calculating hours with:', { startTime, endTime, lunchBreak, lunchDuration, leaveType });
+
+    const timeFormatRegex = /^\d{2}:\d{2}$/;
+    if (isLeave || !startTime || !endTime || !timeFormatRegex.test(startTime) || !timeFormatRegex.test(endTime)) {
+      setFormData(prev => (prev.totalHours !== 0 ? { ...prev, totalHours: 0 } : prev));
+      return 0;
+    }
+
+    try {
+      const baseDate = '1970-01-01';
+      const startDateTime = DateTime.fromISO(`${baseDate}T${startTime}`, { zone: 'local' });
+      const endDateTime = DateTime.fromISO(`${baseDate}T${endTime}`, { zone: 'local' });
+
+      if (!startDateTime.isValid || !endDateTime.isValid || endDateTime <= startDateTime) {
+        setFormData(prev => (prev.totalHours !== 0 ? { ...prev, totalHours: 0 } : prev));
+        return 0;
+      }
+
+      const diffInMinutes = endDateTime.diff(startDateTime, 'minutes').minutes;
+      let totalMinutes = diffInMinutes;
+
+      if (lunchBreak === 'Yes' && lunchDuration) {
+        if (timeFormatRegex.test(lunchDuration)) {
+            const [lunchHours, lunchMinutes] = lunchDuration.split(':').map(Number);
+            const lunchDurationInMinutes = (lunchHours * 60) + lunchMinutes;
+            totalMinutes -= lunchDurationInMinutes;
+        } else {
+            console.warn("[Client Calc] Invalid lunchDuration format:", lunchDuration);
+            setError("Invalid Lunch Duration format. Please use HH:MM.");
+            setFormData(prev => (prev.totalHours !== 0 ? { ...prev, totalHours: 0 } : prev));
+            return 0;
+        }
+      }
+
+      const totalHoursCalculated = totalMinutes > 0 ? totalMinutes / 60 : 0;
+      const roundedTotalHours = parseFloat(totalHoursCalculated.toFixed(2));
+
+      setFormData(prev => (prev.totalHours !== roundedTotalHours ? { ...prev, totalHours: roundedTotalHours } : prev));
+      // console.log(`[Client Calc] Calculated hours: ${roundedTotalHours}`); // Log calculated hours
+      return roundedTotalHours;
+
+    } catch (e) {
+      console.error("[Client Calc] Error calculating hours:", e);
+      setError("An error occurred while calculating hours.");
+      setFormData(prev => (prev.totalHours !== 0 ? { ...prev, totalHours: 0 } : prev));
+      return 0;
+    }
+  }, [setError]); // Only depends on setError (stable)
+
 
   // --- Effects ---
-  // Fetch employees and clients on mount
   useEffect(() => {
     dispatch(fetchEmployees());
     dispatch(fetchClients());
   }, [dispatch]);
 
-  // Fetch projects when the selected client ID changes
   useEffect(() => {
-    if (formData.clientId) {
-      // Dispatch fetchProjects thunk with the selected clientId
+    if (formData.clientId && !isLeaveSelected) {
       dispatch(fetchProjects(formData.clientId));
     } else {
-      // Clear projects if no client is selected
       dispatch(clearProjects());
     }
-    // Reset projectId when client changes
     setFormData(prev => ({ ...prev, projectId: '' }));
-
-  }, [formData.clientId, dispatch]);
+  }, [formData.clientId, isLeaveSelected, dispatch]);
 
   // Populate form if editing
   useEffect(() => {
     if (timesheetToEdit) {
-      console.log('Editing timesheet:', timesheetToEdit);
+      const entryTimezone = timesheetToEdit?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
+      console.log(`[Client Edit] Using timezone from edited entry: ${entryTimezone}`); // Log timezone
 
-      const toLocalTime = (isoStr) => {
-        return isoStr
-          ? DateTime.fromISO(isoStr, { zone: 'utc' }).toLocal().toFormat('HH:mm')
-          : '';
+      const utcToLocalTimeInput = (isoStr) => {
+        if (!isoStr) return '';
+        try {
+          return DateTime.fromISO(isoStr, { zone: 'utc' })
+                         .setZone(entryTimezone) // Use the entry's specific timezone
+                         .toFormat('HH:mm');
+        } catch (err) {
+          console.error("Error parsing UTC time for editing:", isoStr, err);
+          return '';
+        }
+      };
+
+      const utcToLocalDateInput = (isoStr) => {
+        if (!isoStr) return DateTime.now().setZone(entryTimezone).toFormat('yyyy-MM-dd');
+        try {
+          return DateTime.fromISO(isoStr, { zone: 'utc' })
+                         .setZone(entryTimezone) // Use the entry's specific timezone
+                         .toFormat('yyyy-MM-dd');
+        } catch (err) {
+          console.error("Error parsing UTC date for editing:", isoStr, err);
+          return DateTime.now().setZone(entryTimezone).toFormat('yyyy-MM-dd');
+        }
       };
 
       const initialFormData = {
+        // Set timezone first
+        timezone: entryTimezone,
         employeeId: timesheetToEdit.employeeId?._id || '',
         clientId: timesheetToEdit.clientId?._id || '',
         projectId: timesheetToEdit.projectId?._id || '',
-        date: timesheetToEdit.date ? DateTime.fromISO(timesheetToEdit.date).toFormat('yyyy-MM-dd') : '',
-        startTime: toLocalTime(timesheetToEdit.startTime),
-        endTime: toLocalTime(timesheetToEdit.endTime),
-        lunchBreak: timesheetToEdit.lunchBreak || 'No',
-        lunchDuration: timesheetToEdit.lunchDuration || '00:00',
+        date: utcToLocalDateInput(timesheetToEdit.date),
+        startTime: utcToLocalTimeInput(timesheetToEdit.startTime),
+        endTime: utcToLocalTimeInput(timesheetToEdit.endTime),
+        lunchBreak: timesheetToEdit.lunchBreak ? 'Yes' : 'No',
+        lunchDuration: /^\d{2}:\d{2}$/.test(timesheetToEdit.lunchDuration) ? timesheetToEdit.lunchDuration : '00:30',
         leaveType: timesheetToEdit.leaveType || 'None',
         description: timesheetToEdit.description || '',
-        hourlyWage: timesheetToEdit.hourlyWage || '',
-        totalHours: timesheetToEdit.totalHours || 0,
+        hourlyWage: timesheetToEdit.employeeId?.wage || timesheetToEdit.hourlyWage || '', // Prefer employee wage
+        totalHours: timesheetToEdit.totalHours || 0, // Use stored value initially
         notes: timesheetToEdit.notes || '',
-        timezone: timesheetToEdit.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone,
       };
       setFormData(initialFormData);
-      calculateHours(initialFormData); // Recalculate hours based on loaded data
+
+      // Recalculate display hours AFTER state update
+      setTimeout(() => calculateHours(initialFormData), 0);
+    } else {
+        // Log default timezone when creating new
+        console.log(`[Client Create] Using default browser timezone: ${formData.timezone}`);
     }
-  }, [timesheetToEdit]); // Only run when timesheetToEdit changes
-
-  // --- Functions (calculateHours, handleChange, validateForm, handleSubmit) ---
-  const calculateHours = (currentFormData = formData) => {
-    const { startTime, endTime, lunchBreak, lunchDuration, leaveType } = currentFormData;
-    const isLeave = leaveType !== 'None';
-
-    if (!startTime || !endTime || isLeave) {
-      setFormData((prev) => ({ ...prev, totalHours: 0 }));
-      return;
+    // Check if formData.timezone is valid when component mounts or timesheetToEdit changes
+    if (formData.timezone && !DateTime.local().setZone(formData.timezone).isValid) {
+        console.warn(`[Client Mount/Edit] Initial formData timezone '${formData.timezone}' is invalid. Falling back.`);
+        // Optionally reset to a valid default, though Intl should provide a valid one.
+        // setFormData(prev => ({...prev, timezone: 'UTC'}));
     }
+  }, [timesheetToEdit, calculateHours]); // Removed formData.timezone, handled inside
 
-    try {
-        const startDateTime = DateTime.fromISO(`1970-01-01T${startTime}:00`, { zone: 'local' });
-        const endDateTime = DateTime.fromISO(`1970-01-01T${endTime}:00`, { zone: 'local' });
 
-        if (!startDateTime.isValid || !endDateTime.isValid || endDateTime <= startDateTime) {
-            setFormData((prev) => ({ ...prev, totalHours: 0 }));
-            return;
-        }
-
-        let diff = endDateTime.diff(startDateTime, 'hours').toObject();
-        let total = diff.hours || 0;
-
-        if (lunchBreak === 'Yes' && lunchDuration) {
-            const [lh, lm] = lunchDuration.split(':').map(Number);
-            const lunchHours = lh + lm / 60;
-            total -= lunchHours;
-        }
-
-        setFormData((prev) => ({
-            ...prev,
-            totalHours: total > 0 ? parseFloat(total.toFixed(2)) : 0,
-        }));
-    } catch (e) {
-        console.error("Error calculating hours:", e);
-        setFormData((prev) => ({ ...prev, totalHours: 0 }));
-    }
-  };
-
+  // --- Handle Change ---
   const handleChange = (e) => {
     const { name, value } = e.target;
-    let updatedFormData = { ...formData, [name]: value };
-
-    if (name === 'employeeId') {
-      const selectedEmployee = employees.find((emp) => emp._id === value);
-      updatedFormData.hourlyWage = selectedEmployee ? selectedEmployee.wage || '' : '';
-    }
-
-    if (name === 'leaveType') {
-      const isLeave = value !== 'None';
-      updatedFormData = {
-        ...updatedFormData,
-        startTime: isLeave ? '' : formData.startTime,
-        endTime: isLeave ? '' : formData.endTime,
-        lunchBreak: isLeave ? 'No' : formData.lunchBreak,
-        lunchDuration: isLeave ? '00:00' : formData.lunchDuration,
-        clientId: isLeave ? '' : formData.clientId,
-        projectId: isLeave ? '' : formData.projectId,
-        notes: isLeave ? '' : formData.notes,
-        description: !isLeave ? '' : formData.description,
-      };
-      // If switching to leave, clear client/project and recalculate hours
-      if (isLeave) {
-          dispatch(clearProjects()); // Clear projects from Redux state
-      }
-      calculateHours(updatedFormData);
-    }
-
-    // If client changes, projectId needs to be reset (handled in useEffect for clientId)
-    // If time/lunch changes, recalculate hours
-    if (['startTime', 'endTime', 'lunchBreak', 'lunchDuration'].includes(name)) {
-      calculateHours(updatedFormData);
-    }
-
-    setFormData(updatedFormData);
-    // Clear local error on change
+    setFormData(prev => {
+        let updated = { ...prev, [name]: value };
+        if (name === 'employeeId') {
+            const selectedEmployee = employees.find((emp) => emp._id === value);
+            updated.hourlyWage = selectedEmployee ? selectedEmployee.wage || '' : '';
+        } else if (name === 'leaveType') {
+            const isNowLeave = value !== 'None';
+            const wasLeave = prev.leaveType !== 'None';
+            if (isNowLeave && !wasLeave) {
+                updated = {
+                    ...updated, startTime: '', endTime: '', lunchBreak: 'No',
+                    lunchDuration: '00:30', clientId: '', projectId: '', notes: '', totalHours: 0,
+                };
+            } else if (!isNowLeave && wasLeave) {
+                updated.description = '';
+            }
+        }
+        return updated;
+    });
     if (error) setError(null);
   };
 
+  // --- useEffect for Hour Calculation ---
+  useEffect(() => {
+      if (formData.leaveType === 'None') {
+          calculateHours(formData);
+      } else {
+          setFormData(prev => (prev.totalHours !== 0 ? { ...prev, totalHours: 0 } : prev));
+      }
+  }, [formData.startTime, formData.endTime, formData.lunchBreak, formData.lunchDuration, formData.leaveType, calculateHours]);
+
+
+  // --- Validation Function ---
   const validateForm = () => {
     if (!formData.employeeId) return 'Employee is required.';
     if (!formData.date) return 'Date is required.';
 
     if (isLeaveSelected) {
-      if (!formData.description.trim()) return 'Leave Description is required when Leave Type is selected.';
+      if (!formData.description.trim()) return 'Leave Description is required.';
     } else {
-      if (!formData.clientId) return 'Client is required for work entries.';
-      if (!formData.projectId) return 'Project is required for work entries.';
-      if (!formData.startTime) return 'Start Time is required for work entries.';
-      if (!formData.endTime) return 'End Time is required for work entries.';
-      if (formData.startTime && formData.endTime && formData.startTime >= formData.endTime) {
-        return 'End Time must be after Start Time.';
+      if (!formData.clientId) return 'Client is required.';
+      if (!formData.projectId) return 'Project is required.';
+      if (!formData.startTime) return 'Start Time is required.';
+      if (!formData.endTime) return 'End Time is required.';
+
+      if (!/^\d{2}:\d{2}$/.test(formData.startTime) || !/^\d{2}:\d{2}$/.test(formData.endTime)) {
+        return 'Invalid Start or End Time format (HH:MM).';
       }
-      if (parseFloat(formData.totalHours) <= 0) {
-          return 'Total Hours must be greater than zero for work entries.';
+
+      try {
+        const startDateTime = DateTime.fromISO(`1970-01-01T${formData.startTime}`, { zone: 'local' });
+        const endDateTime = DateTime.fromISO(`1970-01-01T${formData.endTime}`, { zone: 'local' });
+        if (!startDateTime.isValid || !endDateTime.isValid || endDateTime <= startDateTime) {
+          return 'End Time must be after Start Time.';
+        }
+      } catch (e) { return 'Error validating time inputs.'; }
+
+      if (formData.lunchBreak === 'Yes' && !/^\d{2}:\d{2}$/.test(formData.lunchDuration)) {
+          return 'Invalid Lunch Duration format (HH:MM).';
       }
-      if (parseFloat(formData.totalHours) > 9) { // Example validation
-        return 'Total working hours cannot exceed 9 hours.';
+
+      if (parseFloat(formData.totalHours) > 16) {
+        return 'Total hours seem high (> 16). Please verify.';
       }
     }
-    return null;
+    return null; // No errors
   };
 
+
+  // --- Submit Handler ---
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError(null); // Clear previous local errors
+    setError(null);
 
+    // Calculate hours one last time using current formData
+    const calculatedHoursValue = calculateHours(formData);
+
+    // Perform hour validation directly using the calculated value
+    if (!isLeaveSelected && parseFloat(calculatedHoursValue) <= 0) {
+         if (formData.startTime && formData.endTime) {
+             setError('Total Hours calculation resulted in zero or less. Check times/lunch.');
+         } else {
+             setError('Total Hours must be greater than zero for work entries.');
+         }
+         return;
+    }
+
+    // Call the rest of the validation
     const validationError = validateForm();
     if (validationError) {
       setError(validationError);
       return;
     }
 
+    // --- Proceed with submission ---
     const token = localStorage.getItem('token');
     if (!token) {
-      setError('Authentication required. Please log in.');
-      // navigate('/login'); // Consider redirecting
-      return;
-    }
+        setError('Authentication required. Please log in.');
+        navigate('/login');
+        return;
+     }
 
-    setIsLoading(true); // Start local submission loading
+    setIsLoading(true);
 
     try {
-      const config = {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      };
+      const config = { headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' } };
 
-      // Check for duplicates only when creating a new entry
+      // Duplicate Check
       if (!isEditing) {
         try {
           const checkRes = await axios.get(`${API_URL}/timesheets/check`, {
-            params: {
-              employee: formData.employeeId,
-              date: formData.date,
-              timezone: formData.timezone,
-            },
+            params: { employee: formData.employeeId, date: formData.date, timezone: formData.timezone },
             headers: { Authorization: `Bearer ${token}` },
           });
-
           if (checkRes.data.exists) {
-            setError('A timesheet for this employee on this date already exists. You can edit the existing entry.');
+            setError('A timesheet for this employee on this date already exists.');
             setIsLoading(false);
             return;
           }
-        } catch (checkErr) {
-          // Log error but allow submission to proceed if check fails
-          console.error('Error checking for duplicate timesheet:', checkErr);
-        }
+        } catch (checkErr) { console.error('Error checking for duplicate timesheet:', checkErr); }
       }
 
-      // Prepare data for API request
-      const requestData = {
-        ...formData,
-        clientId: isLeaveSelected ? null : String(formData.clientId),
-        projectId: isLeaveSelected ? null : String(formData.projectId),
-        description: isLeaveSelected ? formData.description : '',
-        notes: !isLeaveSelected ? formData.notes : '',
-        totalHours: parseFloat(formData.totalHours) || 0,
-        hourlyWage: parseFloat(formData.hourlyWage) || 0,
+      // --- Prepare Data for API (Convert Local Times to UTC ISO) ---
+      const localTimeToUtcISO = (timeStr) => {
+        // --- CLIENT LOG 1: Log inputs for conversion ---
+        console.log(`[Client UTC Convert] Attempting conversion for: Date='${formData.date}', Time='${timeStr}', Zone='${formData.timezone}'`);
+        // --- End Log ---
+
+        if (!timeStr || !/^\d{2}:\d{2}$/.test(timeStr)) {
+            console.error("[Client UTC Convert] Invalid time string:", timeStr);
+            return null;
+        }
+        if (!formData.date) {
+            console.error("[Client UTC Convert] Missing date in formData");
+            return null;
+        }
+
+        // Validate timezone *before* using it
+        let conversionTimezone = formData.timezone;
+        if (!conversionTimezone || !DateTime.local().setZone(conversionTimezone).isValid) {
+            console.error(`[Client UTC Convert] Invalid or missing timezone in formData: '${conversionTimezone}'. Falling back to UTC.`);
+            conversionTimezone = 'UTC'; // Use UTC as fallback, but this indicates a problem
+        }
+
+        try {
+          // 1. Create DateTime object from DATE and TIME strings in the SPECIFIED timezone
+          const localDT = DateTime.fromISO(`${formData.date}T${timeStr}`, { zone: conversionTimezone });
+
+          // 2. Check if it's valid
+          if (!localDT.isValid) {
+              // --- CLIENT LOG 2: Log parsing failure ---
+              console.error(`[Client UTC Convert] Failed to parse local date/time: ${formData.date}T${timeStr} in zone ${conversionTimezone}. Reason: ${localDT.invalidReason}, Explanation: ${localDT.invalidExplanation}`);
+              // --- End Log ---
+              return null;
+          }
+          // --- CLIENT LOG 3: Log successful parsing ---
+          console.log(`[Client UTC Convert] Successfully parsed localDT: ${localDT.toISO()} (Zone: ${localDT.zoneName}, Offset: ${localDT.offset / 60}hrs)`);
+          // --- End Log ---
+
+
+          // 3. Convert the valid local DateTime object to UTC and then to ISO string
+          const utcISO = localDT.toUTC().toISO();
+          // --- CLIENT LOG 4: Log final UTC ISO string ---
+          console.log(`[Client UTC Convert] Converted '${timeStr}' to UTC ISO: ${utcISO}`);
+          // --- End Log ---
+          return utcISO;
+
+        } catch (err) {
+          console.error(`[Client UTC Convert] Error converting local time ${timeStr} (Date: ${formData.date}, Zone: ${conversionTimezone}) to UTC ISO:`, err);
+          return null;
+        }
       };
 
-      // Make API call to create or update
-      if (isEditing) {
-        await axios.put(
-          `${API_URL}/timesheets/${timesheetToEdit._id}`,
-          requestData,
-          config
-        );
-      } else {
-        await axios.post(
-          `${API_URL}/timesheets`,
-          requestData,
-          config
-        );
+      // --- CLIENT LOG 5: Log timezone just before conversion calls ---
+      console.log(`[Client Submit] Timezone in formData before conversion: ${formData.timezone}`);
+      // --- End Log ---
+
+      const startTimeUTC = !isLeaveSelected ? localTimeToUtcISO(formData.startTime) : null;
+      const endTimeUTC = !isLeaveSelected ? localTimeToUtcISO(formData.endTime) : null;
+
+      if (!isLeaveSelected && (!startTimeUTC || !endTimeUTC)) {
+          setError("Failed to convert start or end time for saving. Please check inputs and console logs.");
+          setIsLoading(false);
+          return;
       }
 
-      navigate('/timesheet'); // Navigate on success
+      // Ensure the timezone being sent is valid, fallback to UTC if needed
+      const timezoneToSend = formData.timezone && DateTime.local().setZone(formData.timezone).isValid
+                             ? formData.timezone
+                             : 'UTC';
+      if (timezoneToSend === 'UTC' && formData.timezone !== 'UTC') {
+          console.warn(`[Client Submit] Sending 'UTC' as timezone because original '${formData.timezone}' was invalid.`);
+      }
+
+
+      const requestData = {
+        employeeId: formData.employeeId,
+        clientId: !isLeaveSelected ? formData.clientId : null,
+        projectId: !isLeaveSelected ? formData.projectId : null,
+        date: formData.date,
+        startTime: startTimeUTC,
+        endTime: endTimeUTC,
+        lunchBreak: !isLeaveSelected ? formData.lunchBreak : 'No',
+        lunchDuration: !isLeaveSelected && formData.lunchBreak === 'Yes' ? formData.lunchDuration : null,
+        leaveType: formData.leaveType,
+        description: isLeaveSelected ? formData.description : null,
+        notes: !isLeaveSelected ? formData.notes : null,
+        hourlyWage: parseFloat(formData.hourlyWage) || 0,
+        timezone: timezoneToSend, // Send the validated timezone
+      };
+
+      // --- CLIENT LOG 6: Log final payload ---
+      console.log("[Client Submit] Sending data to API:", JSON.stringify(requestData, null, 2));
+      // --- End Log ---
+
+      // API Call
+      if (isEditing) {
+        await axios.put(`${API_URL}/timesheets/${timesheetToEdit._id}`, requestData, config);
+      } else {
+        await axios.post(`${API_URL}/timesheets`, requestData, config);
+      }
+
+      navigate('/timesheet');
 
     } catch (apiError) {
-      console.error(`Error ${isEditing ? 'updating' : 'creating'} timesheet:`, apiError.response || apiError);
-      // Set local error state based on API response
-      setError(
-        apiError?.response?.data?.message ||
-        `Failed to ${isEditing ? 'update' : 'create'} timesheet. Please try again.`
-      );
+      console.error(`Error ${isEditing ? 'updating' : 'creating'} timesheet:`, apiError.response?.data || apiError.message || apiError);
+      setError(apiError?.response?.data?.message || `Failed to ${isEditing ? 'update' : 'create'} timesheet.`);
+      if (apiError.response?.status === 401) navigate('/login');
     } finally {
-      setIsLoading(false); // Stop local submission loading
+      setIsLoading(false);
     }
   };
 
 
-  // --- JSX ---
-  const isProjectLoading = projectStatus === 'loading'; // Loading state for project dropdown
+  // --- JSX (Keep existing structure) ---
+  const isProjectLoading = projectStatus === 'loading';
 
   return (
-    <div className='vehicles-page'> {/* Consider renaming class */}
+    <div className='vehicles-page'>
       <div className='vehicles-header'>
         <div className='title-breadcrumbs'>
           <h2>
@@ -337,24 +450,17 @@ const CreateTimesheet = () => {
             {isEditing ? 'Edit' : 'Create'} Timesheet
           </h2>
           <div className='breadcrumbs'>
-            <Link to='/dashboard' className='breadcrumb-link'>
-              Dashboard
-            </Link>
+            <Link to='/dashboard' className='breadcrumb-link'>Dashboard</Link>
             <span className='breadcrumb-separator'> / </span>
-            <Link to='/timesheet' className='breadcrumb-link'>
-              Timesheet
-            </Link>
+            <Link to='/timesheet' className='breadcrumb-link'>Timesheet</Link>
             <span className='breadcrumb-separator'> / </span>
-            <span className='breadcrumb-current'>
-              {isEditing ? 'Edit Timesheet' : 'Create Timesheet'}
-            </span>
+            <span className='breadcrumb-current'>{isEditing ? 'Edit Timesheet' : 'Create Timesheet'}</span>
           </div>
         </div>
       </div>
 
       <div className='form-container'>
         <form onSubmit={handleSubmit} className='employee-form' noValidate>
-          {/* Display local form error OR project fetch error */}
           {(error || projectError) && (
             <div className='form-error-message'>
               <FontAwesomeIcon icon={faExclamationCircle} /> {error || projectError}
@@ -364,48 +470,23 @@ const CreateTimesheet = () => {
           {/* Employee Select */}
           <div className='form-group'>
             <label htmlFor='employeeId'>Employee*</label>
-            <select
-              id='employeeId'
-              name='employeeId'
-              value={formData.employeeId}
-              onChange={handleChange}
-              required
-              disabled={isEditing || isLoading} // Disable if editing or submitting
-            >
+            <select id='employeeId' name='employeeId' value={formData.employeeId} onChange={handleChange} required disabled={isEditing || isLoading}>
               <option value=''>-- Select Employee --</option>
-              {employees.map((emp) => (
-                <option key={emp._id} value={emp._id}>
-                  {emp.name}
-                </option>
-              ))}
+              {employees.map((emp) => (<option key={emp._id} value={emp._id}>{emp.name}</option>))}
             </select>
           </div>
 
           {/* Date Input */}
           <div className='form-group'>
             <label htmlFor='date'>Date*</label>
-            <input
-              id='date'
-              type='date'
-              name='date'
-              value={formData.date}
-              onChange={handleChange}
-              required
-              disabled={isEditing || isLoading} // Disable if editing or submitting
-            />
+            <input id='date' type='date' name='date' value={formData.date} onChange={handleChange} required disabled={isEditing || isLoading} />
           </div>
 
           {/* Leave Type Select */}
           <div className='form-group'>
-            <label htmlFor='leaveType'>Leave Type</label>
-            <select
-              id='leaveType'
-              name='leaveType'
-              value={formData.leaveType}
-              onChange={handleChange}
-              disabled={isLoading} // Disable only if submitting
-            >
-              <option value='None'>None </option>
+            <label htmlFor='leaveType'>Entry Type</label>
+            <select id='leaveType' name='leaveType' value={formData.leaveType} onChange={handleChange} disabled={isLoading}>
+              <option value='None'>Work Entry</option>
               <option value='Annual'>Annual Leave</option>
               <option value='Sick'>Sick Leave</option>
               <option value='Public Holiday'>Public Holiday</option>
@@ -418,16 +499,7 @@ const CreateTimesheet = () => {
           {isLeaveSelected && (
             <div className='form-group'>
               <label htmlFor='description'>Leave Description*</label>
-              <textarea
-                id='description'
-                name='description'
-                value={formData.description}
-                onChange={handleChange}
-                placeholder='Provide reason for leave'
-                required={isLeaveSelected}
-                disabled={isLoading} // Disable only if submitting
-                rows='3'
-              />
+              <textarea id='description' name='description' value={formData.description} onChange={handleChange} placeholder='Provide reason for leave' required={isLeaveSelected} disabled={isLoading} rows='3' />
             </div>
           )}
 
@@ -437,44 +509,18 @@ const CreateTimesheet = () => {
               {/* Client Select */}
               <div className='form-group'>
                 <label htmlFor='clientId'>Client*</label>
-                <select
-                  id='clientId'
-                  name='clientId'
-                  value={formData.clientId || ''}
-                  onChange={handleChange}
-                  required={!isLeaveSelected}
-                  disabled={isLoading} // Disable only if submitting
-                >
+                <select id='clientId' name='clientId' value={formData.clientId || ''} onChange={handleChange} required={!isLeaveSelected} disabled={isLoading}>
                   <option value=''>-- Select Client --</option>
-                  {clients.map((c) => (
-                    <option key={c._id} value={c._id}>
-                      {c.name}
-                    </option>
-                  ))}
+                  {clients.map((c) => (<option key={c._id} value={c._id}>{c.name}</option>))}
                 </select>
               </div>
 
               {/* Project Select */}
               <div className='form-group'>
                 <label htmlFor='projectId'>Project*</label>
-                <select
-                  id='projectId'
-                  name='projectId'
-                  value={formData.projectId || ''}
-                  onChange={handleChange}
-                  required={!isLeaveSelected}
-                  // Disable if submitting, projects are loading, or no client selected
-                  disabled={isLoading || isProjectLoading || !formData.clientId}
-                >
-                  <option value=''>
-                    {isProjectLoading ? 'Loading projects...' : '-- Select Project --'}
-                  </option>
-                  {/* Use projects filtered by the selected client */}
-                  {projectsForSelectedClient.map((p) => (
-                    <option key={p._id} value={p._id}>
-                      {p.name}
-                    </option>
-                  ))}
+                <select id='projectId' name='projectId' value={formData.projectId || ''} onChange={handleChange} required={!isLeaveSelected} disabled={isLoading || isProjectLoading || !formData.clientId}>
+                  <option value=''>{isProjectLoading ? 'Loading projects...' : (!formData.clientId ? 'Select Client First' : '-- Select Project --')}</option>
+                  {projectsForSelectedClient.map((p) => (<option key={p._id} value={p._id}>{p.name}</option>))}
                 </select>
                  {!formData.clientId && !isProjectLoading && <small>Please select a client first.</small>}
                  {formData.clientId && !isProjectLoading && projectsForSelectedClient.length === 0 && <small>No projects found for this client.</small>}
@@ -483,43 +529,19 @@ const CreateTimesheet = () => {
               {/* Start Time */}
               <div className='form-group'>
                 <label htmlFor='startTime'>Start Time*</label>
-                <input
-                  id='startTime'
-                  type='time'
-                  name='startTime'
-                  value={formData.startTime}
-                  onChange={handleChange}
-                  step='60' // 1 minute increments
-                  required={!isLeaveSelected}
-                  disabled={isLoading} // Disable only if submitting
-                />
+                <input id='startTime' type='time' name='startTime' value={formData.startTime} onChange={handleChange} step='60' required={!isLeaveSelected} disabled={isLoading} />
               </div>
 
               {/* End Time */}
               <div className='form-group'>
                 <label htmlFor='endTime'>End Time*</label>
-                <input
-                  id='endTime'
-                  type='time'
-                  name='endTime'
-                  value={formData.endTime}
-                  onChange={handleChange}
-                  step='60' // 1 minute increments
-                  required={!isLeaveSelected}
-                  disabled={isLoading} // Disable only if submitting
-                />
+                <input id='endTime' type='time' name='endTime' value={formData.endTime} onChange={handleChange} step='60' required={!isLeaveSelected} disabled={isLoading} />
               </div>
 
               {/* Lunch Break Select */}
               <div className='form-group'>
                 <label htmlFor='lunchBreak'>Lunch Break</label>
-                <select
-                  id='lunchBreak'
-                  name='lunchBreak'
-                  value={formData.lunchBreak}
-                  onChange={handleChange}
-                  disabled={isLoading} // Disable only if submitting
-                >
+                <select id='lunchBreak' name='lunchBreak' value={formData.lunchBreak} onChange={handleChange} disabled={isLoading}>
                   <option value='No'>No</option>
                   <option value='Yes'>Yes</option>
                 </select>
@@ -529,15 +551,7 @@ const CreateTimesheet = () => {
               {formData.lunchBreak === 'Yes' && (
                 <div className='form-group'>
                   <label htmlFor='lunchDuration'>Lunch Duration (HH:MM)</label>
-                  <select
-                    id='lunchDuration'
-                    name='lunchDuration'
-                    value={formData.lunchDuration}
-                    onChange={handleChange}
-                    required={formData.lunchBreak === 'Yes'}
-                    disabled={isLoading} // Disable only if submitting
-                  >
-                    <option value='00:00'>00:00</option>
+                  <select id='lunchDuration' name='lunchDuration' value={formData.lunchDuration} onChange={handleChange} required={formData.lunchBreak === 'Yes'} disabled={isLoading}>
                     <option value='00:15'>00:15</option>
                     <option value='00:30'>00:30</option>
                     <option value='00:45'>00:45</option>
@@ -551,62 +565,31 @@ const CreateTimesheet = () => {
               {/* Work Notes */}
               <div className='form-group'>
                 <label htmlFor='notes'>Work Notes</label>
-                <textarea
-                  id='notes'
-                  name='notes'
-                  value={formData.notes}
-                  onChange={handleChange}
-                  placeholder='Add any work-related notes'
-                  disabled={isLoading} // Disable only if submitting
-                  rows='3'
-                />
+                <textarea id='notes' name='notes' value={formData.notes} onChange={handleChange} placeholder='Add any work-related notes' disabled={isLoading} rows='3' />
               </div>
             </>
           )}
 
-          {/* Hourly Wage (Read-only) */}
+          {/* Hourly Wage (Read-only) - Formatted */}
           <div className='form-group'>
             <label>Hourly Wage (Read-only)</label>
-            <input
-              type='text'
-              value={formData.hourlyWage ? `$${formData.hourlyWage}` : 'N/A'}
-              readOnly
-              disabled
-            />
+            <input type='text' value={formData.hourlyWage ? `$${parseFloat(formData.hourlyWage).toFixed(2)}` : 'N/A'} readOnly disabled />
           </div>
 
-          {/* Total Hours Calculated */}
+          {/* Total Hours Calculated (Display Only) - Formatted */}
           {!isLeaveSelected && (
              <div className='form-group summary'>
-                <strong>Total Hours Calculated:</strong> {formData.totalHours} hours
+                <strong>Total Hours Calculated:</strong> {formData.totalHours.toFixed(2)} hours
              </div>
           )}
 
           {/* Form Footer */}
           <div className='form-footer'>
-            <button
-              type='button'
-              className='btn btn-danger'
-              onClick={() => navigate('/timesheet')}
-              disabled={isLoading} // Disable only if submitting
-            >
+            <button type='button' className='btn btn-danger' onClick={() => navigate('/timesheet')} disabled={isLoading}>
                <FontAwesomeIcon icon={faTimes} /> Cancel
             </button>
-            <button
-              type='submit'
-              className='btn btn-success'
-              disabled={isLoading} // Disable only if submitting
-            >
-              {isLoading ? (
-                <>
-                  <FontAwesomeIcon icon={faSpinner} spin /> Saving...
-                </>
-              ) : (
-                <>
-                  <FontAwesomeIcon icon={isEditing ? faPen : faSave} />{' '}
-                  {isEditing ? 'Update Timesheet' : 'Save Timesheet'}
-                </>
-              )}
+            <button type='submit' className='btn btn-success' disabled={isLoading || (projectStatus === 'loading' && !isLeaveSelected)}>
+              {isLoading ? (<><FontAwesomeIcon icon={faSpinner} spin /> Saving...</>) : (<><FontAwesomeIcon icon={isEditing ? faPen : faSave} /> {isEditing ? 'Update Timesheet' : 'Save Timesheet'}</>)}
             </button>
           </div>
         </form>

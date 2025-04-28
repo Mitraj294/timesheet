@@ -1,5 +1,5 @@
 // /home/digilab/timesheet/client/src/redux/slices/projectSlice.js
-import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
+import { createSlice, createAsyncThunk, createSelector } from '@reduxjs/toolkit'; // Import createSelector
 import axios from 'axios';
 
 // Define the API URL
@@ -24,10 +24,19 @@ export const fetchProjects = createAsyncThunk(
   'projects/fetchProjects',
   async (clientId = null, { getState, rejectWithValue }) => { // Pass clientId or null/undefined for all
     try {
-      const { token } = getState().auth; // Assuming auth is needed
+      // Assuming token is stored in auth slice
+      const token = getState().auth?.token; // Safely access token
+      if (!token && clientId) { // Only strictly require token if fetching specific client projects? Adjust as needed.
+          // If fetching all projects might be public, this check might differ.
+          // For now, assume token is needed for client-specific fetch.
+          // return rejectWithValue('Authentication required to fetch client projects.');
+          // Or maybe allow fetching all projects without token? Depends on API design.
+      }
+
       const url = clientId
         ? `${API_URL}/projects/client/${clientId}` // Fetch by client
         : `${API_URL}/projects`; // Fetch all
+
       const response = await axios.get(url, getAuthHeaders(token));
       return response.data || []; // Ensure array return
     } catch (error) {
@@ -42,7 +51,8 @@ export const createProject = createAsyncThunk(
   'projects/createProject',
   async ({ clientId, projectData }, { getState, rejectWithValue }) => {
     try {
-      const { token } = getState().auth;
+      const token = getState().auth?.token; // Safely access token
+      if (!token) return rejectWithValue('Authentication required.');
       if (!clientId) {
           return rejectWithValue('Client ID is required to create a project.');
       }
@@ -59,15 +69,12 @@ export const createProject = createAsyncThunk(
 export const updateProject = createAsyncThunk(
   'projects/updateProject',
   async ({ projectId, projectData }, { getState, rejectWithValue }) => {
-    // Note: The original action included clientId, but the route only uses projectId.
-    // If clientId is needed for auth/validation on the backend, it should be handled there.
-    // If you need clientId in the thunk for other reasons, pass it in the first argument object.
     try {
-      const { token } = getState().auth;
+      const token = getState().auth?.token; // Safely access token
+      if (!token) return rejectWithValue('Authentication required.');
       if (!projectId) {
           return rejectWithValue('Project ID is required to update a project.');
       }
-      // Using the route defined in projectRoutes.js
       const response = await axios.put(`${API_URL}/projects/${projectId}`, projectData, getAuthHeaders(token));
       return response.data; // Return the updated project data
     } catch (error) {
@@ -80,7 +87,8 @@ export const updateProject = createAsyncThunk(
 // --- Slice Definition ---
 
 const initialState = {
-  projects: [],
+  // Changed 'projects' key to 'items' to avoid naming collision with the slice name
+  items: [],
   status: 'idle', // 'idle' | 'loading' | 'succeeded' | 'failed'
   error: null,
 };
@@ -98,7 +106,7 @@ const projectSlice = createSlice({
     },
     // Action to manually clear projects if needed (e.g., when client changes in UI)
     clearProjects: (state) => {
-        state.projects = [];
+        state.items = [];
         state.status = 'idle';
         state.error = null;
     }
@@ -112,7 +120,11 @@ const projectSlice = createSlice({
       })
       .addCase(fetchProjects.fulfilled, (state, action) => {
         state.status = 'succeeded';
-        state.projects = action.payload; // Replace or merge based on fetch type? For now, replace.
+        // Assuming fetchProjects always returns the relevant list (all or by client)
+        // If fetching all, this replaces the list. If fetching by client,
+        // consider if you need to merge or just display the client-specific list.
+        // For simplicity now, it replaces the current items.
+        state.items = action.payload;
       })
       .addCase(fetchProjects.rejected, (state, action) => {
         state.status = 'failed';
@@ -125,7 +137,10 @@ const projectSlice = createSlice({
       })
       .addCase(createProject.fulfilled, (state, action) => {
         state.status = 'succeeded';
-        state.projects.push(action.payload); // Add the new project
+        // Add the new project only if it's not already there (e.g., from a concurrent fetch)
+        if (!state.items.find(p => p._id === action.payload._id)) {
+            state.items.push(action.payload);
+        }
       })
       .addCase(createProject.rejected, (state, action) => {
         state.status = 'failed';
@@ -139,13 +154,11 @@ const projectSlice = createSlice({
       .addCase(updateProject.fulfilled, (state, action) => {
         state.status = 'succeeded';
         // Find and update the project in the array
-        const index = state.projects.findIndex(p => p._id === action.payload._id);
+        const index = state.items.findIndex(p => p._id === action.payload._id);
         if (index !== -1) {
-          state.projects[index] = action.payload;
-        } else {
-            // Optional: Add if not found? Depends on use case.
-            // state.projects.push(action.payload);
+          state.items[index] = action.payload;
         }
+        // If not found, maybe it wasn't fetched yet. Fetching might be better.
       })
       .addCase(updateProject.rejected, (state, action) => {
         state.status = 'failed';
@@ -160,17 +173,38 @@ export const { clearProjectError, clearProjects } = projectSlice.actions; // Exp
 
 export default projectSlice.reducer; // Export the reducer
 
-// Optional: Selectors
-export const selectAllProjects = (state) => state.projects.projects; // Ensure store key is 'projects'
+// --- Selectors ---
+// Base selector for the projects array
+const selectProjectItems = (state) => state.projects.items; // Use 'items' key
+
+// Other simple selectors
 export const selectProjectStatus = (state) => state.projects.status;
 export const selectProjectError = (state) => state.projects.error;
-export const selectProjectById = (state, projectId) =>
-  Array.isArray(state?.projects?.projects)
-    ? state.projects.projects.find(p => p._id === projectId)
-    : undefined;
-// Selector to get projects filtered by client ID (useful in components)
-export const selectProjectsByClientId = (state, clientId) =>
-  Array.isArray(state?.projects?.projects)
-    ? state.projects.projects.filter(p => (p.clientId?._id || p.clientId) === clientId)
-    : [];
 
+// Selector to get a single project by ID (memoized by default if projectId doesn't change often)
+export const selectProjectById = (state, projectId) =>
+  Array.isArray(selectProjectItems(state))
+    ? selectProjectItems(state).find(p => p._id === projectId)
+    : undefined;
+
+// Input selector for the clientId argument passed to the main selector
+const selectClientIdArg = (_, clientId) => clientId;
+
+// Memoized selector for filtering projects by client ID
+export const selectProjectsByClientId = createSelector(
+  [selectProjectItems, selectClientIdArg], // Input selectors: the projects array and the clientId argument
+  (projects, clientId) => {
+    // This calculation function only runs if 'projects' array reference changes
+    // OR if the passed 'clientId' argument changes.
+    // console.log("Selector running for client:", clientId); // For debugging memoization
+    if (!clientId) {
+      return []; // Return empty array if no client ID
+    }
+    // Ensure projects is an array before filtering
+    return Array.isArray(projects)
+      // Adjust filter logic based on how clientId is stored in your project objects
+      // Assuming project object has a 'clientId' field which might be an object or string ID
+      ? projects.filter(project => (project.clientId?._id || project.clientId) === clientId)
+      : [];
+  }
+);

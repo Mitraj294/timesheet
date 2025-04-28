@@ -11,6 +11,7 @@
   },
   "devDependencies": {
     "concurrently": "^9.1.2",
+    "eslint-plugin-react-hooks": "^5.2.0",
     "react-app-rewired": "^2.2.1",
     "sass": "^1.86.3",
     "sass-loader": "^13.3.3"
@@ -24,7 +25,6 @@
     "date-fns": "^4.1.0",
     "date-fns-tz": "^3.2.0",
     "dotenv": "^16.4.7",
-    "eslint-plugin-react-hooks": "^4.6.2",
     "exceljs": "^4.4.0",
     "express": "^5.1.0",
     "helmet": "^8.1.0",
