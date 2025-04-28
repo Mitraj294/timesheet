@@ -1,43 +1,36 @@
+
 // /home/digilab/timesheet/server/middleware/authMiddleware.js
 import jwt from 'jsonwebtoken';
 import User from '../models/User.js'; // Ensure path is correct
 import dotenv from "dotenv";
 
-// Load environment variables - Ensure this runs before JWT_SECRET is used
-// It's often better to call dotenv.config() once in your main server entry file (e.g., server.js)
-// but having it here works too if this file is imported early enough.
 dotenv.config();
 
-// Middleware to protect routes - requires a valid token
 export const protect = async (req, res, next) => {
+  // --- ADD THIS LOG ---
+  console.log(`[${new Date().toISOString()}] protect middleware entered for: ${req.method} ${req.originalUrl}`);
   let token;
 
-  // Check for Bearer token in Authorization header
   if (req.headers.authorization && req.headers.authorization.startsWith("Bearer")) {
     try {
-      // Extract token from "Bearer <token>" string
       token = req.headers.authorization.split(" ")[1];
-
-      // Verify the token using the secret key
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
-
-      // Find the user by ID from the token payload, exclude the password field
-      // Attach the user object (without password) to the request object
       req.user = await User.findById(decoded.id).select("-password");
 
-      // Handle case where user might not be found (e.g., deleted after token issued)
       if (!req.user) {
+          console.log(`[${new Date().toISOString()}] protect middleware: User not found for token ID: ${decoded.id}`);
           return res.status(401).json({ message: "Not authorized, user not found" });
       }
 
-      next(); // Token is valid, user found, proceed to the next middleware/route handler
+      // --- ADD THIS LOG ---
+      console.log(`[${new Date().toISOString()}] protect middleware: Token verified, user ${req.user.email} attached. Calling next().`);
+      next(); // Proceed to the next middleware/route handler
     } catch (error) {
-      console.error('Token verification failed:', error.message); // Log the error server-side
-      // Handle specific JWT errors if needed (e.g., TokenExpiredError)
+      console.error(`[${new Date().toISOString()}] protect middleware: Token verification failed:`, error.message);
       res.status(401).json({ message: "Not authorized, token failed" });
     }
   } else {
-    // No token found in the header
+    console.log(`[${new Date().toISOString()}] protect middleware: No token provided.`);
     res.status(401).json({ message: "Not authorized, no token provided" });
   }
 };

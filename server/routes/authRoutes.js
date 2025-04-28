@@ -36,25 +36,26 @@ router.post("/check-user", async (req, res) => {
 
 
 // --- Protected Routes ---
-
-// GET /api/auth/me - Get data for the currently logged-in user
-// This route is protected by the 'protect' middleware
+// GET /api/auth/me
 router.get('/me', protect, async (req, res) => {
+  // --- ADD THIS LOG ---
+  console.log(`[${new Date().toISOString()}] /api/auth/me route handler entered.`);
   try {
-    // The 'protect' middleware has already verified the token
-    // and attached the user object (without password) to req.user.
-    // We just need to send it back.
     if (!req.user) {
-       // This case should ideally be caught by the middleware, but double-check
+       // --- ADD THIS LOG ---
+       console.log(`[${new Date().toISOString()}] /api/auth/me handler: req.user is missing!`);
        return res.status(404).json({ message: 'User data not found after authentication.' });
     }
-    res.json(req.user); // Send the user data back
+    // --- ADD THIS LOG ---
+    console.log(`[${new Date().toISOString()}] /api/auth/me handler: Sending user data for ${req.user.email}`);
+    res.json(req.user);
   } catch (err) {
-    // Catch any unexpected errors during the process
-    console.error("Error fetching user data in /me route:", err.message);
+    console.error(`[${new Date().toISOString()}] Error in /api/auth/me handler:`, err.message);
     res.status(500).send('Server Error');
   }
 });
 
+// --- ADD THIS LOG ---
+console.log(`[${new Date().toISOString()}] authRoutes.js file loaded and router configured.`);
 
 export default router;
