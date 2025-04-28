@@ -1,43 +1,87 @@
-import React, { useEffect, useState } from 'react'; // Added useState for search
+// /home/digilab/timesheet/client/src/components/pages/Employees.js
+import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
+// --- UPDATED IMPORTS ---
+// Import from employeeSlice instead of employeeActions
 import {
-  getEmployees,
+  fetchEmployees, // Renamed from getEmployees
   deleteEmployee,
-} from '../../redux/actions/employeeActions';
+  selectAllEmployees,
+  selectEmployeeStatus,
+  selectEmployeeError
+} from '../../redux/slices/employeeSlice';
+// --- END UPDATED IMPORTS ---
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
   faPen,
-  faIdCard, // Changed icon for Employees
+  faIdCard,
   faTrash,
   faPlus,
   faSpinner,
   faExclamationCircle,
-  faSearch, // Added search icon
+  faSearch,
 } from '@fortawesome/free-solid-svg-icons';
-// Import the SCSS file used by Vehicles.js for styling consistency
-import '../../styles/Vehicles.scss'; // *** Changed SCSS import ***
+import '../../styles/Vehicles.scss'; // Assuming this stylesheet is correct
 
 const Employees = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
-  const [search, setSearch] = useState(''); // State for search input
+  const [search, setSearch] = useState('');
 
-  // Use state selectors with default values for robustness
-  const {
-    employees = [],
-    loading,
-    error,
-  } = useSelector((state) => state.employees || { employees: [], loading: false, error: null });
-  const { user } = useSelector((state) => state.auth || {}); // Get logged-in user
+  // --- Selectors with defensive checks ---
+  const employees = useSelector(state => {
+    // console.log('Employees - Running selectAllEmployees:', typeof selectAllEmployees);
+    if (typeof selectAllEmployees !== 'function') {
+        console.error('Employees - selectAllEmployees is not a function!');
+        return []; // Return default value
+    }
+    return selectAllEmployees(state);
+  });
+  const employeeStatus = useSelector(state => {
+    // console.log('Employees - Running selectEmployeeStatus:', typeof selectEmployeeStatus);
+     if (typeof selectEmployeeStatus !== 'function') {
+        console.error('Employees - selectEmployeeStatus is not a function!');
+        return 'idle'; // Return default value
+    }
+    return selectEmployeeStatus(state);
+  });
+  const error = useSelector(state => {
+    // console.log('Employees - Running selectEmployeeError:', typeof selectEmployeeError);
+     if (typeof selectEmployeeError !== 'function') {
+        console.error('Employees - selectEmployeeError is not a function!');
+        return null; // Return default value
+    }
+    return selectEmployeeError(state);
+  });
+  const loading = employeeStatus === 'loading'; // Derive boolean loading from status
+
+  // Select token and auth loading status for conditional fetching
+  const { token, isLoading: isAuthLoading, isAuthenticated } = useSelector((state) => state.auth || {});
+  const { user } = useSelector((state) => state.auth || {}); // Keep user selector if needed elsewhere
 
   useEffect(() => {
-    // Fetch employees if not already loaded or if forced refresh is needed
-    // Kept the original logic to fetch only if empty and not loading
-    if (!employees.length && !loading) {
-      dispatch(getEmployees());
+    // Don't attempt fetch if auth is still loading OR if there's no token
+    if (isAuthLoading) {
+      console.log(`Employees - Skipping fetchEmployees: Auth is loading.`);
+      return; // Exit early if auth state is not ready
     }
-  }, [dispatch, employees.length, loading]);
+    if (!token) {
+      console.warn(`Employees - Skipping fetchEmployees: No token present.`);
+      // Optionally redirect or show login prompt if not authenticated
+      // if (!isAuthenticated) navigate('/login');
+      return; // Exit early if no token
+    }
+
+    // Only fetch if authenticated, token is present, and data is needed
+    if (employeeStatus === 'idle') {
+      console.log("Employees - Dispatching fetchEmployees (Token present, status idle)");
+      dispatch(fetchEmployees());
+    } else {
+      console.log("Employees - Skipping fetchEmployees, status:", employeeStatus);
+    }
+
+  }, [dispatch, employeeStatus, token, isAuthLoading, isAuthenticated, navigate]); // Added dependencies
 
   const handleDelete = (id, name) => {
     if (
@@ -45,105 +89,91 @@ const Employees = () => {
         `Are you sure you want to delete employee "${name}"? This action cannot be undone.`
       )
     ) {
+      // Dispatch deleteEmployee thunk from slice
       dispatch(deleteEmployee(id));
-      // Consider adding feedback (e.g., toast notification) on success/failure
     }
   };
 
-  // Filter employees based on search term (case-insensitive)
-  // Adapt the fields to search based on your employee data model
-  const filteredEmployees = employees.filter(
+   // Ensure employees is an array before filtering
+   const filteredEmployees = Array.isArray(employees) ? employees.filter(
     (emp) =>
       emp?.name?.toLowerCase().includes(search.toLowerCase()) ||
       emp?.employeeCode?.toLowerCase().includes(search.toLowerCase()) ||
       emp?.email?.toLowerCase().includes(search.toLowerCase())
-  );
+  ) : [];
 
-  // Define grid columns - adjust fr units based on desired column widths
-  // Added columns for all fields shown in the original table
-  const gridColumns = '1.5fr 1fr 1.5fr 0.7fr 0.7fr 1fr 1fr 1fr auto'; // Adjusted for employee fields + actions
+  const gridColumns = '1.5fr 1fr 1.5fr 0.7fr 0.7fr 1fr 1fr 1fr auto';
+
+  // Display loading indicator if auth is loading OR employees are loading
+  const showLoading = isAuthLoading || loading;
 
   return (
-    // Use the main page class from Vehicles.scss
-    <div className='vehicles-page'>
-      {/* Use the header structure and classes from Vehicles.scss */}
+    <div className='vehicles-page'> {/* Consider renaming class if not specific to vehicles */}
       <div className='vehicles-header'>
         <div className='title-breadcrumbs'>
           <h2>
-            <FontAwesomeIcon icon={faIdCard} /> Employees {/* Changed Icon */}
+            <FontAwesomeIcon icon={faIdCard} /> Employees
           </h2>
           <div className='breadcrumbs'>
-            <Link
-              to='/dashboard'
-              className='breadcrumb-link'
-            >
-              Dashboard
-            </Link>
+            <Link to='/dashboard' className='breadcrumb-link'> Dashboard </Link>
             <span className='breadcrumb-separator'> / </span>
             <span className='breadcrumb-current'>Employees</span>
           </div>
         </div>
-        {/* --- START: MOVED BUTTON HERE --- */}
-        <div className="header-actions"> {/* Container for header buttons */}
+        <div className="header-actions">
           {user?.role === 'employer' && (
             <button
-              className='btn btn-success' // Standard green button
+              className='btn btn-success'
               onClick={() => navigate('/employees/add')}
+              disabled={showLoading} // Disable button while loading anything
             >
               <FontAwesomeIcon icon={faPlus} /> Add Employee
             </button>
           )}
         </div>
-        {/* --- END: MOVED BUTTON HERE --- */}
       </div>
 
-      {/* Add Search Input - using styles from Vehicles.scss */}
       <div className='vehicles-search'>
         <input
           type='text'
-          placeholder='Search by Name, Code, or Email...' // Updated placeholder
+          placeholder='Search by Name, Code, or Email...'
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           aria-label='Search Employees'
+          disabled={showLoading} // Disable search while loading
         />
-        <FontAwesomeIcon
-          icon={faSearch}
-          className='search-icon'
-        />
+        <FontAwesomeIcon icon={faSearch} className='search-icon' />
       </div>
 
-      {/* Loading State - using styles from Vehicles.scss */}
-      {loading && (
+      {/* Use combined loading state */}
+      {showLoading && (
         <div className='loading-indicator'>
-          <FontAwesomeIcon
-            icon={faSpinner}
-            spin
-            size='2x'
-          />
-          <p>Loading employees...</p>
+          <FontAwesomeIcon icon={faSpinner} spin size='2x' />
+          <p>{isAuthLoading ? 'Authenticating...' : 'Loading employees...'}</p>
         </div>
       )}
 
-      {/* Error State - using styles from Vehicles.scss */}
-      {error && !loading && (
+      {/* Use Redux error state - show only if not loading */}
+      {error && !showLoading && (
         <div className='error-message'>
           <FontAwesomeIcon icon={faExclamationCircle} />
-          {/* Display error message, handle object/string errors */}
-          <p>Error loading employees: {typeof error === 'string' ? error : error.message || JSON.stringify(error)}</p>
-          {/* Optional: Add a retry button if desired */}
-          <button className="btn btn-secondary" onClick={() => dispatch(getEmployees())}>Retry</button>
+          <p>Error loading employees: {error}</p>
+          {/* Provide retry only if the error is specifically 'Not authorized...' */}
+          {error === 'Not authorized, no token provided' ? (
+             <p>Please try logging in again.</p>
+          ) : (
+             <button className="btn btn-secondary" onClick={() => dispatch(fetchEmployees())}>Retry</button>
+          )}
         </div>
       )}
 
-      {/* Employee Grid/List - using the grid structure from Vehicles.scss */}
-      {!loading && !error && (
+      {/* Employee Grid - Show only if not loading and no error */}
+      {!showLoading && !error && (
         <div className='vehicles-grid'>
-          {/* Header Row */}
           <div
             className='vehicles-row header'
-            style={{ gridTemplateColumns: gridColumns }} // Apply dynamic columns
+            style={{ gridTemplateColumns: gridColumns }}
           >
-            {/* Match header titles to the data fields */}
             <div>Name</div>
             <div>Employee Code</div>
             <div>Email</div>
@@ -155,19 +185,17 @@ const Employees = () => {
             {user?.role === 'employer' && <div>Actions</div>}
           </div>
 
-          {/* Data Rows */}
           {filteredEmployees.length === 0 ? (
             <div className='vehicles-row no-results'>
-              {search ? 'No employees match your search.' : 'No employees found.'}
+              {search ? 'No employees match your search.' : (Array.isArray(employees) && employees.length === 0 ? 'No employees found.' : 'No employees match your search.')}
             </div>
           ) : (
             filteredEmployees.map((emp) => (
               <div
                 key={emp._id}
-                className='vehicles-row vehicle-card' // Use vehicle-card for responsive styles
-                style={{ gridTemplateColumns: gridColumns }} // Apply dynamic columns
+                className='vehicles-row vehicle-card' // Consider renaming class
+                style={{ gridTemplateColumns: gridColumns }}
               >
-                {/* Add data-label attributes matching the header titles */}
                 <div data-label='Name'>{emp.name || '--'}</div>
                 <div data-label='Code'>{emp.employeeCode || '--'}</div>
                 <div data-label='Email'>{emp.email || '--'}</div>
@@ -177,13 +205,9 @@ const Employees = () => {
                 <div data-label='Holiday X'>{emp.holidayMultiplier != null ? emp.holidayMultiplier : '--'}</div>
                 <div data-label='Wage'>{emp.wage != null ? `$${emp.wage}/hr` : '--'}</div>
                 {user?.role === 'employer' && (
-                  <div
-                    data-label='Actions'
-                    className='actions' // Use .actions class for styling container
-                  >
-                    {/* Use icon button styles from Vehicles.scss */}
+                  <div data-label='Actions' className='actions'>
                     <button
-                      className='btn-icon btn-icon-yellow' // Edit button style
+                      className='btn-icon btn-icon-yellow'
                       onClick={() => navigate(`/employees/edit/${emp._id}`)}
                       aria-label={`Edit ${emp.name}`}
                       title={`Edit ${emp.name}`}
@@ -191,8 +215,8 @@ const Employees = () => {
                       <FontAwesomeIcon icon={faPen} />
                     </button>
                     <button
-                      className='btn-icon btn-icon-red' // Delete button style
-                      onClick={() => handleDelete(emp._id, emp.name)}
+                      className='btn-icon btn-icon-red'
+                      onClick={() => handleDelete(emp._id, emp.name)} // handleDelete already uses the thunk
                       aria-label={`Delete ${emp.name}`}
                       title={`Delete ${emp.name}`}
                     >

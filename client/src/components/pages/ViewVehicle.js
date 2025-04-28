@@ -295,7 +295,7 @@ const ViewVehicle = () => {
             </button>
           )}
           <button
-            className='btn btn-purple' // Use consistent class
+            className='btn btn-purple' 
             onClick={toggleSendReport}
             aria-expanded={showSendReport}
             aria-controls="send-report-options-view" // Unique ID for ARIA
@@ -303,7 +303,7 @@ const ViewVehicle = () => {
             <FontAwesomeIcon icon={faPaperPlane} /> Send Report
           </button>
           <button
-            className='btn btn-danger' // Use consistent class
+            className='btn btn-danger' 
             onClick={toggleDownloadReport}
             aria-expanded={showDateRangePicker}
             aria-controls="download-report-options-view" // Unique ID for ARIA
@@ -362,7 +362,7 @@ const ViewVehicle = () => {
               required
             />
             <button
-              className='btn btn-purple' // Use consistent class
+              className='btn btn-purple' 
               onClick={handleSendVehicleReport}
               disabled={sending || !startDate || !endDate || !sendEmail || !/\S+@\S+\.\S+/.test(sendEmail)}
             >
@@ -412,7 +412,7 @@ const ViewVehicle = () => {
             />
           </div>
           <button
-            className='btn btn-danger' // Use consistent class
+            className='btn btn-danger' 
             onClick={handleDownloadExcelReport}
             disabled={downloading || !startDate || !endDate}
           >

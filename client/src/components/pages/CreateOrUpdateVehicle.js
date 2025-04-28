@@ -11,7 +11,7 @@ import {
   faTimes,
   faSave,
 } from '@fortawesome/free-solid-svg-icons';
-import '../../styles/Forms.scss'; // *** Use Forms.scss ***
+import '../../styles/Forms.scss';
 
 const API_URL =
   process.env.REACT_APP_API_URL || 'https://timesheet-c4mj.onrender.com/api';
@@ -154,11 +154,10 @@ const CreateOrUpdateVehicle = () => {
         </div>
       </div>
 
-      <div className='form-container'> {/* Use standard form container */}
+      <div className='form-container'>
         <form
           onSubmit={handleSubmit}
-          className='employee-form' // Use standard form class
-          noValidate
+          className='employee-form' 
         >
           {error && (
             <div className='form-error-message'>
@@ -212,7 +211,7 @@ const CreateOrUpdateVehicle = () => {
           <div className='form-footer'> {/* Use standard footer */}
             <button
               type='button'
-              className='btn btn-danger' // Standard button class
+              className='btn btn-danger' 
               onClick={() => navigate('/vehicles')}
               disabled={isLoading}
             >
@@ -220,7 +219,7 @@ const CreateOrUpdateVehicle = () => {
             </button>
             <button
               type='submit'
-              className='btn btn-success' // Standard button class
+              className='btn btn-success' 
               disabled={isLoading}
             >
               {isLoading ? (

@@ -342,7 +342,7 @@ const CreateOrUpdateVehicleReview = () => {
                 )}
               </button>
             </div>
-          </form>
+          </form>//
         </div>
       )}
     </div>

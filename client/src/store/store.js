@@ -1,22 +1,26 @@
+// /home/digilab/timesheet/client/src/store/store.js
 import { configureStore } from "@reduxjs/toolkit";
+
+
 import authReducer from "../redux/slices/authSlice.js";
-import alertReducer from "../redux/reducers/alertReducer.js";
-import employeeReducer from "../redux/reducers/employeeReducer.js";
-import timesheetReducer from "../redux/reducers/timesheetReducer.js";
-import clientReducer from "../redux/reducers/clientReducer.js";
-import projectReducer from "../redux/reducers/projectReducer.js";
+import clientReducer from "../redux/slices/clientSlice.js";
+import employeeReducer from "../redux/slices/employeeSlice.js";
+import projectReducer from "../redux/slices/projectSlice.js";
+import timesheetReducer from "../redux/slices/timesheetSlice.js";
+import alertReducer from "../redux/slices/alertSlice.js";
 
 
 const store = configureStore({
   reducer: {
-    alert: alertReducer,
+
+    alerts: alertReducer,
     employees: employeeReducer,
-    timesheet: timesheetReducer,
-    clients : clientReducer,
-    project:projectReducer,
+    timesheets: timesheetReducer,
+    clients: clientReducer,
+    projects: projectReducer,
     auth: authReducer,
   },
-  devTools: process.env.NODE_ENV !== "production", // Enable Redux DevTools in development
+  devTools: process.env.NODE_ENV !== "production",
 });
 
 export default store;

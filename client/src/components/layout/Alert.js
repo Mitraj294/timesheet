@@ -1,23 +1,38 @@
 import React from 'react';
-import PropTypes from 'prop-types';
-import { connect } from 'react-redux';
+import { useSelector } from 'react-redux';
 
-const Alert = ({ alerts }) => (
-  <div className="alert-wrapper">
-    {alerts.map((alert) => (
-      <div key={alert.id} className={`alert alert-${alert.alertType}`}>
-        {alert.msg}
-      </div>
-    ))}
-  </div>
-);
+const Alert = () => {
+  const alerts = useSelector(state => state.alerts);
 
-Alert.propTypes = {
-  alerts: PropTypes.array.isRequired
+  // console.log('Alerts data received:', alerts); // Keep for debugging if needed
+
+  // No alerts? Render nothing.
+  if (!alerts || alerts.length === 0) {
+    return null;
+  }
+
+  // Use React.Fragment if the outer div isn't needed for styling
+  return (
+    <React.Fragment>
+      {alerts.map(alert => {
+        // console.log('Processing alert:', alert); // Keep for debugging if needed
+
+        // Gracefully handle potentially invalid alert objects
+        if (!alert || !alert.id) {
+           console.error("Invalid alert object found:", alert);
+           return null; // Skip rendering this invalid alert
+        }
+
+        // Render the alert
+        return (
+          <div key={alert.id} className={`alert alert-${alert.alertType || 'info'}`}>
+            {alert.msg || 'No message provided'}
+          </div>
+        );
+      })}
+    </React.Fragment>
+  );
 };
 
-const mapStateToProps = (state) => ({
-  alerts: state.alert
-});
+export default Alert;
 
-export default connect(mapStateToProps)(Alert);

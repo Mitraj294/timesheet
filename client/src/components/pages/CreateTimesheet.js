@@ -1,10 +1,24 @@
+// /home/digilab/timesheet/client/src/components/pages/CreateTimesheet.js
 import React, { useEffect, useState } from 'react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
-import { connect } from 'react-redux';
-import { getEmployees } from '../../redux/actions/employeeActions';
-import { getClients } from '../../redux/actions/clientActions';
-import { getProjects } from '../../redux/actions/projectActions';
-import axios from 'axios';
+import { useSelector, useDispatch } from 'react-redux';
+
+// --- UPDATED IMPORTS ---
+import { fetchClients, selectAllClients } from '../../redux/slices/clientSlice';
+import { fetchEmployees, selectAllEmployees } from '../../redux/slices/employeeSlice';
+// Import from projectSlice instead of projectActions
+import {
+  fetchProjects,
+  clearProjects, // Action to clear projects when client changes
+  selectProjectsByClientId, // Selector to get projects for the selected client
+  selectProjectStatus,
+  selectProjectError
+} from '../../redux/slices/projectSlice';
+// Remove old project action import
+// import { getProjects } from '../../redux/actions/projectActions';
+// --- END UPDATED IMPORTS ---
+
+import axios from 'axios'; // Keep axios for direct API calls if needed elsewhere
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
   faPen,
@@ -14,29 +28,25 @@ import {
   faExclamationCircle,
   faClock,
 } from '@fortawesome/free-solid-svg-icons';
-import '../../styles/Forms.scss'; // *** Use Forms.scss ***
+import '../../styles/Forms.scss';
 import { DateTime } from 'luxon';
 
 const API_URL = process.env.REACT_APP_API_URL || 'https://timesheet-c4mj.onrender.com/api';
 
-const CreateTimesheet = ({
-  employees,
-  clients,
-  projects,
-  getEmployees,
-  getClients,
-  getProjects,
-}) => {
+const CreateTimesheet = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const dispatch = useDispatch();
+
   const timesheetToEdit = location?.state?.timesheet;
   const isEditing = Boolean(timesheetToEdit?._id);
 
+  // --- State ---
   const [formData, setFormData] = useState({
     employeeId: '',
     clientId: '',
     projectId: '',
-    date: DateTime.now().toFormat('yyyy-MM-dd'), // Default to today
+    date: DateTime.now().toFormat('yyyy-MM-dd'),
     startTime: '',
     endTime: '',
     lunchBreak: 'No',
@@ -48,10 +58,18 @@ const CreateTimesheet = ({
     notes: '',
     timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
   });
+  const [isLoading, setIsLoading] = useState(false); // Local loading for submission
+  const [error, setError] = useState(null); // Local error for form validation/submission
 
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState(null);
-  const [filteredProjects, setFilteredProjects] = useState([]);
+  // --- Selectors ---
+  const employees = useSelector(selectAllEmployees);
+  const clients = useSelector(selectAllClients);
+  // Select projects based on the currently selected client ID in the form
+  const projectsForSelectedClient = useSelector((state) =>
+    selectProjectsByClientId(state, formData.clientId)
+  );
+  const projectStatus = useSelector(selectProjectStatus); // Get project loading status
+  const projectError = useSelector(selectProjectError); // Get project fetch error
 
   const isLeaveSelected = [
     'Annual',
@@ -61,33 +79,28 @@ const CreateTimesheet = ({
     'Unpaid',
   ].includes(formData.leaveType);
 
+  // --- Effects ---
+  // Fetch employees and clients on mount
   useEffect(() => {
-    getEmployees();
-    getClients();
-  }, [getEmployees, getClients]);
+    dispatch(fetchEmployees());
+    dispatch(fetchClients());
+  }, [dispatch]);
 
+  // Fetch projects when the selected client ID changes
   useEffect(() => {
     if (formData.clientId) {
-      getProjects(formData.clientId);
+      // Dispatch fetchProjects thunk with the selected clientId
+      dispatch(fetchProjects(formData.clientId));
     } else {
-      setFilteredProjects([]);
+      // Clear projects if no client is selected
+      dispatch(clearProjects());
     }
-  }, [formData.clientId, getProjects]);
+    // Reset projectId when client changes
+    setFormData(prev => ({ ...prev, projectId: '' }));
 
-  useEffect(() => {
-    if (formData.clientId && projects.length > 0) {
-      setFilteredProjects(
-        projects.filter((p) =>
-          typeof p.clientId === 'object'
-            ? p.clientId._id === formData.clientId
-            : p.clientId === formData.clientId
-        )
-      );
-    } else {
-      setFilteredProjects([]);
-    }
-  }, [projects, formData.clientId]);
+  }, [formData.clientId, dispatch]);
 
+  // Populate form if editing
   useEffect(() => {
     if (timesheetToEdit) {
       console.log('Editing timesheet:', timesheetToEdit);
@@ -115,16 +128,14 @@ const CreateTimesheet = ({
         timezone: timesheetToEdit.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone,
       };
       setFormData(initialFormData);
-
-      // Recalculate hours based on pre-filled times
-      calculateHours(initialFormData);
+      calculateHours(initialFormData); // Recalculate hours based on loaded data
     }
-    // No else needed for default date, set in initial useState
-  }, [timesheetToEdit]);
+  }, [timesheetToEdit]); // Only run when timesheetToEdit changes
 
+  // --- Functions (calculateHours, handleChange, validateForm, handleSubmit) ---
   const calculateHours = (currentFormData = formData) => {
     const { startTime, endTime, lunchBreak, lunchDuration, leaveType } = currentFormData;
-    const isLeave = leaveType !== 'None'; // Check based on currentFormData
+    const isLeave = leaveType !== 'None';
 
     if (!startTime || !endTime || isLeave) {
       setFormData((prev) => ({ ...prev, totalHours: 0 }));
@@ -181,15 +192,22 @@ const CreateTimesheet = ({
         notes: isLeave ? '' : formData.notes,
         description: !isLeave ? '' : formData.description,
       };
-      // Recalculate hours when leave type changes
+      // If switching to leave, clear client/project and recalculate hours
+      if (isLeave) {
+          dispatch(clearProjects()); // Clear projects from Redux state
+      }
+      calculateHours(updatedFormData);
+    }
+
+    // If client changes, projectId needs to be reset (handled in useEffect for clientId)
+    // If time/lunch changes, recalculate hours
+    if (['startTime', 'endTime', 'lunchBreak', 'lunchDuration'].includes(name)) {
       calculateHours(updatedFormData);
     }
 
     setFormData(updatedFormData);
-
-    if (['startTime', 'endTime', 'lunchBreak', 'lunchDuration'].includes(name)) {
-      calculateHours(updatedFormData);
-    }
+    // Clear local error on change
+    if (error) setError(null);
   };
 
   const validateForm = () => {
@@ -209,7 +227,7 @@ const CreateTimesheet = ({
       if (parseFloat(formData.totalHours) <= 0) {
           return 'Total Hours must be greater than zero for work entries.';
       }
-      if (parseFloat(formData.totalHours) > 9) {
+      if (parseFloat(formData.totalHours) > 9) { // Example validation
         return 'Total working hours cannot exceed 9 hours.';
       }
     }
@@ -218,7 +236,7 @@ const CreateTimesheet = ({
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError(null);
+    setError(null); // Clear previous local errors
 
     const validationError = validateForm();
     if (validationError) {
@@ -229,11 +247,11 @@ const CreateTimesheet = ({
     const token = localStorage.getItem('token');
     if (!token) {
       setError('Authentication required. Please log in.');
-      navigate('/login');
+      // navigate('/login'); // Consider redirecting
       return;
     }
 
-    setIsLoading(true);
+    setIsLoading(true); // Start local submission loading
 
     try {
       const config = {
@@ -243,6 +261,7 @@ const CreateTimesheet = ({
         },
       };
 
+      // Check for duplicates only when creating a new entry
       if (!isEditing) {
         try {
           const checkRes = await axios.get(`${API_URL}/timesheets/check`, {
@@ -260,10 +279,12 @@ const CreateTimesheet = ({
             return;
           }
         } catch (checkErr) {
+          // Log error but allow submission to proceed if check fails
           console.error('Error checking for duplicate timesheet:', checkErr);
         }
       }
 
+      // Prepare data for API request
       const requestData = {
         ...formData,
         clientId: isLeaveSelected ? null : String(formData.clientId),
@@ -274,6 +295,7 @@ const CreateTimesheet = ({
         hourlyWage: parseFloat(formData.hourlyWage) || 0,
       };
 
+      // Make API call to create or update
       if (isEditing) {
         await axios.put(
           `${API_URL}/timesheets/${timesheetToEdit._id}`,
@@ -288,22 +310,27 @@ const CreateTimesheet = ({
         );
       }
 
-      navigate('/timesheet');
+      navigate('/timesheet'); // Navigate on success
 
-    } catch (error) {
-      console.error(`Error ${isEditing ? 'updating' : 'creating'} timesheet:`, error.response || error);
+    } catch (apiError) {
+      console.error(`Error ${isEditing ? 'updating' : 'creating'} timesheet:`, apiError.response || apiError);
+      // Set local error state based on API response
       setError(
-        error?.response?.data?.message ||
+        apiError?.response?.data?.message ||
         `Failed to ${isEditing ? 'update' : 'create'} timesheet. Please try again.`
       );
     } finally {
-      setIsLoading(false);
+      setIsLoading(false); // Stop local submission loading
     }
   };
 
+
+  // --- JSX ---
+  const isProjectLoading = projectStatus === 'loading'; // Loading state for project dropdown
+
   return (
-    <div className='vehicles-page'> {/* Use standard page class */}
-      <div className='vehicles-header'> {/* Use standard header */}
+    <div className='vehicles-page'> {/* Consider renaming class */}
+      <div className='vehicles-header'>
         <div className='title-breadcrumbs'>
           <h2>
             <FontAwesomeIcon icon={isEditing ? faPen : faClock} />{' '}
@@ -325,14 +352,16 @@ const CreateTimesheet = ({
         </div>
       </div>
 
-      <div className='form-container'> {/* Use standard form container */}
-        <form onSubmit={handleSubmit} className='employee-form' noValidate> {/* Use standard form class */}
-          {error && (
+      <div className='form-container'>
+        <form onSubmit={handleSubmit} className='employee-form' noValidate>
+          {/* Display local form error OR project fetch error */}
+          {(error || projectError) && (
             <div className='form-error-message'>
-              <FontAwesomeIcon icon={faExclamationCircle} /> {error}
+              <FontAwesomeIcon icon={faExclamationCircle} /> {error || projectError}
             </div>
           )}
 
+          {/* Employee Select */}
           <div className='form-group'>
             <label htmlFor='employeeId'>Employee*</label>
             <select
@@ -341,7 +370,7 @@ const CreateTimesheet = ({
               value={formData.employeeId}
               onChange={handleChange}
               required
-              disabled={isEditing || isLoading}
+              disabled={isEditing || isLoading} // Disable if editing or submitting
             >
               <option value=''>-- Select Employee --</option>
               {employees.map((emp) => (
@@ -352,6 +381,7 @@ const CreateTimesheet = ({
             </select>
           </div>
 
+          {/* Date Input */}
           <div className='form-group'>
             <label htmlFor='date'>Date*</label>
             <input
@@ -361,10 +391,11 @@ const CreateTimesheet = ({
               value={formData.date}
               onChange={handleChange}
               required
-              disabled={isEditing || isLoading}
+              disabled={isEditing || isLoading} // Disable if editing or submitting
             />
           </div>
 
+          {/* Leave Type Select */}
           <div className='form-group'>
             <label htmlFor='leaveType'>Leave Type</label>
             <select
@@ -372,7 +403,7 @@ const CreateTimesheet = ({
               name='leaveType'
               value={formData.leaveType}
               onChange={handleChange}
-              disabled={isLoading}
+              disabled={isLoading} // Disable only if submitting
             >
               <option value='None'>None </option>
               <option value='Annual'>Annual Leave</option>
@@ -383,6 +414,7 @@ const CreateTimesheet = ({
             </select>
           </div>
 
+          {/* Conditional Leave Description */}
           {isLeaveSelected && (
             <div className='form-group'>
               <label htmlFor='description'>Leave Description*</label>
@@ -393,14 +425,16 @@ const CreateTimesheet = ({
                 onChange={handleChange}
                 placeholder='Provide reason for leave'
                 required={isLeaveSelected}
-                disabled={isLoading}
+                disabled={isLoading} // Disable only if submitting
                 rows='3'
               />
             </div>
           )}
 
+          {/* Conditional Work Fields */}
           {!isLeaveSelected && (
             <>
+              {/* Client Select */}
               <div className='form-group'>
                 <label htmlFor='clientId'>Client*</label>
                 <select
@@ -409,7 +443,7 @@ const CreateTimesheet = ({
                   value={formData.clientId || ''}
                   onChange={handleChange}
                   required={!isLeaveSelected}
-                  disabled={isLoading}
+                  disabled={isLoading} // Disable only if submitting
                 >
                   <option value=''>-- Select Client --</option>
                   {clients.map((c) => (
@@ -420,6 +454,7 @@ const CreateTimesheet = ({
                 </select>
               </div>
 
+              {/* Project Select */}
               <div className='form-group'>
                 <label htmlFor='projectId'>Project*</label>
                 <select
@@ -428,18 +463,24 @@ const CreateTimesheet = ({
                   value={formData.projectId || ''}
                   onChange={handleChange}
                   required={!isLeaveSelected}
-                  disabled={isLoading || !formData.clientId}
+                  // Disable if submitting, projects are loading, or no client selected
+                  disabled={isLoading || isProjectLoading || !formData.clientId}
                 >
-                  <option value=''>-- Select Project --</option>
-                  {filteredProjects.map((p) => (
+                  <option value=''>
+                    {isProjectLoading ? 'Loading projects...' : '-- Select Project --'}
+                  </option>
+                  {/* Use projects filtered by the selected client */}
+                  {projectsForSelectedClient.map((p) => (
                     <option key={p._id} value={p._id}>
                       {p.name}
                     </option>
                   ))}
                 </select>
-                 {!formData.clientId && <small>Please select a client first.</small>}
+                 {!formData.clientId && !isProjectLoading && <small>Please select a client first.</small>}
+                 {formData.clientId && !isProjectLoading && projectsForSelectedClient.length === 0 && <small>No projects found for this client.</small>}
               </div>
 
+              {/* Start Time */}
               <div className='form-group'>
                 <label htmlFor='startTime'>Start Time*</label>
                 <input
@@ -448,12 +489,13 @@ const CreateTimesheet = ({
                   name='startTime'
                   value={formData.startTime}
                   onChange={handleChange}
-                  step='60'
+                  step='60' // 1 minute increments
                   required={!isLeaveSelected}
-                  disabled={isLoading}
+                  disabled={isLoading} // Disable only if submitting
                 />
               </div>
 
+              {/* End Time */}
               <div className='form-group'>
                 <label htmlFor='endTime'>End Time*</label>
                 <input
@@ -462,12 +504,13 @@ const CreateTimesheet = ({
                   name='endTime'
                   value={formData.endTime}
                   onChange={handleChange}
-                  step='60'
+                  step='60' // 1 minute increments
                   required={!isLeaveSelected}
-                  disabled={isLoading}
+                  disabled={isLoading} // Disable only if submitting
                 />
               </div>
 
+              {/* Lunch Break Select */}
               <div className='form-group'>
                 <label htmlFor='lunchBreak'>Lunch Break</label>
                 <select
@@ -475,13 +518,14 @@ const CreateTimesheet = ({
                   name='lunchBreak'
                   value={formData.lunchBreak}
                   onChange={handleChange}
-                  disabled={isLoading}
+                  disabled={isLoading} // Disable only if submitting
                 >
                   <option value='No'>No</option>
                   <option value='Yes'>Yes</option>
                 </select>
               </div>
 
+              {/* Conditional Lunch Duration */}
               {formData.lunchBreak === 'Yes' && (
                 <div className='form-group'>
                   <label htmlFor='lunchDuration'>Lunch Duration (HH:MM)</label>
@@ -491,7 +535,7 @@ const CreateTimesheet = ({
                     value={formData.lunchDuration}
                     onChange={handleChange}
                     required={formData.lunchBreak === 'Yes'}
-                    disabled={isLoading}
+                    disabled={isLoading} // Disable only if submitting
                   >
                     <option value='00:00'>00:00</option>
                     <option value='00:15'>00:15</option>
@@ -504,6 +548,7 @@ const CreateTimesheet = ({
                 </div>
               )}
 
+              {/* Work Notes */}
               <div className='form-group'>
                 <label htmlFor='notes'>Work Notes</label>
                 <textarea
@@ -512,13 +557,14 @@ const CreateTimesheet = ({
                   value={formData.notes}
                   onChange={handleChange}
                   placeholder='Add any work-related notes'
-                  disabled={isLoading}
+                  disabled={isLoading} // Disable only if submitting
                   rows='3'
                 />
               </div>
             </>
           )}
 
+          {/* Hourly Wage (Read-only) */}
           <div className='form-group'>
             <label>Hourly Wage (Read-only)</label>
             <input
@@ -529,25 +575,27 @@ const CreateTimesheet = ({
             />
           </div>
 
+          {/* Total Hours Calculated */}
           {!isLeaveSelected && (
              <div className='form-group summary'>
                 <strong>Total Hours Calculated:</strong> {formData.totalHours} hours
              </div>
           )}
 
-          <div className='form-footer'> {/* Use standard footer */}
+          {/* Form Footer */}
+          <div className='form-footer'>
             <button
               type='button'
-              className='btn btn-danger' // Standard button class
+              className='btn btn-danger'
               onClick={() => navigate('/timesheet')}
-              disabled={isLoading}
+              disabled={isLoading} // Disable only if submitting
             >
                <FontAwesomeIcon icon={faTimes} /> Cancel
             </button>
             <button
               type='submit'
-              className='btn btn-success' // Standard button class
-              disabled={isLoading}
+              className='btn btn-success'
+              disabled={isLoading} // Disable only if submitting
             >
               {isLoading ? (
                 <>
@@ -567,21 +615,4 @@ const CreateTimesheet = ({
   );
 };
 
-const mapStateToProps = (state) => ({
-  employees: state.employees?.employees || [],
-  clients: state.clients?.clients || [],
-  projects: state.project?.projects || [],
-});
-
-// Pass location prop if using React Router v5 or ensure it's available in v6
-const CreateTimesheetWithRouter = (props) => {
-    const location = useLocation(); // Hook for React Router v6
-    return <CreateTimesheet {...props} location={location} />;
-};
-
-
-export default connect(mapStateToProps, {
-  getEmployees,
-  getClients,
-  getProjects,
-})(CreateTimesheetWithRouter); // Export the wrapped component
+export default CreateTimesheet;

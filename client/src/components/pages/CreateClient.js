@@ -15,7 +15,7 @@ import {
   faStar,
   faPen,
 } from "@fortawesome/free-solid-svg-icons";
-import "../../styles/Forms.scss"; // *** Use Forms.scss ***
+import "../../styles/Forms.scss"; 
 
 const API_URL = process.env.REACT_APP_API_URL || 'https://timesheet-c4mj.onrender.com/api';
 
@@ -125,7 +125,7 @@ const CreateClient = () => {
 
   if (isLoading) {
     return (
-      <div className='vehicles-page'> {/* Use standard page class */}
+      <div className='vehicles-page'> 
         <div className='loading-indicator'>
           <FontAwesomeIcon icon={faSpinner} spin size='2x' />
           <p>Loading client data...</p>

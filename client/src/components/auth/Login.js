@@ -1,12 +1,15 @@
+// /home/digilab/timesheet/client/src/components/auth/Login.js
 import React, { useState, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { useNavigate } from "react-router-dom"; 
-import { loginUser } from "../../redux/slices/authSlice"; 
-import "../../styles/Login.scss"; 
+import { useNavigate } from "react-router-dom";
+// Correct the import name here
+import { login } from "../../redux/slices/authSlice"; // Changed from loginUser to login
+import "../../styles/Login.scss";
 
 const Login = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
+  // Selects state needed for UI feedback and redirection
   const { isAuthenticated, error, loading } = useSelector((state) => state.auth);
 
   const [formData, setFormData] = useState({
@@ -14,27 +17,30 @@ const Login = () => {
     password: "",
   });
 
+  // Redirects user to dashboard upon successful authentication
   useEffect(() => {
     if (isAuthenticated) {
-      navigate("/dashboard"); // Redirect after successful login
+      navigate("/dashboard");
     }
   }, [isAuthenticated, navigate]);
 
+  // Handles form input changes
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
+  // Handles form submission by dispatching the login action
   const handleSubmit = (e) => {
     e.preventDefault();
-    dispatch(loginUser(formData));
+    // Use the correctly imported action here
+    dispatch(login(formData)); // Changed from loginUser to login
   };
 
   return (
     <div className="styles_LoginSignupContainer">
       <div className="styles_Card styles_Login">
         <div className="styles_Login_header">
-        <img src="/img/download.png" alt="App Logo" />
-
+          <img src="/img/download.png" alt="App Logo" />
         </div>
         <form onSubmit={handleSubmit} className="styles_LoginForm">
           <div className="styles_InputGroup">
@@ -57,13 +63,15 @@ const Login = () => {
               required
             />
           </div>
+          {/* Displays login errors */}
           {error && <p className="styles_Error">{error}</p>}
+          {/* Disables button while loading */}
           <button type="submit" className="styles_Button" disabled={loading}>
             {loading ? "Logging in..." : "Login"}
           </button>
         </form>
         <p className="styles_SignupPrompt">
-          Don't have an account?  
+          Don't have an account?
           <button
             className="styles_SignupButton"
             onClick={() => navigate("/register", { state: { email: formData.email } })}

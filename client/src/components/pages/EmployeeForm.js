@@ -1,11 +1,18 @@
+// /home/digilab/timesheet/client/src/components/pages/EmployeeForm.js
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
+// --- UPDATED IMPORTS ---
+// Import from employeeSlice instead of employeeActions
 import {
   addEmployee,
   updateEmployee,
-  getEmployees,
-} from '../../redux/actions/employeeActions';
+  fetchEmployees, // Renamed from getEmployees
+  selectAllEmployees,
+  selectEmployeeStatus,
+  selectEmployeeError
+} from '../../redux/slices/employeeSlice';
+// --- END UPDATED IMPORTS ---
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
   faUserPlus,
@@ -15,10 +22,9 @@ import {
   faSave,
   faTimes,
 } from '@fortawesome/free-solid-svg-icons';
-import '../../styles/Forms.scss'; // *** Use Forms.scss ***
+import '../../styles/Forms.scss';
 
-const API_URL =
-  process.env.REACT_APP_API_URL || 'https://timesheet-c4mj.onrender.com/api';
+const API_URL = process.env.REACT_APP_API_URL || 'https://timesheet-c4mj.onrender.com/api';
 
 const EmployeeForm = () => {
   const { id } = useParams();
@@ -26,8 +32,11 @@ const EmployeeForm = () => {
   const dispatch = useDispatch();
   const isEditMode = Boolean(id);
 
-  const { employees = [], loading: employeesLoading, error: employeesError } =
-    useSelector((state) => state.employees || { employees: [] });
+  // --- UPDATED SELECTORS ---
+  const employees = useSelector(selectAllEmployees);
+  const employeeStatus = useSelector(selectEmployeeStatus); // Use status selector
+  const employeesError = useSelector(selectEmployeeError); // Use error selector
+  // --- END UPDATED SELECTORS ---
 
   const initialFormState = {
     name: '',
@@ -42,15 +51,16 @@ const EmployeeForm = () => {
   };
 
   const [formData, setFormData] = useState(initialFormState);
-  const [isLoading, setIsLoading] = useState(false); // Combined loading state
-  const [error, setError] = useState(null);
+  // Use Redux status for loading, local state for submission error
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState(null); // Local error for form validation/submission
 
   useEffect(() => {
-    if (!employees.length && !employeesLoading) {
-      dispatch(getEmployees());
+    // Fetch employees if status is idle
+    if (employeeStatus === 'idle') {
+      dispatch(fetchEmployees()); // <-- Dispatch fetchEmployees thunk
     }
-  }, [dispatch, employees.length, employeesLoading]);
-
+  }, [dispatch, employeeStatus]);
 
   useEffect(() => {
     if (id && employees.length > 0) {
@@ -69,21 +79,26 @@ const EmployeeForm = () => {
         });
       } else {
         console.warn(`Employee with ID ${id} not found.`);
-        setError(`Employee with ID ${id} not found.`);
+        // Set local error if employee not found after fetch succeeded
+        if (employeeStatus === 'succeeded') {
+            setError(`Employee with ID ${id} not found.`);
+        }
       }
     } else if (!id) {
       setFormData(initialFormState);
     }
-    // setError(null); // Don't clear error here, might hide the "not found" error
-  }, [id, employees]); // Removed setError from dependency array
+  }, [id, employees, employeeStatus]); // Add employeeStatus dependency
+
+  // ... (handleChange, validateForm remain the same)
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
-    // Keep the logic for isAdmin/overtime as select values
     setFormData((prevState) => ({
       ...prevState,
       [name]: type === 'checkbox' ? checked : value,
     }));
+     // Clear local error on change
+    if (error) setError(null);
   };
 
   const validateForm = () => {
@@ -96,9 +111,10 @@ const EmployeeForm = () => {
     return null;
   };
 
+
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError(null);
+    setError(null); // Clear local error
 
     const validationError = validateForm();
     if (validationError) {
@@ -106,7 +122,7 @@ const EmployeeForm = () => {
       return;
     }
 
-    setIsLoading(true);
+    setIsSubmitting(true); // Use local submitting state
 
     let employeeData = {
       ...formData,
@@ -118,6 +134,7 @@ const EmployeeForm = () => {
     };
 
     try {
+      // --- User Check Logic (Keep as is for now, consider moving to backend/thunk later) ---
       if (!isEditMode) {
         const userCheckResponse = await fetch(`${API_URL}/auth/check-user`, {
           method: 'POST',
@@ -129,61 +146,63 @@ const EmployeeForm = () => {
             const errorData = await userCheckResponse.json();
             throw new Error(errorData.message || 'Failed to check user existence.');
         }
-
         const userCheckData = await userCheckResponse.json();
 
         if (!userCheckData.exists) {
-          console.log('User not found, registering new employee...');
           const registerResponse = await fetch(`${API_URL}/auth/register`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               name: formData.name,
               email: formData.email,
-              password: '123456', // Consider a more secure default or process
+              password: '123456',
               role: 'employee',
             }),
           });
-
           if (!registerResponse.ok) {
             const errorData = await registerResponse.json();
             throw new Error(errorData.message || 'Failed to register employee as a user.');
           }
-
           const registeredUser = await registerResponse.json();
-
           if (!registeredUser.user || !registeredUser.user._id) {
             throw new Error('Invalid response from registration. No user ID received.');
           }
-          console.log('Employee registered as user:', registeredUser);
           employeeData.userId = registeredUser.user._id;
-        } else {
-           console.log('User already exists, creating employee record without new registration.');
-           // Optionally link to existing user ID if needed and available
-           // employeeData.userId = userCheckData.userId; // If API returns ID
         }
       }
+      // --- End User Check Logic ---
 
+      // Dispatch thunks from slice
       if (isEditMode) {
-        await dispatch(updateEmployee(id, employeeData));
+        // Pass object { id, employeeData } to updateEmployee thunk
+        await dispatch(updateEmployee({ id, employeeData })).unwrap(); // Use unwrap to catch errors
       } else {
-        await dispatch(addEmployee(employeeData));
+        await dispatch(addEmployee(employeeData)).unwrap(); // Use unwrap to catch errors
       }
 
       navigate('/employees');
 
-    } catch (error) {
-      console.error(`Error ${isEditMode ? 'updating' : 'adding'} employee:`, error);
-      setError(error.message || `Failed to ${isEditMode ? 'update' : 'add'} employee.`);
+    } catch (rejectedValueOrSerializedError) {
+      // unwrap throws the error payload or a SerializedError
+      console.error(`Error ${isEditMode ? 'updating' : 'adding'} employee:`, rejectedValueOrSerializedError);
+      // Error message might be directly in rejectedValueOrSerializedError or in .message
+      const message = typeof rejectedValueOrSerializedError === 'string'
+          ? rejectedValueOrSerializedError
+          : rejectedValueOrSerializedError?.message || `Failed to ${isEditMode ? 'update' : 'add'} employee.`;
+      setError(message); // Set local error state
     } finally {
-      setIsLoading(false);
+      setIsSubmitting(false); // Stop local submitting indicator
     }
   };
 
-  // Loading state for initial employee list fetch
-  if (employeesLoading && !employees.length) {
+  // Use Redux status for initial loading
+  const isLoadingInitialData = employeeStatus === 'loading' && !employees.length;
+
+  // ... (JSX remains largely the same, but disable based on isSubmitting and show Redux error (employeesError) for initial load)
+
+  if (isLoadingInitialData) {
      return (
-        <div className='vehicles-page'> {/* Use standard page class */}
+        <div className='vehicles-page'>
             <div className='loading-indicator'>
               <FontAwesomeIcon icon={faSpinner} spin size='2x' />
               <p>Loading Employee Data...</p>
@@ -192,14 +211,14 @@ const EmployeeForm = () => {
       );
   }
 
-  // Error state for initial employee list fetch
-  if (employeesError && !employees.length) {
+  // Show Redux error if initial fetch failed
+  if (employeesError && !employees.length && employeeStatus === 'failed') {
      return (
-        <div className='vehicles-page'> {/* Use standard page class */}
+        <div className='vehicles-page'>
             <div className='error-message'>
               <FontAwesomeIcon icon={faExclamationCircle} />
-              <p>Error loading employee data: {employeesError.message || JSON.stringify(employeesError)}</p>
-               <button className="btn btn-secondary" onClick={() => dispatch(getEmployees())}>Retry</button>
+              <p>Error loading employee data: {employeesError}</p>
+               <button className="btn btn-secondary" onClick={() => dispatch(fetchEmployees())}>Retry</button>
             </div>
         </div>
       );
@@ -207,8 +226,8 @@ const EmployeeForm = () => {
 
 
   return (
-    <div className='vehicles-page'> {/* Use standard page class */}
-      <div className='vehicles-header'> {/* Use standard header */}
+    <div className='vehicles-page'>
+      <div className='vehicles-header'>
         <div className='title-breadcrumbs'>
           <h2>
             <FontAwesomeIcon icon={isEditMode ? faUserEdit : faUserPlus} />{' '}
@@ -230,53 +249,40 @@ const EmployeeForm = () => {
         </div>
       </div>
 
-      <div className='form-container'> {/* Use standard form container */}
-        <form onSubmit={handleSubmit} className='employee-form' noValidate> {/* Use standard form class */}
+      <div className='form-container'>
+        <form onSubmit={handleSubmit} className='employee-form' noValidate>
+          {/* Show local submission/validation error */}
           {error && (
             <div className='form-error-message'>
               <FontAwesomeIcon icon={faExclamationCircle} /> {error}
             </div>
           )}
 
+          {/* Disable inputs based on local isSubmitting state */}
           <div className='form-group'>
             <label htmlFor='name'>Name*</label>
             <input
-              id='name'
-              type='text'
-              name='name'
-              placeholder='Full Name'
-              value={formData.name}
-              onChange={handleChange}
-              required
-              disabled={isLoading}
+              id='name' type='text' name='name' placeholder='Full Name'
+              value={formData.name} onChange={handleChange} required
+              disabled={isSubmitting} // Use local submitting state
             />
           </div>
 
           <div className='form-group'>
             <label htmlFor='employeeCode'>Employee Code*</label>
             <input
-              id='employeeCode'
-              type='text'
-              name='employeeCode'
-              placeholder='Unique Employee Code'
-              value={formData.employeeCode}
-              onChange={handleChange}
-              required
-              disabled={isLoading}
+              id='employeeCode' type='text' name='employeeCode' placeholder='Unique Employee Code'
+              value={formData.employeeCode} onChange={handleChange} required
+              disabled={isSubmitting} // Use local submitting state
             />
           </div>
 
           <div className='form-group'>
             <label htmlFor='email'>Email*</label>
             <input
-              id='email'
-              type='email'
-              name='email'
-              placeholder='employee@example.com'
-              value={formData.email}
-              onChange={handleChange}
-              required
-              disabled={isLoading || isEditMode} // Disable email editing
+              id='email' type='email' name='email' placeholder='employee@example.com'
+              value={formData.email} onChange={handleChange} required
+              disabled={isSubmitting || isEditMode} // Use local submitting state
             />
              {isEditMode && <small>Email cannot be changed after creation.</small>}
           </div>
@@ -284,60 +290,38 @@ const EmployeeForm = () => {
           <div className='form-group'>
             <label htmlFor='wage'>Wage per Hour*</label>
             <input
-              id='wage'
-              type='number'
-              name='wage'
-              placeholder='e.g., 25.50'
-              value={formData.wage}
-              onChange={handleChange}
-              required
-              min='0'
-              step='0.01'
-              disabled={isLoading}
+              id='wage' type='number' name='wage' placeholder='e.g., 25.50'
+              value={formData.wage} onChange={handleChange} required
+              min='0' step='0.01'
+              disabled={isSubmitting} // Use local submitting state
             />
           </div>
 
           <div className='form-group'>
             <label htmlFor='expectedHours'>Expected Hours per Week*</label>
             <input
-              id='expectedHours'
-              type='number'
-              name='expectedHours'
-              placeholder='e.g., 40'
-              value={formData.expectedHours}
-              onChange={handleChange}
-              required
-              min='0'
-              step='1'
-              disabled={isLoading}
+              id='expectedHours' type='number' name='expectedHours' placeholder='e.g., 40'
+              value={formData.expectedHours} onChange={handleChange} required
+              min='0' step='1'
+              disabled={isSubmitting} // Use local submitting state
             />
           </div>
 
           <div className='form-group'>
             <label htmlFor='holidayMultiplier'>Public Holiday Multiplier*</label>
             <input
-              id='holidayMultiplier'
-              type='number'
-              name='holidayMultiplier'
-              placeholder='e.g., 1.5'
-              value={formData.holidayMultiplier}
-              onChange={handleChange}
-              required
-              min='0'
-              step='0.1'
-              disabled={isLoading}
+              id='holidayMultiplier' type='number' name='holidayMultiplier' placeholder='e.g., 1.5'
+              value={formData.holidayMultiplier} onChange={handleChange} required
+              min='0' step='0.1'
+              disabled={isSubmitting} // Use local submitting state
             />
           </div>
 
           <div className='form-group'>
             <label htmlFor='isAdmin'>Admin Role*</label>
             <select
-              id='isAdmin'
-              name='isAdmin'
-              value={formData.isAdmin}
-              onChange={handleChange}
-              required
-              disabled={isLoading}
+              id='isAdmin' name='isAdmin' value={formData.isAdmin} onChange={handleChange} required
+              disabled={isSubmitting} // Use local submitting state
             >
               <option value='No'>No</option>
               <option value='Yes'>Yes</option>
@@ -347,33 +331,28 @@ const EmployeeForm = () => {
           <div className='form-group'>
             <label htmlFor='overtime'>Overtime Allowed*</label>
             <select
-              id='overtime'
-              name='overtime'
-              value={formData.overtime}
-              onChange={handleChange}
-              required
-              disabled={isLoading}
+              id='overtime' name='overtime' value={formData.overtime} onChange={handleChange} required
+              disabled={isSubmitting} // Use local submitting state
             >
               <option value='No'>No</option>
               <option value='Yes'>Yes</option>
             </select>
           </div>
 
-          <div className='form-footer'> {/* Use standard footer */}
+          <div className='form-footer'>
             <button
-              type='button'
-              className='btn btn-danger' // Standard button class
+              type='button' className='btn btn-danger'
               onClick={() => navigate('/employees')}
-              disabled={isLoading}
+              disabled={isSubmitting} // Use local submitting state
             >
                <FontAwesomeIcon icon={faTimes} /> Cancel
             </button>
             <button
-              type='submit'
-              className='btn btn-success' // Standard button class
-              disabled={isLoading}
+              type='submit' className='btn btn-success'
+              disabled={isSubmitting} // Use local submitting state
             >
-              {isLoading ? (
+              {/* Show spinner based on local isSubmitting state */}
+              {isSubmitting ? (
                 <>
                   <FontAwesomeIcon icon={faSpinner} spin /> Saving...
                 </>
