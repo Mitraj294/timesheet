@@ -26,21 +26,20 @@ export const fetchProjects = createAsyncThunk(
     try {
       // Assuming token is stored in auth slice
       const token = getState().auth?.token; // Safely access token
-      if (!token && clientId) { // Only strictly require token if fetching specific client projects? Adjust as needed.
-          // If fetching all projects might be public, this check might differ.
-          // For now, assume token is needed for client-specific fetch.
-          // return rejectWithValue('Authentication required to fetch client projects.');
-          // Or maybe allow fetching all projects without token? Depends on API design.
-      }
+      // Removed token check - let API decide if auth is needed
+      // if (!token && clientId) {
+      //     return rejectWithValue('Authentication required to fetch client projects.');
+      // }
 
       const url = clientId
         ? `${API_URL}/projects/client/${clientId}` // Fetch by client
         : `${API_URL}/projects`; // Fetch all
 
       const response = await axios.get(url, getAuthHeaders(token));
-      return response.data || []; // Ensure array return
+      // Ensure the response data is an array, default to empty array if not
+      return Array.isArray(response.data) ? response.data : [];
     } catch (error) {
-      console.error("Error fetching projects:", error);
+      console.error("Error fetching projects:", error.response?.data || error.message); // Log more detailed error
       return rejectWithValue(getErrorMessage(error));
     }
   }
@@ -56,10 +55,11 @@ export const createProject = createAsyncThunk(
       if (!clientId) {
           return rejectWithValue('Client ID is required to create a project.');
       }
-      const response = await axios.post(`${API_URL}/clients/${clientId}/projects`, projectData, getAuthHeaders(token));
+      // Ensure the endpoint matches your backend routes
+      const response = await axios.post(`${API_URL}/projects/client/${clientId}`, projectData, getAuthHeaders(token)); // Adjusted endpoint
       return response.data;
     } catch (error) {
-      console.error("Error creating project:", error);
+      console.error("Error creating project:", error.response?.data || error.message);
       return rejectWithValue(getErrorMessage(error));
     }
   }
@@ -78,7 +78,7 @@ export const updateProject = createAsyncThunk(
       const response = await axios.put(`${API_URL}/projects/${projectId}`, projectData, getAuthHeaders(token));
       return response.data; // Return the updated project data
     } catch (error) {
-      console.error("Error updating project:", error);
+      console.error("Error updating project:", error.response?.data || error.message);
       return rejectWithValue(getErrorMessage(error));
     }
   }
@@ -87,19 +87,20 @@ export const updateProject = createAsyncThunk(
 // --- Slice Definition ---
 
 const initialState = {
-  // Changed 'projects' key to 'items' to avoid naming collision with the slice name
+  // Use 'items' to store the array of projects
   items: [],
   status: 'idle', // 'idle' | 'loading' | 'succeeded' | 'failed'
   error: null,
 };
 
 const projectSlice = createSlice({
-  name: 'projects',
+  name: 'projects', // This name is used as the key in the root state (state.projects)
   initialState,
   reducers: {
     // Synchronous action to clear errors
     clearProjectError: (state) => {
       state.error = null;
+      // Optionally reset status if it was 'failed'
       if (state.status === 'failed') {
           state.status = 'idle';
       }
@@ -116,19 +117,17 @@ const projectSlice = createSlice({
       // --- fetchProjects ---
       .addCase(fetchProjects.pending, (state) => {
         state.status = 'loading';
-        state.error = null;
+        state.error = null; // Clear previous errors on new fetch
       })
       .addCase(fetchProjects.fulfilled, (state, action) => {
         state.status = 'succeeded';
-        // Assuming fetchProjects always returns the relevant list (all or by client)
-        // If fetching all, this replaces the list. If fetching by client,
-        // consider if you need to merge or just display the client-specific list.
-        // For simplicity now, it replaces the current items.
-        state.items = action.payload;
+        // Ensure payload is an array before assigning
+        state.items = Array.isArray(action.payload) ? action.payload : [];
       })
       .addCase(fetchProjects.rejected, (state, action) => {
         state.status = 'failed';
         state.error = action.payload;
+        state.items = []; // Clear items on fetch failure
       })
       // --- createProject ---
       .addCase(createProject.pending, (state) => {
@@ -137,8 +136,8 @@ const projectSlice = createSlice({
       })
       .addCase(createProject.fulfilled, (state, action) => {
         state.status = 'succeeded';
-        // Add the new project only if it's not already there (e.g., from a concurrent fetch)
-        if (!state.items.find(p => p._id === action.payload._id)) {
+        // Add the new project only if it's not already there and payload is valid
+        if (action.payload?._id && !state.items.find(p => p._id === action.payload._id)) {
             state.items.push(action.payload);
         }
       })
@@ -153,12 +152,15 @@ const projectSlice = createSlice({
       })
       .addCase(updateProject.fulfilled, (state, action) => {
         state.status = 'succeeded';
-        // Find and update the project in the array
-        const index = state.items.findIndex(p => p._id === action.payload._id);
-        if (index !== -1) {
-          state.items[index] = action.payload;
+        // Find and update the project in the array if payload is valid
+        if (action.payload?._id) {
+            const index = state.items.findIndex(p => p._id === action.payload._id);
+            if (index !== -1) {
+              state.items[index] = action.payload;
+            }
+            // If not found, it might mean the project wasn't in the list.
+            // Depending on the use case, you might add it or ignore it.
         }
-        // If not found, maybe it wasn't fetched yet. Fetching might be better.
       })
       .addCase(updateProject.rejected, (state, action) => {
         state.status = 'failed';
@@ -174,8 +176,10 @@ export const { clearProjectError, clearProjects } = projectSlice.actions; // Exp
 export default projectSlice.reducer; // Export the reducer
 
 // --- Selectors ---
-// Base selector for the projects array
-const selectProjectItems = (state) => state.projects.items; // Use 'items' key
+// Base selector for the projects array within the 'projects' state slice
+// Corrected: Access state.projects.items
+// Export this selector so it can be imported elsewhere
+export const selectProjectItems = (state) => state.projects.items;
 
 // Other simple selectors
 export const selectProjectStatus = (state) => state.projects.status;
@@ -196,7 +200,6 @@ export const selectProjectsByClientId = createSelector(
   (projects, clientId) => {
     // This calculation function only runs if 'projects' array reference changes
     // OR if the passed 'clientId' argument changes.
-    // console.log("Selector running for client:", clientId); // For debugging memoization
     if (!clientId) {
       return []; // Return empty array if no client ID
     }
