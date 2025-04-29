@@ -31,8 +31,8 @@ const CreateTimesheet = () => {
   const location = useLocation();
   const dispatch = useDispatch();
 
-  const timesheetToEdit = location?.state?.timesheet;
-  const isEditing = Boolean(timesheetToEdit?._id);
+  const timesheetToEdit = location && location.state && location.state.timesheet;
+  const isEditing = Boolean(timesheetToEdit && timesheetToEdit._id);
 
   const [formData, setFormData] = useState({
     employeeId: '',

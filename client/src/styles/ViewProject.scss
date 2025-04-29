@@ -1,354 +1,107 @@
-/* === Global Styles === */
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-}
+// Import base styles if needed (optional, depends on your setup)
+// @import 'variables';
+// @import 'mixins';
 
-body {
-  font-family: Arial, sans-serif;
-  color: #333;
-  background-color: #f4f4f4;
-}
+// Use the same base page class for consistency
+.view-project-container {
+  // Inherits padding etc. from .vehicles-page in Vehicles.scss
 
-.container {
-  padding: 30px;
-  max-width: 1200px;
-  margin: 0 auto;
+  // --- Project Summary Section (Mimics Client Summary) ---
+  .project-summary-section {
+    margin-bottom: 2rem; // Add spacing below summary
 
-  a {
-    text-decoration: none;
-    color: #3498db;
-    transition: 0.3s;
+    .project-summary-cards {
+      display: grid; // Use Grid for easy alignment and wrapping
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); // Responsive columns
+      gap: 1.5rem; // Gap between cards
 
-    &:hover {
-      color: #2980b9;
-    }
-  }
-}
+      .summary-card {
+        // Ensure all cards have consistent height if needed
+        display: flex; // Use flex within card for icon/content alignment
+        // Add other shared card styles if they aren't inherited correctly
+      }
 
-/* === Header Section === */
-.header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 25px;
+      .project-details-card {
 
-  h2 {
-    font-size: 28px;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    color: #2c3e50;
-  }
+        // Inherits from .client-details-card
+        .project-avatar-icon {
+          color: #3498db; // Project icon color
+        }
 
-  .actions {
-    display: flex;
-    gap: 15px;
+        .project-name-summary {
+          margin-bottom: 0.8rem;
+        }
 
-    .btn {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      padding: 10px 20px;
-      border: none;
-      border-radius: 5px;
-      cursor: pointer;
-      transition: 0.3s;
-      font-size: 14px;
+        .project-dates-info {
+          .info-item {
+            a {
+              color: #007bff;
+              text-decoration: none;
 
-      &.btn-primary {
-        background: #2ecc71;
-        color: #fff;
-
-        &:hover {
-          background: #27ae60;
+              &:hover {
+                text-decoration: underline;
+              }
+            }
+          }
         }
       }
 
-      &.btn-danger {
-        background: #e74c3c;
-        color: #fff;
+      .project-hours-card {
 
-        &:hover {
-          background: #c0392b;
+        // Inherits from .client-hours-card
+        &.actual-hours-card {
+          border-left: 5px solid #27ae60;
+
+          .actual-icon {
+            color: #27ae60;
+          }
+
+          .hours-value {
+            color: #27ae60;
+          }
         }
       }
     }
   }
-}
 
-/* === Breadcrumb === */
-.breadcrumb {
-  font-size: 14px;
-  color: #7f8c8d;
-  margin-bottom: 20px;
 
-  a {
-    color: #3498db;
-    text-decoration: none;
-    transition: 0.3s;
+  // --- Timesheet Details Section (Mimics Projects Section) ---
+  .timesheet-details-section {
+    background-color: #fff;
+    padding: 1.5rem;
+    border-radius: 8px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
 
-    &:hover {
-      color: #2980b9;
-    }
-  }
-}
+    .section-header {
+      margin-bottom: 1.5rem;
+      padding-bottom: 0.8rem;
+      border-bottom: 1px solid #eee;
 
-/* === Project Summary === */
-.project-summary {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  background: #f4f4f4;
-  border-radius: 10px;
-  padding: 30px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-}
-
-.project-card {
-  display: flex;
-  flex-direction: column;
-  gap: 15px;
-
-  h2 {
-    font-size: 24px;
-    color: #2c3e50;
-  }
-
-  p {
-    font-size: 16px;
-    color: #555;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-
-    svg {
-      color: #3498db;
-    }
-  }
-}
-
-/* === Timesheet Section === */
-.timesheet-section {
-  background: #fff;
-  border-radius: 10px;
-  padding: 30px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  margin-top: 20px;
-
-  h3 {
-    margin-bottom: 20px;
-  }
-
-  .btn {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 10px 20px;
-    border: none;
-    border-radius: 5px;
-    cursor: pointer;
-    transition: 0.3s;
-    font-size: 14px;
-    background: #3498db;
-    color: #fff;
-
-    &:hover {
-      background: #2980b9;
-    }
-  }
-}
-
-/* === Table Styling === */
-.timesheet-table {
-  width: 100%;
-  border-collapse: collapse;
-  margin-top: 20px;
-
-  th,
-  td {
-    padding: 12px 15px;
-    border: 1px solid #ddd;
-    text-align: center;
-    font-size: 14px;
-    color: #555;
-  }
-
-  th {
-    background: #f4f4f4;
-    font-weight: bold;
-  }
-
-  tbody tr {
-    transition: background 0.3s;
-
-    &:hover {
-      background: #f1f1f1;
-    }
-  }
-
-  .actions {
-    display: flex;
-    justify-content: center;
-    gap: 10px;
-
-    .btn {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 5px;
-      padding: 6px 12px;
-      border: none;
-      border-radius: 5px;
-      cursor: pointer;
-      transition: 0.3s;
-
-      &.btn-view {
-        background: #8e44ad;
-        color: #fff;
-
-        &:hover {
-          background: #732d91;
-        }
-      }
-
-      &.btn-delete {
-        background: #e74c3c;
-        color: #fff;
-
-        &:hover {
-          background: #c0392b;
-        }
+      h3 {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 1.3rem;
+        font-weight: 600;
+        color: #333;
       }
     }
   }
+
+  // --- Responsive Adjustments ---
+  // Grid handles stacking automatically based on minmax,
+  // but you can add specific breakpoints if needed.
+  // @media (max-width: 768px) {
+  //   .project-summary-section .project-summary-cards {
+  //      // Adjust grid columns or gap for medium screens if necessary
+  //   }
+  // }
+  // @media (max-width: 576px) {
+  //   .project-summary-section .project-summary-cards {
+  //      // Styles for very small screens if necessary
+  //   }
+  // }
 }
 
-/* === Status Colors === */
-.status {
-  &.ongoing {
-    color: #27ae60;
-    font-weight: bold;
-  }
-
-  &.completed {
-    color: #3498db;
-    font-weight: bold;
-  }
-}
-
-/* === Responsive Design === */
-@media (max-width: 992px) {
-
-  .header,
-  .project-summary {
-    flex-direction: column;
-    gap: 15px;
-    align-items: flex-start;
-  }
-
-  .actions {
-    flex-wrap: wrap;
-    gap: 10px;
-  }
-
-  .card,
-  .project-card {
-    flex-direction: column;
-    text-align: center;
-  }
-
-  table {
-    font-size: 12px;
-
-    th,
-    td {
-      padding: 10px;
-    }
-  }
-}
-
-@media (max-width: 768px) {
-  .list table {
-    font-size: 12px;
-
-    th,
-    td {
-      padding: 8px;
-    }
-  }
-
-  .header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 15px;
-  }
-
-  .btn {
-    font-size: 12px;
-    padding: 8px 15px;
-  }
-}
-
-.project-summary {
-  display: flex;
-  gap: 20px;
-  justify-content: space-between;
-  background: #f4f4f4;
-  padding: 20px;
-  border-radius: 10px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-}
-
-.project-card {
-  flex: 1;
-  background: white;
-  padding: 20px;
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  text-align: center;
-
-  h2 {
-    font-size: 24px;
-    margin-bottom: 10px;
-    color: #2c3e50;
-  }
-
-  p {
-    font-size: 16px;
-    color: #555;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    gap: 8px;
-
-    svg {
-      color: #3498db;
-    }
-  }
-}
-
-.stats {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  font-weight: bold;
-}
-
-.actual {
-  border: 2px solid #27ae60; // Green border for actual hours
-
-  h2 {
-    color: #27ae60;
-  }
-}
-
-/* Responsive */
-@media (max-width: 768px) {
-  .project-summary {
-    flex-direction: column;
-    gap: 15px;
-  }
-}
+// --- Remove Old Styles ---
+// Ensure old styles specific to the previous layout are removed or commented out.

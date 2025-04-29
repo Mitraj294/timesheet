@@ -118,6 +118,7 @@ const AppContent = () => {
         <Route path="/clients/create" element={<PrivateRoute><CreateClient /></PrivateRoute>} />
         <Route path="/clients/update/:id" element={<PrivateRoute><CreateClient /></PrivateRoute>} />
         <Route path="/clients/view/:clientId" element={<PrivateRoute><ViewClient /></PrivateRoute>} />
+        <Route path="/clients/view/:clientId/project/:projectId" element={<ViewProject />} />
         <Route path="/clients/:clientId/create-project" element={<PrivateRoute><CreateProject /></PrivateRoute>} />
         <Route path="/clients/:clientId/projects/update/:projectId" element={<PrivateRoute><CreateProject /></PrivateRoute>} />
         <Route path="/clients/:clientId/projects/view/:projectId" element={<PrivateRoute><ViewProject /></PrivateRoute>} />

@@ -1,716 +1,832 @@
-import React, { useState, useEffect, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
-import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
   faPen,
   faArrowLeft,
   faArrowRight,
   faPlus,
-  faPaperPlane,faDownload,faEnvelope ,
-  faChevronDown,
-  faChevronUp,
   faTrash,
-} from "@fortawesome/free-solid-svg-icons";
-import axios from "axios";
-import { format } from "date-fns";
-import "../../styles/Timesheet.scss";
+  faDownload,
+  faEnvelope,
+  faSpinner,
+  faExclamationCircle,
+  faUserTie,
+  faBuilding,
+  faProjectDiagram,
+  faClock,
+  faUtensils,
+  faStickyNote,
+  faSignOutAlt,
+  faInfoCircle,
+  faChevronDown,
+  faChevronUp
+} from '@fortawesome/free-solid-svg-icons';
+import axios from 'axios';
 import DatePicker from 'react-datepicker';
+import 'react-datepicker/dist/react-datepicker.css';
+import '../../styles/Timesheet.scss';
+import { DateTime } from 'luxon';
+import Select from "react-select";
 
-const API_URL = process.env.REACT_APP_API_URL || 'https://timesheet-c4mj.onrender.com/api';
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+const ALL_PROJECTS_VALUE = 'ALL_PROJECTS';
+
+const formatDateString = (dateString, format = 'yyyy-MM-dd') => {
+    if (!dateString || !/^\d{4}-\d{2}-\d{2}$/.test(dateString)) return 'Invalid Date';
+    try {
+        return DateTime.fromISO(dateString).toFormat(format);
+    } catch (e) {
+        console.error(`Error formatting date string ${dateString}:`, e);
+        return 'Invalid Date';
+    }
+};
+
+const formatTimeFromISO = (isoString, timezoneIdentifier, format = 'HH:mm') => {
+    if (!isoString) return 'N/A';
+    const tz = timezoneIdentifier && DateTime.local().setZone(timezoneIdentifier).isValid
+               ? timezoneIdentifier
+               : DateTime.local().zoneName;
+    try {
+        return DateTime.fromISO(isoString, { zone: 'utc' })
+               .setZone(tz)
+               .toFormat(format);
+    } catch (e) {
+        console.error(`Error formatting time ${isoString} to timezone ${tz}:`, e);
+        return 'Invalid Time';
+    }
+};
+
+const formatHoursMinutes = (hoursDecimal) => {
+    if (hoursDecimal == null || isNaN(hoursDecimal) || hoursDecimal <= 0) {
+        return '00:00';
+    }
+    const totalMinutes = Math.round(hoursDecimal * 60);
+    const hours = Math.floor(totalMinutes / 60);
+    const minutes = totalMinutes % 60;
+    const formattedMinutes = minutes.toString().padStart(2, '0');
+
+    if (hours > 0) {
+        return minutes > 0 ? `${hours}h ${formattedMinutes}m` : `${hours}h`;
+    } else {
+        return `${formattedMinutes}m`;
+    }
+};
+
+const formatLunchDuration = (lunchDuration) => {
+    if (!lunchDuration || typeof lunchDuration !== 'string' || !/^\d{2}:\d{2}$/.test(lunchDuration)) {
+        return 'N/A';
+    }
+    return lunchDuration;
+};
+
+const calculateDateRange = (baseDate, type) => {
+    let startDt = DateTime.fromJSDate(baseDate);
+    let endDt;
+
+    if (type === 'Daily') {
+        startDt = startDt.startOf('day');
+        endDt = startDt.endOf('day');
+    } else if (type === 'Monthly') {
+        startDt = startDt.startOf('month');
+        endDt = startDt.endOf('month');
+    } else {
+        startDt = startDt.startOf('week');
+        if (type === 'Fortnightly') {
+            endDt = startDt.plus({ days: 13 }).endOf('day');
+        } else {
+            endDt = startDt.plus({ days: 6 }).endOf('day');
+        }
+    }
+    return { start: startDt.toJSDate(), end: endDt.toJSDate() };
+};
+
+const generateDateColumns = (currentDate, viewType) => {
+    const { start, end } = calculateDateRange(currentDate, viewType);
+    const startDt = DateTime.fromJSDate(start);
+    const endDt = DateTime.fromJSDate(end);
+    const daysCount = endDt.diff(startDt, 'days').days + 1;
+
+    return Array.from({ length: daysCount }, (_, i) => {
+      const dayDt = startDt.plus({ days: i });
+      return {
+        date: dayDt.toJSDate(),
+        longFormat: dayDt.toFormat('MMM dd, yyyy'),
+        isoDate: dayDt.toFormat('yyyy-MM-dd'),
+        dayName: dayDt.toFormat('EEEE'),
+        shortDayName: dayDt.toFormat('EEE'),
+        weekNumber: dayDt.weekNumber,
+      };
+    });
+};
+
+const groupDatesByWeek = (dateColumns) => {
+    if (!dateColumns || dateColumns.length === 0) return [];
+
+    const weeksMap = new Map();
+    dateColumns.forEach(col => {
+        const weekKey = `${col.date.getFullYear()}-${col.weekNumber}`;
+        if (!weeksMap.has(weekKey)) {
+            const dateInWeek = DateTime.fromJSDate(col.date);
+            const weekStart = dateInWeek.startOf('week');
+            const weekEnd = dateInWeek.endOf('week');
+            weeksMap.set(weekKey, {
+                weekNumber: col.weekNumber,
+                weekStartDate: weekStart.toJSDate(),
+                weekEndDate: weekEnd.toJSDate(),
+                days: []
+            });
+        }
+        weeksMap.get(weekKey).days.push(col);
+    });
+
+    return Array.from(weeksMap.values()).sort((a, b) => {
+        if (a.weekStartDate.getFullYear() !== b.weekStartDate.getFullYear()) {
+            return a.weekStartDate.getFullYear() - b.weekStartDate.getFullYear();
+        }
+        return a.weekNumber - b.weekNumber;
+    });
+};
+
+const getPeriodLabel = (viewType) => {
+    switch (viewType) {
+        case 'Daily': return 'Day';
+        case 'Weekly': return 'Week';
+        case 'Fortnightly': return 'Fortnight';
+        case 'Monthly': return 'Month';
+        default: return 'Period';
+    }
+};
 
 
-const ProjectTimesheet = ({
-  selectedProjectId,
-  setSelectedProjectId,
-  updateActualHours, 
-}) => {
+const ProjectTimesheet = ({ initialProjectId = '', onProjectChange, showProjectSelector = true }) => {
+  const [viewType, setViewType] = useState('Weekly');
   const [timesheets, setTimesheets] = useState([]);
-  const [viewType, setViewType] = useState("Weekly");
   const [employees, setEmployees] = useState([]);
   const [clients, setClients] = useState([]);
   const [projects, setProjects] = useState([]);
+  const [selectedProjectId, setSelectedProjectId] = useState(initialProjectId || '');
   const [expandedRows, setExpandedRows] = useState({});
   const [currentDate, setCurrentDate] = useState(new Date());
   const [isLoading, setIsLoading] = useState(false);
+  const [isDownloading, setIsDownloading] = useState(false);
+  const [isSending, setIsSending] = useState(false);
+  const [email, setEmail] = useState('');
+  const [selectedEmployee, setSelectedEmployee] = useState('');
+  const [startDate, setStartDate] = useState(null);
+  const [endDate, setEndDate] = useState(null);
   const [showDownloadFilters, setShowDownloadFilters] = useState(false);
   const [showSendFilters, setShowSendFilters] = useState(false);
-  const [selectedProject, setSelectedProject] = useState('');
+  const [error, setError] = useState(null);
+  const [downloadError, setDownloadError] = useState(null);
+  const [sendError, setSendError] = useState(null);
 
-  
- const [startDate,      setStartDate]      = useState(null);
- const [endDate,        setEndDate]        = useState(null);
-    const [email, setEmail] = useState('');
   const navigate = useNavigate();
+  const browserTimezone = useMemo(() => DateTime.local().zoneName, []);
 
-  // Fetch supporting data on mount
-  useEffect(() => {
-    fetchEmployees();
-    fetchClients();
-    fetchProjects();
-  }, []);
-
-  // Fetch timesheets when selectedProjectId, currentDate, or viewType changes
-  useEffect(() => {
-    console.log("Selected Project ID changed to:", selectedProjectId);
-    fetchTimesheets();
-  }, [selectedProjectId, currentDate, viewType]);
-
-  const fetchEmployees = async () => {
-    try {
-      const token = localStorage.getItem("token");
+  const fetchWithAuth = useCallback(async (url, config = {}) => {
+      const token = localStorage.getItem('token');
       if (!token) {
-        console.error("No authentication token found!");
-        return;
+          console.error("fetchWithAuth: No token found, redirecting to login.");
+          navigate('/login');
+          throw new Error('No authentication token found!');
       }
-      const config = { headers: { Authorization: `Bearer ${token}` } };
-      const response = await axios.get(`${API_URL}/employees`, config);;
-      setEmployees(response.data);
-    } catch (error) {
-      console.error(
-        "Error fetching employees:",
-        error.response?.data || error.message
-      );
-      alert("Failed to fetch employees, please try again later.");
-    }
-  };
+      const authConfig = {
+          ...config,
+          headers: { ...config.headers, Authorization: `Bearer ${token}` },
+      };
+      try {
+          const response = await axios.get(url.startsWith('http') ? url : `${API_URL}${url}`, authConfig);
+          return response.data;
+      } catch (err) {
+          if (err.response?.status === 401 || err.response?.status === 403) {
+              console.error(`fetchWithAuth: ${err.response.status} error, redirecting to login.`);
+              navigate('/login');
+          }
+          throw err;
+      }
+  }, [navigate]);
 
-  const fetchClients = async () => {
+  const fetchEmployees = useCallback(async () => {
     try {
-      const token = localStorage.getItem("token");
-      if (!token) {
-        console.error("No authentication token found!");
-        return;
-      }
-      const config = { headers: { Authorization: `Bearer ${token}` } };
-      const response = await axios.get(`${API_URL}/clients`, config);
-      setClients(response.data);
+      const data = await fetchWithAuth(`/employees`);
+      setEmployees(data || []);
     } catch (error) {
-      console.error(
-        "Error fetching clients:",
-        error.response?.data || error.message
-      );
-      alert("Failed to fetch clients, please try again later.");
+      console.error('Error fetching employees:', error.response?.data || error.message);
+      if (!error.message?.includes('token')) {
+          setError('Failed to fetch employees.');
+      }
     }
-  };
+  }, [fetchWithAuth]);
 
-  const fetchProjects = async () => {
+  const fetchClients = useCallback(async () => {
+     try {
+      const data = await fetchWithAuth(`/clients`);
+      setClients(data || []);
+    } catch (error) {
+      console.error('Error fetching clients:', error.response?.data || error.message);
+       if (!error.message?.includes('token')) {
+           setError('Failed to fetch clients.');
+       }
+    }
+  }, [fetchWithAuth]);
+
+  const fetchAllProjects = useCallback(async () => {
     try {
-      const token = localStorage.getItem("token");
-      if (!token) {
-        console.error("No authentication token found!");
-        return;
+     const data = await fetchWithAuth(`/projects`);
+     setProjects(data || []);
+   } catch (error) {
+     console.error('Error fetching projects:', error.response?.data || error.message);
+      if (!error.message?.includes('token')) {
+          setError('Failed to fetch projects.');
       }
-      const config = { headers: { Authorization: `Bearer ${token}` } };
-      const response = await axios.get(`${API_URL}/projects`, config);
-      setProjects(response.data);
-    } catch (error) {
-      console.error(
-        "Error fetching projects:",
-        error.response?.data || error.message
-      );
-      alert("Failed to fetch projects, please try again later.");
-    }
-  };
+   }
+ }, [fetchWithAuth]);
 
-  const fetchTimesheets = async () => {
+  const fetchTimesheets = useCallback(async () => {
+    if (!selectedProjectId) {
+        setTimesheets([]);
+        return;
+    }
+
     setIsLoading(true);
-    console.log(
-      "Inside fetchTimesheets - Selected Project ID:",
-      selectedProjectId
-    );
+    setError(null);
     try {
-      const token = localStorage.getItem("token");
-      if (!token) {
-        console.error("No authentication token found!");
-        return;
-      }
-      const config = { headers: { Authorization: `Bearer ${token}` } };
+      const { start, end } = calculateDateRange(currentDate, viewType);
+      const startDateStr = DateTime.fromJSDate(start).toFormat('yyyy-MM-dd');
+      const endDateStr = DateTime.fromJSDate(end).toFormat('yyyy-MM-dd');
 
-      // Build URL with projectId if selected
-      let url = `${API_URL}/timesheets`;
-      if (selectedProjectId) {
-        url = `${API_URL}/timesheets/project/${selectedProjectId}`;
-      }
-      console.log("Fetching timesheets from URL:", url);
+      const params = {
+          startDate: startDateStr,
+          endDate: endDateStr
+      };
 
-      const response = await axios.get(url, config);
-      console.log("Timesheets fetched:", response.data);
-      setTimesheets(response.data.timesheets || []);
-
-      // Update parent's project state with the new total hours
-      if (updateActualHours && response.data.totalHours !== undefined) {
-        updateActualHours(response.data.totalHours);
+      if (selectedProjectId !== ALL_PROJECTS_VALUE) {
+          params.projectId = selectedProjectId;
       }
+
+      const data = await fetchWithAuth(`/timesheets`, { params });
+      const fetchedTimesheets = data?.timesheets;
+      setTimesheets(Array.isArray(fetchedTimesheets) ? fetchedTimesheets : []);
+
     } catch (error) {
-      console.error(
-        "Error fetching timesheets:",
-        error.response?.data || error.message
-      );
-      alert(
-        `Failed to fetch timesheets: ${
-          error.response?.data?.message || error.message
-        }`
-      );
+      console.error('ProjectTimesheet: Error fetching timesheets:', error.response?.data || error.message);
+      if (!error.message?.includes('token')) {
+          setError(error.response?.data?.message || 'Failed to fetch project timesheets.');
+      }
+      setTimesheets([]);
     } finally {
       setIsLoading(false);
     }
+  }, [selectedProjectId, currentDate, viewType, fetchWithAuth]);
+
+  useEffect(() => {
+    fetchEmployees();
+    fetchClients();
+    fetchAllProjects();
+  }, [fetchEmployees, fetchClients, fetchAllProjects]);
+
+  useEffect(() => {
+    fetchTimesheets();
+  }, [fetchTimesheets]);
+
+  useEffect(() => {
+    setSelectedProjectId(initialProjectId || '');
+  }, [initialProjectId]);
+
+  const handleProjectSelectChange = (option) => {
+      const newProjectId = option?.value || '';
+      setSelectedProjectId(newProjectId);
+      if (onProjectChange) {
+          onProjectChange(newProjectId);
+      }
   };
 
   const toggleExpand = (id) => {
     setExpandedRows((prev) => ({ ...prev, [id]: !prev[id] }));
-  };
+   };
 
   const handleUpdate = (timesheet) => {
-    navigate("/timesheet/create", { state: { timesheet, isUpdate: true } });
-  };
+    navigate('/timesheet/create', { state: { timesheet } });
+   };
 
-  const handleDelete = async (id) => {
-    if (!window.confirm("Are you sure you want to delete this timesheet?"))
-      return;
-    try {
-      const token = localStorage.getItem("token");
-      if (!token) {
-        alert("Authentication error! Please log in again.");
-        return;
-      }
-      const config = { headers: { Authorization: `Bearer ${token}` } };
-      await axios.delete(`${API_URL}/timesheets/${id}`, config);
-      alert("Timesheet deleted successfully!");
-      fetchTimesheets();
-    } catch (error) {
-      console.error(
-        "Error deleting timesheet:",
-        error.response?.data || error.message
-      );
-      alert("Failed to delete timesheet. Check console for details.");
-    }
-  };
-
-  const adjustToMonday = (date) => {
-    const day = date.getDay();
-    const diff = day === 0 ? -6 : 1 - day;
-    return new Date(date.setDate(date.getDate() + diff));
-  };
-
-  const handlePrev = () => {
-    let newDate = new Date(currentDate);
-    if (viewType === "Daily") {
-      newDate.setDate(newDate.getDate() - 1);
-    } else {
-      if (viewType === "Weekly") newDate.setDate(newDate.getDate() - 7);
-      else if (viewType === "Fortnightly") newDate.setDate(newDate.getDate() - 14);
-      else if (viewType === "Monthly") newDate.setMonth(newDate.getMonth() - 1);
-      newDate = adjustToMonday(newDate);
-    }
-    setCurrentDate(newDate);
-  };
-
-  const handleNext = () => {
-    let newDate = new Date(currentDate);
-    if (viewType === "Daily") {
-      newDate.setDate(newDate.getDate() + 1);
-    } else {
-      if (viewType === "Weekly") newDate.setDate(newDate.getDate() + 7);
-      else if (viewType === "Fortnightly") newDate.setDate(newDate.getDate() + 14);
-      else if (viewType === "Monthly") newDate.setMonth(newDate.getMonth() + 1);
-      newDate = adjustToMonday(newDate);
-    }
-    setCurrentDate(newDate);
-  };
-
-  const formatHours = (hours) => {
-    const h = Math.floor(hours);
-    const m = Math.round((hours - h) * 60);
-    return `${h.toString().padStart(2, "0")}:${m.toString().padStart(2, "0")}`;
-  };
-
-  const generateDateColumns = useMemo(() => {
-    let startDate = new Date(currentDate);
-    if (viewType !== "Daily") {
-      startDate = adjustToMonday(new Date(startDate));
-    }
-    let daysCount =
-      viewType === "Daily"
-        ? 1
-        : viewType === "Weekly"
-        ? 7
-        : viewType === "Fortnightly"
-        ? 14
-        : 28;
-
-    return Array.from({ length: daysCount }, (_, i) => {
-      let day = new Date(startDate);
-      day.setDate(startDate.getDate() + i);
-      return {
-        date: day,
-        formatted: format(day, "EEE, MMM dd"),
-      };
-    });
-  }, [currentDate, viewType]);
-
-  const groupTimesheets = useMemo(() => {
-    let grouped = {};
-    // Filter timesheets to include only those matching the selected project
-    const filteredTimesheets = timesheets.filter((timesheet) => {
-      if (!selectedProjectId) return true;
-      // Compare projectId even if it's an object
-      return (timesheet.projectId?._id || timesheet.projectId) === selectedProjectId;
-    });
-
-    filteredTimesheets.forEach((timesheet) => {
-      const employeeId = timesheet.employeeId?._id || timesheet.employeeId;
-      const employee = employees.find((emp) => emp._id === employeeId);
-      const employeeName = employee ? employee.name : "Unknown";
-      const client = clients.find((c) => c._id === timesheet.clientId);
-      const clientName = client ? client.name : "Unknown Client";
-      const project = projects.find(
-        (p) =>
-          p._id === (timesheet.projectId?._id || timesheet.projectId)
-      );
-      const projectName = project ? project.name : "Unknown Project";
-
-      if (!grouped[employeeId]) {
-        grouped[employeeId] = {
-          id: employeeId,
-          name: employeeName,
-          hoursPerDay: {},
-          details: [],
-        };
-        generateDateColumns.forEach(
-          (day) => (grouped[employeeId].hoursPerDay[day.formatted] = 0)
-        );
-      }
-
-      const date = new Date(timesheet.date);
-      const formattedDate = format(date, "EEE, MMM dd");
-
-      if (grouped[employeeId].hoursPerDay[formattedDate] !== undefined) {
-        grouped[employeeId].hoursPerDay[formattedDate] += parseFloat(
-          timesheet.totalHours
-        );
-      }
-      grouped[employeeId].details.push({
-        ...timesheet,
-        clientName,
-        projectName,
-      });
-    });
-    return Object.values(grouped);
-  }, [timesheets, employees, clients, projects, generateDateColumns, selectedProjectId]);
-
-  const handleEmailProjectTimesheets = async () => {
-    if (!email) {
-      alert('Please enter a valid email address.');
-      return;
-    }
-  
+  const handleDelete = useCallback(async (id) => {
+    if (!window.confirm('Are you sure you want to delete this timesheet entry?')) return;
+    setError(null);
     try {
       const token = localStorage.getItem('token');
-      if (!token) {
-        alert('Authentication error! Please log in again.');
-        return;
-      }
-  
-      const config = {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      };
-  
-      const body = {
-        email,
-        projectIds: selectedProject ? [selectedProject] : [],
-        startDate: startDate ? format(startDate, 'yyyy-MM-dd') : null,
-        endDate: endDate ? format(endDate, 'yyyy-MM-dd') : null,
-      };
-  
-      const response = await axios.post(
-        `${API_URL}/timesheets/send-email/project`,
-        body,
-        config
-      );
-  
-      alert(response.data.message || 'Timesheet sent successfully!');
+      if (!token) { navigate('/login'); throw new Error('Authentication error!'); }
+      await axios.delete(`${API_URL}/timesheets/${id}`, { headers: { Authorization: `Bearer ${token}` } });
+      fetchTimesheets();
     } catch (error) {
-      console.error('Error sending timesheet email:', error);
-      alert('Failed to send timesheet. Please try again.');
+      console.error('Error deleting timesheet:', error.response?.data || error.message);
+      setError(error.response?.data?.message || 'Failed to delete timesheet entry.');
+      if (error.response?.status === 401) navigate('/login');
     }
-  };
-  
-  
-  
-  const handleDownloadProjectTimesheets = async () => {
-    if (!selectedProject) {
-      alert('Please select a project first.');
-      return;
-    }
-  
+   }, [navigate, fetchTimesheets]);
+
+  const handlePrev = () => {
+    setCurrentDate(prevDate => {
+        let dt = DateTime.fromJSDate(prevDate);
+        let newDt;
+        switch (viewType) {
+            case 'Daily': newDt = dt.minus({ days: 1 }); break;
+            case 'Weekly': newDt = dt.minus({ weeks: 1 }); break;
+            case 'Fortnightly': newDt = dt.minus({ weeks: 2 }); break;
+            case 'Monthly': newDt = dt.minus({ months: 1 }); break;
+            default: newDt = dt.minus({ weeks: 1 }); break;
+        }
+        return newDt.toJSDate();
+    });
+   };
+
+  const handleNext = () => {
+     setCurrentDate(prevDate => {
+        let dt = DateTime.fromJSDate(prevDate);
+        let newDt;
+        switch (viewType) {
+            case 'Daily': newDt = dt.plus({ days: 1 }); break;
+            case 'Weekly': newDt = dt.plus({ weeks: 1 }); break;
+            case 'Fortnightly': newDt = dt.plus({ weeks: 2 }); break;
+            case 'Monthly': newDt = dt.plus({ months: 1 }); break;
+            default: newDt = dt.plus({ weeks: 1 }); break;
+        }
+        return newDt.toJSDate();
+    });
+   };
+
+   const handleSendEmail = useCallback(async () => {
+    const isAllProjects = selectedProjectId === ALL_PROJECTS_VALUE;
+    const endpoint = isAllProjects ? `${API_URL}/timesheets/send` : `${API_URL}/timesheets/send-email/project`;
+
+    if (!isAllProjects && !selectedProjectId) { setSendError('No project selected.'); return; }
+    if (!email || !/\S+@\S+\.\S+/.test(email)) { setSendError('Please enter a valid recipient email address.'); return; }
+    setSendError(null); setIsSending(true); setError(null);
     try {
+        const token = localStorage.getItem('token');
+        if (!token) { navigate('/login'); throw new Error('Authentication error!'); }
+        const body = {
+            email,
+            projectIds: !isAllProjects && selectedProjectId ? [selectedProjectId] : [],
+            employeeIds: selectedEmployee ? [selectedEmployee] : [],
+            startDate: startDate ? DateTime.fromJSDate(startDate).toFormat('yyyy-MM-dd') : null,
+            endDate: endDate ? DateTime.fromJSDate(endDate).toFormat('yyyy-MM-dd') : null,
+            timezone: browserTimezone,
+        };
+        await axios.post(endpoint, body, { headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' } });
+        setShowSendFilters(false); setEmail(''); setSelectedEmployee(''); setStartDate(null); setEndDate(null);
+    } catch (error) {
+        console.error(`Error sending ${isAllProjects ? 'general' : 'project'} timesheet email:`, error.response?.data || error.message);
+        setSendError(error.response?.data?.message || `Failed to send ${isAllProjects ? 'general' : 'project'} timesheet. Please try again.`);
+        if (error.response?.status === 401) navigate('/login');
+    } finally { setIsSending(false); }
+}, [selectedProjectId, email, selectedEmployee, startDate, endDate, navigate, browserTimezone]);
 
-      const response = await fetch(`${API_URL}/timesheets/download/project`, {
-  method: 'POST',
-  headers: {
-    'Content-Type': 'application/json',
-    Authorization: `Bearer ${localStorage.getItem('token')}`,
-  },
-  body: JSON.stringify({
-    projectIds: [selectedProject],
-    startDate,
-    endDate,
-    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-  }),
-});
+const handleDownload = useCallback(async () => {
+    const isAllProjects = selectedProjectId === ALL_PROJECTS_VALUE;
+    const endpoint = isAllProjects ? `${API_URL}/timesheets/download` : `${API_URL}/timesheets/download/project`;
 
-  
-      if (!response.ok) {
-        const errorData = await response.json();
-        return alert(errorData.error || 'Download failed');
-      }
-  
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-  
-      const disposition = response.headers.get('Content-Disposition');
-      const match = disposition && disposition.match(/filename\*?=(?:UTF-8'')?(.+)/);
-      const fileName = match ? decodeURIComponent(match[1]) : 'Project_Timesheet.xlsx';
-  
-      a.download = fileName;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
+    if (!isAllProjects && !selectedProjectId) { setDownloadError('No project selected.'); return; }
+    setDownloadError(null); setIsDownloading(true); setError(null);
+    try {
+        const token = localStorage.getItem('token');
+        if (!token) { navigate('/login'); throw new Error('Authentication error!'); }
+        const body = {
+            projectIds: !isAllProjects && selectedProjectId ? [selectedProjectId] : [],
+            employeeIds: selectedEmployee ? [selectedEmployee] : [],
+            startDate: startDate ? DateTime.fromJSDate(startDate).toFormat('yyyy-MM-dd') : null,
+            endDate: endDate ? DateTime.fromJSDate(endDate).toFormat('yyyy-MM-dd') : null,
+            timezone: browserTimezone,
+        };
+        const response = await axios.post(endpoint, body, { headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, responseType: 'blob' });
+        const blob = new Blob([response.data], { type: response.headers['content-type'] || 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        const contentDisposition = response.headers['content-disposition'];
+        let filename = isAllProjects ? `Timesheet_Report.xlsx` : `Project_Timesheet_Report.xlsx`;
+        if (contentDisposition) {
+            const filenameMatch = contentDisposition.match(/filename\*?=['"]?(?:UTF-\d['"]*)?([^;\r\n"']*)['"]?;?/i);
+            if (filenameMatch && filenameMatch[1]) { filename = decodeURIComponent(filenameMatch[1]); }
+        }
+        link.setAttribute('download', filename);
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        window.URL.revokeObjectURL(url);
+        setShowDownloadFilters(false); setSelectedEmployee(''); setStartDate(null); setEndDate(null);
     } catch (err) {
-      console.error('Download error:', err);
-      alert('Failed to download project timesheet.');
-    }
-  };
-  
-  
-  const renderTableHeaders = () => {
-    if (viewType === "Daily") {
-      return (
-        <>
-          <th>Expand</th>
-          <th>Employee</th>
-          <th>{generateDateColumns[0]?.formatted || "Date"}</th>
-          <th>Total</th>
-        </>
-      );
-    } else if (viewType === "Weekly") {
-      return (
-        <>
-          <th>Expand</th>
-          <th>Employee</th>
-          <th>Week Period</th>
-          <th>Mon</th>
-          <th>Tue</th>
-          <th>Wed</th>
-          <th>Thu</th>
-          <th>Fri</th>
-          <th>Sat</th>
-          <th>Sun</th>
-          <th>Total</th>
-        </>
-      );
+        console.error(`${isAllProjects ? 'General' : 'Project'} Download failed:`, err.response?.data || err.message || err);
+        let errorMessage = `Could not download ${isAllProjects ? 'general' : 'project'} report.`;
+        if (err.response?.data instanceof Blob && err.response?.data.type.includes('json')) {
+            try {
+                const errorJson = JSON.parse(await err.response.data.text());
+                errorMessage = errorJson.message || errorJson.error || errorMessage;
+            } catch (parseError) { console.error("Could not parse error blob:", parseError); }
+        } else if (err.response?.data?.message || err.response?.data?.error) {
+            errorMessage = err.response.data.message || err.response.data.error;
+        } else if (err.message) { errorMessage = err.message; }
+        setDownloadError(errorMessage);
+        if (err.response?.status === 401) navigate('/login');
+    } finally { setIsDownloading(false); }
+}, [selectedProjectId, selectedEmployee, startDate, endDate, navigate, browserTimezone]);
+
+  const dateColumns = useMemo(() => generateDateColumns(currentDate, viewType), [currentDate, viewType]);
+
+  const groupTimesheetsByEmployee = useMemo(() => {
+      let grouped = {};
+      const currentViewDates = new Set(dateColumns.map(d => d.isoDate));
+
+      timesheets.forEach((timesheet) => {
+        if (!timesheet || !timesheet.employeeId || !timesheet.date || !/^\d{4}-\d{2}-\d{2}$/.test(timesheet.date)) {
+            return;
+        }
+        const entryLocalDate = timesheet.date;
+        if (!currentViewDates.has(entryLocalDate)) return;
+
+        const employeeIdValue = timesheet.employeeId?._id || timesheet.employeeId;
+        const employee = employees.find((emp) => emp._id === employeeIdValue);
+        const employeeName = employee?.name || `Unknown (${String(employeeIdValue).slice(-4)})`;
+        const employeeExpectedHours = employee?.expectedWeeklyHours || 40;
+
+        const clientIdValue = timesheet.clientId?._id || timesheet.clientId;
+        const client = clientIdValue ? clients.find((c) => c._id === clientIdValue) : null;
+        const clientName = client?.name || (clientIdValue ? 'N/A' : '');
+        const projectName = timesheet.projectId?.name || (timesheet.projectId ? 'Unknown Project' : '');
+
+        if (!grouped[employeeIdValue]) {
+          grouped[employeeIdValue] = {
+            id: employeeIdValue, name: employeeName,
+            hoursPerDay: {}, details: [], expectedHours: employeeExpectedHours,
+          };
+          dateColumns.forEach(day => (grouped[employeeIdValue].hoursPerDay[day.isoDate] = 0));
+        }
+
+        grouped[employeeIdValue].hoursPerDay[entryLocalDate] += parseFloat(timesheet.totalHours || 0);
+        grouped[employeeIdValue].details.push({
+          ...timesheet,
+          clientName, projectName,
+          formattedLocalDate: entryLocalDate,
+        });
+      });
+
+      Object.values(grouped).forEach(group => {
+          group.details.sort((a, b) => {
+              if (a.formattedLocalDate < b.formattedLocalDate) return -1;
+              if (a.formattedLocalDate > b.formattedLocalDate) return 1;
+              const timeA = a.startTime ? DateTime.fromISO(a.startTime, { zone: 'utc' }).toMillis() : 0;
+              const timeB = b.startTime ? DateTime.fromISO(b.startTime, { zone: 'utc' }).toMillis() : 0;
+              return timeA - timeB;
+          });
+      });
+
+      return Object.values(grouped).sort((a, b) => a.name.localeCompare(b.name));
+
+    }, [timesheets, employees, clients, dateColumns]);
+
+  const periodDisplayText = useMemo(() => {
+    if (!dateColumns || dateColumns.length === 0) return 'Loading...';
+    const firstDay = DateTime.fromJSDate(dateColumns[0].date);
+    if (viewType === 'Daily') {
+        return firstDay.toFormat('MMM dd yyyy, EEE');
     } else {
-      return (
-        <>
-          <th>Expand</th>
-          <th>Employee</th>
-          <th>Week</th>
-          <th>Week Period</th>
-          <th>Mon</th>
-          <th>Tue</th>
-          <th>Wed</th>
-          <th>Thu</th>
-          <th>Fri</th>
-          <th>Sat</th>
-          <th>Sun</th>
-          <th>Total</th>
-        </>
-      );
+        const lastDay = DateTime.fromJSDate(dateColumns[dateColumns.length - 1].date);
+        const startFormat = 'MMM dd';
+        const endFormat = firstDay.year !== lastDay.year ? 'MMM dd, yyyy' : 'MMM dd, yyyy';
+        return `${firstDay.toFormat(startFormat)} - ${lastDay.toFormat(endFormat)}`;
     }
+  }, [dateColumns, viewType]);
+
+  const projectOptions = useMemo(() => {
+      const options = projects.map(p => ({ value: p._id, label: p.name }));
+      if (showProjectSelector) {
+          options.unshift({ value: ALL_PROJECTS_VALUE, label: 'All Projects' });
+      }
+      return options;
+  }, [projects, showProjectSelector]);
+
+  const selectedProjectOption = useMemo(() => {
+      return projectOptions.find(opt => opt.value === selectedProjectId) || null;
+  }, [projectOptions, selectedProjectId]);
+
+  const periodLabel = useMemo(() => getPeriodLabel(viewType), [viewType]);
+
+  const renderTableHeaders = () => {
+    if (viewType === 'Daily') return null;
+
+    const headers = [
+        <th key="expand" className="col-expand"></th>,
+        <th key="name" className="col-name">Employee</th>,
+    ];
+    const defaultDayOrder = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+
+    if (viewType === 'Monthly' || viewType === 'Fortnightly') {
+        headers.push(<th key="week" className="col-week">Week</th>);
+        headers.push(<th key="week-period" className="col-week-period">Week Period</th>);
+    }
+
+    defaultDayOrder.forEach(dayName => {
+        headers.push(<th key={`${dayName}-h`} className="col-day">{dayName.substring(0, 3)}</th>);
+    });
+
+    headers.push(<th key="total" className="col-total total-header">Total</th>);
+    return headers;
+   };
+
+  const renderDailyEntryCard = (entry, employeeName) => {
+    const entryTimezone = entry.timezone || browserTimezone;
+    const isLeaveEntry = entry.leaveType && entry.leaveType !== 'None';
+    const totalHours = parseFloat(entry.totalHours) || 0;
+
+    return (
+      <div key={entry._id} className="daily-entry-card">
+        <div className="daily-entry-header">
+          <span className="employee-name"><FontAwesomeIcon icon={faUserTie} /> {employeeName}</span>
+          <span className="total-hours">{formatHoursMinutes(totalHours)}</span>
+          <div className="inline-actions">
+            <button className='icon-btn edit-btn' onClick={() => handleUpdate(entry)} title="Edit Entry"><FontAwesomeIcon icon={faPen} /></button>
+            <button className='icon-btn delete-btn' onClick={() => handleDelete(entry._id)} title="Delete Entry"><FontAwesomeIcon icon={faTrash} /></button>
+          </div>
+        </div>
+        <div className="daily-entry-body">
+          {isLeaveEntry ? (
+            <>
+              <div className="detail-item"><FontAwesomeIcon icon={faSignOutAlt} /> <strong>Leave:</strong> <span>{entry.leaveType}</span></div>
+              {entry.description && (<div className="detail-item description-item"><FontAwesomeIcon icon={faInfoCircle} /> <strong>Description:</strong> <span>{entry.description}</span></div>)}
+            </>
+          ) : (
+            <>
+              <div className="detail-item"><FontAwesomeIcon icon={faBuilding} /> <strong>Client:</strong> <span>{entry.clientName || 'N/A'}</span></div>
+              <div className="detail-item"><FontAwesomeIcon icon={faProjectDiagram} /> <strong>Project:</strong> <span>{entry.projectName || 'N/A'}</span></div>
+              <div className="detail-item"><FontAwesomeIcon icon={faClock} /> <strong>Time:</strong> <span>{formatTimeFromISO(entry.startTime, entryTimezone)} - {formatTimeFromISO(entry.endTime, entryTimezone)}</span></div>
+              <div className="detail-item"><FontAwesomeIcon icon={faUtensils} /> <strong>Lunch:</strong> <span>{entry.lunchBreak === 'Yes' ? formatLunchDuration(entry.lunchDuration) : 'No break'}</span></div>
+              {entry.notes && entry.notes.trim() !== '' && (
+                <div className="detail-item notes-item"><FontAwesomeIcon icon={faStickyNote} /> <strong>Notes:</strong> <span>{entry.notes}</span></div>
+              )}
+            </>
+          )}
+        </div>
+      </div>
+    );
   };
+
+  const renderDailyView = () => {
+    const dailyDate = dateColumns[0]?.isoDate;
+    if (!dailyDate) return <div className="no-results">No date selected for daily view.</div>;
+
+    const entriesForDay = groupTimesheetsByEmployee.flatMap(empGroup =>
+        empGroup.details
+            .filter(entry => entry.formattedLocalDate === dailyDate)
+            .map(entry => ({ ...entry, employeeName: empGroup.name }))
+    );
+
+    if (entriesForDay.length === 0) {
+        return <div className="no-results">No timesheet entries found for this day.</div>;
+    }
+
+    entriesForDay.sort((a, b) => {
+        if (a.employeeName < b.employeeName) return -1;
+        if (a.employeeName > b.employeeName) return 1;
+        const timeA = a.startTime ? DateTime.fromISO(a.startTime, { zone: 'utc' }).toMillis() : 0;
+        const timeB = b.startTime ? DateTime.fromISO(b.startTime, { zone: 'utc' }).toMillis() : 0;
+        return timeA - timeB;
+    });
+
+    return (
+        <div className="daily-view-container">
+            {entriesForDay.map(entry => renderDailyEntryCard(entry, entry.employeeName))}
+        </div>
+    );
+  };
+
+  const employeeOptions = useMemo(() => [
+      { value: '', label: 'All Employees' },
+      ...employees.map(e => ({ value: e._id, label: e.name }))
+  ], [employees]);
+
+  const selectedEmployeeOption = useMemo(() =>
+      employeeOptions.find(e => e.value === selectedEmployee) || null
+  , [employeeOptions, selectedEmployee]);
 
   return (
-    <div className="Timesheet-container">
-<div className="timesheet-header">
-<div className="header-left">
-    <h3><FontAwesomeIcon icon={faPen} /> Timesheet</h3>
-  
-  </div>
-  <div className="header-right">
-    <button className="btn btn-red" onClick={() => setShowDownloadFilters(prev => !prev)}>
-      <FontAwesomeIcon icon={faDownload} /> Download Report
-    </button>
-    <button className="btn btn-purple" onClick={() => setShowSendFilters(prev => !prev)}>
-      <FontAwesomeIcon icon={faEnvelope} /> Send Report
-    </button>
-  </div>
-
-
-
-
-{showDownloadFilters && (
-  <div className="filter-panel">
-    <select value={selectedProject} onChange={e => setSelectedProject(e.target.value)} className="filter-select">
-      <option value="">All Projects</option>
-      {projects.map(project => (
-        <option key={project._id} value={project._id}>{project.name}</option>
-      ))}
-    </select>
-    <DatePicker selected={startDate} onChange={setStartDate} placeholderText="From" dateFormat="yyyy-MM-dd" className="filter-datepicker" />
-    <DatePicker selected={endDate} onChange={setEndDate} minDate={startDate} placeholderText="To" dateFormat="yyyy-MM-dd" className="filter-datepicker" />
-    <button className="btn btn-red" onClick={handleDownloadProjectTimesheets}>
-      <FontAwesomeIcon icon={faDownload} /> Download
-    </button>
-  </div>
-)}
-
-{showSendFilters && (
-  <div className="filter-panel">
-    <select value={selectedProject} onChange={e => setSelectedProject(e.target.value)} className="filter-select">
-      <option value="">All Projects</option>
-      {projects.map(project => (
-        <option key={project._id} value={project._id}>{project.name}</option>
-      ))}
-    </select>
-    <DatePicker selected={startDate} onChange={setStartDate} placeholderText="From" dateFormat="yyyy-MM-dd" className="filter-datepicker" />
-    <DatePicker selected={endDate} onChange={setEndDate} minDate={startDate} placeholderText="To" dateFormat="yyyy-MM-dd" className="filter-datepicker" />
-    <input type="email" placeholder="Recipient email" value={email} onChange={e => setEmail(e.target.value)} className="filter-email" />
-    <button className="btn btn-purple" onClick={handleEmailProjectTimesheets}>
-      <FontAwesomeIcon icon={faEnvelope} /> Send
-    </button>
-  </div>
-)}
- </div>
-
-      <div className="timesheet-top-bar">
-        <div className="project-filter">
-          <select
-            onChange={(e) => {
-              console.log("Project selected:", e.target.value);
-              setSelectedProjectId(e.target.value);
-            }}
-            value={selectedProjectId || ""}
-          >
-            <option value="">Select Project</option>
-            {projects.map((project) => (
-              <option key={project._id} value={project._id}>
-                {project.name}
-              </option>
-            ))}
-          </select>
-          {isLoading ? <div>Loading...</div> : <div>{}</div>}
+    <div className='project-timesheet-container timesheet-page'>
+       <div className="timesheet-header">
+        <div className="title-breadcrumbs">
+          <h3><FontAwesomeIcon icon={faProjectDiagram} /> Project Timesheet</h3>
         </div>
-
-        <div className="timesheet-period">
-          {viewType === "Daily"
-            ? generateDateColumns[0].formatted
-            : `${generateDateColumns[0].formatted} - ${
-                generateDateColumns[generateDateColumns.length - 1].formatted
-              }`}
-        </div>
-        <div className="view-type-container">
-          <button className="nav-button" onClick={handlePrev}>
-            <FontAwesomeIcon icon={faArrowLeft} />
+        <div className="header-actions">
+          <button className="btn btn-red" onClick={() => { setShowDownloadFilters(prev => !prev); setShowSendFilters(false); setDownloadError(null); }} aria-expanded={showDownloadFilters} aria-controls="project-timesheet-download-options">
+            <FontAwesomeIcon icon={faDownload} /> Download Report
           </button>
-          <select
-            id="viewType"
-            value={viewType}
-            onChange={(e) => {
-              console.log("View type changed to:", e.target.value);
-              setViewType(e.target.value);
-            }}
-            className="view-type-dropdown"
-          >
-            <option value="Daily">Daily</option>
-            <option value="Weekly">Weekly</option>
-            <option value="Fortnightly">Fortnightly</option>
-            <option value="Monthly">Monthly</option>
-          </select>
-          <button className="nav-button" onClick={handleNext}>
+          <button className="btn btn-purple" onClick={() => { setShowSendFilters(prev => !prev); setShowDownloadFilters(false); setSendError(null); }} aria-expanded={showSendFilters} aria-controls="project-timesheet-send-options">
+            <FontAwesomeIcon icon={faEnvelope} /> Send Report
+          </button>
+        </div>
+      </div>
+
+      {showDownloadFilters && (
+        <div id="project-timesheet-download-options" className="timesheet-options-container download-options">
+          <h4>Download Timesheet Report</h4>
+          {downloadError && <p className='error-text'><FontAwesomeIcon icon={faExclamationCircle} /> {downloadError}</p>}
+          <div className="filter-controls">
+       
+            <DatePicker selected={startDate} onChange={setStartDate} selectsStart startDate={startDate} endDate={endDate} placeholderText="From Date" dateFormat="yyyy-MM-dd" className="filter-datepicker" wrapperClassName="date-picker-wrapper" aria-label="Download Start Date" />
+            <DatePicker selected={endDate} onChange={setEndDate} selectsEnd startDate={startDate} endDate={endDate} minDate={startDate} placeholderText="To Date" dateFormat="yyyy-MM-dd" className="filter-datepicker" wrapperClassName="date-picker-wrapper" aria-label="Download End Date" />
+            <button className="btn btn-red action-button" onClick={handleDownload} disabled={isDownloading || !selectedProjectId}>
+              {isDownloading ? (<><FontAwesomeIcon icon={faSpinner} spin /> Downloading...</>) : (<><FontAwesomeIcon icon={faDownload} /> Download</>)}
+            </button>
+          </div>
+           {!selectedProjectId && <small className="error-text">Please select a project first.</small>}
+        </div>
+      )}
+      {showSendFilters && (
+        <div id="project-timesheet-send-options" className="timesheet-options-container send-options">
+          <h4>Send Timesheet Report</h4>
+           {sendError && <p className='error-text'><FontAwesomeIcon icon={faExclamationCircle} /> {sendError}</p>}
+          <div className="filter-controls">
+           
+            <DatePicker selected={startDate} onChange={setStartDate} selectsStart startDate={startDate} endDate={endDate} placeholderText="From Date" dateFormat="yyyy-MM-dd" className="filter-datepicker" wrapperClassName="date-picker-wrapper" aria-label="Send Start Date" />
+            <DatePicker selected={endDate} onChange={setEndDate} selectsEnd startDate={startDate} endDate={endDate} minDate={startDate} placeholderText="To Date" dateFormat="yyyy-MM-dd" className="filter-datepicker" wrapperClassName="date-picker-wrapper" aria-label="Send End Date" />
+            <input type="email" placeholder="Recipient email" value={email} onChange={e => { setEmail(e.target.value); if (sendError) setSendError(null); }} className="filter-email" aria-label="Recipient Email" required />
+            <button className="btn btn-purple action-button" onClick={handleSendEmail} disabled={isSending || !email || !/\S+@\S+\.\S+/.test(email) || !selectedProjectId}>
+              {isSending ? (<><FontAwesomeIcon icon={faSpinner} spin /> Sending...</>) : (<><FontAwesomeIcon icon={faEnvelope} /> Send</>)}
+            </button>
+          </div>
+           {!selectedProjectId && <small className="error-text">Please select a project first.</small>}
+        </div>
+      )}
+
+       <div className='timesheet-navigation-bar'>
+         {showProjectSelector && (
+             <div className="project-selector-container">
+                <Select
+                    options={projectOptions}
+                    value={selectedProjectOption}
+                    onChange={handleProjectSelectChange}
+                    placeholder="Select a Project..."
+                    className="react-select-container project-select"
+                    classNamePrefix="react-select"
+                    isLoading={isLoading && !projects.length}
+                    isDisabled={isLoading}
+                    isClearable={false} // Keep this false if a project context is always needed
+                />
+             </div>
+         )}
+
+        <div className='period-display'><h4>{periodDisplayText}</h4></div>
+        <div className='navigation-controls'>
+          <button className='nav-button btn btn-blue' onClick={handlePrev} aria-label={`Previous ${periodLabel}`}>
+            <FontAwesomeIcon icon={faArrowLeft} />
+            <span>Prev {periodLabel}</span>
+          </button>
+          <div className='view-type-select-wrapper'>
+            <select id='viewType' value={viewType} onChange={(e) => setViewType(e.target.value)} className='view-type-dropdown' aria-label="Select View Type">
+              <option value='Daily'>View by Daily</option>
+              <option value='Weekly'>View by Weekly</option>
+              <option value='Fortnightly'>View by Fortnightly</option>
+              <option value='Monthly'>View by Monthly</option>
+            </select>
+          </div>
+          <button className='nav-button btn btn-blue' onClick={handleNext} aria-label={`Next ${periodLabel}`}>
+             <span>Next {periodLabel}</span>
             <FontAwesomeIcon icon={faArrowRight} />
           </button>
         </div>
-
-        <button
-          className="create-timesheet-btn"
-          onClick={() => navigate("/timesheet/create")}
-        >
+        <Link to="/timesheet/create" className='btn btn-success create-timesheet-link'>
           <FontAwesomeIcon icon={faPlus} /> Create Timesheet
-        </button>
-     
-      
+        </Link>
       </div>
 
-      {isLoading ? (
-        <div>Loading...</div>
-      ) : (
-        <div className="timesheet-table-wrapper">
-        <table className="timesheet-table">
-          <thead>
-            <tr>{renderTableHeaders()}</tr>
-          </thead>
-          <tbody>
-            {groupTimesheets.map((employee, index) => {
-              const totalHours = formatHours(
-                Object.values(employee.hoursPerDay).reduce(
-                  (sum, h) => sum + h,
-                  0
-                )
-              );
+       {isLoading ? (
+         <div className='loading-indicator'><FontAwesomeIcon icon={faSpinner} spin size='2x' /> Loading Timesheets...</div>
+       ) : error ? (
+         <div className='error-message'><FontAwesomeIcon icon={faExclamationCircle} /> {error}</div>
+       ) : !selectedProjectId ? (
+         <div className='no-results'>Please select a project {showProjectSelector ? '(or "All Projects") ' : ''}to view timesheets.</div>
+       ) : (
+         viewType === 'Daily' ? (
+            renderDailyView()
+         ) : (
+            <div className="timesheet-table-wrapper">
+              <table className='timesheet-table'>
+                <thead><tr>{renderTableHeaders()}</tr></thead>
+                <tbody>
+                  {groupTimesheetsByEmployee.length === 0 ? (
+                    <tr><td colSpan={renderTableHeaders()?.length || 10} className="no-results">No timesheet entries found for the selected criteria.</td></tr>
+                  ) : (
+                    groupTimesheetsByEmployee.map((employeeGroup) => {
+                      const isExpanded = !!expandedRows[employeeGroup.id];
+                      const totalEmployeeHoursDecimal = Object.values(employeeGroup.hoursPerDay).reduce((sum, hours) => sum + hours, 0);
+                      const weeksData = groupDatesByWeek(dateColumns);
+                      const numWeeks = weeksData.length;
+                      const useRowSpan = numWeeks > 1;
+                      const currentDayOrder = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
-              let dayChunks = [];
-              if (viewType === "Fortnightly" || viewType === "Monthly") {
-                let chunkSize = 7;
-                for (let i = 0; i < generateDateColumns.length; i += chunkSize) {
-                  dayChunks.push(generateDateColumns.slice(i, i + chunkSize));
-                }
-              } else {
-                dayChunks = [generateDateColumns];
-              }
+                      return (
+                        weeksData.map((weekInfo, weekIndex) => {
+                          const weekStartDateStr = DateTime.fromJSDate(weekInfo.weekStartDate).toFormat('MMM dd');
+                          const weekEndDateStr = DateTime.fromJSDate(weekInfo.weekEndDate).toFormat('MMM dd');
+                          const weekPeriod = `${weekStartDateStr} - ${weekEndDateStr}`;
 
-              return (
-                <React.Fragment key={`${employee.id || "unknown"}-${index}`}>
-                  {dayChunks.map((week, weekIndex) => {
-                    const weekLabel = `Week ${weekIndex + 1}`;
-                    const weekPeriod = `${week[0].formatted} - ${
-                      week[week.length - 1].formatted
-                    }`;
-
-                    return (
-                      <tr key={`${employee.id}-week-${weekIndex}`}>
-                        {weekIndex === 0 && (
-                          <>
-                            <td rowSpan={dayChunks.length}>
-                              <button
-                                onClick={() => toggleExpand(employee.name)}
-                                className="expand-btn"
-                              >
-                                <FontAwesomeIcon
-                                  icon={
-                                    expandedRows[employee.name]
-                                      ? faChevronUp
-                                      : faChevronDown
-                                  }
-                                />
-                              </button>
-                            </td>
-                            <td rowSpan={dayChunks.length}>{employee.name}</td>
-                            {viewType === "Weekly" && (
-                              <td rowSpan={dayChunks.length}>
-                                {`${generateDateColumns[0].formatted} - ${
-                                  generateDateColumns[6].formatted
-                                }`}
-                              </td>
-                            )}
-                          </>
-                        )}
-
-                        {viewType === "Fortnightly" ||
-                        viewType === "Monthly" ? (
-                          <>
-                            <td>{weekLabel}</td>
-                            <td>{weekPeriod}</td>
-                          </>
-                        ) : null}
-
-                        {week.map((day, dayIndex) => {
-                          const dayHours = formatHours(
-                            employee.hoursPerDay[day.formatted]
-                          );
                           return (
-                            <td
-                              key={`${employee.id}-${day.formatted}-${dayIndex}`}
-                              className="timesheet-cell"
-                            >
-                              {!expandedRows[employee.name] ? (
-                                dayHours
-                              ) : (
-                                <div className="expanded-content">
-                                  <strong>{dayHours}</strong>
-                                  {employee.details
-                                    .filter(
-                                      (entry) =>
-                                        new Date(entry.date).toDateString() ===
-                                        day.date.toDateString()
-                                    )
-                                    .map((entry) => (
-                                      <div
-                                        key={entry._id || `entry-${Math.random()}`}
-                                        className="timesheet-entry"
-                                      >
-                                        <button
-                                          className="icon-btn"
-                                          onClick={() => handleUpdate(entry)}
-                                        >
-                                          <FontAwesomeIcon icon={faPen} />
-                                        </button>
-                                        <button
-                                          className="icon-btn delete-btn"
-                                          onClick={() => handleDelete(entry._id)}
-                                        >
-                                          <FontAwesomeIcon icon={faTrash} />
-                                        </button>
-                                        <p>
-                                          <b>Employee Name:</b>{" "}
-                                          {employee.name || "N/A"}
-                                        </p>
-                                        <p>
-                                          <b>Client:</b>{" "}
-                                          {entry.clientId?.name || "N/A"}
-                                        </p>
-                                        <p>
-                                          <b>Project:</b>{" "}
-                                          {entry.projectId?.name || "N/A"}
-                                        </p>
-                                        <p>
-                                          <b>Date:</b> {entry.date || "N/A"}
-                                        </p>
-                                        <p>
-                                          <b>Start Time:</b>{" "}
-                                          {entry.startTime || "N/A"}
-                                        </p>
-                                        <p>
-                                          <b>End Time:</b>{" "}
-                                          {entry.endTime || "N/A"}
-                                        </p>
-                                        <p>
-                                          <b>Lunch Break:</b>{" "}
-                                          {entry.lunchBreak === "Yes"
-                                            ? `${entry.lunchDuration} mins`
-                                            : "No break"}
-                                        </p>
-                                        <p>
-                                          <b>Notes:</b> {entry.notes || "None"}
-                                        </p>
-                                        <p>
-                                          <b>Total Hours Worked:</b>{" "}
-                                          {entry.totalHours || "N/A"}
-                                        </p>
-                                        <p><b>Leave Type:</b> {entry.leaveType && entry.leaveType !== 'None' ? entry.leaveType : 'Not on leave'}</p>
-                                      </div>
-                                    ))}
-                                </div>
+                            <tr key={`${employeeGroup.id}-week-${weekInfo.weekNumber}`} className={isExpanded ? 'expanded-parent' : ''}>
+                              {weekIndex === 0 && (
+                                <>
+                                  <td rowSpan={useRowSpan ? numWeeks : 1} className="col-expand">
+                                    <button onClick={() => toggleExpand(employeeGroup.id)} className='expand-btn' aria-expanded={isExpanded} aria-label={isExpanded ? 'Collapse row' : 'Expand row'}>
+                                      <FontAwesomeIcon icon={isExpanded ? faChevronUp : faChevronDown} />
+                                    </button>
+                                  </td>
+                                  <td rowSpan={useRowSpan ? numWeeks : 1} className="col-name employee-name-cell">{employeeGroup.name}</td>
+                                </>
                               )}
-                            </td>
-                          );
-                        })}
-                        <td>{totalHours}</td>
-                      </tr>
-                    );
-                  })}
-                </React.Fragment>
-              );
-            })}
-          </tbody>
-        </table>
-        </div>
+                              {(viewType === 'Monthly' || viewType === 'Fortnightly') && (
+                                  <>
+                                    <td className="col-week center-text">{weekInfo.weekNumber}</td>
+                                    <td className="col-week-period center-text">{weekPeriod}</td>
+                                  </>
+                              )}
 
-      )}
+                              {currentDayOrder.map(dayName => {
+                                const dayData = weekInfo.days.find(d => d.dayName === dayName);
+                                const hours = dayData ? (employeeGroup.hoursPerDay[dayData.isoDate] || 0) : 0;
+                                const dailyEntries = dayData ? employeeGroup.details.filter(entry => entry.formattedLocalDate === dayData.isoDate) : [];
+
+                                return (
+                                  <td key={`${employeeGroup.id}-${dayName}-${weekInfo.weekNumber}`} className={`col-day numeric daily-detail-cell ${isExpanded ? 'expanded' : ''}`}>
+                                    {isExpanded ? (
+                                      <div className="day-details-wrapper">
+                                        {dailyEntries.length > 0 ? dailyEntries.map(entry => {
+                                            const entryTimezone = entry.timezone || browserTimezone;
+                                            const isLeaveEntry = entry.leaveType && entry.leaveType !== 'None';
+                                            const totalHours = parseFloat(entry.totalHours) || 0;
+
+                                            return (
+                                              <div key={entry._id} className="timesheet-entry-detail-inline">
+                                                <div className="inline-actions">
+                                                    <button className='icon-btn edit-btn' onClick={() => handleUpdate(entry)} title="Edit Entry"><FontAwesomeIcon icon={faPen} /></button>
+                                                    <button className='icon-btn delete-btn' onClick={() => handleDelete(entry._id)} title="Delete Entry"><FontAwesomeIcon icon={faTrash} /></button>
+                                                </div>
+                                                <div className="detail-section"><span className="detail-label">EMPLOYEE:</span><span className="detail-value">{employeeGroup.name}</span></div>
+
+                                                {isLeaveEntry ? (
+                                                    <>
+                                                        <div className="detail-section total-hours-section"><span className="detail-label">TOTAL</span><span className="detail-value bold">{formatHoursMinutes(totalHours)}</span></div>
+                                                        <div className="detail-separator"></div>
+                                                        <div className="detail-section"><span className="detail-label">Leave Type:</span><span className="detail-value">{entry.leaveType}</span></div>
+                                                        {entry.description && (<div className="detail-section description-item"><span className="detail-label">Description:</span><span className="detail-value">{entry.description}</span></div>)}
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <div className="detail-section"><span className="detail-label">CLIENT:</span><span className="detail-value">{entry.clientName || 'N/A'}</span></div>
+                                                        <div className="detail-section"><span className="detail-label">PROJECT:</span><span className="detail-value">{entry.projectName || 'N/A'}</span></div>
+                                                        <div className="detail-separator"></div>
+                                                        <div className="detail-section total-hours-section"><span className="detail-label">TOTAL</span><span className="detail-value bold">{formatHoursMinutes(totalHours)}</span></div>
+                                                        <div className="detail-separator"></div>
+                                                        <div className="detail-section"><span className="detail-label">Start:</span><span className="detail-value">{formatTimeFromISO(entry.startTime, entryTimezone)}</span></div>
+                                                        <div className="detail-section"><span className="detail-label">End:</span><span className="detail-value">{formatTimeFromISO(entry.endTime, entryTimezone)}</span></div>
+                                                        <div className="detail-section"><span className="detail-label">Lunch:</span><span className="detail-value">{entry.lunchBreak === 'Yes' ? formatLunchDuration(entry.lunchDuration) : 'No break'}</span></div>
+                                                        {entry.notes && entry.notes.trim() !== '' && (
+                                                            <>
+                                                                <div className="detail-separator"></div>
+                                                                <div className="detail-section"><span className="detail-label">Notes:</span><span className="detail-value">{entry.notes}</span></div>
+                                                            </>
+                                                        )}
+                                                    </>
+                                                )}
+                                              </div>
+                                            );
+                                        }) : (
+                                          dayData ? <span className="no-entry-text">{formatHoursMinutes(0)}</span> : <span className="out-of-range"></span>
+                                        )}
+                                      </div>
+                                    ) : (
+                                      dayData ? (hours <= 0 ? <span className="no-entry-text">00:00</span> : formatHoursMinutes(hours)) : <span className="out-of-range"></span>
+                                    )}
+                                  </td>
+                                );
+                              })}
+
+                              {weekIndex === 0 && (
+                                <td rowSpan={useRowSpan ? numWeeks : 1} className="col-total numeric total-summary-cell">
+                                  {totalEmployeeHoursDecimal <= 0 ? (
+                                    <span className="no-entry-text">00:00</span>
+                                  ) : (
+                                    <strong>{formatHoursMinutes(totalEmployeeHoursDecimal)}</strong>
+                                  )}
+                                </td>
+                              )}
+                            </tr>
+                          );
+                        })
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
+         )
+       )}
     </div>
   );
 };

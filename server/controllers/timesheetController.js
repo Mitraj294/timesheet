@@ -53,6 +53,7 @@ const buildTimesheetData = (body) => {
   const isWorkDay = leaveType === "None";
 
   if (isWorkDay) {
+      if (!employeeId || !mongoose.Types.ObjectId.isValid(employeeId)) throw new Error("Invalid Employee ID");
       if (!clientId || !mongoose.Types.ObjectId.isValid(clientId)) throw new Error("Invalid Client ID");
       if (!projectId || !mongoose.Types.ObjectId.isValid(projectId)) throw new Error("Invalid Project ID");
   }
@@ -64,17 +65,25 @@ const buildTimesheetData = (body) => {
 
   let utcStartTime = null;
   if (isWorkDay && startTime) {
-      utcStartTime = new Date(startTime);
-      if (isNaN(utcStartTime.getTime())) {
-          throw new Error(`Invalid Start Time ISO format received: ${startTime}`);
+      try {
+          utcStartTime = new Date(startTime);
+          if (isNaN(utcStartTime.getTime())) {
+              throw new Error(`Invalid Start Time format received: ${startTime}`);
+          }
+      } catch (e) {
+           throw new Error(`Error parsing Start Time: ${startTime}`);
       }
   }
 
   let utcEndTime = null;
   if (isWorkDay && endTime) {
-      utcEndTime = new Date(endTime);
-      if (isNaN(utcEndTime.getTime())) {
-          throw new Error(`Invalid End Time ISO format received: ${endTime}`);
+       try {
+          utcEndTime = new Date(endTime);
+          if (isNaN(utcEndTime.getTime())) {
+              throw new Error(`Invalid End Time format received: ${endTime}`);
+          }
+      } catch (e) {
+           throw new Error(`Error parsing End Time: ${endTime}`);
       }
   }
 
@@ -86,9 +95,9 @@ const buildTimesheetData = (body) => {
     employeeId,
     clientId: isWorkDay ? clientId : null,
     projectId: isWorkDay ? projectId : null,
-    date: dateString,
-    startTime: utcStartTime,
-    endTime: utcEndTime,
+    date: dateString, // Should be YYYY-MM-DD
+    startTime: utcStartTime, // UTC Date object or null
+    endTime: utcEndTime, // UTC Date object or null
     lunchBreak: isWorkDay ? lunchBreak : "No",
     lunchDuration: isWorkDay && lunchBreak === 'Yes' ? lunchDuration : "00:00",
     leaveType,
@@ -105,16 +114,14 @@ const buildTimesheetData = (body) => {
 // createTimesheet function remains the same
 export const createTimesheet = async (req, res) => {
   try {
-    if (!req.body.employeeId || !mongoose.Types.ObjectId.isValid(req.body.employeeId)) {
-        return res.status(400).json({ message: "Invalid or missing Employee ID" });
-    }
     const timesheetData = buildTimesheetData(req.body);
     const newTimesheet = new Timesheet(timesheetData);
     const saved = await newTimesheet.save();
     res.status(201).json({ message: "Timesheet created successfully", data: saved });
   } catch (error) {
      if (error.code === 11000) {
-         return res.status(409).json({ message: `A timesheet for this employee on the specified date already exists (DB constraint).` });
+         const field = Object.keys(error.keyValue)[0];
+         return res.status(409).json({ message: `A timesheet for this employee on the specified date already exists (Duplicate key error on field: ${field}).` });
      }
     console.error("[Server Create] Error creating timesheet:", error);
     res.status(400).json({ message: error.message || "Error creating timesheet" });
@@ -143,23 +150,41 @@ export const checkTimesheet = async (req, res) => {
 };
 
 
-// --- Updated getTimesheets ---
+// --- Updated getTimesheets (Reduced Logging) ---
 export const getTimesheets = async (req, res) => {
   try {
-    const { employeeIds = [], startDate, endDate } = req.query;
+    const { employeeIds = [], projectId, startDate, endDate } = req.query; // Added projectId
     const filter = {};
 
-    if (employeeIds.length > 0) {
-      const ids = Array.isArray(employeeIds) ? employeeIds : employeeIds.split(",");
-      const validIds = ids.filter(id => mongoose.Types.ObjectId.isValid(id));
+    // Filter by Project ID
+    if (projectId && mongoose.Types.ObjectId.isValid(projectId)) {
+        filter.projectId = projectId;
+    } else if (projectId) {
+        console.log("[Server Get] Invalid project ID provided, ignoring project filter.");
+        // Optionally return empty if project ID is mandatory and invalid
+        // return res.json({ timesheets: [], totalHours: 0, avgHours: 0 });
+    }
+
+    // Filter by Employee IDs (only if projectId is NOT set, or adjust logic if needed)
+    // If you want to filter by *both* project and employee, remove the !filter.projectId condition
+    if (!filter.projectId && Array.isArray(employeeIds) && employeeIds.length > 0) {
+      const validIds = employeeIds.filter(id => mongoose.Types.ObjectId.isValid(id));
       if (validIds.length > 0) {
           filter.employeeId = { $in: validIds };
-      } else if (ids.length > 0) {
+      } else {
           console.log("[Server Get] No valid employee IDs provided in filter, returning empty.");
           return res.json({ timesheets: [], totalHours: 0, avgHours: 0 });
       }
+    } else if (!filter.projectId && typeof employeeIds === 'string' && employeeIds) {
+        if (mongoose.Types.ObjectId.isValid(employeeIds)) {
+            filter.employeeId = employeeIds;
+        } else {
+            console.log("[Server Get] Invalid single employee ID provided, returning empty.");
+            return res.json({ timesheets: [], totalHours: 0, avgHours: 0 });
+        }
     }
 
+    // Filter by Date Range
     if (startDate && moment(startDate, 'YYYY-MM-DD', true).isValid()) {
         filter.date = filter.date || {};
         filter.date.$gte = startDate;
@@ -169,7 +194,8 @@ export const getTimesheets = async (req, res) => {
         filter.date.$lte = endDate;
     }
 
-    console.log(`[Server Get] Finding timesheets with filter:`, JSON.stringify(filter));
+    // --- Reduced Logging ---
+    // console.log(`[Server Get] Finding timesheets with filter:`, JSON.stringify(filter));
 
     const timesheetsFromDb = await Timesheet.find(filter)
       .populate("employeeId", "name email wage status expectedWeeklyHours")
@@ -178,21 +204,19 @@ export const getTimesheets = async (req, res) => {
       .sort({ date: 1, startTime: 1 })
       .lean();
 
-    console.log(`[Server Get] Found ${timesheetsFromDb.length} timesheets.`);
+    // --- Reduced Logging ---
+    // console.log(`[Server Get] Found ${timesheetsFromDb.length} timesheets.`);
 
-    // --- START: Ensure date is in YYYY-MM-DD format before sending ---
     const formattedTimesheets = timesheetsFromDb.map(ts => {
         let formattedDate = ts.date;
-        // If it's not already YYYY-MM-DD, try to convert it
         if (formattedDate && !/^\d{4}-\d{2}-\d{2}$/.test(formattedDate)) {
             try {
-                // Attempt to parse whatever format it is and convert to YYYY-MM-DD
-                const parsedMoment = moment.utc(formattedDate); // moment is more flexible with parsing
+                const parsedMoment = moment.utc(formattedDate);
                 if (parsedMoment.isValid()) {
                     formattedDate = parsedMoment.format('YYYY-MM-DD');
                 } else {
                     console.warn(`[Server Get] Could not re-format date for timesheet ${ts._id}: ${ts.date}`);
-                    formattedDate = "INVALID_DATE"; // Mark as invalid if conversion fails
+                    formattedDate = "INVALID_DATE";
                 }
             } catch (e) {
                 console.warn(`[Server Get] Error re-formatting date for timesheet ${ts._id}: ${ts.date}`, e);
@@ -201,24 +225,23 @@ export const getTimesheets = async (req, res) => {
         }
         return { ...ts, date: formattedDate };
     });
-    // --- END: Ensure date format ---
 
-
-    if (formattedTimesheets.length > 0) {
-      console.log(`[Server Get] Structure of first formatted timesheet sent:`, JSON.stringify(formattedTimesheets[0], null, 2));
-    }
+    // --- Reduced Logging ---
+    // if (formattedTimesheets.length > 0) {
+    //   console.log(`[Server Get] Structure of first formatted timesheet sent:`, JSON.stringify(formattedTimesheets[0], null, 2));
+    // }
 
     const total = formattedTimesheets.reduce((sum, t) => sum + (t.totalHours || 0), 0);
     const avg = formattedTimesheets.length > 0 ? parseFloat((total / formattedTimesheets.length).toFixed(2)) : 0;
 
     res.json({
-      timesheets: formattedTimesheets, // Send the formatted array
+      timesheets: formattedTimesheets,
       totalHours: parseFloat(total.toFixed(2)),
       avgHours: avg,
     });
   } catch (error) {
     console.error("[Server Get] Error fetching timesheets:", error.message);
-    console.error("Full error object:", error);
+    // console.error("Full error object:", error); // Keep this for debugging if needed
     res.status(500).json({ message: "Failed to fetch timesheets", error: error.message });
   }
 };
@@ -236,12 +259,16 @@ export const updateTimesheet = async (req, res) => {
     if (!timesheet) return res.status(404).json({ message: "Timesheet not found" });
 
     const updatedData = buildTimesheetData({ ...req.body, employeeId: timesheet.employeeId });
-    timesheet.set(updatedData);
+
+    Object.assign(timesheet, updatedData);
+    timesheet.updatedAt = Date.now();
+
     const savedTimesheet = await timesheet.save();
     res.json({ message: "Timesheet updated successfully", timesheet: savedTimesheet });
   } catch (error) {
      if (error.code === 11000) {
-         return res.status(409).json({ message: `Updating caused a conflict with another entry on the same date (DB constraint).` });
+         const field = Object.keys(error.keyValue)[0];
+         return res.status(409).json({ message: `Updating caused a conflict with another entry (Duplicate key error on field: ${field}).` });
      }
     console.error("[Server Update] Error updating timesheet:", error);
     res.status(400).json({ message: error.message || "Error updating timesheet" });
@@ -325,13 +352,25 @@ const formatDataForReport = (timesheets, defaultTimezone = 'UTC') => {
     return timesheets.map(ts => {
         if (!ts) return {};
         const reportTimezone = ts.timezone && moment.tz.zone(ts.timezone) ? ts.timezone : defaultTimezone;
-        const localDate = ts.date || "Invalid Date";
+
+        let localDate = ts.date;
+        if (localDate && !/^\d{4}-\d{2}-\d{2}$/.test(localDate)) {
+             try {
+                const parsedMoment = moment.utc(localDate);
+                if (parsedMoment.isValid()) {
+                    localDate = parsedMoment.format('YYYY-MM-DD');
+                } else { localDate = "Invalid Date"; }
+            } catch { localDate = "Invalid Date"; }
+        } else if (!localDate) {
+            localDate = "Invalid Date";
+        }
+
         const localStartTime = ts.startTime instanceof Date && !isNaN(ts.startTime.getTime())
                              ? moment(ts.startTime).tz(reportTimezone).format("HH:mm") : "";
         const localEndTime = ts.endTime instanceof Date && !isNaN(ts.endTime.getTime())
                            ? moment(ts.endTime).tz(reportTimezone).format("HH:mm") : "";
-        const dayOfWeek = moment(ts.date, "YYYY-MM-DD", true).isValid()
-                        ? moment(ts.date, "YYYY-MM-DD").format('dddd') : "";
+        const dayOfWeek = moment(localDate, "YYYY-MM-DD", true).isValid()
+                        ? moment(localDate, "YYYY-MM-DD").format('dddd') : "";
 
         return {
             employee: ts.employeeId?.name || 'Unknown',
@@ -417,26 +456,26 @@ const handleReportAction = async (req, res, isDownload, groupBy) => {
 
   try {
     const filter = {};
-    if (groupBy === 'employee' && Array.isArray(employeeIds) && employeeIds.length > 0) {
-        const validIds = employeeIds.filter(id => mongoose.Types.ObjectId.isValid(id));
-        if (validIds.length > 0) filter.employeeId = { $in: validIds };
-        else if (employeeIds.length > 0) return res.status(400).json({ message: 'No valid employee IDs provided for filtering.' });
-    } else if (groupBy === 'project' && Array.isArray(projectIds) && projectIds.length > 0) {
-        const validIds = projectIds.filter(id => mongoose.Types.ObjectId.isValid(id));
-        if (validIds.length > 0) filter.projectId = { $in: validIds };
-        else if (projectIds.length > 0) return res.status(400).json({ message: 'No valid project IDs provided for filtering.' });
-    }
+    const filterIds = (ids) => ids.filter(id => mongoose.Types.ObjectId.isValid(id));
 
+    if (groupBy === 'employee' && Array.isArray(employeeIds) && employeeIds.length > 0) {
+        const validIds = filterIds(employeeIds);
+        if (validIds.length > 0) filter.employeeId = { $in: validIds };
+        else return res.status(400).json({ message: 'No valid employee IDs provided for filtering.' });
+    } else if (groupBy === 'project' && Array.isArray(projectIds) && projectIds.length > 0) {
+        const validIds = filterIds(projectIds);
+        if (validIds.length > 0) filter.projectId = { $in: validIds };
+        else return res.status(400).json({ message: 'No valid project IDs provided for filtering.' });
+    }
     if (startDate && moment(startDate, 'YYYY-MM-DD', true).isValid()) {
-        filter.date = filter.date || {};
-        filter.date.$gte = startDate;
+        filter.date = { ...filter.date, $gte: startDate };
     }
     if (endDate && moment(endDate, 'YYYY-MM-DD', true).isValid()) {
-        filter.date = filter.date || {};
-        filter.date.$lte = endDate;
+        filter.date = { ...filter.date, $lte: endDate };
     }
 
-    console.log(`[Server Report] Finding timesheets with filter:`, JSON.stringify(filter));
+    // --- Reduced Logging ---
+    // console.log(`[Server Report] Finding timesheets with filter:`, JSON.stringify(filter));
     const timesheets = await Timesheet.find(filter)
       .populate('employeeId', 'name')
       .populate('clientId', 'name')
@@ -444,19 +483,26 @@ const handleReportAction = async (req, res, isDownload, groupBy) => {
       .sort(groupBy === 'project' ? { 'projectId.name': 1, date: 1, startTime: 1 } : { 'employeeId.name': 1, date: 1, startTime: 1 })
       .lean();
 
-    console.log(`[Server Report] Found ${timesheets.length} timesheets for report.`);
+    // --- Reduced Logging ---
+    // console.log(`[Server Report] Found ${timesheets.length} timesheets for report.`);
     if (!timesheets.length) {
       return res.status(404).json({ message: "No timesheets found matching the specified filters." });
     }
 
     const formattedData = formatDataForReport(timesheets, reportTimezone);
+
     const groupedData = formattedData.reduce((acc, entry) => {
       const groupKey = entry[groupBy] || `Unknown ${groupBy}`;
       (acc[groupKey] = acc[groupKey] || []).push(entry);
       return acc;
     }, {});
 
-    const columns = standardReportColumns.map(col => col.key === groupBy ? { ...col, key: 'groupKey', header: groupBy.charAt(0).toUpperCase() + groupBy.slice(1) } : col);
+    const columns = standardReportColumns.map(col =>
+        col.key === groupBy
+            ? { ...col, key: 'groupKey', header: groupBy.charAt(0).toUpperCase() + groupBy.slice(1) }
+            : col
+    );
+
     const workbook = buildWorkbook(groupedData, columns);
     const buffer = await workbook.xlsx.writeBuffer();
 
@@ -475,7 +521,9 @@ const handleReportAction = async (req, res, isDownload, groupBy) => {
       const transporter = nodemailer.createTransport({
         service: "gmail",
         auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS },
-        connectionTimeout: 10000, greetingTimeout: 10000, socketTimeout: 10000,
+        connectionTimeout: 10000,
+        greetingTimeout: 10000,
+        socketTimeout: 10000,
       });
 
       const mailOptions = {
@@ -491,12 +539,12 @@ const handleReportAction = async (req, res, isDownload, groupBy) => {
         return res.status(200).json({ message: "Timesheet email sent successfully!" });
       } catch (mailError) {
         console.error(`[Server Report] Failed to send email to ${email}:`, mailError);
-        return res.status(500).json({ message: `Failed to send email. Please check server logs or contact support. Error: ${mailError.message}` });
+        return res.status(500).json({ message: `Failed to send email. Please check server configuration or contact support. Error: ${mailError.message}` });
       }
     }
   } catch (error) {
     console.error(`[Server Report] Exception during ${action} process:`, error);
-    return res.status(500).json({ message: `Failed to ${isDownload ? 'generate report' : 'send email'}.`, error: error.message });
+    return res.status(500).json({ message: `Failed to ${isDownload ? 'generate report' : 'send email'}. Please try again later.`, error: error.message });
   }
 };
 
@@ -505,4 +553,3 @@ export const downloadTimesheets = (req, res) => handleReportAction(req, res, tru
 export const sendTimesheetEmail = (req, res) => handleReportAction(req, res, false, 'employee');
 export const downloadProjectTimesheets = (req, res) => handleReportAction(req, res, true, 'project');
 export const sendProjectTimesheetEmail = (req, res) => handleReportAction(req, res, false, 'project');
-export const downloadTimesheetByEmployee = (req, res) => handleReportAction(req, res, true, 'employee');

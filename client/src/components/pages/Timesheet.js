@@ -6,21 +6,30 @@ import {
   faArrowLeft,
   faArrowRight,
   faPlus,
-  faChevronDown,
-  faChevronUp,
   faTrash,
   faDownload,
   faEnvelope,
   faSpinner,
   faExclamationCircle,
+  faUserTie,
+  faBuilding,
+  faProjectDiagram,
+  faClock,
+  faUtensils,
+  faStickyNote,
+  faSignOutAlt,
+  faInfoCircle,
+  faChevronDown,
+  faChevronUp
 } from '@fortawesome/free-solid-svg-icons';
 import axios from 'axios';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 import '../../styles/Timesheet.scss';
 import { DateTime } from 'luxon';
+import Select from "react-select"; // Assuming react-select is used here too based on filter controls
 
-const API_URL = process.env.REACT_APP_API_URL || 'https://timesheet-c4mj.onrender.com/api';
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 
 const formatDateString = (dateString, format = 'yyyy-MM-dd') => {
     if (!dateString || !/^\d{4}-\d{2}-\d{2}$/.test(dateString)) return 'Invalid Date';
@@ -70,20 +79,6 @@ const formatLunchDuration = (lunchDuration) => {
     return lunchDuration;
 };
 
-const adjustToMonday = (date) => {
-    const dt = DateTime.fromJSDate(date);
-    return dt.startOf('week').toJSDate();
-};
-
-const groupDatesByWeek = (dateColumns) => {
-    const weeks = [];
-    if (!dateColumns || dateColumns.length === 0) return weeks;
-    for (let i = 0; i < dateColumns.length; i += 7) {
-        weeks.push(dateColumns.slice(i, i + 7));
-    }
-    return weeks;
-};
-
 const calculateDateRange = (baseDate, type) => {
     let startDt = DateTime.fromJSDate(baseDate);
     let endDt;
@@ -91,16 +86,75 @@ const calculateDateRange = (baseDate, type) => {
     if (type === 'Daily') {
         startDt = startDt.startOf('day');
         endDt = startDt.endOf('day');
+    } else if (type === 'Monthly') {
+        startDt = startDt.startOf('month');
+        endDt = startDt.endOf('month');
     } else {
         startDt = startDt.startOf('week');
-        switch (type) {
-            case 'Weekly':      endDt = startDt.plus({ days: 6 }).endOf('day'); break;
-            case 'Fortnightly': endDt = startDt.plus({ days: 13 }).endOf('day'); break;
-            case 'Monthly':     endDt = startDt.plus({ days: 27 }).endOf('day'); break;
-            default:            endDt = startDt.plus({ days: 6 }).endOf('day'); break;
+        if (type === 'Fortnightly') {
+            endDt = startDt.plus({ days: 13 }).endOf('day');
+        } else {
+            endDt = startDt.plus({ days: 6 }).endOf('day');
         }
     }
     return { start: startDt.toJSDate(), end: endDt.toJSDate() };
+};
+
+const generateDateColumns = (currentDate, viewType) => {
+    const { start, end } = calculateDateRange(currentDate, viewType);
+    const startDt = DateTime.fromJSDate(start);
+    const endDt = DateTime.fromJSDate(end);
+    const daysCount = endDt.diff(startDt, 'days').days + 1;
+
+    return Array.from({ length: daysCount }, (_, i) => {
+      const dayDt = startDt.plus({ days: i });
+      return {
+        date: dayDt.toJSDate(),
+        longFormat: dayDt.toFormat('MMM dd, yyyy'),
+        isoDate: dayDt.toFormat('yyyy-MM-dd'),
+        dayName: dayDt.toFormat('EEEE'),
+        shortDayName: dayDt.toFormat('EEE'),
+        weekNumber: dayDt.weekNumber,
+      };
+    });
+};
+
+const groupDatesByWeek = (dateColumns) => {
+    if (!dateColumns || dateColumns.length === 0) return [];
+
+    const weeksMap = new Map();
+    dateColumns.forEach(col => {
+        const weekKey = `${col.date.getFullYear()}-${col.weekNumber}`;
+        if (!weeksMap.has(weekKey)) {
+            const dateInWeek = DateTime.fromJSDate(col.date);
+            const weekStart = dateInWeek.startOf('week');
+            const weekEnd = dateInWeek.endOf('week');
+            weeksMap.set(weekKey, {
+                weekNumber: col.weekNumber,
+                weekStartDate: weekStart.toJSDate(),
+                weekEndDate: weekEnd.toJSDate(),
+                days: []
+            });
+        }
+        weeksMap.get(weekKey).days.push(col);
+    });
+
+    return Array.from(weeksMap.values()).sort((a, b) => {
+        if (a.weekStartDate.getFullYear() !== b.weekStartDate.getFullYear()) {
+            return a.weekStartDate.getFullYear() - b.weekStartDate.getFullYear();
+        }
+        return a.weekNumber - b.weekNumber;
+    });
+};
+
+const getPeriodLabel = (viewType) => {
+    switch (viewType) {
+        case 'Daily': return 'Day';
+        case 'Weekly': return 'Week';
+        case 'Fortnightly': return 'Fortnight';
+        case 'Monthly': return 'Month';
+        default: return 'Period';
+    }
 };
 
 
@@ -111,7 +165,7 @@ const Timesheet = () => {
   const [clients, setClients] = useState([]);
   const [projects, setProjects] = useState([]);
   const [expandedRows, setExpandedRows] = useState({});
-  const [currentDate, setCurrentDate] = useState(adjustToMonday(new Date()));
+  const [currentDate, setCurrentDate] = useState(new Date());
   const [isLoading, setIsLoading] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
   const [isSending, setIsSending] = useState(false);
@@ -131,6 +185,7 @@ const Timesheet = () => {
   const fetchWithAuth = useCallback(async (url, config = {}) => {
       const token = localStorage.getItem('token');
       if (!token) {
+          console.error("fetchWithAuth: No token found, redirecting to login.");
           navigate('/login');
           throw new Error('No authentication token found!');
       }
@@ -139,10 +194,11 @@ const Timesheet = () => {
           headers: { ...config.headers, Authorization: `Bearer ${token}` },
       };
       try {
-          const response = await axios.get(url, authConfig);
+          const response = await axios.get(url.startsWith('http') ? url : `${API_URL}${url}`, authConfig);
           return response.data;
       } catch (err) {
           if (err.response?.status === 401 || err.response?.status === 403) {
+              console.error(`fetchWithAuth: ${err.response.status} error, redirecting to login.`);
               navigate('/login');
           }
           throw err;
@@ -151,31 +207,37 @@ const Timesheet = () => {
 
   const fetchEmployees = useCallback(async () => {
     try {
-      const data = await fetchWithAuth(`${API_URL}/employees`);
+      const data = await fetchWithAuth(`/employees`);
       setEmployees(data || []);
     } catch (error) {
       console.error('Error fetching employees:', error.response?.data || error.message);
-      setError('Failed to fetch employees.');
+      if (!error.message?.includes('token')) {
+          setError('Failed to fetch employees.');
+      }
     }
   }, [fetchWithAuth]);
 
   const fetchClients = useCallback(async () => {
      try {
-      const data = await fetchWithAuth(`${API_URL}/clients`);
+      const data = await fetchWithAuth(`/clients`);
       setClients(data || []);
     } catch (error) {
       console.error('Error fetching clients:', error.response?.data || error.message);
-      setError('Failed to fetch clients.');
+       if (!error.message?.includes('token')) {
+           setError('Failed to fetch clients.');
+       }
     }
   }, [fetchWithAuth]);
 
   const fetchProjects = useCallback(async () => {
      try {
-      const data = await fetchWithAuth(`${API_URL}/projects`);
+      const data = await fetchWithAuth(`/projects`);
       setProjects(data || []);
     } catch (error) {
       console.error('Error fetching projects:', error.response?.data || error.message);
-      setError('Failed to fetch projects.');
+       if (!error.message?.includes('token')) {
+           setError('Failed to fetch projects.');
+       }
     }
   }, [fetchWithAuth]);
 
@@ -184,18 +246,18 @@ const Timesheet = () => {
     setError(null);
     try {
       const { start, end } = calculateDateRange(currentDate, viewType);
-      const data = await fetchWithAuth(`${API_URL}/timesheets`, {
-        params: {
-          startDate: DateTime.fromJSDate(start).toFormat('yyyy-MM-dd'),
-          endDate: DateTime.fromJSDate(end).toFormat('yyyy-MM-dd'),
-        },
+      const startDateStr = DateTime.fromJSDate(start).toFormat('yyyy-MM-dd');
+      const endDateStr = DateTime.fromJSDate(end).toFormat('yyyy-MM-dd');
+      const data = await fetchWithAuth(`/timesheets`, {
+        params: { startDate: startDateStr, endDate: endDateStr },
       });
       const fetchedTimesheets = data?.timesheets;
-      console.log("Fetched Timesheets Raw:", fetchedTimesheets); // Log raw data
       setTimesheets(Array.isArray(fetchedTimesheets) ? fetchedTimesheets : []);
     } catch (error) {
       console.error('Error fetching timesheets:', error.response?.data || error.message);
-      setError(error.response?.data?.message || 'Failed to fetch timesheets.');
+      if (!error.message?.includes('token')) {
+          setError(error.response?.data?.message || 'Failed to fetch timesheets.');
+      }
       setTimesheets([]);
     } finally {
       setIsLoading(false);
@@ -243,10 +305,10 @@ const Timesheet = () => {
             case 'Daily': newDt = dt.minus({ days: 1 }); break;
             case 'Weekly': newDt = dt.minus({ weeks: 1 }); break;
             case 'Fortnightly': newDt = dt.minus({ weeks: 2 }); break;
-            case 'Monthly': newDt = dt.minus({ weeks: 4 }); break;
+            case 'Monthly': newDt = dt.minus({ months: 1 }); break;
             default: newDt = dt.minus({ weeks: 1 }); break;
         }
-        return (viewType === 'Daily' ? newDt : newDt.startOf('week')).toJSDate();
+        return newDt.toJSDate();
     });
    };
 
@@ -258,10 +320,10 @@ const Timesheet = () => {
             case 'Daily': newDt = dt.plus({ days: 1 }); break;
             case 'Weekly': newDt = dt.plus({ weeks: 1 }); break;
             case 'Fortnightly': newDt = dt.plus({ weeks: 2 }); break;
-            case 'Monthly': newDt = dt.plus({ weeks: 4 }); break;
+            case 'Monthly': newDt = dt.plus({ months: 1 }); break;
             default: newDt = dt.plus({ weeks: 1 }); break;
         }
-        return (viewType === 'Daily' ? newDt : newDt.startOf('week')).toJSDate();
+        return newDt.toJSDate();
     });
    };
 
@@ -276,6 +338,7 @@ const Timesheet = () => {
               employeeIds: selectedEmployee ? [selectedEmployee] : [],
               startDate: startDate ? DateTime.fromJSDate(startDate).toFormat('yyyy-MM-dd') : null,
               endDate: endDate ? DateTime.fromJSDate(endDate).toFormat('yyyy-MM-dd') : null,
+              timezone: browserTimezone,
           };
           await axios.post(`${API_URL}/timesheets/send`, body, { headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' } });
           setShowSendFilters(false); setEmail(''); setSelectedEmployee(''); setStartDate(null); setEndDate(null);
@@ -284,7 +347,7 @@ const Timesheet = () => {
           setSendError(error.response?.data?.message || 'Failed to send timesheet. Please try again.');
           if (error.response?.status === 401) navigate('/login');
       } finally { setIsSending(false); }
-  }, [email, selectedEmployee, startDate, endDate, navigate]);
+  }, [email, selectedEmployee, startDate, endDate, navigate, browserTimezone]);
 
   const handleDownload = useCallback(async () => {
       setDownloadError(null); setIsDownloading(true); setError(null);
@@ -295,6 +358,7 @@ const Timesheet = () => {
               employeeIds: selectedEmployee ? [selectedEmployee] : [],
               startDate: startDate ? DateTime.fromJSDate(startDate).toFormat('yyyy-MM-dd') : null,
               endDate: endDate ? DateTime.fromJSDate(endDate).toFormat('yyyy-MM-dd') : null,
+              timezone: browserTimezone,
           };
           const response = await axios.post(`${API_URL}/timesheets/download`, body, { headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, responseType: 'blob' });
           const blob = new Blob([response.data], { type: response.headers['content-type'] || 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
@@ -320,76 +384,50 @@ const Timesheet = () => {
               try {
                   const errorJson = JSON.parse(await err.response.data.text());
                   errorMessage = errorJson.message || errorJson.error || errorMessage;
-              } catch (parseError) { /* Ignore */ }
+              } catch (parseError) { console.error("Could not parse error blob:", parseError); }
           } else if (err.response?.data?.message || err.response?.data?.error) {
               errorMessage = err.response.data.message || err.response.data.error;
           } else if (err.message) { errorMessage = err.message; }
           setDownloadError(errorMessage);
           if (err.response?.status === 401) navigate('/login');
       } finally { setIsDownloading(false); }
-  }, [selectedEmployee, startDate, endDate, navigate]);
+  }, [selectedEmployee, startDate, endDate, navigate, browserTimezone]);
 
-  const generateDateColumns = useMemo(() => {
-    const { start } = calculateDateRange(currentDate, viewType);
-    const startDt = DateTime.fromJSDate(start);
-    let daysCount;
-    switch (viewType) {
-      case 'Daily': daysCount = 1; break;
-      case 'Weekly': daysCount = 7; break;
-      case 'Fortnightly': daysCount = 14; break;
-      case 'Monthly': daysCount = 28; break;
-      default: daysCount = 7;
-    }
-    return Array.from({ length: daysCount }, (_, i) => {
-      const dayDt = startDt.plus({ days: i });
-      return {
-        date: dayDt.toJSDate(),
-        longFormat: dayDt.toFormat('MMM dd, yyyy'),
-        isoDate: dayDt.toFormat('yyyy-MM-dd'),
-        dayName: dayDt.toFormat('EEEE'),
-        shortDayName: dayDt.toFormat('EEE'),
-      };
-    });
-  }, [currentDate, viewType]);
+  const dateColumns = useMemo(() => generateDateColumns(currentDate, viewType), [currentDate, viewType]);
 
   const groupTimesheets = useMemo(() => {
       let grouped = {};
-      const currentViewDates = new Set(generateDateColumns.map(d => d.isoDate));
+      const currentViewDates = new Set(dateColumns.map(d => d.isoDate));
 
       timesheets.forEach((timesheet) => {
-        if (!timesheet || !timesheet.date || !/^\d{4}-\d{2}-\d{2}$/.test(timesheet.date)) {
-            console.warn("Skipping timesheet due to missing or invalid date format:", timesheet);
-            return; // Skip if date format is wrong
+        if (!timesheet || !timesheet.employeeId || !timesheet.date || !/^\d{4}-\d{2}-\d{2}$/.test(timesheet.date)) {
+            return;
         }
-        const entryLocalDate = timesheet.date; // Use the YYYY-MM-DD string directly
-
+        const entryLocalDate = timesheet.date;
         if (!currentViewDates.has(entryLocalDate)) return;
 
         const employeeIdValue = timesheet.employeeId?._id || timesheet.employeeId;
-        if (!employeeIdValue) return;
-
         const employee = employees.find((emp) => emp._id === employeeIdValue);
-        const employeeName = employee ? employee.name : `Unknown (${String(employeeIdValue).slice(-4)})`;
-        const employeeStatus = employee ? (employee.status || 'Active') : 'Unknown';
+        const employeeName = employee?.name || `Unknown (${String(employeeIdValue).slice(-4)})`;
+        const employeeStatus = employee?.status || 'Unknown';
         const employeeExpectedHours = employee?.expectedWeeklyHours || 40;
 
         const clientIdValue = timesheet.clientId?._id || timesheet.clientId;
         const projectIdValue = timesheet.projectId?._id || timesheet.projectId;
         const client = clientIdValue ? clients.find((c) => c._id === clientIdValue) : null;
-        const clientName = client ? client.name : (clientIdValue ? 'N/A' : '');
+        const clientName = client?.name || (clientIdValue ? 'N/A' : '');
         const project = projectIdValue ? projects.find((p) => p._id === projectIdValue) : null;
-        const projectName = project ? project.name : (projectIdValue ? 'N/A' : '');
+        const projectName = project?.name || (projectIdValue ? 'N/A' : '');
 
         if (!grouped[employeeIdValue]) {
           grouped[employeeIdValue] = {
             id: employeeIdValue, name: employeeName, status: employeeStatus,
             hoursPerDay: {}, details: [], expectedHours: employeeExpectedHours,
           };
-          generateDateColumns.forEach(day => (grouped[employeeIdValue].hoursPerDay[day.isoDate] = 0));
+          dateColumns.forEach(day => (grouped[employeeIdValue].hoursPerDay[day.isoDate] = 0));
         }
 
         grouped[employeeIdValue].hoursPerDay[entryLocalDate] += parseFloat(timesheet.totalHours || 0);
-
         grouped[employeeIdValue].details.push({
           ...timesheet,
           clientName, projectName,
@@ -399,9 +437,8 @@ const Timesheet = () => {
 
       Object.values(grouped).forEach(group => {
           group.details.sort((a, b) => {
-              const dateA = DateTime.fromISO(a.date).toMillis(); // Sort by YYYY-MM-DD string
-              const dateB = DateTime.fromISO(b.date).toMillis();
-              if (dateA !== dateB) return dateA - dateB;
+              if (a.formattedLocalDate < b.formattedLocalDate) return -1;
+              if (a.formattedLocalDate > b.formattedLocalDate) return 1;
               const timeA = a.startTime ? DateTime.fromISO(a.startTime, { zone: 'utc' }).toMillis() : 0;
               const timeB = b.startTime ? DateTime.fromISO(b.startTime, { zone: 'utc' }).toMillis() : 0;
               return timeA - timeB;
@@ -410,41 +447,120 @@ const Timesheet = () => {
 
       return Object.values(grouped).sort((a, b) => a.name.localeCompare(b.name));
 
-    }, [timesheets, employees, clients, projects, generateDateColumns]);
+    }, [timesheets, employees, clients, projects, dateColumns]);
 
   const periodDisplayText = useMemo(() => {
-    if (!generateDateColumns || generateDateColumns.length === 0) return 'Loading...';
-    const firstDay = DateTime.fromJSDate(generateDateColumns[0].date);
+    if (!dateColumns || dateColumns.length === 0) return 'Loading...';
+    const firstDay = DateTime.fromJSDate(dateColumns[0].date);
     if (viewType === 'Daily') {
         return firstDay.toFormat('MMM dd yyyy, EEE');
     } else {
-        const lastDay = DateTime.fromJSDate(generateDateColumns[generateDateColumns.length - 1].date);
+        const lastDay = DateTime.fromJSDate(dateColumns[dateColumns.length - 1].date);
         const startFormat = 'MMM dd';
         const endFormat = firstDay.year !== lastDay.year ? 'MMM dd, yyyy' : 'MMM dd, yyyy';
         return `${firstDay.toFormat(startFormat)} - ${lastDay.toFormat(endFormat)}`;
     }
-  }, [generateDateColumns, viewType]);
+  }, [dateColumns, viewType]);
+
+  const periodLabel = useMemo(() => getPeriodLabel(viewType), [viewType]);
 
   const renderTableHeaders = () => {
+    if (viewType === 'Daily') return null;
+
     const headers = [
         <th key="expand" className="col-expand"></th>,
-        <th key="status" className="col-status">Status</th>,
         <th key="name" className="col-name">Name</th>,
     ];
     const defaultDayOrder = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-    if (viewType === 'Monthly' || viewType === 'Fortnightly' || viewType === 'Weekly') {
-        if (viewType === 'Monthly' || viewType === 'Fortnightly') {
-            headers.push(<th key="week" className="col-week">Week</th>);
-        }
-        defaultDayOrder.forEach(dayName => {
-            headers.push(<th key={`${dayName}-h`} className="col-day">{dayName.substring(0, 3)}</th>);
-        });
-    } else {
-        headers.push(<th key="daily-date" className="col-day">{generateDateColumns[0]?.shortDayName || 'Date'}</th>);
+
+    if (viewType === 'Monthly' || viewType === 'Fortnightly') {
+        headers.push(<th key="week" className="col-week">Week</th>);
+        headers.push(<th key="week-period" className="col-week-period">Week Period</th>);
     }
+
+    defaultDayOrder.forEach(dayName => {
+        headers.push(<th key={`${dayName}-h`} className="col-day">{dayName.substring(0, 3)}</th>);
+    });
+
     headers.push(<th key="total" className="col-total total-header">Total</th>);
     return headers;
    };
+
+  const renderDailyEntryCard = (entry, employeeName) => {
+    const entryTimezone = entry.timezone || browserTimezone;
+    const isLeaveEntry = entry.leaveType && entry.leaveType !== 'None';
+    const totalHours = parseFloat(entry.totalHours) || 0;
+
+    return (
+      <div key={entry._id} className="daily-entry-card">
+        <div className="daily-entry-header">
+          <span className="employee-name"><FontAwesomeIcon icon={faUserTie} /> {employeeName}</span>
+          <span className="total-hours">{formatHoursMinutes(totalHours)}</span>
+          <div className="inline-actions">
+            <button className='icon-btn edit-btn' onClick={() => handleUpdate(entry)} title="Edit Entry"><FontAwesomeIcon icon={faPen} /></button>
+            <button className='icon-btn delete-btn' onClick={() => handleDelete(entry._id)} title="Delete Entry"><FontAwesomeIcon icon={faTrash} /></button>
+          </div>
+        </div>
+        <div className="daily-entry-body">
+          {isLeaveEntry ? (
+            <>
+              <div className="detail-item"><FontAwesomeIcon icon={faSignOutAlt} /> <strong>Leave:</strong> <span>{entry.leaveType}</span></div>
+              {entry.description && (<div className="detail-item description-item"><FontAwesomeIcon icon={faInfoCircle} /> <strong>Description:</strong> <span>{entry.description}</span></div>)}
+            </>
+          ) : (
+            <>
+              <div className="detail-item"><FontAwesomeIcon icon={faBuilding} /> <strong>Client:</strong> <span>{entry.clientName || 'N/A'}</span></div>
+              <div className="detail-item"><FontAwesomeIcon icon={faProjectDiagram} /> <strong>Project:</strong> <span>{entry.projectName || 'N/A'}</span></div>
+              <div className="detail-item"><FontAwesomeIcon icon={faClock} /> <strong>Time:</strong> <span>{formatTimeFromISO(entry.startTime, entryTimezone)} - {formatTimeFromISO(entry.endTime, entryTimezone)}</span></div>
+              <div className="detail-item"><FontAwesomeIcon icon={faUtensils} /> <strong>Lunch:</strong> <span>{entry.lunchBreak === 'Yes' ? formatLunchDuration(entry.lunchDuration) : 'No break'}</span></div>
+              {entry.notes && entry.notes.trim() !== '' && (
+                <div className="detail-item notes-item"><FontAwesomeIcon icon={faStickyNote} /> <strong>Notes:</strong> <span>{entry.notes}</span></div>
+              )}
+            </>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  const renderDailyView = () => {
+    const dailyDate = dateColumns[0]?.isoDate;
+    if (!dailyDate) return <div className="no-results">No date selected for daily view.</div>;
+
+    const entriesForDay = groupTimesheets.flatMap(empGroup =>
+        empGroup.details
+            .filter(entry => entry.formattedLocalDate === dailyDate)
+            .map(entry => ({ ...entry, employeeName: empGroup.name }))
+    );
+
+    if (entriesForDay.length === 0) {
+        return <div className="no-results">No timesheet entries found for this day.</div>;
+    }
+
+    entriesForDay.sort((a, b) => {
+        if (a.employeeName < b.employeeName) return -1;
+        if (a.employeeName > b.employeeName) return 1;
+        const timeA = a.startTime ? DateTime.fromISO(a.startTime, { zone: 'utc' }).toMillis() : 0;
+        const timeB = b.startTime ? DateTime.fromISO(b.startTime, { zone: 'utc' }).toMillis() : 0;
+        return timeA - timeB;
+    });
+
+    return (
+        <div className="daily-view-container">
+            {entriesForDay.map(entry => renderDailyEntryCard(entry, entry.employeeName))}
+        </div>
+    );
+  };
+
+  const employeeOptions = useMemo(() => [
+      { value: '', label: 'All Employees' },
+      ...employees.map(e => ({ value: e._id, label: e.name }))
+  ], [employees]);
+
+  const selectedEmployeeOption = useMemo(() =>
+      employeeOptions.find(e => e.value === selectedEmployee) || null
+  , [employeeOptions, selectedEmployee]);
+
 
   return (
     <div className='timesheet-page'>
@@ -471,10 +587,15 @@ const Timesheet = () => {
           <h4>Download Timesheet Report</h4>
           {downloadError && <p className='error-text'><FontAwesomeIcon icon={faExclamationCircle} /> {downloadError}</p>}
           <div className="filter-controls">
-            <select value={selectedEmployee} onChange={e => setSelectedEmployee(e.target.value)} className="filter-select" aria-label="Select Employee for Download">
-              <option value="">All Employees</option>
-              {employees.map(emp => (<option key={emp._id} value={emp._id}>{emp.name}</option>))}
-            </select>
+            <Select
+                options={employeeOptions}
+                value={selectedEmployeeOption}
+                onChange={option => setSelectedEmployee(option?.value || '')}
+                className="react-select-container filter-select"
+                classNamePrefix="react-select"
+                placeholder="Filter by Employee (Optional)"
+                isClearable={true}
+            />
             <DatePicker selected={startDate} onChange={setStartDate} selectsStart startDate={startDate} endDate={endDate} placeholderText="From Date" dateFormat="yyyy-MM-dd" className="filter-datepicker" wrapperClassName="date-picker-wrapper" aria-label="Download Start Date" />
             <DatePicker selected={endDate} onChange={setEndDate} selectsEnd startDate={startDate} endDate={endDate} minDate={startDate} placeholderText="To Date" dateFormat="yyyy-MM-dd" className="filter-datepicker" wrapperClassName="date-picker-wrapper" aria-label="Download End Date" />
             <button className="btn btn-red action-button" onClick={handleDownload} disabled={isDownloading}>
@@ -488,10 +609,15 @@ const Timesheet = () => {
           <h4>Send Timesheet Report</h4>
            {sendError && <p className='error-text'><FontAwesomeIcon icon={faExclamationCircle} /> {sendError}</p>}
           <div className="filter-controls">
-            <select value={selectedEmployee} onChange={e => setSelectedEmployee(e.target.value)} className="filter-select" aria-label="Select Employee for Sending">
-              <option value="">All Employees</option>
-              {employees.map(emp => (<option key={emp._id} value={emp._id}>{emp.name}</option>))}
-            </select>
+            <Select
+                options={employeeOptions}
+                value={selectedEmployeeOption}
+                onChange={option => setSelectedEmployee(option?.value || '')}
+                className="react-select-container filter-select"
+                classNamePrefix="react-select"
+                placeholder="Filter by Employee (Optional)"
+                isClearable={true}
+            />
             <DatePicker selected={startDate} onChange={setStartDate} selectsStart startDate={startDate} endDate={endDate} placeholderText="From Date" dateFormat="yyyy-MM-dd" className="filter-datepicker" wrapperClassName="date-picker-wrapper" aria-label="Send Start Date" />
             <DatePicker selected={endDate} onChange={setEndDate} selectsEnd startDate={startDate} endDate={endDate} minDate={startDate} placeholderText="To Date" dateFormat="yyyy-MM-dd" className="filter-datepicker" wrapperClassName="date-picker-wrapper" aria-label="Send End Date" />
             <input type="email" placeholder="Recipient email" value={email} onChange={e => { setEmail(e.target.value); if (sendError) setSendError(null); }} className="filter-email" aria-label="Recipient Email" required />
@@ -501,12 +627,13 @@ const Timesheet = () => {
           </div>
         </div>
       )}
+
        <div className='timesheet-navigation-bar'>
         <div className='period-display'><h4>{periodDisplayText}</h4></div>
         <div className='navigation-controls'>
-          <button className='nav-button btn btn-blue' onClick={handlePrev} aria-label="Previous Period">
+          <button className='nav-button btn btn-blue' onClick={handlePrev} aria-label={`Previous ${periodLabel}`}>
             <FontAwesomeIcon icon={faArrowLeft} />
-            <span>Prev {viewType === 'Daily' ? 'Day' : viewType === 'Weekly' ? 'Week' : 'Period'}</span>
+            <span>Prev {periodLabel}</span>
           </button>
           <div className='view-type-select-wrapper'>
             <select id='viewType' value={viewType} onChange={(e) => setViewType(e.target.value)} className='view-type-dropdown' aria-label="Select View Type">
@@ -516,8 +643,8 @@ const Timesheet = () => {
               <option value='Monthly'>View by Monthly</option>
             </select>
           </div>
-          <button className='nav-button btn btn-blue' onClick={handleNext} aria-label="Next Period">
-             <span>Next {viewType === 'Daily' ? 'Day' : viewType === 'Weekly' ? 'Week' : 'Period'}</span>
+          <button className='nav-button btn btn-blue' onClick={handleNext} aria-label={`Next ${periodLabel}`}>
+             <span>Next {periodLabel}</span>
             <FontAwesomeIcon icon={faArrowRight} />
           </button>
         </div>
@@ -531,121 +658,143 @@ const Timesheet = () => {
        ) : error ? (
          <div className='error-message'><FontAwesomeIcon icon={faExclamationCircle} /> {error}</div>
        ) : (
-         <div className="timesheet-table-wrapper">
-           <table className='timesheet-table'>
-             <thead><tr>{renderTableHeaders()}</tr></thead>
-             <tbody>
-               {groupTimesheets.length === 0 ? (
-                 <tr><td colSpan={renderTableHeaders().length} className="no-results">No timesheet entries found for this period.</td></tr>
-               ) : (
-                 groupTimesheets.map((employeeGroup) => {
-                   const isExpanded = !!expandedRows[employeeGroup.id];
-                   const totalEmployeeHoursDecimal = Object.values(employeeGroup.hoursPerDay).reduce((sum, hours) => sum + hours, 0);
-                   const weeksData = (viewType === 'Monthly' || viewType === 'Fortnightly') ? groupDatesByWeek(generateDateColumns) : [generateDateColumns];
-                   const numWeeks = weeksData.length;
-                   const useRowSpan = viewType === 'Monthly' || viewType === 'Fortnightly';
-                   const currentDayOrder = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+         viewType === 'Daily' ? (
+            renderDailyView()
+         ) : (
+            <div className="timesheet-table-wrapper">
+              <table className='timesheet-table'>
+                <thead><tr>{renderTableHeaders()}</tr></thead>
+                <tbody>
+                  {groupTimesheets.length === 0 ? (
+                    <tr><td colSpan={renderTableHeaders()?.length || 10} className="no-results">No timesheet entries found for this period.</td></tr>
+                  ) : (
+                    groupTimesheets.map((employeeGroup) => {
+                      const isExpanded = !!expandedRows[employeeGroup.id];
+                      const totalEmployeeHoursDecimal = Object.values(employeeGroup.hoursPerDay).reduce((sum, hours) => sum + hours, 0);
+                      const weeksData = groupDatesByWeek(dateColumns);
+                      const numWeeks = weeksData.length;
+                      const useRowSpan = numWeeks > 1;
+                      const currentDayOrder = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
-                   return (
-                     weeksData.map((weekDates, weekIndex) => (
-                       <tr key={`${employeeGroup.id}-week-${weekIndex}`} className={isExpanded ? 'expanded-parent' : ''}>
-                         {weekIndex === 0 && (
-                           <>
-                             <td rowSpan={useRowSpan ? numWeeks : 1} className="col-expand">
-                               <button onClick={() => toggleExpand(employeeGroup.id)} className='expand-btn' aria-expanded={isExpanded}>
-                                 <FontAwesomeIcon icon={isExpanded ? faChevronUp : faChevronDown} />
-                               </button>
-                             </td>
-                             <td rowSpan={useRowSpan ? numWeeks : 1} className="col-status employee-status-cell">
-                               <span className={`status-badge status-${employeeGroup.status?.toLowerCase()}`}>{employeeGroup.status || 'Unknown'}</span>
-                             </td>
-                             <td rowSpan={useRowSpan ? numWeeks : 1} className="col-name employee-name-cell">{employeeGroup.name}</td>
-                           </>
-                         )}
-                         {(viewType === 'Monthly' || viewType === 'Fortnightly') && (<td className="col-week center-text">{weekIndex + 1}</td>)}
+                      return (
+                        weeksData.map((weekInfo, weekIndex) => {
+                          const weekStartDateStr = DateTime.fromJSDate(weekInfo.weekStartDate).toFormat('MMM dd');
+                          const weekEndDateStr = DateTime.fromJSDate(weekInfo.weekEndDate).toFormat('MMM dd');
+                          const weekPeriod = `${weekStartDateStr} - ${weekEndDateStr}`;
 
-                         {currentDayOrder.map(dayName => {
-                           const dayData = weekDates.find(d => d.dayName === dayName);
-                           const hours = dayData ? (employeeGroup.hoursPerDay[dayData.isoDate] || 0) : 0;
-                           const dailyEntries = dayData ? employeeGroup.details.filter(entry => entry.formattedLocalDate === dayData.isoDate) : [];
+                          return (
+                            <tr key={`${employeeGroup.id}-week-${weekInfo.weekNumber}`} className={isExpanded ? 'expanded-parent' : ''}>
+                              {weekIndex === 0 && (
+                                <>
+                                  <td rowSpan={useRowSpan ? numWeeks : 1} className="col-expand">
+                                    <button onClick={() => toggleExpand(employeeGroup.id)} className='expand-btn' aria-expanded={isExpanded} aria-label={isExpanded ? 'Collapse row' : 'Expand row'}>
+                                      <FontAwesomeIcon icon={isExpanded ? faChevronUp : faChevronDown} />
+                                    </button>
+                                  </td>
+                                  <td rowSpan={useRowSpan ? numWeeks : 1} className="col-name employee-name-cell">{employeeGroup.name}</td>
+                                </>
+                              )}
+                              {(viewType === 'Monthly' || viewType === 'Fortnightly') && (
+                                  <>
+                                    <td className="col-week center-text">{weekInfo.weekNumber}</td>
+                                    <td className="col-week-period center-text">{weekPeriod}</td>
+                                  </>
+                              )}
 
-                           return (
-                             <td key={`${employeeGroup.id}-${dayData?.isoDate || dayName}-${weekIndex}`} className={`col-day numeric daily-detail-cell ${isExpanded ? 'expanded' : ''}`}>
-                               {isExpanded ? (
-                                 <div className="day-details-wrapper">
-                                   {dailyEntries.length > 0 ? dailyEntries.map(entry => {
-                                       const entryTimezone = entry.timezone || browserTimezone;
-                                       return (
-                                         <div key={entry._id} className="timesheet-entry-detail-inline">
-                                           <div className="inline-actions">
-                                             <button className='icon-btn edit-btn' onClick={() => handleUpdate(entry)} title="Edit Entry"><FontAwesomeIcon icon={faPen} /></button>
-                                             <button className='icon-btn delete-btn' onClick={() => handleDelete(entry._id)} title="Delete Entry"><FontAwesomeIcon icon={faTrash} /></button>
-                                           </div>
-                                           <div className="detail-section"><span className="detail-label">DATE:</span><span className="detail-value">{formatDateString(entry.formattedLocalDate)}</span></div>
-                                           <div className="detail-section"><span className="detail-label">DAY:</span><span className="detail-value">{DateTime.fromISO(entry.formattedLocalDate).toFormat('EEEE')}</span></div>
-                                           <div className="detail-section"><span className="detail-label">EMPLOYEE:</span><span className="detail-value">{employeeGroup.name}</span></div>
-                                           <div className="detail-section"><span className="detail-label">CLIENT:</span><span className="detail-value">{entry.clientName || 'N/A'}</span></div>
-                                           <div className="detail-section"><span className="detail-label">PROJECT:</span><span className="detail-value">{entry.projectName || 'N/A'}</span></div>
-                                           <div className="detail-separator"></div>
-                                           <div className="detail-section total-hours-section"><span className="detail-label">TOTAL</span><span className="detail-value bold">{formatHoursMinutes(entry.totalHours)}</span></div>
-                                           <div className="detail-separator"></div>
-                                           <div className="detail-section stacked"><span className="detail-label">Start:</span><span className="detail-value">{formatTimeFromISO(entry.startTime, entryTimezone)}</span></div>
-                                           <div className="detail-section stacked"><span className="detail-label">End:</span><span className="detail-value">{formatTimeFromISO(entry.endTime, entryTimezone)}</span></div>
-                                           <div className="detail-section stacked"><span className="detail-label">Lunch:</span><span className="detail-value">{entry.lunchBreak === 'Yes' ? formatLunchDuration(entry.lunchDuration) : 'No break'}</span></div>
-                                           {entry.leaveType && entry.leaveType !== 'None' && (
-                                             <>
-                                               <div className="detail-section stacked"><span className="detail-label">Leave:</span><span className="detail-value">{entry.leaveType}</span></div>
-                                               {entry.description && (<div className="detail-section stacked description-item"><span className="detail-label">Desc:</span><span className="detail-value">{entry.description}</span></div>)}
-                                             </>
-                                           )}
-                                           {entry.notes && entry.notes.trim() !== '' && (
-                                                <>
-                                                    <div className="detail-separator"></div>
-                                                    <div className="detail-section"><span className="detail-label">Work Notes:</span><span className="detail-value">{entry.notes}</span></div>
-                                                </>
-                                            )}
-                                         </div>
-                                       );
-                                   }) : (
-                                     <span className="no-entry-text">{formatHoursMinutes(0)}</span>
-                                   )}
-                                 </div>
-                               ) : (
-                                 formatHoursMinutes(hours)
-                               )}
-                             </td>
-                           );
-                         })}
+                              {currentDayOrder.map(dayName => {
+                                const dayData = weekInfo.days.find(d => d.dayName === dayName);
+                                const hours = dayData ? (employeeGroup.hoursPerDay[dayData.isoDate] || 0) : 0;
+                                const dailyEntries = dayData ? employeeGroup.details.filter(entry => entry.formattedLocalDate === dayData.isoDate) : [];
 
-                         {weekIndex === 0 && (
-                           <td rowSpan={useRowSpan ? numWeeks : 1} className="col-total numeric total-summary-cell">
-                             {totalEmployeeHoursDecimal <= 0 ? (
-                               <span className="no-entry-text">00:00</span>
-                             ) : (
-                               (() => {
-                                 const daysInView = generateDateColumns.length;
-                                 const weeklyExpected = Number(employeeGroup.expectedHours) || 0;
-                                 const expectedHoursForPeriod = (weeklyExpected / 7) * daysInView;
-                                 const overtimeHoursDecimal = Math.max(0, totalEmployeeHoursDecimal - expectedHoursForPeriod);
-                                 return (
-                                   <div className="total-details">
-                                     <span>Expected: <strong>{formatHoursMinutes(expectedHoursForPeriod)}</strong></span>
-                                     <span>Overtime: <strong className={overtimeHoursDecimal > 0 ? 'overtime' : ''}>{formatHoursMinutes(overtimeHoursDecimal)}</strong></span>
-                                     <span>Total: <strong>{formatHoursMinutes(totalEmployeeHoursDecimal)}</strong></span>
-                                   </div>
-                                 );
-                               })()
-                             )}
-                           </td>
-                         )}
-                       </tr>
-                     ))
-                   );
-                 })
-               )}
-             </tbody>
-           </table>
-         </div>
+                                return (
+                                  <td key={`${employeeGroup.id}-${dayName}-${weekInfo.weekNumber}`} className={`col-day numeric daily-detail-cell ${isExpanded ? 'expanded' : ''}`}>
+                                    {isExpanded ? (
+                                      <div className="day-details-wrapper">
+                                        {dailyEntries.length > 0 ? dailyEntries.map(entry => {
+                                            const entryTimezone = entry.timezone || browserTimezone;
+                                            const isLeaveEntry = entry.leaveType && entry.leaveType !== 'None';
+                                            const totalHours = parseFloat(entry.totalHours) || 0;
+
+                                            return (
+                                              <div key={entry._id} className="timesheet-entry-detail-inline">
+                                                <div className="inline-actions">
+                                                    <button className='icon-btn edit-btn' onClick={() => handleUpdate(entry)} title="Edit Entry"><FontAwesomeIcon icon={faPen} /></button>
+                                                    <button className='icon-btn delete-btn' onClick={() => handleDelete(entry._id)} title="Delete Entry"><FontAwesomeIcon icon={faTrash} /></button>
+                                                </div>
+                                                <div className="detail-section"><span className="detail-label">EMPLOYEE:</span><span className="detail-value">{employeeGroup.name}</span></div>
+
+                                                {isLeaveEntry ? (
+                                                    <>
+                                                        <div className="detail-section total-hours-section"><span className="detail-label">TOTAL</span><span className="detail-value bold">{formatHoursMinutes(totalHours)}</span></div>
+                                                        <div className="detail-separator"></div>
+                                                        <div className="detail-section"><span className="detail-label">Leave Type:</span><span className="detail-value">{entry.leaveType}</span></div>
+                                                        {entry.description && (<div className="detail-section description-item"><span className="detail-label">Description:</span><span className="detail-value">{entry.description}</span></div>)}
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <div className="detail-section"><span className="detail-label">CLIENT:</span><span className="detail-value">{entry.clientName || 'N/A'}</span></div>
+                                                        <div className="detail-section"><span className="detail-label">PROJECT:</span><span className="detail-value">{entry.projectName || 'N/A'}</span></div>
+                                                        <div className="detail-separator"></div>
+                                                        <div className="detail-section total-hours-section"><span className="detail-label">TOTAL</span><span className="detail-value bold">{formatHoursMinutes(totalHours)}</span></div>
+                                                        <div className="detail-separator"></div>
+                                                        <div className="detail-section"><span className="detail-label">Start:</span><span className="detail-value">{formatTimeFromISO(entry.startTime, entryTimezone)}</span></div>
+                                                        <div className="detail-section"><span className="detail-label">End:</span><span className="detail-value">{formatTimeFromISO(entry.endTime, entryTimezone)}</span></div>
+                                                        <div className="detail-section"><span className="detail-label">Lunch:</span><span className="detail-value">{entry.lunchBreak === 'Yes' ? formatLunchDuration(entry.lunchDuration) : 'No break'}</span></div>
+                                                        {entry.notes && entry.notes.trim() !== '' && (
+                                                            <>
+                                                                <div className="detail-separator"></div>
+                                                                <div className="detail-section"><span className="detail-label">Notes:</span><span className="detail-value">{entry.notes}</span></div>
+                                                            </>
+                                                        )}
+                                                    </>
+                                                )}
+                                              </div>
+                                            );
+                                        }) : (
+                                          dayData ? <span className="no-entry-text">{formatHoursMinutes(0)}</span> : <span className="out-of-range"></span>
+                                        )}
+                                      </div>
+                                    ) : (
+                                      dayData ? (hours <= 0 ? <span className="no-entry-text">00:00</span> : formatHoursMinutes(hours)) : <span className="out-of-range"></span>
+                                    )}
+                                  </td>
+                                );
+                              })}
+
+                              {weekIndex === 0 && (
+                                <td rowSpan={useRowSpan ? numWeeks : 1} className="col-total numeric total-summary-cell">
+                                  {totalEmployeeHoursDecimal <= 0 ? (
+                                    <span className="no-entry-text">00:00</span>
+                                  ) : (
+                                    viewType === 'Weekly' ? (
+                                      (() => {
+                                        const weeklyExpected = Number(employeeGroup.expectedHours) || 0;
+                                        const expectedHoursForPeriod = weeklyExpected;
+                                        const overtimeHoursDecimal = Math.max(0, totalEmployeeHoursDecimal - expectedHoursForPeriod);
+                                        return (
+                                          <div className="total-details">
+                                            <span>Expected: <strong>{formatHoursMinutes(expectedHoursForPeriod)}</strong></span>
+                                            <span>Overtime: <strong className={overtimeHoursDecimal > 0 ? 'overtime' : ''}>{formatHoursMinutes(overtimeHoursDecimal)}</strong></span>
+                                            <span>Total: <strong>{formatHoursMinutes(totalEmployeeHoursDecimal)}</strong></span>
+                                          </div>
+                                        );
+                                      })()
+                                    ) : (
+                                      <strong>{formatHoursMinutes(totalEmployeeHoursDecimal)}</strong>
+                                    )
+                                  )}
+                                </td>
+                              )}
+                            </tr>
+                          );
+                        })
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
+         )
        )}
     </div>
   );

@@ -1,3 +1,4 @@
+// /home/digilab/timesheet/client/src/components/pages/Dashboard.js
 import React, { useEffect, useState, useRef, useMemo } from "react";
 import axios from "axios";
 import { useSelector, useDispatch } from "react-redux";
@@ -21,6 +22,7 @@ import { DateTime } from "luxon";
 
 const API_URL = process.env.REACT_APP_API_URL || 'https://timesheet-c4mj.onrender.com/api';
 
+// --- Helper Functions (remain the same) ---
 const convertDecimalToTime = (decimalHours) => {
   if (isNaN(decimalHours) || decimalHours == null) return "00:00";
   const hours = Math.floor(decimalHours);
@@ -80,28 +82,6 @@ const getPreviousPeriodRange = (currentRange, view) => {
   return { start: prevStartDt.toJSDate(), end: prevEndDt.toJSDate() };
 };
 
-// --- Updated Date Parsing Function ---
-const parseDateString = (dateStr) => {
-    if (!dateStr) return null;
-
-    // 1. Try ISO format first (YYYY-MM-DD) - Preferred format
-    let dt = DateTime.fromISO(dateStr);
-    if (dt.isValid) return dt;
-
-    // 2. Try RFC 2822 format (handles "Mon Mar 31 ... GMT+0000")
-    dt = DateTime.fromRFC2822(dateStr);
-    if (dt.isValid) return dt;
-
-    // 3. Try HTTP format as a fallback
-    dt = DateTime.fromHTTP(dateStr);
-    if (dt.isValid) return dt;
-
-    // 4. Log warning if all parsing fails
-    console.warn(`Could not parse date string with any known format: ${dateStr}`);
-    return null;
-};
-
-
 const getDayTotals = (data, periodStart) => {
   const dailyTotals = [];
   const startDt = DateTime.fromJSDate(periodStart);
@@ -109,8 +89,11 @@ const getDayTotals = (data, periodStart) => {
     const currentDay = startDt.plus({ days: i });
     const total = data
       .filter((t) => {
-        const entryDt = parseDateString(t?.date); // Use updated parser
-        return entryDt ? entryDt.hasSame(currentDay, 'day') : false;
+        if (!t || !t.date) return false;
+        try {
+            const entryDt = DateTime.fromISO(t.date);
+            return entryDt.hasSame(currentDay, 'day');
+        } catch (e) { return false; }
       })
       .reduce((sum, t) => sum + (parseFloat(t.totalHours) || 0), 0);
     dailyTotals.push(total);
@@ -122,12 +105,15 @@ const getWeeklyTotals = (data, periodStart, weeks) => {
   const weeklyTotals = [];
   const startDt = DateTime.fromJSDate(periodStart);
   for (let w = 0; w < weeks; w++) {
-    const weekStartDt = startDt.plus({ weeks: w }).startOf('day');
-    const weekEndDt = weekStartDt.endOf('week').endOf('day');
+    const weekStartDt = startDt.plus({ weeks: w });
+    const weekEndDt = weekStartDt.endOf('week');
     const weekTotal = data
       .filter((t) => {
-        const entryDt = parseDateString(t?.date); // Use updated parser
-        return entryDt ? (entryDt >= weekStartDt && entryDt <= weekEndDt) : false;
+        if (!t || !t.date) return false;
+        try {
+            const entryDt = DateTime.fromISO(t.date);
+            return entryDt >= weekStartDt.startOf('day') && entryDt <= weekEndDt.endOf('day');
+        } catch (e) { return false; }
       })
       .reduce((sum, t) => sum + (parseFloat(t.totalHours) || 0), 0);
     weeklyTotals.push(weekTotal);
@@ -156,6 +142,7 @@ const Dashboard = () => {
   const clientsChartRef = useRef(null);
   const projectsChartRef = useRef(null);
 
+  // --- Effect for fetching employees ---
   useEffect(() => {
     if (!isAuthLoading && token && employeeStatus === 'idle') {
       console.log(`[${new Date().toISOString()}] Dashboard: Dispatching fetchEmployees (token: ${!!token}, isAuthLoading: ${isAuthLoading}, employeeStatus: ${employeeStatus}).`);
@@ -163,29 +150,34 @@ const Dashboard = () => {
     }
   }, [dispatch, token, isAuthLoading, employeeStatus]);
 
+  // --- Effect for fetching timesheets ---
   useEffect(() => {
+    // --- Add logging for dependencies ---
     console.log(`[${new Date().toISOString()}] Dashboard: Timesheet fetch effect triggered (token: ${!!token}, isAuthLoading: ${isAuthLoading}).`);
 
     if (isAuthLoading) {
         console.log(`[${new Date().toISOString()}] Dashboard: Timesheet fetch effect waiting for auth.`);
+        // Don't set loading false here, wait for auth to finish
         return;
     }
     if (!token) {
       console.log(`[${new Date().toISOString()}] Dashboard: Timesheet fetch effect stopped - no token.`);
-      setIsLoadingTimesheets(false);
+      setIsLoadingTimesheets(false); // No fetch will happen, so stop loading
       setTimesheetError("Authentication required.");
-      setAllTimesheets([]);
+      setAllTimesheets([]); // Clear any stale data
       return;
     }
 
+    // If we have a token and auth is not loading, proceed with fetch
     const controller = new AbortController();
     const { signal } = controller;
     const config = { headers: { Authorization: `Bearer ${token}` }, signal };
 
-    let isEffectMounted = true;
+    let isEffectMounted = true; // Flag to prevent state updates after unmount
 
     const fetchTimesheetDataOnly = async () => {
         console.log(`[${new Date().toISOString()}] Dashboard: fetchTimesheetDataOnly started.`);
+        // Set loading true only when starting the actual fetch
         if (isEffectMounted) setIsLoadingTimesheets(true);
         if (isEffectMounted) setTimesheetError(null);
 
@@ -195,12 +187,7 @@ const Dashboard = () => {
 
             if (isEffectMounted && !signal.aborted) {
                 console.log(`[${new Date().toISOString()}] Dashboard: Timesheets fetched successfully.`);
-                const receivedTimesheets = tsRes.data?.timesheets || [];
-                console.log(`[${new Date().toISOString()}] Dashboard: Received ${receivedTimesheets.length} timesheets from API.`);
-                if (receivedTimesheets.length > 0) {
-                    console.log(`[${new Date().toISOString()}] Dashboard: Structure of first received timesheet:`, JSON.stringify(receivedTimesheets[0], null, 2));
-                }
-                setAllTimesheets(receivedTimesheets);
+                setAllTimesheets(tsRes.data?.timesheets || []);
                 setIsLoadingTimesheets(false);
             } else {
                  console.log(`[${new Date().toISOString()}] Dashboard: Timesheet fetch aborted or component unmounted before completion.`);
@@ -225,13 +212,15 @@ const Dashboard = () => {
 
     fetchTimesheetDataOnly();
 
+    // Cleanup function
     return () => {
       console.log(`[${new Date().toISOString()}] Dashboard: Cleaning up fetch effect for timesheets (token: ${!!token}, isAuthLoading: ${isAuthLoading}).`);
-      isEffectMounted = false;
+      isEffectMounted = false; // Set flag on unmount
       controller.abort();
     };
-  }, [token, isAuthLoading]);
+  }, [token, isAuthLoading]); // Keep dependencies minimal
 
+  // --- Effect to Filter Timesheets by Employee (remains the same) ---
   useEffect(() => {
     if (selectedEmployee.value === "All") {
       setEmployeeTimesheets(allTimesheets);
@@ -242,6 +231,7 @@ const Dashboard = () => {
     }
   }, [selectedEmployee, allTimesheets]);
 
+  // --- Memoized Data (remain the same) ---
   const employeeOptions = useMemo(() => [
     { value: "All", label: "All Employees" },
     ...(Array.isArray(employees) ? employees.map((emp) => ({ value: emp._id, label: emp.name })) : []),
@@ -257,42 +247,49 @@ const Dashboard = () => {
   const previousPeriod = useMemo(() => getPreviousPeriodRange(currentPeriod, viewType.value), [currentPeriod, viewType.value]);
 
   const filteredAllCurrentTimesheets = useMemo(() => {
-    const start = DateTime.fromJSDate(currentPeriod.start).startOf('day');
-    const end = DateTime.fromJSDate(currentPeriod.end).endOf('day');
+    const start = DateTime.fromJSDate(currentPeriod.start);
+    const end = DateTime.fromJSDate(currentPeriod.end);
     return allTimesheets.filter((t) => {
-      if (!t || (t.leaveType && t.leaveType !== "None")) return false;
-      const d = parseDateString(t.date);
-      return d ? (d >= start && d <= end) : false;
+      if (!t?.date || (t.leaveType && t.leaveType !== "None")) return false;
+      try {
+        const d = DateTime.fromISO(t.date);
+        return d >= start.startOf('day') && d <= end.endOf('day');
+      } catch { return false; }
     });
   }, [allTimesheets, currentPeriod]);
 
   const validTimesheets = useMemo(() => employeeTimesheets.filter((t) => !t.leaveType || t.leaveType === "None"), [employeeTimesheets]);
 
   const filteredCurrentTimesheets = useMemo(() => {
-    const start = DateTime.fromJSDate(currentPeriod.start).startOf('day');
-    const end = DateTime.fromJSDate(currentPeriod.end).endOf('day');
+    const start = DateTime.fromJSDate(currentPeriod.start);
+    const end = DateTime.fromJSDate(currentPeriod.end);
     return validTimesheets.filter((t) => {
-      if (!t) return false;
-      const d = parseDateString(t.date);
-      return d ? (d >= start && d <= end) : false;
+      if (!t?.date) return false;
+      try {
+        const d = DateTime.fromISO(t.date);
+        return d >= start.startOf('day') && d <= end.endOf('day');
+      } catch { return false; }
     });
   }, [validTimesheets, currentPeriod]);
 
   const filteredPreviousTimesheets = useMemo(() => {
-    const start = DateTime.fromJSDate(previousPeriod.start).startOf('day');
-    const end = DateTime.fromJSDate(previousPeriod.end).endOf('day');
+    const start = DateTime.fromJSDate(previousPeriod.start);
+    const end = DateTime.fromJSDate(previousPeriod.end);
     return validTimesheets.filter((t) => {
-      if (!t) return false;
-      const d = parseDateString(t.date);
-      return d ? (d >= start && d <= end) : false;
+      if (!t?.date) return false;
+      try {
+        const d = DateTime.fromISO(t.date);
+        return d >= start.startOf('day') && d <= end.endOf('day');
+      } catch { return false; }
     });
   }, [validTimesheets, previousPeriod]);
 
-
+  // --- Loading and Error States (remain the same) ---
   const isEmployeeLoading = employeeStatus === 'loading';
   const showLoading = isAuthLoading || isEmployeeLoading || isLoadingTimesheets;
   const combinedError = timesheetError || employeesError;
 
+  // --- Summary Calculations (remain the same) ---
   const totalHoursAllPeriodSummary = useMemo(() => filteredAllCurrentTimesheets.reduce((acc, sheet) => acc + (parseFloat(sheet.totalHours) || 0), 0), [filteredAllCurrentTimesheets]);
   const avgHoursAllPeriodSummary = useMemo(() => {
       const uniqueDaysWorked = new Set(filteredAllCurrentTimesheets.map(t => t.date)).size;
@@ -314,12 +311,14 @@ const Dashboard = () => {
   const displayAvgHours = selectedEmployee.value === "All" ? formattedAvgHoursAllPeriod : formattedAvgHoursEmployee;
 
   const totalLeaves = useMemo(() => {
-      const start = DateTime.fromJSDate(currentPeriod.start).startOf('day');
-      const end = DateTime.fromJSDate(currentPeriod.end).endOf('day');
+      const start = DateTime.fromJSDate(currentPeriod.start);
+      const end = DateTime.fromJSDate(currentPeriod.end);
       return employeeTimesheets.filter(t => {
-          if (!t || !t.leaveType || ["None", "Public Holiday", "Annual"].includes(t.leaveType)) return false;
-          const d = parseDateString(t.date);
-          return d ? (d >= start && d <= end) : false;
+          if (!t?.date || !t.leaveType || ["None", "Public Holiday", "Annual"].includes(t.leaveType)) return false;
+          try {
+              const d = DateTime.fromISO(t.date);
+              return d >= start.startOf('day') && d <= end.endOf('day');
+          } catch { return false; }
       }).length;
   }, [employeeTimesheets, currentPeriod]);
 
@@ -335,6 +334,7 @@ const Dashboard = () => {
   const projectsWorked = useMemo(() => new Set(filteredCurrentTimesheets.map((t) => t.projectId?._id || t.projectId).filter(Boolean)).size, [filteredCurrentTimesheets]);
   const clientsWorked = useMemo(() => new Set(filteredCurrentTimesheets.map((t) => t.clientId?._id || t.clientId).filter(Boolean)).size, [filteredCurrentTimesheets]);
 
+  // --- Project Card Specific Calculations (remain the same) ---
   const projectCardClientOptions = useMemo(() => {
     if (!filteredCurrentTimesheets.length) return [{ value: "All", label: "All Clients" }];
     const clients = new Map();
@@ -366,6 +366,8 @@ const Dashboard = () => {
     return convertDecimalToTime(total);
   }, [projectCardFilteredTimesheets]);
 
+
+  // --- Chart Data Generation (remain the same) ---
   const { labels, currentData, previousData, thisPeriodLabel, lastPeriodLabel } = useMemo(() => {
     if (showLoading || combinedError) {
         return { labels: [], currentData: [], previousData: [], thisPeriodLabel: "", lastPeriodLabel: "" };
@@ -409,6 +411,8 @@ const Dashboard = () => {
     return { labels, data };
   }, [projectCardFilteredTimesheets, showLoading, combinedError]);
 
+
+  // --- Chart Rendering Effects (remain the same) ---
   useEffect(() => {
     const ctx = document.getElementById("graphCanvas")?.getContext("2d");
     if (!ctx) return;
@@ -479,6 +483,8 @@ const Dashboard = () => {
      return () => { if (projectsChartRef.current) { projectsChartRef.current.destroy(); projectsChartRef.current = null; } };
   }, [projectChartData, showLoading, combinedError]);
 
+
+  // --- JSX Rendering (remains the same) ---
   return (
     <div className="view-dashboard-page">
       <div className="dashboard-filters-container">
