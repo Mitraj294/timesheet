@@ -6,7 +6,6 @@ import { fetchEmployees, selectAllEmployees } from '../../redux/slices/employeeS
 import {
   fetchProjects,
   clearProjects,
-  selectProjectsByClientId,
   selectProjectStatus,
   selectProjectError,
   selectProjectItems
@@ -148,12 +147,22 @@ const CreateTimesheet = () => {
         } catch (err) { return ''; }
       };
 
+      // Ensure date is in yyyy-MM-dd format
+      let formattedDate = timesheetToEdit.date;
+      if (formattedDate && !/^\d{4}-\d{2}-\d{2}$/.test(formattedDate)) {
+          try {
+              formattedDate = DateTime.fromISO(formattedDate).toFormat('yyyy-MM-dd');
+          } catch {
+              formattedDate = DateTime.now().toFormat('yyyy-MM-dd'); // Fallback
+          }
+      }
+
       const initialFormData = {
         timezone: entryTimezone,
         employeeId: timesheetToEdit.employeeId?._id || '',
         clientId: timesheetToEdit.clientId?._id || '',
         projectId: timesheetToEdit.projectId?._id || '',
-        date: timesheetToEdit.date,
+        date: formattedDate, // Use formatted date
         startTime: utcToLocalTimeInput(timesheetToEdit.startTime),
         endTime: utcToLocalTimeInput(timesheetToEdit.endTime),
         lunchBreak: timesheetToEdit.lunchBreak || 'No',
@@ -211,7 +220,7 @@ const CreateTimesheet = () => {
 
   const validateForm = () => {
     if (!formData.employeeId) return 'Employee is required.';
-    if (!formData.date) return 'Date is required.';
+    if (!formData.date || !/^\d{4}-\d{2}-\d{2}$/.test(formData.date)) return 'Date is required in YYYY-MM-DD format.';
 
     if (isLeaveSelected) {
       if (!formData.description.trim()) return 'Leave Description is required.';
@@ -293,28 +302,34 @@ const CreateTimesheet = () => {
         }
       }
 
-
       const localTimeToUtcISO = (timeStr) => {
         if (!timeStr || !/^\d{2}:\d{2}$/.test(timeStr)) return null;
-        if (!formData.date) return null;
+        if (!formData.date || !/^\d{4}-\d{2}-\d{2}$/.test(formData.date)) return null;
 
         let conversionTimezone = formData.timezone;
         if (!conversionTimezone || !DateTime.local().setZone(conversionTimezone).isValid) {
+            console.warn(`Invalid timezone '${conversionTimezone}' detected, falling back to UTC for conversion.`);
             conversionTimezone = 'UTC';
         }
 
         try {
           const localDT = DateTime.fromISO(`${formData.date}T${timeStr}`, { zone: conversionTimezone });
-          if (!localDT.isValid) return null;
+          if (!localDT.isValid) {
+              console.error(`Luxon failed to parse local time: ${formData.date}T${timeStr} in zone ${conversionTimezone}`);
+              return null;
+          }
           return localDT.toUTC().toISO();
-        } catch (err) { return null; }
+        } catch (err) {
+            console.error(`Error converting local time to UTC ISO:`, err);
+            return null;
+        }
       };
 
       const startTimeUTC = !isLeaveSelected ? localTimeToUtcISO(formData.startTime) : null;
       const endTimeUTC = !isLeaveSelected ? localTimeToUtcISO(formData.endTime) : null;
 
       if (!isLeaveSelected && (!startTimeUTC || !endTimeUTC)) {
-          setError("Failed to convert start or end time for saving. Check date/time inputs.");
+          setError("Failed to convert start or end time for saving. Check date/time inputs and console logs.");
           setIsLoading(false);
           return;
       }
@@ -327,14 +342,14 @@ const CreateTimesheet = () => {
         employeeId: formData.employeeId,
         clientId: !isLeaveSelected ? formData.clientId : null,
         projectId: !isLeaveSelected ? formData.projectId : null,
-        date: formData.date,
-        startTime: startTimeUTC,
-        endTime: endTimeUTC,
+        date: formData.date, // Send YYYY-MM-DD string
+        startTime: startTimeUTC, // Send UTC ISO string
+        endTime: endTimeUTC, // Send UTC ISO string
         lunchBreak: !isLeaveSelected ? formData.lunchBreak : 'No',
-        lunchDuration: !isLeaveSelected && formData.lunchBreak === 'Yes' ? formData.lunchDuration : null,
+        lunchDuration: !isLeaveSelected && formData.lunchBreak === 'Yes' ? formData.lunchDuration : "00:00", // Send HH:MM string
         leaveType: formData.leaveType,
-        description: isLeaveSelected ? formData.description : null,
-        notes: !isLeaveSelected ? formData.notes : null,
+        description: isLeaveSelected ? formData.description : "",
+        notes: !isLeaveSelected ? formData.notes : "",
         hourlyWage: parseFloat(formData.hourlyWage) || 0,
         timezone: timezoneToSend,
       };

@@ -19,18 +19,18 @@ const router = express.Router();
 
 router.get('/', protect, getTimesheets);
 router.post('/', protect, createTimesheet);
-router.put('/:id', protect,updateTimesheet);
+router.put('/:id', protect, updateTimesheet);
 router.delete('/:id', protect, deleteTimesheet);
 
-router.get('/check', checkTimesheet);
+router.get('/check', protect, checkTimesheet); // Added protect middleware
 
-router.get('/project/:projectId', getTimesheetsByProject);
-router.get('/employee/:employeeId', getTimesheetsByEmployee);
-router.get('/client/:clientId', getTimesheetsByClient);
+router.get('/project/:projectId', protect, getTimesheetsByProject); // Added protect middleware
+router.get('/employee/:employeeId', protect, getTimesheetsByEmployee); // Added protect middleware
+router.get('/client/:clientId', protect, getTimesheetsByClient); // Added protect middleware
 
-router.post('/download', downloadTimesheets);
-router.post('/send', sendTimesheetEmail);
-router.post('/download/project', downloadProjectTimesheets);
+router.post('/download', protect, downloadTimesheets);
+router.post('/send', protect, sendTimesheetEmail);
+router.post('/download/project', protect, downloadProjectTimesheets);
+router.post('/send-email/project', protect, sendProjectTimesheetEmail);
 
-router.post('/send-email/project', sendProjectTimesheetEmail);
 export default router;

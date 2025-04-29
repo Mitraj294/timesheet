@@ -5,12 +5,12 @@ const timesheetSchema = new mongoose.Schema({
   clientId: { type: mongoose.Schema.Types.ObjectId, ref: 'Client', default: null },
   projectId: { type: mongoose.Schema.Types.ObjectId, ref: 'Project', default: null },
   date: {
-    type: String, // This should ensure it's saved as a string
+    type: String,
     required: true,
     match: [/^\d{4}-\d{2}-\d{2}$/, 'Date must be in YYYY-MM-DD format']
   },
-  startTime: { type: Date, default: null },
-  endTime: { type: Date, default: null },
+  startTime: { type: Date, default: null }, // Stored as UTC BSON Date
+  endTime: { type: Date, default: null },   // Stored as UTC BSON Date
   lunchBreak: { type: String, enum: ['Yes', 'No'], default: 'No' },
   lunchDuration: {
       type: String,
@@ -22,13 +22,12 @@ const timesheetSchema = new mongoose.Schema({
   notes: { type: String, default: '' },
   description: { type: String, default: '' },
   hourlyWage: { type: Number, default: 0 },
-  timezone: { type: String, default: 'UTC' },
+  timezone: { type: String, default: 'UTC' }, // User's local timezone identifier
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now }
 });
 
 timesheetSchema.index({ employeeId: 1, date: 1 }, { unique: true });
-
 
 timesheetSchema.pre('save', function(next) {
   this.updatedAt = Date.now();

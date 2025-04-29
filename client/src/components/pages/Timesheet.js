@@ -1,4 +1,3 @@
-// /home/digilab/timesheet/client/src/components/pages/Timesheet.js
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
@@ -12,62 +11,42 @@ import {
   faTrash,
   faDownload,
   faEnvelope,
-  faSpinner, // Keep for loading states
-  faExclamationCircle, // Keep for error states
+  faSpinner,
+  faExclamationCircle,
 } from '@fortawesome/free-solid-svg-icons';
 import axios from 'axios';
-import { format as formatFnsDate } from 'date-fns'; // Keep for simple date formatting
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
-import '../../styles/Timesheet.scss'; // Ensure this SCSS file is updated
+import '../../styles/Timesheet.scss';
 import { DateTime } from 'luxon';
 
 const API_URL = process.env.REACT_APP_API_URL || 'https://timesheet-c4mj.onrender.com/api';
 
-// --- Helper Functions ---
-
-// Format incoming UTC ISO date string to local yyyy-LL-dd using a specific timezone
-const formatDateInTimezone = (iso, timezoneIdentifier) => {
-    if (!iso) return 'N/A';
-    // Use provided timezone, fallback to browser's local if invalid/missing
-    const tz = timezoneIdentifier && DateTime.local().setZone(timezoneIdentifier).isValid
-               ? timezoneIdentifier
-               : DateTime.local().zoneName;
+const formatDateString = (dateString, format = 'yyyy-MM-dd') => {
+    if (!dateString || !/^\d{4}-\d{2}-\d{2}$/.test(dateString)) return 'Invalid Date';
     try {
-        return DateTime.fromISO(iso, { zone: 'utc' }) // Parse as UTC
-               .setZone(tz) // Convert to the SPECIFIED zone
-               .toFormat('yyyy-LL-dd');
+        return DateTime.fromISO(dateString).toFormat(format);
     } catch (e) {
-        console.error(`Error formatting date ${iso} to timezone ${tz}:`, e);
+        console.error(`Error formatting date string ${dateString}:`, e);
         return 'Invalid Date';
     }
-}
+};
 
-// Format incoming UTC ISO time string to local HH:mm using a specific timezone
-const formatTimeInTimezone = (iso, timezoneIdentifier) => {
-    if (!iso) return 'N/A';
-    // Use provided timezone, fallback to browser's local if invalid/missing
+const formatTimeFromISO = (isoString, timezoneIdentifier, format = 'HH:mm') => {
+    if (!isoString) return 'N/A';
     const tz = timezoneIdentifier && DateTime.local().setZone(timezoneIdentifier).isValid
                ? timezoneIdentifier
                : DateTime.local().zoneName;
     try {
-        // Handle cases where time might be just HH:mm (less likely now)
-        if (typeof iso === 'string' && iso.match(/^\d{2}:\d{2}$/)) {
-             return DateTime.fromISO(`1970-01-01T${iso}:00`, { zone: 'utc' })
-                    .setZone(tz)
-                    .toFormat('HH:mm');
-        }
-        // Handle full ISO strings
-        return DateTime.fromISO(iso, { zone: 'utc' }) // Parse as UTC
-               .setZone(tz) // Convert to the SPECIFIED zone
-               .toFormat('HH:mm');
+        return DateTime.fromISO(isoString, { zone: 'utc' })
+               .setZone(tz)
+               .toFormat(format);
     } catch (e) {
-        console.error(`Error formatting time ${iso} to timezone ${tz}:`, e);
+        console.error(`Error formatting time ${isoString} to timezone ${tz}:`, e);
         return 'Invalid Time';
     }
-}
+};
 
-// Format decimal hours (remains the same)
 const formatHoursMinutes = (hoursDecimal) => {
     if (hoursDecimal == null || isNaN(hoursDecimal) || hoursDecimal <= 0) {
         return '00:00';
@@ -79,25 +58,23 @@ const formatHoursMinutes = (hoursDecimal) => {
 
     if (hours > 0) {
         return minutes > 0 ? `${hours}h ${formattedMinutes}m` : `${hours}h`;
-    } else { // Only minutes or zero
+    } else {
         return `${formattedMinutes}m`;
     }
 };
-// Format lunch duration (remains the same)
+
 const formatLunchDuration = (lunchDuration) => {
     if (!lunchDuration || typeof lunchDuration !== 'string' || !/^\d{2}:\d{2}$/.test(lunchDuration)) {
         return 'N/A';
     }
-    // Return valid HH:MM string directly
     return lunchDuration;
 };
-// Adjust to Monday (remains the same)
+
 const adjustToMonday = (date) => {
     const dt = DateTime.fromJSDate(date);
-    const mondayDt = dt.startOf('week');
-    return mondayDt.toJSDate();
+    return dt.startOf('week').toJSDate();
 };
-// Group dates by week (remains the same)
+
 const groupDatesByWeek = (dateColumns) => {
     const weeks = [];
     if (!dateColumns || dateColumns.length === 0) return weeks;
@@ -106,7 +83,7 @@ const groupDatesByWeek = (dateColumns) => {
     }
     return weeks;
 };
-// Calculate date range (remains the same)
+
 const calculateDateRange = (baseDate, type) => {
     let startDt = DateTime.fromJSDate(baseDate);
     let endDt;
@@ -127,9 +104,7 @@ const calculateDateRange = (baseDate, type) => {
 };
 
 
-// --- Component ---
 const Timesheet = () => {
-  // --- State (remains the same) ---
   const [viewType, setViewType] = useState('Weekly');
   const [timesheets, setTimesheets] = useState([]);
   const [employees, setEmployees] = useState([]);
@@ -151,10 +126,8 @@ const Timesheet = () => {
   const [sendError, setSendError] = useState(null);
 
   const navigate = useNavigate();
-  // Get browser's local timezone once for fallbacks
   const browserTimezone = useMemo(() => DateTime.local().zoneName, []);
 
-  // --- Data Fetching (useCallback wrappers remain the same) ---
   const fetchWithAuth = useCallback(async (url, config = {}) => {
       const token = localStorage.getItem('token');
       if (!token) {
@@ -175,6 +148,7 @@ const Timesheet = () => {
           throw err;
       }
   }, [navigate]);
+
   const fetchEmployees = useCallback(async () => {
     try {
       const data = await fetchWithAuth(`${API_URL}/employees`);
@@ -184,6 +158,7 @@ const Timesheet = () => {
       setError('Failed to fetch employees.');
     }
   }, [fetchWithAuth]);
+
   const fetchClients = useCallback(async () => {
      try {
       const data = await fetchWithAuth(`${API_URL}/clients`);
@@ -193,6 +168,7 @@ const Timesheet = () => {
       setError('Failed to fetch clients.');
     }
   }, [fetchWithAuth]);
+
   const fetchProjects = useCallback(async () => {
      try {
       const data = await fetchWithAuth(`${API_URL}/projects`);
@@ -202,6 +178,7 @@ const Timesheet = () => {
       setError('Failed to fetch projects.');
     }
   }, [fetchWithAuth]);
+
   const fetchTimesheets = useCallback(async () => {
     setIsLoading(true);
     setError(null);
@@ -209,11 +186,12 @@ const Timesheet = () => {
       const { start, end } = calculateDateRange(currentDate, viewType);
       const data = await fetchWithAuth(`${API_URL}/timesheets`, {
         params: {
-          startDate: formatFnsDate(start, 'yyyy-MM-dd'),
-          endDate: formatFnsDate(end, 'yyyy-MM-dd'),
+          startDate: DateTime.fromJSDate(start).toFormat('yyyy-MM-dd'),
+          endDate: DateTime.fromJSDate(end).toFormat('yyyy-MM-dd'),
         },
       });
       const fetchedTimesheets = data?.timesheets;
+      console.log("Fetched Timesheets Raw:", fetchedTimesheets); // Log raw data
       setTimesheets(Array.isArray(fetchedTimesheets) ? fetchedTimesheets : []);
     } catch (error) {
       console.error('Error fetching timesheets:', error.response?.data || error.message);
@@ -224,8 +202,6 @@ const Timesheet = () => {
     }
   }, [currentDate, viewType, fetchWithAuth]);
 
-
-  // --- Effects (remain the same) ---
   useEffect(() => {
     fetchEmployees();
     fetchClients();
@@ -236,14 +212,14 @@ const Timesheet = () => {
     fetchTimesheets();
   }, [fetchTimesheets]);
 
-
-  // --- Event Handlers (useCallback wrappers remain the same) ---
   const toggleExpand = (id) => {
     setExpandedRows((prev) => ({ ...prev, [id]: !prev[id] }));
    };
+
   const handleUpdate = (timesheet) => {
     navigate('/timesheet/create', { state: { timesheet } });
    };
+
   const handleDelete = useCallback(async (id) => {
     if (!window.confirm('Are you sure you want to delete this timesheet entry?')) return;
     setError(null);
@@ -258,6 +234,7 @@ const Timesheet = () => {
       if (error.response?.status === 401) navigate('/login');
     }
    }, [navigate, fetchTimesheets]);
+
   const handlePrev = () => {
     setCurrentDate(prevDate => {
         let dt = DateTime.fromJSDate(prevDate);
@@ -272,6 +249,7 @@ const Timesheet = () => {
         return (viewType === 'Daily' ? newDt : newDt.startOf('week')).toJSDate();
     });
    };
+
   const handleNext = () => {
      setCurrentDate(prevDate => {
         let dt = DateTime.fromJSDate(prevDate);
@@ -286,6 +264,7 @@ const Timesheet = () => {
         return (viewType === 'Daily' ? newDt : newDt.startOf('week')).toJSDate();
     });
    };
+
   const handleSendEmail = useCallback(async () => {
       if (!email || !/\S+@\S+\.\S+/.test(email)) { setSendError('Please enter a valid recipient email address.'); return; }
       setSendError(null); setIsSending(true); setError(null);
@@ -295,9 +274,8 @@ const Timesheet = () => {
           const body = {
               email,
               employeeIds: selectedEmployee ? [selectedEmployee] : [],
-              startDate: startDate ? formatFnsDate(startDate, 'yyyy-MM-dd') : null,
-              endDate: endDate ? formatFnsDate(endDate, 'yyyy-MM-dd') : null,
-              // timezone: browserTimezone, // NO LONGER NEEDED
+              startDate: startDate ? DateTime.fromJSDate(startDate).toFormat('yyyy-MM-dd') : null,
+              endDate: endDate ? DateTime.fromJSDate(endDate).toFormat('yyyy-MM-dd') : null,
           };
           await axios.post(`${API_URL}/timesheets/send`, body, { headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' } });
           setShowSendFilters(false); setEmail(''); setSelectedEmployee(''); setStartDate(null); setEndDate(null);
@@ -306,7 +284,7 @@ const Timesheet = () => {
           setSendError(error.response?.data?.message || 'Failed to send timesheet. Please try again.');
           if (error.response?.status === 401) navigate('/login');
       } finally { setIsSending(false); }
-  }, [email, selectedEmployee, startDate, endDate, navigate]); // Removed browserTimezone
+  }, [email, selectedEmployee, startDate, endDate, navigate]);
 
   const handleDownload = useCallback(async () => {
       setDownloadError(null); setIsDownloading(true); setError(null);
@@ -315,9 +293,8 @@ const Timesheet = () => {
           if (!token) { navigate('/login'); throw new Error('Authentication error!'); }
           const body = {
               employeeIds: selectedEmployee ? [selectedEmployee] : [],
-              startDate: startDate ? formatFnsDate(startDate, 'yyyy-MM-dd') : null,
-              endDate: endDate ? formatFnsDate(endDate, 'yyyy-MM-dd') : null,
-              // timezone: browserTimezone, // NO LONGER NEEDED
+              startDate: startDate ? DateTime.fromJSDate(startDate).toFormat('yyyy-MM-dd') : null,
+              endDate: endDate ? DateTime.fromJSDate(endDate).toFormat('yyyy-MM-dd') : null,
           };
           const response = await axios.post(`${API_URL}/timesheets/download`, body, { headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, responseType: 'blob' });
           const blob = new Blob([response.data], { type: response.headers['content-type'] || 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
@@ -350,10 +327,8 @@ const Timesheet = () => {
           setDownloadError(errorMessage);
           if (err.response?.status === 401) navigate('/login');
       } finally { setIsDownloading(false); }
-  }, [selectedEmployee, startDate, endDate, navigate]); // Removed browserTimezone
+  }, [selectedEmployee, startDate, endDate, navigate]);
 
-
-  // --- Memos and Calculations ---
   const generateDateColumns = useMemo(() => {
     const { start } = calculateDateRange(currentDate, viewType);
     const startDt = DateTime.fromJSDate(start);
@@ -377,15 +352,16 @@ const Timesheet = () => {
     });
   }, [currentDate, viewType]);
 
-  // Group timesheets - Use the new formatting helpers
   const groupTimesheets = useMemo(() => {
       let grouped = {};
       const currentViewDates = new Set(generateDateColumns.map(d => d.isoDate));
 
       timesheets.forEach((timesheet) => {
-        // Use the timesheet's stored timezone for date formatting, fallback to browser default
-        const entryTimezone = timesheet.timezone || browserTimezone;
-        const entryLocalDate = formatDateInTimezone(timesheet.date, entryTimezone);
+        if (!timesheet || !timesheet.date || !/^\d{4}-\d{2}-\d{2}$/.test(timesheet.date)) {
+            console.warn("Skipping timesheet due to missing or invalid date format:", timesheet);
+            return; // Skip if date format is wrong
+        }
+        const entryLocalDate = timesheet.date; // Use the YYYY-MM-DD string directly
 
         if (!currentViewDates.has(entryLocalDate)) return;
 
@@ -412,21 +388,19 @@ const Timesheet = () => {
           generateDateColumns.forEach(day => (grouped[employeeIdValue].hoursPerDay[day.isoDate] = 0));
         }
 
-        // Use the CORRECT totalHours from the database entry
         grouped[employeeIdValue].hoursPerDay[entryLocalDate] += parseFloat(timesheet.totalHours || 0);
 
         grouped[employeeIdValue].details.push({
-          ...timesheet, // Keep raw data (UTC times, stored timezone)
+          ...timesheet,
           clientName, projectName,
-          formattedLocalDate: entryLocalDate, // Store the local date string for this entry's timezone
+          formattedLocalDate: entryLocalDate,
         });
       });
 
-      // Sort details within each group by UTC date/time
       Object.values(grouped).forEach(group => {
           group.details.sort((a, b) => {
-              const dateA = DateTime.fromISO(a.date, { zone: 'utc' }).toMillis();
-              const dateB = DateTime.fromISO(b.date, { zone: 'utc' }).toMillis();
+              const dateA = DateTime.fromISO(a.date).toMillis(); // Sort by YYYY-MM-DD string
+              const dateB = DateTime.fromISO(b.date).toMillis();
               if (dateA !== dateB) return dateA - dateB;
               const timeA = a.startTime ? DateTime.fromISO(a.startTime, { zone: 'utc' }).toMillis() : 0;
               const timeB = b.startTime ? DateTime.fromISO(b.startTime, { zone: 'utc' }).toMillis() : 0;
@@ -436,10 +410,8 @@ const Timesheet = () => {
 
       return Object.values(grouped).sort((a, b) => a.name.localeCompare(b.name));
 
-    }, [timesheets, employees, clients, projects, generateDateColumns, browserTimezone]); // Added browserTimezone as fallback
+    }, [timesheets, employees, clients, projects, generateDateColumns]);
 
-
-  // Period Display Text (remains the same)
   const periodDisplayText = useMemo(() => {
     if (!generateDateColumns || generateDateColumns.length === 0) return 'Loading...';
     const firstDay = DateTime.fromJSDate(generateDateColumns[0].date);
@@ -453,7 +425,6 @@ const Timesheet = () => {
     }
   }, [generateDateColumns, viewType]);
 
-  // --- Rendering Logic ---
   const renderTableHeaders = () => {
     const headers = [
         <th key="expand" className="col-expand"></th>,
@@ -475,10 +446,8 @@ const Timesheet = () => {
     return headers;
    };
 
-  // --- JSX ---
   return (
     <div className='timesheet-page'>
-      {/* Header, Filters, Navigation */}
        <div className="timesheet-header">
         <div className="title-breadcrumbs">
           <h3><FontAwesomeIcon icon={faPen} /> Timesheets</h3>
@@ -557,7 +526,6 @@ const Timesheet = () => {
         </Link>
       </div>
 
-       {/* --- Loading / Error / Table Section --- */}
        {isLoading ? (
          <div className='loading-indicator'><FontAwesomeIcon icon={faSpinner} spin size='2x' /> Loading Timesheets...</div>
        ) : error ? (
@@ -568,7 +536,7 @@ const Timesheet = () => {
              <thead><tr>{renderTableHeaders()}</tr></thead>
              <tbody>
                {groupTimesheets.length === 0 ? (
-                 <tr><td colSpan={renderTableHeaders().length} className="no-results">No timesheet entries found.</td></tr>
+                 <tr><td colSpan={renderTableHeaders().length} className="no-results">No timesheet entries found for this period.</td></tr>
                ) : (
                  groupTimesheets.map((employeeGroup) => {
                    const isExpanded = !!expandedRows[employeeGroup.id];
@@ -581,7 +549,6 @@ const Timesheet = () => {
                    return (
                      weeksData.map((weekDates, weekIndex) => (
                        <tr key={`${employeeGroup.id}-week-${weekIndex}`} className={isExpanded ? 'expanded-parent' : ''}>
-                         {/* RowSpan Columns */}
                          {weekIndex === 0 && (
                            <>
                              <td rowSpan={useRowSpan ? numWeeks : 1} className="col-expand">
@@ -595,10 +562,8 @@ const Timesheet = () => {
                              <td rowSpan={useRowSpan ? numWeeks : 1} className="col-name employee-name-cell">{employeeGroup.name}</td>
                            </>
                          )}
-                         {/* Week Column */}
                          {(viewType === 'Monthly' || viewType === 'Fortnightly') && (<td className="col-week center-text">{weekIndex + 1}</td>)}
 
-                         {/* Day columns - Use new formatters */}
                          {currentDayOrder.map(dayName => {
                            const dayData = weekDates.find(d => d.dayName === dayName);
                            const hours = dayData ? (employeeGroup.hoursPerDay[dayData.isoDate] || 0) : 0;
@@ -616,16 +581,16 @@ const Timesheet = () => {
                                              <button className='icon-btn edit-btn' onClick={() => handleUpdate(entry)} title="Edit Entry"><FontAwesomeIcon icon={faPen} /></button>
                                              <button className='icon-btn delete-btn' onClick={() => handleDelete(entry._id)} title="Delete Entry"><FontAwesomeIcon icon={faTrash} /></button>
                                            </div>
-                                           <div className="detail-section"><span className="detail-label">DATE:</span><span className="detail-value">{formatDateInTimezone(entry.date, entryTimezone)}</span></div>
-                                           <div className="detail-section"><span className="detail-label">DAY:</span><span className="detail-value">{DateTime.fromISO(entry.date, {zone: 'utc'}).setZone(entryTimezone).toFormat('EEEE')}</span></div>
+                                           <div className="detail-section"><span className="detail-label">DATE:</span><span className="detail-value">{formatDateString(entry.formattedLocalDate)}</span></div>
+                                           <div className="detail-section"><span className="detail-label">DAY:</span><span className="detail-value">{DateTime.fromISO(entry.formattedLocalDate).toFormat('EEEE')}</span></div>
                                            <div className="detail-section"><span className="detail-label">EMPLOYEE:</span><span className="detail-value">{employeeGroup.name}</span></div>
                                            <div className="detail-section"><span className="detail-label">CLIENT:</span><span className="detail-value">{entry.clientName || 'N/A'}</span></div>
                                            <div className="detail-section"><span className="detail-label">PROJECT:</span><span className="detail-value">{entry.projectName || 'N/A'}</span></div>
                                            <div className="detail-separator"></div>
                                            <div className="detail-section total-hours-section"><span className="detail-label">TOTAL</span><span className="detail-value bold">{formatHoursMinutes(entry.totalHours)}</span></div>
                                            <div className="detail-separator"></div>
-                                           <div className="detail-section stacked"><span className="detail-label">Start:</span><span className="detail-value">{formatTimeInTimezone(entry.startTime, entryTimezone)}</span></div>
-                                           <div className="detail-section stacked"><span className="detail-label">End:</span><span className="detail-value">{formatTimeInTimezone(entry.endTime, entryTimezone)}</span></div>
+                                           <div className="detail-section stacked"><span className="detail-label">Start:</span><span className="detail-value">{formatTimeFromISO(entry.startTime, entryTimezone)}</span></div>
+                                           <div className="detail-section stacked"><span className="detail-label">End:</span><span className="detail-value">{formatTimeFromISO(entry.endTime, entryTimezone)}</span></div>
                                            <div className="detail-section stacked"><span className="detail-label">Lunch:</span><span className="detail-value">{entry.lunchBreak === 'Yes' ? formatLunchDuration(entry.lunchDuration) : 'No break'}</span></div>
                                            {entry.leaveType && entry.leaveType !== 'None' && (
                                              <>
@@ -652,7 +617,6 @@ const Timesheet = () => {
                            );
                          })}
 
-                         {/* Total column */}
                          {weekIndex === 0 && (
                            <td rowSpan={useRowSpan ? numWeeks : 1} className="col-total numeric total-summary-cell">
                              {totalEmployeeHoursDecimal <= 0 ? (
