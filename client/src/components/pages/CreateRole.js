@@ -1,8 +1,19 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import axios from 'axios';
+import { useDispatch, useSelector } from 'react-redux';
 import { startOfWeek, addDays, format, parseISO } from 'date-fns';
 import { DateTime } from 'luxon';
+
+// Redux Imports
+import { fetchEmployees, selectAllEmployees, selectEmployeeStatus, selectEmployeeError } from '../../redux/slices/employeeSlice';
+import {
+    fetchRoleById, createRole, updateRole,
+    selectCurrentRole, selectCurrentRoleStatus, selectCurrentRoleError,
+    selectRoleStatus, selectRoleError, // For create/update status
+    clearCurrentRole, clearRoleError // Import clear actions
+} from '../../redux/slices/roleSlice';
+import { setAlert } from '../../redux/slices/alertSlice';
+
 import '../../styles/Forms.scss'; // *** Use Forms.scss ***
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
@@ -17,7 +28,6 @@ import {
     faPen, // Added Edit icon
 } from '@fortawesome/free-solid-svg-icons';
 
-const API_URL = process.env.REACT_APP_API_URL || 'https://timesheet-c4mj.onrender.com/api';
 const COLORS = ['Blue', 'Red', 'Green', 'Purple', 'Yellow', 'Default'];
 
 // Helper function for UTC conversion (similar to RosterPage)
@@ -50,91 +60,117 @@ const formatTimeUTCtoLocal = (timeStr, dateStr) => {
 const CreateRole = () => {
     const { roleId } = useParams();
     const navigate = useNavigate();
+    const dispatch = useDispatch();
     const isEditing = Boolean(roleId);
 
-    // State
+    // Redux State
+    const allEmployees = useSelector(selectAllEmployees);
+    const employeeStatus = useSelector(selectEmployeeStatus);
+    const employeeError = useSelector(selectEmployeeError);
+    const currentRole = useSelector(selectCurrentRole);
+    const currentRoleStatus = useSelector(selectCurrentRoleStatus);
+    const currentRoleError = useSelector(selectCurrentRoleError);
+    const saveStatus = useSelector(selectRoleStatus); // General status for create/update
+    const saveError = useSelector(selectRoleError); // General error for create/update
+
+    // Local UI State
     const [roleName, setRoleName] = useState('');
     const [roleDescription, setRoleDescription] = useState('');
     const [color, setColor] = useState(COLORS[0]);
-    const [allEmployees, setAllEmployees] = useState([]);
+    // const [allEmployees, setAllEmployees] = useState([]); // Replaced by Redux
     const [selectedEmployees, setSelectedEmployees] = useState([]);
     const [schedule, setSchedule] = useState({});
-    const [isLoading, setIsLoading] = useState(false); // Combined loading state
+    // const [isLoading, setIsLoading] = useState(false); // Replaced by Redux status
     const [error, setError] = useState(null);
 
     // Derived State/Constants
-    const weekStart = startOfWeek(new Date(), { weekStartsOn: 1 });
+    // Memoize weekStart to prevent it from changing on every render
+    const weekStart = useMemo(() => startOfWeek(new Date(), { weekStartsOn: 1 }), []);
     const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
 
     // Fetch initial data
+    // Fetch employees and the specific role if editing
     useEffect(() => {
-        const fetchData = async () => {
-            setIsLoading(true);
-            setError(null);
-            const token = localStorage.getItem('token');
-            if (!token) {
-                setError('Authentication required. Please log in.');
-                setIsLoading(false);
-                navigate('/login');
-                return;
-            }
+        // Fetch employees if not already loaded
+        if (employeeStatus === 'idle') {
+            dispatch(fetchEmployees());
+        }
 
-            const headers = { Authorization: `Bearer ${token}` };
-            const employeePromise = axios.get(`${API_URL}/employees`, { headers });
-            const rolePromise = isEditing
-                ? axios.get(`${API_URL}/roles/${roleId}`, { headers })
-                : Promise.resolve(null);
+        if (isEditing && roleId) {
+            dispatch(fetchRoleById(roleId));
+        } else {
+            // Clear any previously loaded role if creating new
+            dispatch(clearCurrentRole());
+            // Reset local form state for creation mode
+            setRoleName('');
+            setRoleDescription('');
+            setColor(COLORS[0]);
+            setSelectedEmployees([]);
+            setSchedule({});
+        }
 
-            try {
-                const [employeeRes, roleRes] = await Promise.all([employeePromise, rolePromise]);
-
-                setAllEmployees(employeeRes.data || []);
-
-                if (isEditing && roleRes?.data) {
-                    const data = roleRes.data;
-                    setRoleName(data.roleName || '');
-                    setRoleDescription(data.roleDescription || '');
-                    setColor(data.color || COLORS[0]);
-                    setSelectedEmployees((data.assignedEmployees || []).map(emp => typeof emp === 'object' ? emp._id : emp));
-
-                    const formattedSchedule = {};
-                    (data.schedule || []).forEach((entry) => {
-                        const dayStr = entry.day;
-                        // Check if dayStr is valid before parsing
-                        if (dayStr && dayStr.match(/^\d{4}-\d{2}-\d{2}$/)) {
-                            try {
-                                const entryWeekStart = format(startOfWeek(parseISO(dayStr), { weekStartsOn: 1 }), 'yyyy-MM-dd');
-                                const currentDisplayWeekStart = format(weekStart, 'yyyy-MM-dd');
-
-                                if (entryWeekStart === currentDisplayWeekStart) {
-                                    formattedSchedule[dayStr] = {
-                                        from: formatTimeUTCtoLocal(entry.startTime, dayStr),
-                                        to: formatTimeUTCtoLocal(entry.endTime, dayStr),
-                                    };
-                                }
-                            } catch (parseError) {
-                                console.error(`Error parsing date string: ${dayStr}`, parseError);
-                                // Handle the error, e.g., skip this entry or set default values
-                            }
-                        } else {
-                            console.warn(`Invalid or missing date string in schedule entry: ${dayStr}`);
-                        }
-                    });
-                    setSchedule(formattedSchedule);
-                }
-            } catch (err) {
-                console.error('Failed to fetch data:', err);
-                setError(err.response?.data?.message || 'Failed to load data. Please try again.');
-                if (err.response?.status === 401 || err.response?.status === 403) {
-                    navigate('/login');
-                }
-            } finally {
-                setIsLoading(false);
-            }
+        // Cleanup on unmount or if roleId changes
+        return () => {
+            dispatch(clearCurrentRole());
+            dispatch(clearRoleError()); // Clear potential save errors
         };
+    }, [roleId, isEditing, dispatch, employeeStatus]);
 
-        fetchData();
-    }, [roleId, isEditing, navigate]); // Added navigate to dependency array
+    // Populate form when editing and currentRole data is loaded
+    useEffect(() => {
+        if (isEditing && currentRoleStatus === 'succeeded' && currentRole) {
+            const data = currentRole;
+            setRoleName(data.roleName || '');
+            setRoleDescription(data.roleDescription || '');
+            setColor(data.color || COLORS[0]);
+            setSelectedEmployees((data.assignedEmployees || []).map(emp => typeof emp === 'object' ? emp._id : emp));
+
+            const formattedSchedule = {};
+            (data.schedule || []).forEach((entry) => {
+                const dayStr = entry.day;
+                // Check if dayStr is valid before parsing
+                if (dayStr && dayStr.match(/^\d{4}-\d{2}-\d{2}$/)) {
+                    try {
+                        const entryWeekStart = format(startOfWeek(parseISO(dayStr), { weekStartsOn: 1 }), 'yyyy-MM-dd');
+                        const currentDisplayWeekStart = format(weekStart, 'yyyy-MM-dd');
+
+                        if (entryWeekStart === currentDisplayWeekStart) {
+                            formattedSchedule[dayStr] = {
+                                from: formatTimeUTCtoLocal(entry.startTime, dayStr),
+                                to: formatTimeUTCtoLocal(entry.endTime, dayStr),
+                            };
+                        }
+                    } catch (parseError) {
+                        console.error(`Error parsing date string: ${dayStr}`, parseError);
+                        // Handle the error, e.g., skip this entry or set default values
+                    }
+                } else {
+                    console.warn(`Invalid or missing date string in schedule entry: ${dayStr}`);
+                }
+            });
+            setSchedule(formattedSchedule);
+            setError(null); // Clear local error if data loads successfully
+        } else if (isEditing && currentRoleStatus === 'failed') {
+            setError(currentRoleError); // Show fetch error
+        }
+    }, [isEditing, currentRoleStatus, currentRole, currentRoleError, weekStart]); // Added weekStart
+
+    // Combined loading state
+    const isLoading = useMemo(() =>
+        employeeStatus === 'loading' ||
+        currentRoleStatus === 'loading' ||
+        saveStatus === 'loading', // Include save status
+        [employeeStatus, currentRoleStatus, saveStatus]
+    );
+
+    // Combined error state
+    const combinedError = useMemo(() =>
+        error || // Local validation/calculation errors
+        employeeError ||
+        currentRoleError ||
+        saveError, // Include save error
+        [error, employeeError, currentRoleError, saveError]
+    );
 
     // Handlers
     const handleAddEmployee = useCallback((e) => {
@@ -142,7 +178,7 @@ const CreateRole = () => {
         if (empId && !selectedEmployees.includes(empId)) {
             setSelectedEmployees((prev) => [...prev, empId]);
         }
-        e.target.value = "";
+        e.target.value = ""; // Clear the select dropdown
     }, [selectedEmployees]);
 
     const removeEmployee = useCallback((empIdToRemove) => {
@@ -160,7 +196,8 @@ const CreateRole = () => {
                 },
             };
         });
-    }, []);
+        if (error) setError(null); // Clear local error on interaction
+    }, [error]); // Added error dependency
 
     // Submission Logic
     const validateInputs = () => {
@@ -207,7 +244,8 @@ const CreateRole = () => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        setError(null);
+        setError(null); // Clear local error
+        dispatch(clearRoleError()); // Clear Redux save error
 
         const validationError = validateInputs();
         if (validationError) {
@@ -215,31 +253,24 @@ const CreateRole = () => {
             return;
         }
 
-        setIsLoading(true);
-        const token = localStorage.getItem('token');
-        if (!token) {
-            setError('Authentication required. Please log in.');
-            setIsLoading(false);
-            navigate('/login');
-            return;
-        }
-
         const roleData = prepareSubmitData();
 
         try {
-            const config = { headers: { Authorization: `Bearer ${token}` } };
             if (isEditing) {
-                await axios.put(`${API_URL}/roles/${roleId}`, roleData, config);
+                await dispatch(updateRole({ id: roleId, roleData })).unwrap();
+                dispatch(setAlert('Role updated successfully!', 'success'));
             } else {
-                await axios.post(`${API_URL}/roles`, roleData, config);
+                await dispatch(createRole(roleData)).unwrap();
+                dispatch(setAlert('Role created successfully!', 'success'));
             }
             navigate('/rosterpage');
 
         } catch (err) {
+            // Error from unwrap() or validation will be caught here
             console.error('Error submitting role:', err.response?.data || err.message);
-            setError(err.response?.data?.message || `Failed to ${isEditing ? 'update' : 'create'} role. Please try again.`);
-        } finally {
-            setIsLoading(false);
+            // Error state is handled by combinedError via Redux state
+            // Optionally set local error too if needed: setError(err);
+            dispatch(setAlert(err || `Failed to ${isEditing ? 'update' : 'create'} role.`, 'danger'));
         }
     };
 
@@ -248,23 +279,13 @@ const CreateRole = () => {
         (emp) => !selectedEmployees.includes(emp._id)
     );
 
-    // Loading state for initial fetch
-    if (isLoading && !isEditing) { // Show loading only on initial fetch for create mode
+    // Show loading indicator based on combined state
+    if (isLoading) {
         return (
             <div className="vehicles-page">
                 <div className='loading-indicator'>
                     <FontAwesomeIcon icon={faSpinner} spin size='2x' />
-                    <p>Loading data...</p>
-                </div>
-            </div>
-        );
-    }
-     if (isLoading && isEditing && !roleName) { // Show loading on initial fetch for edit mode
-        return (
-            <div className="vehicles-page">
-                <div className='loading-indicator'>
-                    <FontAwesomeIcon icon={faSpinner} spin size='2x' />
-                    <p>Loading role data...</p>
+                    <p>{currentRoleStatus === 'loading' ? 'Loading role data...' : (employeeStatus === 'loading' ? 'Loading employees...' : 'Saving...')}</p>
                 </div>
             </div>
         );
@@ -291,9 +312,9 @@ const CreateRole = () => {
 
             <div className="form-container"> {/* Use standard form container */}
                 <form onSubmit={handleSubmit} className="employee-form" noValidate> {/* Use standard form class */}
-                    {error && (
+                    {combinedError && (
                         <div className="form-error-message">
-                            <FontAwesomeIcon icon={faExclamationCircle} /> {error}
+                            <FontAwesomeIcon icon={faExclamationCircle} /> {combinedError}
                         </div>
                     )}
 

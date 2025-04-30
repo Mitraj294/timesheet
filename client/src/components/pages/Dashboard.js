@@ -1,8 +1,8 @@
 // /home/digilab/timesheet/client/src/components/pages/Dashboard.js
 import React, { useEffect, useState, useRef, useMemo } from "react";
-import axios from "axios";
 import { useSelector, useDispatch } from "react-redux";
 import { fetchEmployees, selectAllEmployees, selectEmployeeStatus, selectEmployeeError } from "../../redux/slices/employeeSlice";
+import { fetchTimesheets, selectAllTimesheets, selectTimesheetStatus, selectTimesheetError, clearTimesheetError } from "../../redux/slices/timesheetSlice";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import Select from "react-select";
 import {
@@ -20,9 +20,7 @@ import Chart from "chart.js/auto";
 import "../../styles/Dashboard.scss";
 import { DateTime } from "luxon";
 
-const API_URL = process.env.REACT_APP_API_URL || 'https://timesheet-c4mj.onrender.com/api';
-
-// --- Helper Functions (remain the same) ---
+// Helper Functions
 const convertDecimalToTime = (decimalHours) => {
   if (isNaN(decimalHours) || decimalHours == null) return "00:00";
   const hours = Math.floor(decimalHours);
@@ -128,21 +126,21 @@ const Dashboard = () => {
   const employees = useSelector(selectAllEmployees);
   const employeeStatus = useSelector(selectEmployeeStatus);
   const employeesError = useSelector(selectEmployeeError);
+  const allTimesheets = useSelector(selectAllTimesheets);
+  const timesheetStatus = useSelector(selectTimesheetStatus);
+  const timesheetError = useSelector(selectTimesheetError);
   const { token, isLoading: isAuthLoading, isAuthenticated, user } = useSelector((state) => state.auth || {});
 
-  const [allTimesheets, setAllTimesheets] = useState([]);
   const [employeeTimesheets, setEmployeeTimesheets] = useState([]);
   const [selectedEmployee, setSelectedEmployee] = useState({ value: "All", label: "All Employees" });
   const [viewType, setViewType] = useState({ value: "Weekly", label: "View by Weekly" });
-  const [isLoadingTimesheets, setIsLoadingTimesheets] = useState(true);
-  const [timesheetError, setTimesheetError] = useState(null);
   const [selectedProjectClient, setSelectedProjectClient] = useState({ value: "All", label: "All Clients" });
 
   const chartRef = useRef(null);
   const clientsChartRef = useRef(null);
   const projectsChartRef = useRef(null);
 
-  // --- Effect for fetching employees ---
+  // Effect for fetching employees
   useEffect(() => {
     if (!isAuthLoading && token && employeeStatus === 'idle') {
       console.log(`[${new Date().toISOString()}] Dashboard: Dispatching fetchEmployees (token: ${!!token}, isAuthLoading: ${isAuthLoading}, employeeStatus: ${employeeStatus}).`);
@@ -150,77 +148,34 @@ const Dashboard = () => {
     }
   }, [dispatch, token, isAuthLoading, employeeStatus]);
 
-  // --- Effect for fetching timesheets ---
+  // Effect for fetching timesheets
   useEffect(() => {
-    // --- Add logging for dependencies ---
-    console.log(`[${new Date().toISOString()}] Dashboard: Timesheet fetch effect triggered (token: ${!!token}, isAuthLoading: ${isAuthLoading}).`);
+    // Add logging for dependencies
+    console.log(`[${new Date().toISOString()}] Dashboard: Timesheet fetch effect triggered (token: ${!!token}, isAuthLoading: ${isAuthLoading}, timesheetStatus: ${timesheetStatus}).`);
 
     if (isAuthLoading) {
         console.log(`[${new Date().toISOString()}] Dashboard: Timesheet fetch effect waiting for auth.`);
-        // Don't set loading false here, wait for auth to finish
         return;
     }
     if (!token) {
       console.log(`[${new Date().toISOString()}] Dashboard: Timesheet fetch effect stopped - no token.`);
-      setIsLoadingTimesheets(false); // No fetch will happen, so stop loading
-      setTimesheetError("Authentication required.");
-      setAllTimesheets([]); // Clear any stale data
       return;
     }
 
-    // If we have a token and auth is not loading, proceed with fetch
-    const controller = new AbortController();
-    const { signal } = controller;
-    const config = { headers: { Authorization: `Bearer ${token}` }, signal };
+    // Only fetch if timesheets haven't been fetched yet ('idle')
+    // Or if you want to refetch under certain conditions (e.g., token change, error state)
+    if (timesheetStatus === 'idle' || timesheetStatus === 'failed') {
+        console.log(`[${new Date().toISOString()}] Dashboard: Dispatching fetchTimesheets.`);
+        dispatch(fetchTimesheets());
+    }
 
-    let isEffectMounted = true; // Flag to prevent state updates after unmount
-
-    const fetchTimesheetDataOnly = async () => {
-        console.log(`[${new Date().toISOString()}] Dashboard: fetchTimesheetDataOnly started.`);
-        // Set loading true only when starting the actual fetch
-        if (isEffectMounted) setIsLoadingTimesheets(true);
-        if (isEffectMounted) setTimesheetError(null);
-
-        try {
-            console.log(`[${new Date().toISOString()}] Dashboard: Fetching timesheets...`);
-            const tsRes = await axios.get(`${API_URL}/timesheets`, config);
-
-            if (isEffectMounted && !signal.aborted) {
-                console.log(`[${new Date().toISOString()}] Dashboard: Timesheets fetched successfully.`);
-                setAllTimesheets(tsRes.data?.timesheets || []);
-                setIsLoadingTimesheets(false);
-            } else {
-                 console.log(`[${new Date().toISOString()}] Dashboard: Timesheet fetch aborted or component unmounted before completion.`);
-            }
-        } catch (err) {
-            if (axios.isCancel(err)) {
-                console.log(`[${new Date().toISOString()}] Dashboard: Timesheet fetch explicitly cancelled.`);
-            } else if (isEffectMounted && !signal.aborted) {
-                console.error(`[${new Date().toISOString()}] Dashboard: Failed to fetch timesheets:`, err.response?.data?.message || err.message);
-                let message = "Failed to load timesheet data.";
-                if (err.response) {
-                    message = `Server Error: ${err.response.status} - ${err.response.data?.message || 'Unknown error'}`;
-                    if (err.response.status === 401) message = "Authentication failed. Please log in again.";
-                } else if (err.request) {
-                    message = "Network Error: Could not reach the server.";
-                } else { message = `Error: ${err.message}`; }
-                setTimesheetError(message);
-                setIsLoadingTimesheets(false);
-            }
-        }
-    };
-
-    fetchTimesheetDataOnly();
-
-    // Cleanup function
+    // Cleanup function (AbortController logic is handled internally by createAsyncThunk)
     return () => {
       console.log(`[${new Date().toISOString()}] Dashboard: Cleaning up fetch effect for timesheets (token: ${!!token}, isAuthLoading: ${isAuthLoading}).`);
-      isEffectMounted = false; // Set flag on unmount
-      controller.abort();
     };
-  }, [token, isAuthLoading]); // Keep dependencies minimal
+  }, [token, isAuthLoading, timesheetStatus, dispatch]);
 
-  // --- Effect to Filter Timesheets by Employee (remains the same) ---
+  // Effect to Filter Timesheets by Employee
   useEffect(() => {
     if (selectedEmployee.value === "All") {
       setEmployeeTimesheets(allTimesheets);
@@ -231,7 +186,7 @@ const Dashboard = () => {
     }
   }, [selectedEmployee, allTimesheets]);
 
-  // --- Memoized Data (remain the same) ---
+  // Memoized Data
   const employeeOptions = useMemo(() => [
     { value: "All", label: "All Employees" },
     ...(Array.isArray(employees) ? employees.map((emp) => ({ value: emp._id, label: emp.name })) : []),
@@ -284,17 +239,20 @@ const Dashboard = () => {
     });
   }, [validTimesheets, previousPeriod]);
 
-  // --- Loading and Error States (remain the same) ---
+  // Loading and Error States
   const isEmployeeLoading = employeeStatus === 'loading';
-  const showLoading = isAuthLoading || isEmployeeLoading || isLoadingTimesheets;
+  const isTimesheetLoading = timesheetStatus === 'loading';
+  const showLoading = isAuthLoading || isEmployeeLoading || isTimesheetLoading;
   const combinedError = timesheetError || employeesError;
 
-  // --- Summary Calculations (remain the same) ---
+  // Summary Calculations (remain the same)
   const totalHoursAllPeriodSummary = useMemo(() => filteredAllCurrentTimesheets.reduce((acc, sheet) => acc + (parseFloat(sheet.totalHours) || 0), 0), [filteredAllCurrentTimesheets]);
   const avgHoursAllPeriodSummary = useMemo(() => {
-      const uniqueDaysWorked = new Set(filteredAllCurrentTimesheets.map(t => t.date)).size;
-      return uniqueDaysWorked > 0 ? (totalHoursAllPeriodSummary / uniqueDaysWorked) : 0;
-  }, [totalHoursAllPeriodSummary, filteredAllCurrentTimesheets]);
+       // Calculate the total number of non-leave timesheet entries in the period
+       const totalWorkingTimesheets = filteredAllCurrentTimesheets.length;
+       // Calculate average hours per timesheet entry
+       return totalWorkingTimesheets > 0 ? (totalHoursAllPeriodSummary / totalWorkingTimesheets) : 0;
+   }, [totalHoursAllPeriodSummary, filteredAllCurrentTimesheets]);
 
   const totalHoursEmployeeSummary = useMemo(() => filteredCurrentTimesheets.reduce((acc, sheet) => acc + (parseFloat(sheet.totalHours) || 0), 0), [filteredCurrentTimesheets]);
   const avgHoursEmployeeSummary = useMemo(() => {
@@ -314,7 +272,8 @@ const Dashboard = () => {
       const start = DateTime.fromJSDate(currentPeriod.start);
       const end = DateTime.fromJSDate(currentPeriod.end);
       return employeeTimesheets.filter(t => {
-          if (!t?.date || !t.leaveType || ["None", "Public Holiday", "Annual"].includes(t.leaveType)) return false;
+          // Count if leaveType exists and is not 'None'
+          if (!t?.date || !t.leaveType || t.leaveType === "None") return false;
           try {
               const d = DateTime.fromISO(t.date);
               return d >= start.startOf('day') && d <= end.endOf('day');
@@ -334,7 +293,7 @@ const Dashboard = () => {
   const projectsWorked = useMemo(() => new Set(filteredCurrentTimesheets.map((t) => t.projectId?._id || t.projectId).filter(Boolean)).size, [filteredCurrentTimesheets]);
   const clientsWorked = useMemo(() => new Set(filteredCurrentTimesheets.map((t) => t.clientId?._id || t.clientId).filter(Boolean)).size, [filteredCurrentTimesheets]);
 
-  // --- Project Card Specific Calculations (remain the same) ---
+  // Project Card Specific Calculations
   const projectCardClientOptions = useMemo(() => {
     if (!filteredCurrentTimesheets.length) return [{ value: "All", label: "All Clients" }];
     const clients = new Map();
@@ -367,7 +326,7 @@ const Dashboard = () => {
   }, [projectCardFilteredTimesheets]);
 
 
-  // --- Chart Data Generation (remain the same) ---
+  // Chart Data Generation
   const { labels, currentData, previousData, thisPeriodLabel, lastPeriodLabel } = useMemo(() => {
     if (showLoading || combinedError) {
         return { labels: [], currentData: [], previousData: [], thisPeriodLabel: "", lastPeriodLabel: "" };
@@ -412,7 +371,7 @@ const Dashboard = () => {
   }, [projectCardFilteredTimesheets, showLoading, combinedError]);
 
 
-  // --- Chart Rendering Effects (remain the same) ---
+  // Chart Rendering Effects
   useEffect(() => {
     const ctx = document.getElementById("graphCanvas")?.getContext("2d");
     if (!ctx) return;
@@ -484,7 +443,7 @@ const Dashboard = () => {
   }, [projectChartData, showLoading, combinedError]);
 
 
-  // --- JSX Rendering (remains the same) ---
+  // JSX Rendering
   return (
     <div className="view-dashboard-page">
       <div className="dashboard-filters-container">
@@ -524,7 +483,7 @@ const Dashboard = () => {
       {showLoading && (
         <div className='loading-indicator'>
           <FontAwesomeIcon icon={faSpinner} spin size='2x' />
-          <p>{isAuthLoading ? 'Authenticating...' : (isEmployeeLoading ? 'Loading employees...' : 'Loading timesheets...')}</p>
+          <p>{isAuthLoading ? 'Authenticating...' : (isEmployeeLoading ? 'Loading employees...' : (isTimesheetLoading ? 'Loading timesheets...' : 'Loading...'))}</p>
         </div>
       )}
 
@@ -533,9 +492,12 @@ const Dashboard = () => {
           <FontAwesomeIcon icon={faExclamationCircle} />
           <p>{combinedError}</p>
           {(combinedError.includes('Authentication') || combinedError.includes('token')) ? (
-             <p>Please try logging in again.</p>
+             <p>Authentication issue. Please try logging in again.</p>
           ) : (
-             <button className="btn btn-secondary" onClick={() => window.location.reload()}>Retry Page Load</button>
+             <button className="btn btn-secondary" onClick={() => {
+                 if (timesheetError) dispatch(clearTimesheetError()); // Clear Redux error
+                 dispatch(fetchTimesheets()); // Retry fetching timesheets
+             }}>Retry Fetch</button>
           )}
         </div>
       )}
@@ -563,7 +525,7 @@ const Dashboard = () => {
                   <FontAwesomeIcon icon={faStopwatch} className="summary-icon avg-hours" />
                   <div className="summary-content">
                     <h3>{displayAvgHours}</h3>
-                    <p>Avg. Daily Hours ({viewType.label.split(' ')[2]})</p>
+                    <p>Avg. Employee Hours ({viewType.label.split(' ')[2]})</p>
                   </div>
                 </div>
               </>

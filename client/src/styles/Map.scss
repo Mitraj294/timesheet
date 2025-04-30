@@ -1,4 +1,407 @@
-// Utility class for accessibility - hides elements visually but keeps them for screen readers
+@use 'sass:color';
+
+// --- Variables (Adopted from Vehicles.scss/Timesheet.scss) ---
+$primary-color: #007bff;
+$secondary-color: #6c757d;
+$success-color: #28a745;
+$warning-color: #ffc107;
+$danger-color: #dc3545;
+$info-color: #17a2b8;
+$purple-color: #8b5cf6; // Example purple
+$light-grey: #f8f9fa;
+$medium-grey: #e9ecef;
+$dark-grey: #6c757d;
+$text-color: #333;
+$border-color: #dee2e6;
+$border-radius: 5px;
+$box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+$font-family: 'Segoe UI', sans-serif; // Or your preferred font
+
+$breakpoint-md: 768px;
+$breakpoint-sm: 576px;
+
+// --- Base Button Styles (Adopted) ---
+.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.5rem 1rem; // Default padding
+    font-size: 0.9rem;
+    font-weight: 500;
+    line-height: 1.5;
+    text-align: center;
+    text-decoration: none;
+    vertical-align: middle;
+    cursor: pointer;
+    user-select: none;
+    background-color: transparent;
+    border: 1px solid transparent;
+    border-radius: $border-radius; // Use variable
+    transition: color 0.15s ease-in-out, background-color 0.15s ease-in-out, border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+    white-space: nowrap;
+
+    &:disabled {
+        opacity: 0.65;
+        cursor: not-allowed;
+    }
+
+    .svg-inline--fa {
+        margin-right: 0.4em; // Space before text
+    }
+
+    // Icon after text
+    span+.svg-inline--fa {
+        margin-right: 0;
+        margin-left: 0.4em;
+    }
+
+    // Icon only button
+    .svg-inline--fa:only-child {
+        margin-right: 0;
+    }
+}
+
+// Specific Button Colors (Add more as needed)
+.btn-primary {
+    color: #fff;
+    background-color: $primary-color;
+    border-color: $primary-color;
+
+    &:hover:not(:disabled) {
+        background-color: color.adjust($primary-color, $lightness: -7%);
+        border-color: color.adjust($primary-color, $lightness: -10%);
+    }
+
+    &:disabled {
+        background-color: $primary-color;
+        border-color: $primary-color;
+    }
+}
+
+.btn-secondary {
+    color: #fff;
+    background-color: $secondary-color;
+    border-color: $secondary-color;
+
+    &:hover:not(:disabled) {
+        background-color: color.adjust($secondary-color, $lightness: -7%);
+        border-color: color.adjust($secondary-color, $lightness: -10%);
+    }
+
+    &:disabled {
+        background-color: $secondary-color;
+        border-color: $secondary-color;
+    }
+}
+
+.btn-blue {
+    // Added for consistency with Timesheet nav buttons
+    color: #fff;
+    background-color: $primary-color;
+    border-color: $primary-color;
+
+    &:hover:not(:disabled) {
+        background-color: color.adjust($primary-color, $lightness: -7%);
+        border-color: color.adjust($primary-color, $lightness: -10%);
+    }
+
+    &:disabled {
+        background-color: $primary-color;
+        border-color: $primary-color;
+    }
+}
+
+// --- Map Page Layout ---
+.map-page {
+    padding: clamp(1rem, 2vw, 1.5rem);
+    max-width: 1200px; // Consistent max width
+    margin: 0 auto;
+    font-family: $font-family;
+    background-color: $light-grey;
+    min-height: calc(100vh - 60px); // Adjust based on actual nav height
+}
+
+// --- Header (Adopted from Vehicles/Employees) ---
+.map-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start; // Align top
+    margin-bottom: 1.5rem;
+    flex-wrap: wrap;
+    gap: 1rem;
+    padding: 1rem;
+    background-color: #fff;
+    border-radius: $border-radius;
+    box-shadow: $box-shadow;
+
+    .title-breadcrumbs {
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+        flex-grow: 1;
+        min-width: 200px;
+
+        h2 {
+            font-size: clamp(1.4rem, 3vw, 1.75rem);
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+            color: $text-color;
+            margin: 0;
+            font-weight: 600;
+        }
+
+        .breadcrumbs {
+            font-size: 0.875rem;
+            color: $dark-grey;
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+
+            .breadcrumb-link {
+                color: $primary-color;
+                text-decoration: none;
+                font-weight: 500;
+                white-space: nowrap;
+
+                &:hover {
+                    text-decoration: underline;
+                }
+            }
+
+            .breadcrumb-separator {
+                margin: 0 0.3rem;
+                color: color.adjust($dark-grey, $lightness: 15%);
+                white-space: nowrap;
+            }
+
+            .breadcrumb-current {
+                color: $dark-grey;
+                white-space: nowrap;
+            }
+        }
+    }
+
+    // .header-actions { /* Add if needed */ }
+}
+
+// --- Navigation Bar (Adopted from Timesheet) ---
+.map-navigation-bar {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: center;
+    gap: 15px;
+    margin-bottom: 1.5rem; // Consistent spacing
+    padding: 10px 0; // Vertical padding only
+
+    .period-display {
+        order: 1; // Center element first visually on wider screens
+        flex: 1 1 auto; // Allow growing/shrinking, centered text
+        text-align: center;
+        padding: 0 10px;
+
+        h4 {
+            margin: 0;
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: $text-color;
+            white-space: nowrap;
+        }
+    }
+
+    .navigation-controls {
+        order: 2; // Grouped controls second
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex: 0 0 auto; // Don't grow/shrink excessively
+
+        .nav-button {
+            // Inherits .btn styles, specifically using .btn-blue
+            padding: 0.5rem 0.8rem; // Slightly smaller padding for nav buttons
+            font-size: 0.85rem;
+            height: 38px; // Match select height
+            box-sizing: border-box;
+
+            span {
+                margin: 0 0.2em;
+            }
+
+            // Space around text
+        }
+
+        .view-type-select-wrapper {
+            flex: 0 1 180px;
+            min-width: 150px;
+        }
+
+        .view-type-dropdown {
+            padding: 8px 10px;
+            border: 1px solid $border-color;
+            border-radius: $border-radius;
+            font-size: 0.9rem;
+            height: 38px;
+            box-sizing: border-box;
+            width: 100%;
+            background-color: white;
+            cursor: pointer;
+            font-family: $font-family;
+        }
+    }
+
+    // Adjust order for mobile in media queries
+}
+
+// --- Filters Toolbar ---
+.map-filters-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1.5rem; // Space between filter groups
+    align-items: flex-end; // Align items at the bottom
+    margin-bottom: 1.5rem;
+    background: white;
+    padding: 1rem 1.5rem;
+    border-radius: $border-radius;
+    box-shadow: $box-shadow;
+    border: 1px solid $border-color;
+
+    .filter-group {
+        display: flex;
+        flex-direction: column; // Stack label and control
+        gap: 0.5rem; // Space between label and control
+        flex: 1 1 200px; // Allow growing/shrinking, base width
+        min-width: 180px;
+
+        .filter-label {
+            font-weight: 600;
+            font-size: 0.9rem;
+            color: $dark-grey;
+            margin-bottom: 0; // Remove bottom margin if label is separate
+        }
+
+        // Container for select/checkboxes
+        .select-container,
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 0.8rem; // Space between items (e.g., checkboxes)
+            position: relative; // For inline loading icon
+        }
+
+        select {
+            width: 100%;
+            padding: 8px 10px;
+            border: 1px solid $border-color;
+            border-radius: $border-radius;
+            background-color: #fff;
+            font-size: 0.9rem;
+            height: 38px; // Match nav controls
+            box-sizing: border-box;
+            font-family: $font-family;
+
+            &:focus {
+                border-color: $primary-color;
+                box-shadow: 0 0 0 3px rgba($primary-color, 0.25);
+                outline: none;
+            }
+
+            &:disabled {
+                background-color: $light-grey;
+                cursor: not-allowed;
+            }
+        }
+
+        .checkbox-label {
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+            cursor: pointer;
+            font-size: 0.9rem;
+
+            input[type='checkbox'] {
+                cursor: pointer;
+                margin-right: 0.2rem; // Ensure consistent spacing
+            }
+        }
+
+        .loading-icon-inline {
+            position: absolute;
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: $dark-grey;
+        }
+
+        .error-text-inline {
+            font-size: 0.8rem;
+            color: $danger-color;
+            margin-top: 0.25rem;
+        }
+    }
+
+    // Specific alignment for the locate button group
+    .locate-me-container {
+        flex-grow: 0; // Don't grow
+        flex-basis: auto; // Size based on content
+        min-width: auto;
+
+        .locate-button {
+            // Uses .btn and .btn-secondary
+            height: 38px; // Match other controls
+        }
+    }
+}
+
+// --- Map Display Area ---
+.map-display-area {
+    position: relative; // For potential loading overlays
+
+    .leaflet-map-container {
+        border-radius: $border-radius;
+        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.15);
+        border: 1px solid $border-color;
+        // Height is set inline in the component
+    }
+
+    // Loading/Error states specific to map data (optional overlay)
+    .loading-indicator,
+    .error-message {
+        // Styles for overlay if needed, or use the general ones below
+        // position: absolute; top: 0; left: 0; width: 100%; height: 100%; ...
+    }
+}
+
+// --- General Loading/Error (Adopted) ---
+.loading-indicator,
+.error-message {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+    margin: 1.5rem auto;
+    background-color: #fff;
+    border-radius: $border-radius;
+    box-shadow: $box-shadow;
+    text-align: center;
+    color: $dark-grey;
+    max-width: 600px;
+
+    p {
+        margin-top: 0.75rem;
+        font-size: 1rem;
+        margin-bottom: 0;
+    }
+}
+
+.error-message {
+    color: color.adjust($danger-color, $lightness: -10%);
+    border: 1px solid color.adjust($danger-color, $lightness: 30%);
+    background-color: color.adjust($danger-color, $lightness: 45%);
+}
+
+// --- Accessibility ---
 .visually-hidden {
     position: absolute;
     width: 1px;
@@ -10,188 +413,118 @@
     border: 0;
 }
 
-.map-container {
-    padding: 20px;
-    background-color: #f9f9f9;
-    border-radius: 8px;
-    font-family: sans-serif; // Added a base font for consistency
+// --- Responsive Adjustments ---
 
-    // Header section (using the class from the React component)
-    .employees-header {
+// Tablet and Mobile (<= 768px)
+@media (max-width: $breakpoint-md) {
+    .map-navigation-bar {
+        // Stack navigation items
+        flex-direction: column;
+        align-items: stretch; // Stretch items full width
 
-        // Assuming similar styling to map-header if needed
-        h1 {
-            font-size: 24px; // Example size
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            margin-bottom: 10px; // Spacing below header
-            color: #333; // Darker color for header
+        .period-display {
+            order: 1;
+            text-align: center;
+            margin-bottom: 10px;
+        }
+
+        .navigation-controls {
+            order: 2;
+            width: 100%;
+            justify-content: space-between; // Space out Prev/Select/Next
+
+            .view-type-select-wrapper {
+                flex: 1 1 auto;
+            }
+
+            // Allow select to grow
+            .nav-button {
+                flex: 0 0 auto;
+            }
+
+            // Keep buttons fixed size
         }
     }
 
-    // Breadcrumbs (using the class from the React component)
-    .breadcrumb {
-        font-size: 14px;
-        margin-bottom: 20px; // Space below breadcrumbs
-        color: #666; // Slightly lighter color for breadcrumbs
-
-        .breadcrumb-link {
-            text-decoration: none;
-            color: #007bff;
-            font-weight: bold;
-
-            &:hover {
-                text-decoration: underline;
-            }
-        }
-
-        span {
-            margin: 0 5px; // Separator spacing
-        }
-    }
-
-    // Date Range Display
-    .date-range {
-        text-align: center; // Center the date range text
-        margin-bottom: 15px;
-
-        h3 {
-            font-size: 18px;
-            font-weight: normal; // Less emphasis than main header
-            color: #555;
-        }
-    }
-
-
-    // Navigation controls (Prev/Next, ViewType)
-    .map-navigation {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        background: #fff;
-        padding: 10px 15px; // Slightly more horizontal padding
-        border-radius: 5px;
-        margin-bottom: 20px; // Increased spacing
-        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1); // Subtle shadow
-
-        .nav-button {
-            background-color: #007bff;
-            color: white;
-            padding: 8px 15px; // Slightly more padding
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 14px;
-            display: inline-flex; // Align icon and text
-            align-items: center;
-            gap: 5px; // Space between icon and text
-            transition: background-color 0.2s ease; // Smooth hover transition
-
-            &:hover {
-                background-color: #0056b3;
-            }
-
-            &:disabled {
-                // Style for disabled state (e.g., during location fetching)
-                background-color: #cccccc;
-                cursor: not-allowed;
-            }
-        }
-
-        .select-container {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-
-            // Hide label visually if using .visually-hidden class in HTML
-            // label { }
-
-            select {
-                padding: 8px 10px; // Consistent padding
-                border: 1px solid #ccc;
-                border-radius: 4px;
-                background-color: #fff; // Ensure background color
-                font-size: 14px;
-            }
-        }
-    }
-
-    // Renamed from .styles_Map_thirdRow to match the suggested class
     .map-filters-toolbar {
-        display: flex;
-        flex-wrap: wrap; // Allow wrapping on smaller screens
-        gap: 20px; // Space between filter groups
-        align-items: flex-end; // Align items nicely if heights differ
-        margin-bottom: 20px; // Consistent spacing
-        background: white; // Give the toolbar a background
-        padding: 15px;
-        border-radius: 5px;
-        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1); // Subtle shadow
+        gap: 1rem; // Reduce gap
+        padding: 1rem;
 
-        // Renamed from .Map to be more specific
-        .marker-filters,
-        .employee-filter {
-            flex: 1; // Allow filters to take up space
-            min-width: 200px; // Minimum width before wrapping
-
-            h3,
-            h4 {
-                margin-top: 0; // Remove default top margin
-                margin-bottom: 10px; // Consistent spacing below headings
-                font-size: 16px; // Slightly smaller headings for filters
-                color: #333;
-            }
-
-            .check-box {
-                display: flex;
-                flex-direction: column; // Stack checkboxes vertically
-                gap: 8px; // Space between checkboxes
-
-                label {
-                    display: flex;
-                    align-items: center;
-                    gap: 5px; // Space between checkbox and text
-                    cursor: pointer;
-                    font-size: 14px;
-                }
-            }
-
-            .select-container {
-
-                // Styles for select within employee filter if needed
-                select {
-                    width: 100%; // Make select fill container width
-                    padding: 8px 10px;
-                    border: 1px solid #ccc;
-                    border-radius: 4px;
-                    background-color: #fff;
-                    font-size: 14px;
-                }
-            }
+        .filter-group {
+            flex-basis: 45%; // Allow two columns roughly
+            min-width: 160px;
         }
 
-        // Container for the locate button
         .locate-me-container {
-            // margin-left: auto; // Pushes button to the right if desired and space allows
-            // Or align self if needed within the flex context:
-            // align-self: flex-end;
+            flex-basis: 100%; // Full width on its own line
+            margin-top: 0.5rem;
+
+            .locate-button {
+                width: 100%;
+            }
+
+            // Make button full width
+        }
+    }
+}
+
+// Smaller Mobile specific (<= 576px)
+@media (max-width: $breakpoint-sm) {
+    .map-page {
+        padding: 10px;
+    }
+
+    .map-header {
+        .title-breadcrumbs h2 {
+            font-size: 1.2rem;
         }
 
-        // Specific styles for the locate button if needed beyond .nav-button
-        .locate-button {
-            // Example: add a different color or icon style if desired
-            // background-color: #28a745; // Green example
-            // &:hover {
-            //     background-color: #218838;
-            // }
+        .breadcrumbs {
+            font-size: 0.8rem;
         }
     }
 
-    // Styles for the Leaflet map container itself
-    .leaflet-map-container {
-        border-radius: 5px;
-        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.15); // Add shadow to map
-        // Ensure map has a height, often set via inline style in React component
+    .map-navigation-bar {
+        gap: 10px;
+
+        .period-display h4 {
+            font-size: 1rem;
+        }
+
+        .navigation-controls {
+            flex-wrap: wrap; // Allow inner controls to wrap
+            justify-content: center; // Center wrapped items
+
+            .view-type-select-wrapper {
+                order: 1;
+                flex-basis: 100%;
+                margin-bottom: 10px;
+            }
+
+            .nav-button {
+                order: 2;
+                flex: 1 1 45%;
+                justify-content: center;
+            }
+
+            // Prev/Next side-by-side
+        }
+    }
+
+    .map-filters-toolbar {
+        flex-direction: column; // Stack all filter groups
+        align-items: stretch; // Stretch full width
+        gap: 1rem;
+
+        .filter-group {
+            flex-basis: auto; // Reset basis
+            min-width: unset;
+        }
+
+        .locate-me-container {
+            margin-top: 0;
+        }
+
+        // Remove top margin when stacked
     }
 }

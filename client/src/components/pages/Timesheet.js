@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { useSelector, useDispatch } from 'react-redux'; // Import Redux hooks
 import {
   faPen,
   faArrowLeft,
@@ -22,11 +23,33 @@ import {
   faChevronDown,
   faChevronUp
 } from '@fortawesome/free-solid-svg-icons';
-import axios from 'axios';
-import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 import '../../styles/Timesheet.scss';
 import { DateTime } from 'luxon';
+import DatePicker from 'react-datepicker'; // Import DatePicker
+
+// Import Redux actions and selectors
+import { fetchEmployees, selectAllEmployees, selectEmployeeStatus, selectEmployeeError } from '../../redux/slices/employeeSlice';
+import { fetchClients, selectAllClients, selectClientStatus, selectClientError } from '../../redux/slices/clientSlice';
+import { fetchProjects, selectProjectItems, selectProjectStatus, selectProjectError } from '../../redux/slices/projectSlice';
+import {
+    fetchTimesheets,
+    deleteTimesheet,
+    downloadTimesheet, // Import the download thunk
+    sendTimesheet, // Import the send thunk
+    selectAllTimesheets,
+    selectTimesheetStatus,
+    selectTimesheetError,
+    selectTimesheetDownloadStatus, // Import download status selector
+    selectTimesheetDownloadError, // Import download error selector
+    selectTimesheetSendStatus, // Import send status selector
+    selectTimesheetSendError, // Import send error selector
+    clearTimesheetError, clearDownloadStatus, clearSendStatus // Import clear actions
+} from '../../redux/slices/timesheetSlice';
+import { selectIsAuthenticated, selectAuthUser } from '../../redux/slices/authSlice'; // Assuming you need user info
+import { setAlert } from '../../redux/slices/alertSlice'; // For potential notifications
+
+
 import Select from "react-select"; // Assuming react-select is used here too based on filter controls
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
@@ -159,144 +182,145 @@ const getPeriodLabel = (viewType) => {
 
 
 const Timesheet = () => {
+  const dispatch = useDispatch();
+  const navigate = useNavigate();
+
+  // --- Redux State ---
+  const employees = useSelector(selectAllEmployees);
+  const employeeStatus = useSelector(selectEmployeeStatus);
+  const employeeError = useSelector(selectEmployeeError);
+
+  const clients = useSelector(selectAllClients);
+  const clientStatus = useSelector(selectClientStatus);
+  const clientError = useSelector(selectClientError);
+
+  const projects = useSelector(selectProjectItems); // Changed selectAllProjects to selectProjectItems
+  const projectStatus = useSelector(selectProjectStatus);
+  const projectError = useSelector(selectProjectError);
+
+  const timesheets = useSelector(selectAllTimesheets);
+  const timesheetStatus = useSelector(selectTimesheetStatus);
+  const timesheetError = useSelector(selectTimesheetError);
+  // Get download-specific state
+  const timesheetDownloadStatus = useSelector(selectTimesheetDownloadStatus);
+  const timesheetDownloadError = useSelector(selectTimesheetDownloadError);
+  // Get send-specific state
+  const timesheetSendStatus = useSelector(selectTimesheetSendStatus);
+  const timesheetSendError = useSelector(selectTimesheetSendError);
+
+  const isAuthenticated = useSelector(selectIsAuthenticated);
+  const user = useSelector(selectAuthUser); // Get user info if needed
+
+  // --- Local UI State ---
   const [viewType, setViewType] = useState('Weekly');
-  const [timesheets, setTimesheets] = useState([]);
-  const [employees, setEmployees] = useState([]);
-  const [clients, setClients] = useState([]);
-  const [projects, setProjects] = useState([]);
   const [expandedRows, setExpandedRows] = useState({});
   const [currentDate, setCurrentDate] = useState(new Date());
-  const [isLoading, setIsLoading] = useState(false);
-  const [isDownloading, setIsDownloading] = useState(false);
-  const [isSending, setIsSending] = useState(false);
-  const [email, setEmail] = useState('');
-  const [selectedEmployee, setSelectedEmployee] = useState('');
-  const [startDate, setStartDate] = useState(null);
-  const [endDate, setEndDate] = useState(null);
+  // const [isDownloading, setIsDownloading] = useState(false); // Replaced by Redux state
+  // const [isSending, setIsSending] = useState(false); // Replaced by Redux state
   const [showDownloadFilters, setShowDownloadFilters] = useState(false);
   const [showSendFilters, setShowSendFilters] = useState(false);
-  const [error, setError] = useState(null);
+  // const [error, setError] = useState(null); // Replaced by combinedError
   const [downloadError, setDownloadError] = useState(null);
   const [sendError, setSendError] = useState(null);
 
-  const navigate = useNavigate();
+  // const navigate = useNavigate(); // Removed duplicate declaration
+  // State for Download/Send filters (kept local as they are UI specific)
+  const [downloadEmail, setDownloadEmail] = useState('');
+  const [downloadSelectedEmployee, setDownloadSelectedEmployee] = useState('');
+  const [downloadStartDate, setDownloadStartDate] = useState(null);
+  const [downloadEndDate, setDownloadEndDate] = useState(null);
+  const [sendEmail, setSendEmail] = useState('');
+  const [sendSelectedEmployee, setSendSelectedEmployee] = useState('');
+  const [sendStartDate, setSendStartDate] = useState(null);
+  const [sendEndDate, setSendEndDate] = useState(null);
+
+  // --- Combined Loading and Error States ---
+  const isDataLoading = useMemo(() => // Renamed to avoid conflict with download loading
+    employeeStatus === 'loading' ||
+    clientStatus === 'loading' ||
+    projectStatus === 'loading' ||
+    timesheetStatus === 'loading',
+    [employeeStatus, clientStatus, projectStatus, timesheetStatus]
+  );
+
+  // Use Redux state for download loading status
+  const isDownloading = useMemo(() => timesheetDownloadStatus === 'loading', [timesheetDownloadStatus]);
+
+  // Use Redux state for send loading status
+  const isSending = useMemo(() => timesheetSendStatus === 'loading', [timesheetSendStatus]);
+
+  const combinedError = useMemo(() =>
+    employeeError || clientError || projectError || timesheetError,
+    [employeeError, clientError, projectError, timesheetError]
+  );
+
+  // Get browser timezone
   const browserTimezone = useMemo(() => DateTime.local().zoneName, []);
 
-  const fetchWithAuth = useCallback(async (url, config = {}) => {
-      const token = localStorage.getItem('token');
-      if (!token) {
-          console.error("fetchWithAuth: No token found, redirecting to login.");
-          navigate('/login');
-          throw new Error('No authentication token found!');
-      }
-      const authConfig = {
-          ...config,
-          headers: { ...config.headers, Authorization: `Bearer ${token}` },
-      };
-      try {
-          const response = await axios.get(url.startsWith('http') ? url : `${API_URL}${url}`, authConfig);
-          return response.data;
-      } catch (err) {
-          if (err.response?.status === 401 || err.response?.status === 403) {
-              console.error(`fetchWithAuth: ${err.response.status} error, redirecting to login.`);
-              navigate('/login');
-          }
-          throw err;
-      }
-  }, [navigate]);
-
-  const fetchEmployees = useCallback(async () => {
-    try {
-      const data = await fetchWithAuth(`/employees`);
-      setEmployees(data || []);
-    } catch (error) {
-      console.error('Error fetching employees:', error.response?.data || error.message);
-      if (!error.message?.includes('token')) {
-          setError('Failed to fetch employees.');
-      }
-    }
-  }, [fetchWithAuth]);
-
-  const fetchClients = useCallback(async () => {
-     try {
-      const data = await fetchWithAuth(`/clients`);
-      setClients(data || []);
-    } catch (error) {
-      console.error('Error fetching clients:', error.response?.data || error.message);
-       if (!error.message?.includes('token')) {
-           setError('Failed to fetch clients.');
-       }
-    }
-  }, [fetchWithAuth]);
-
-  const fetchProjects = useCallback(async () => {
-     try {
-      const data = await fetchWithAuth(`/projects`);
-      setProjects(data || []);
-    } catch (error) {
-      console.error('Error fetching projects:', error.response?.data || error.message);
-       if (!error.message?.includes('token')) {
-           setError('Failed to fetch projects.');
-       }
-    }
-  }, [fetchWithAuth]);
-
-  const fetchTimesheets = useCallback(async () => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      const { start, end } = calculateDateRange(currentDate, viewType);
-      const startDateStr = DateTime.fromJSDate(start).toFormat('yyyy-MM-dd');
-      const endDateStr = DateTime.fromJSDate(end).toFormat('yyyy-MM-dd');
-      const data = await fetchWithAuth(`/timesheets`, {
-        params: { startDate: startDateStr, endDate: endDateStr },
-      });
-      const fetchedTimesheets = data?.timesheets;
-      setTimesheets(Array.isArray(fetchedTimesheets) ? fetchedTimesheets : []);
-    } catch (error) {
-      console.error('Error fetching timesheets:', error.response?.data || error.message);
-      if (!error.message?.includes('token')) {
-          setError(error.response?.data?.message || 'Failed to fetch timesheets.');
-      }
-      setTimesheets([]);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [currentDate, viewType, fetchWithAuth]);
-
+  // Effect to update local download error state from Redux state
   useEffect(() => {
-    fetchEmployees();
-    fetchClients();
-    fetchProjects();
-  }, [fetchEmployees, fetchClients, fetchProjects]);
+    if (timesheetDownloadStatus === 'failed' && timesheetDownloadError) {
+      setDownloadError(timesheetDownloadError);
+      dispatch(clearDownloadStatus()); // Clear Redux error state after setting local state
+    }
+  }, [timesheetDownloadStatus, timesheetDownloadError, dispatch]);
 
+  // Effect to update local send error state from Redux state
   useEffect(() => {
-    fetchTimesheets();
-  }, [fetchTimesheets]);
+    if (timesheetSendStatus === 'failed' && timesheetSendError) {
+      setSendError(timesheetSendError);
+      dispatch(clearSendStatus()); // Clear Redux error state after setting local state
+    }
+  }, [timesheetSendStatus, timesheetSendError, dispatch]);
+
+  // Initial data fetching on component mount
+  useEffect(() => {
+    if (isAuthenticated) {
+      // Fetch initial data only if not already fetched or failed previously
+      if (employeeStatus === 'idle') dispatch(fetchEmployees());
+      if (clientStatus === 'idle') dispatch(fetchClients());
+      if (projectStatus === 'idle') dispatch(fetchProjects());
+      // Timesheets are fetched based on date/viewType in the next effect
+    } else if (!isAuthenticated && employeeStatus !== 'idle') {
+      // Optional: Clear data if user logs out? Depends on desired behavior.
+    }
+  }, [dispatch, isAuthenticated, employeeStatus, clientStatus, projectStatus]);
+
+  // Fetch Timesheets when date or view type changes
+  useEffect(() => {
+    if (isAuthenticated) {
+        const { start, end } = calculateDateRange(currentDate, viewType);
+        const startDateStr = DateTime.fromJSDate(start).toFormat('yyyy-MM-dd');
+        const endDateStr = DateTime.fromJSDate(end).toFormat('yyyy-MM-dd');
+        dispatch(fetchTimesheets({ startDate: startDateStr, endDate: endDateStr }));
+    }
+  }, [dispatch, isAuthenticated, currentDate, viewType]);
 
   const toggleExpand = (id) => {
+    // Toggle the expanded state for a specific employee row
     setExpandedRows((prev) => ({ ...prev, [id]: !prev[id] }));
    };
 
   const handleUpdate = (timesheet) => {
+    // Navigate to the create/update timesheet page with the selected timesheet data
     navigate('/timesheet/create', { state: { timesheet } });
    };
 
   const handleDelete = useCallback(async (id) => {
-    if (!window.confirm('Are you sure you want to delete this timesheet entry?')) return;
-    setError(null);
-    try {
-      const token = localStorage.getItem('token');
-      if (!token) { navigate('/login'); throw new Error('Authentication error!'); }
-      await axios.delete(`${API_URL}/timesheets/${id}`, { headers: { Authorization: `Bearer ${token}` } });
-      fetchTimesheets();
-    } catch (error) {
-      console.error('Error deleting timesheet:', error.response?.data || error.message);
-      setError(error.response?.data?.message || 'Failed to delete timesheet entry.');
-      if (error.response?.status === 401) navigate('/login');
+    // Delete a timesheet entry after confirmation
+    if (window.confirm('Are you sure you want to delete this timesheet entry?')) {
+        dispatch(deleteTimesheet(id))
+            .unwrap() // unwrap allows catching errors from the thunk promise
+            .then(() => {
+                dispatch(setAlert('Timesheet entry deleted successfully', 'success'));
+            })
+            .catch((err) => {
+                dispatch(setAlert(`Error deleting timesheet: ${err}`, 'danger'));
+            });
     }
    }, [navigate, fetchTimesheets]);
 
+  // Navigate to the previous time period
   const handlePrev = () => {
     setCurrentDate(prevDate => {
         let dt = DateTime.fromJSDate(prevDate);
@@ -312,6 +336,7 @@ const Timesheet = () => {
     });
    };
 
+  // Navigate to the next time period
   const handleNext = () => {
      setCurrentDate(prevDate => {
         let dt = DateTime.fromJSDate(prevDate);
@@ -327,74 +352,72 @@ const Timesheet = () => {
     });
    };
 
+  // Handle sending the timesheet report via email
   const handleSendEmail = useCallback(async () => {
-      if (!email || !/\S+@\S+\.\S+/.test(email)) { setSendError('Please enter a valid recipient email address.'); return; }
-      setSendError(null); setIsSending(true); setError(null);
-      try {
-          const token = localStorage.getItem('token');
-          if (!token) { navigate('/login'); throw new Error('Authentication error!'); }
-          const body = {
-              email,
-              employeeIds: selectedEmployee ? [selectedEmployee] : [],
-              startDate: startDate ? DateTime.fromJSDate(startDate).toFormat('yyyy-MM-dd') : null,
-              endDate: endDate ? DateTime.fromJSDate(endDate).toFormat('yyyy-MM-dd') : null,
-              timezone: browserTimezone,
-          };
-          await axios.post(`${API_URL}/timesheets/send`, body, { headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' } });
-          setShowSendFilters(false); setEmail(''); setSelectedEmployee(''); setStartDate(null); setEndDate(null);
-      } catch (error) {
-          console.error('Error sending timesheet email:', error.response?.data || error.message);
-          setSendError(error.response?.data?.message || 'Failed to send timesheet. Please try again.');
-          if (error.response?.status === 401) navigate('/login');
-      } finally { setIsSending(false); }
-  }, [email, selectedEmployee, startDate, endDate, navigate, browserTimezone]);
+      if (!sendEmail || !/\S+@\S+\.\S+/.test(sendEmail)) { setSendError('Please enter a valid recipient email address.'); return; }
+      setSendError(null); // Clear local error on new attempt
+      dispatch(clearSendStatus()); // Clear previous Redux send status/error
 
+      const params = {
+          email: sendEmail,
+          employeeIds: sendSelectedEmployee ? [sendSelectedEmployee] : [],
+          startDate: sendStartDate ? DateTime.fromJSDate(sendStartDate).toFormat('yyyy-MM-dd') : null,
+          endDate: sendEndDate ? DateTime.fromJSDate(sendEndDate).toFormat('yyyy-MM-dd') : null,
+          timezone: browserTimezone,
+      };
+
+      dispatch(sendTimesheet(params))
+        .unwrap()
+        .then((result) => {
+          // Success
+          setShowSendFilters(false); // Close filters on success
+          setSendEmail(''); setSendSelectedEmployee(''); setSendStartDate(null); setSendEndDate(null); // Reset filters
+          dispatch(setAlert(`Timesheet report sent successfully to ${result.email}`, 'success'));
+        })
+        .catch((error) => {
+          // Error is handled by the useEffect that watches timesheetSendError
+          console.error('Send email dispatch failed:', error);
+        });
+  }, [sendEmail, sendSelectedEmployee, sendStartDate, sendEndDate, navigate, browserTimezone, dispatch]);
+
+  // Handle downloading the timesheet report as an Excel file
   const handleDownload = useCallback(async () => {
-      setDownloadError(null); setIsDownloading(true); setError(null);
-      try {
-          const token = localStorage.getItem('token');
-          if (!token) { navigate('/login'); throw new Error('Authentication error!'); }
-          const body = {
-              employeeIds: selectedEmployee ? [selectedEmployee] : [],
-              startDate: startDate ? DateTime.fromJSDate(startDate).toFormat('yyyy-MM-dd') : null,
-              endDate: endDate ? DateTime.fromJSDate(endDate).toFormat('yyyy-MM-dd') : null,
-              timezone: browserTimezone,
-          };
-          const response = await axios.post(`${API_URL}/timesheets/download`, body, { headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, responseType: 'blob' });
-          const blob = new Blob([response.data], { type: response.headers['content-type'] || 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      setDownloadError(null); // Clear local error on new attempt
+      dispatch(clearDownloadStatus()); // Clear previous Redux download status/error
+
+      const params = {
+          employeeIds: downloadSelectedEmployee ? [downloadSelectedEmployee] : [],
+          startDate: downloadStartDate ? DateTime.fromJSDate(downloadStartDate).toFormat('yyyy-MM-dd') : null,
+          endDate: downloadEndDate ? DateTime.fromJSDate(downloadEndDate).toFormat('yyyy-MM-dd') : null,
+          timezone: browserTimezone,
+      };
+
+      dispatch(downloadTimesheet(params))
+        .unwrap()
+        .then((result) => {
+          // Success: Create and trigger download link
+          const blob = new Blob([result.blob], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
           const url = window.URL.createObjectURL(blob);
           const link = document.createElement('a');
           link.href = url;
-          const contentDisposition = response.headers['content-disposition'];
-          let filename = `timesheets_report.xlsx`;
-          if (contentDisposition) {
-              const filenameMatch = contentDisposition.match(/filename\*?=['"]?(?:UTF-\d['"]*)?([^;\r\n"']*)['"]?;?/i);
-              if (filenameMatch && filenameMatch[1]) { filename = decodeURIComponent(filenameMatch[1]); }
-          }
-          link.setAttribute('download', filename);
+          link.setAttribute('download', result.filename || 'timesheets_report.xlsx');
           document.body.appendChild(link);
           link.click();
           link.remove();
           window.URL.revokeObjectURL(url);
-          setShowDownloadFilters(false); setSelectedEmployee(''); setStartDate(null); setEndDate(null);
-      } catch (err) {
-          console.error('Download failed:', err.response?.data || err.message || err);
-          let errorMessage = 'Could not download report.';
-          if (err.response?.data instanceof Blob && err.response?.data.type.includes('json')) {
-              try {
-                  const errorJson = JSON.parse(await err.response.data.text());
-                  errorMessage = errorJson.message || errorJson.error || errorMessage;
-              } catch (parseError) { console.error("Could not parse error blob:", parseError); }
-          } else if (err.response?.data?.message || err.response?.data?.error) {
-              errorMessage = err.response.data.message || err.response.data.error;
-          } else if (err.message) { errorMessage = err.message; }
-          setDownloadError(errorMessage);
-          if (err.response?.status === 401) navigate('/login');
-      } finally { setIsDownloading(false); }
-  }, [selectedEmployee, startDate, endDate, navigate, browserTimezone]);
+          setShowDownloadFilters(false); // Close filters on success
+          setDownloadSelectedEmployee(''); setDownloadStartDate(null); setDownloadEndDate(null); // Reset filters
+        })
+        .catch((error) => {
+          // Error is handled by the useEffect that watches timesheetDownloadError
+          console.error('Download dispatch failed:', error);
+        });
+  }, [downloadSelectedEmployee, downloadStartDate, downloadEndDate, navigate, browserTimezone, dispatch]);
 
+  // Generate date columns based on the current view type and date
   const dateColumns = useMemo(() => generateDateColumns(currentDate, viewType), [currentDate, viewType]);
 
+  // Group timesheets by employee and structure data for the table
   const groupTimesheets = useMemo(() => {
       let grouped = {};
       const currentViewDates = new Set(dateColumns.map(d => d.isoDate));
@@ -449,6 +472,7 @@ const Timesheet = () => {
 
     }, [timesheets, employees, clients, projects, dateColumns]);
 
+  // Generate the display text for the current time period
   const periodDisplayText = useMemo(() => {
     if (!dateColumns || dateColumns.length === 0) return 'Loading...';
     const firstDay = DateTime.fromJSDate(dateColumns[0].date);
@@ -462,8 +486,10 @@ const Timesheet = () => {
     }
   }, [dateColumns, viewType]);
 
+  // Get the label for the current period (e.g., 'Week', 'Day')
   const periodLabel = useMemo(() => getPeriodLabel(viewType), [viewType]);
 
+  // Render table headers based on the view type
   const renderTableHeaders = () => {
     if (viewType === 'Daily') return null;
 
@@ -486,6 +512,7 @@ const Timesheet = () => {
     return headers;
    };
 
+  // Render a card for a single timesheet entry in the Daily view
   const renderDailyEntryCard = (entry, employeeName) => {
     const entryTimezone = entry.timezone || browserTimezone;
     const isLeaveEntry = entry.leaveType && entry.leaveType !== 'None';
@@ -523,6 +550,7 @@ const Timesheet = () => {
     );
   };
 
+  // Render the container and cards for the Daily view
   const renderDailyView = () => {
     const dailyDate = dateColumns[0]?.isoDate;
     if (!dailyDate) return <div className="no-results">No date selected for daily view.</div>;
@@ -552,14 +580,21 @@ const Timesheet = () => {
     );
   };
 
+  // Options for the employee filter dropdown
   const employeeOptions = useMemo(() => [
       { value: '', label: 'All Employees' },
       ...employees.map(e => ({ value: e._id, label: e.name }))
   ], [employees]);
 
-  const selectedEmployeeOption = useMemo(() =>
-      employeeOptions.find(e => e.value === selectedEmployee) || null
-  , [employeeOptions, selectedEmployee]);
+  // Memoized selected option for the download filter dropdown
+  const downloadSelectedEmployeeOption = useMemo(() =>
+      employeeOptions.find(e => e.value === downloadSelectedEmployee) || null // Use downloadSelectedEmployee here
+  , [employeeOptions, downloadSelectedEmployee]); // Corrected dependency
+
+  // Memoized selected option for the send filter dropdown
+  const sendSelectedEmployeeOption = useMemo(() =>
+      employeeOptions.find(e => e.value === sendSelectedEmployee) || null
+  , [employeeOptions, sendSelectedEmployee]);
 
 
   return (
@@ -587,17 +622,17 @@ const Timesheet = () => {
           <h4>Download Timesheet Report</h4>
           {downloadError && <p className='error-text'><FontAwesomeIcon icon={faExclamationCircle} /> {downloadError}</p>}
           <div className="filter-controls">
-            <Select
+             <Select
                 options={employeeOptions}
-                value={selectedEmployeeOption}
-                onChange={option => setSelectedEmployee(option?.value || '')}
+                value={downloadSelectedEmployeeOption} // Use memoized value
+                onChange={option => setDownloadSelectedEmployee(option?.value || '')}
                 className="react-select-container filter-select"
                 classNamePrefix="react-select"
                 placeholder="Filter by Employee (Optional)"
                 isClearable={true}
             />
-            <DatePicker selected={startDate} onChange={setStartDate} selectsStart startDate={startDate} endDate={endDate} placeholderText="From Date" dateFormat="yyyy-MM-dd" className="filter-datepicker" wrapperClassName="date-picker-wrapper" aria-label="Download Start Date" />
-            <DatePicker selected={endDate} onChange={setEndDate} selectsEnd startDate={startDate} endDate={endDate} minDate={startDate} placeholderText="To Date" dateFormat="yyyy-MM-dd" className="filter-datepicker" wrapperClassName="date-picker-wrapper" aria-label="Download End Date" />
+            <DatePicker selected={downloadStartDate} onChange={setDownloadStartDate} selectsStart startDate={downloadStartDate} endDate={downloadEndDate} placeholderText="From Date" dateFormat="yyyy-MM-dd" className="filter-datepicker" wrapperClassName="date-picker-wrapper" aria-label="Download Start Date" />
+            <DatePicker selected={downloadEndDate} onChange={setDownloadEndDate} selectsEnd startDate={downloadStartDate} endDate={downloadEndDate} minDate={downloadStartDate} placeholderText="To Date" dateFormat="yyyy-MM-dd" className="filter-datepicker" wrapperClassName="date-picker-wrapper" aria-label="Download End Date" />
             <button className="btn btn-red action-button" onClick={handleDownload} disabled={isDownloading}>
               {isDownloading ? (<><FontAwesomeIcon icon={faSpinner} spin /> Downloading...</>) : (<><FontAwesomeIcon icon={faDownload} /> Download</>)}
             </button>
@@ -609,19 +644,19 @@ const Timesheet = () => {
           <h4>Send Timesheet Report</h4>
            {sendError && <p className='error-text'><FontAwesomeIcon icon={faExclamationCircle} /> {sendError}</p>}
           <div className="filter-controls">
-            <Select
+             <Select
                 options={employeeOptions}
-                value={selectedEmployeeOption}
-                onChange={option => setSelectedEmployee(option?.value || '')}
+                value={sendSelectedEmployeeOption} // Use memoized value
+                onChange={option => setSendSelectedEmployee(option?.value || '')}
                 className="react-select-container filter-select"
                 classNamePrefix="react-select"
                 placeholder="Filter by Employee (Optional)"
                 isClearable={true}
             />
-            <DatePicker selected={startDate} onChange={setStartDate} selectsStart startDate={startDate} endDate={endDate} placeholderText="From Date" dateFormat="yyyy-MM-dd" className="filter-datepicker" wrapperClassName="date-picker-wrapper" aria-label="Send Start Date" />
-            <DatePicker selected={endDate} onChange={setEndDate} selectsEnd startDate={startDate} endDate={endDate} minDate={startDate} placeholderText="To Date" dateFormat="yyyy-MM-dd" className="filter-datepicker" wrapperClassName="date-picker-wrapper" aria-label="Send End Date" />
-            <input type="email" placeholder="Recipient email" value={email} onChange={e => { setEmail(e.target.value); if (sendError) setSendError(null); }} className="filter-email" aria-label="Recipient Email" required />
-            <button className="btn btn-purple action-button" onClick={handleSendEmail} disabled={isSending || !email || !/\S+@\S+\.\S+/.test(email)}>
+            <DatePicker selected={sendStartDate} onChange={setSendStartDate} selectsStart startDate={sendStartDate} endDate={sendEndDate} placeholderText="From Date" dateFormat="yyyy-MM-dd" className="filter-datepicker" wrapperClassName="date-picker-wrapper" aria-label="Send Start Date" />
+            <DatePicker selected={sendEndDate} onChange={setSendEndDate} selectsEnd startDate={sendStartDate} endDate={sendEndDate} minDate={sendStartDate} placeholderText="To Date" dateFormat="yyyy-MM-dd" className="filter-datepicker" wrapperClassName="date-picker-wrapper" aria-label="Send End Date" />
+            <input type="email" placeholder="Recipient email" value={sendEmail} onChange={e => { setSendEmail(e.target.value); if (sendError) setSendError(null); }} className="filter-email" aria-label="Recipient Email" required />
+            <button className="btn btn-purple action-button" onClick={handleSendEmail} disabled={isSending || !sendEmail || !/\S+@\S+\.\S+/.test(sendEmail)}>
               {isSending ? (<><FontAwesomeIcon icon={faSpinner} spin /> Sending...</>) : (<><FontAwesomeIcon icon={faEnvelope} /> Send</>)}
             </button>
           </div>
@@ -653,10 +688,10 @@ const Timesheet = () => {
         </Link>
       </div>
 
-       {isLoading ? (
+       {isDataLoading ? (
          <div className='loading-indicator'><FontAwesomeIcon icon={faSpinner} spin size='2x' /> Loading Timesheets...</div>
-       ) : error ? (
-         <div className='error-message'><FontAwesomeIcon icon={faExclamationCircle} /> {error}</div>
+       ) : combinedError ? (
+         <div className='error-message'><FontAwesomeIcon icon={faExclamationCircle} /> {combinedError}</div>
        ) : (
          viewType === 'Daily' ? (
             renderDailyView()

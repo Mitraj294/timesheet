@@ -1,8 +1,21 @@
-import React, { useState, useEffect } from "react";
+// /home/digilab/timesheet/client/src/components/pages/ViewClient.js
+import React, { useState, useEffect, useMemo } from "react";
 import { Link, useParams, useNavigate } from "react-router-dom";
-import axios from "axios";
-import { useSelector } from "react-redux";
+import { useSelector, useDispatch } from "react-redux";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+
+// Redux Imports
+import {
+  fetchClientById, selectCurrentClient, selectCurrentClientStatus, selectCurrentClientError, clearCurrentClient
+} from "../../redux/slices/clientSlice";
+import {
+  fetchProjects, deleteProject, selectProjectsByClientId, selectProjectStatus, selectProjectError, clearProjects, clearProjectError
+} from "../../redux/slices/projectSlice";
+import {
+  fetchTimesheets, selectAllTimesheets, selectTimesheetStatus, selectTimesheetError
+} from "../../redux/slices/timesheetSlice";
+import { setAlert } from "../../redux/slices/alertSlice";
+
 import {
   faUser,
   faPlus,
@@ -19,112 +32,128 @@ import {
 } from "@fortawesome/free-solid-svg-icons";
 // Import the shared SCSS file
 import "../../styles/Vehicles.scss"; // *** Use Vehicles.scss ***
-// Import the dedicated SCSS file for ViewClient specific styles
 import "../../styles/ViewClient.scss"; // *** Use ViewClient.scss ***
-
-const API_URL = process.env.REACT_APP_API_URL || 'https://timesheet-c4mj.onrender.com/api';
 
 const ViewClient = () => {
   const { clientId } = useParams();
   const navigate = useNavigate();
-  const [client, setClient] = useState(null);
-  const [projects, setProjects] = useState([]);
-  const [clientTotalHours, setClientTotalHours] = useState(0);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [isDeletingProject, setIsDeletingProject] = useState(false);
+  const dispatch = useDispatch();
+
+  // Redux State
+  const client = useSelector(selectCurrentClient);
+  const clientStatus = useSelector(selectCurrentClientStatus);
+  const clientError = useSelector(selectCurrentClientError);
+  // Use selector with argument for projects
+  const projects = useSelector(state => selectProjectsByClientId(state, clientId));
+  const projectStatus = useSelector(selectProjectStatus);
+  const projectError = useSelector(selectProjectError);
+  const allTimesheets = useSelector(selectAllTimesheets);
+  const timesheetStatus = useSelector(selectTimesheetStatus);
+  const timesheetError = useSelector(selectTimesheetError);
   const { user } = useSelector((state) => state.auth || {});
+
+  // Local State
+  const [clientTotalHours, setClientTotalHours] = useState(0);
+  // const [loading, setLoading] = useState(true); // Replaced by Redux statuses
+  const [error, setError] = useState(null);
+  // Keep local state for delete action if needed for UI feedback
+  const [isDeletingProject, setIsDeletingProject] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
-      setLoading(true);
+      // setLoading(true); // Removed - isLoading is derived from Redux statuses
       setError(null);
-      setClient(null);
-      setProjects([]);
-      setClientTotalHours(0);
+      // setClient(null); // Managed by Redux state (clearCurrentClient)
+      // setProjects([]); // Managed by Redux state (clearProjects)
+      // setClientTotalHours(0); // Calculated later
 
       try {
-        const token = localStorage.getItem("token");
-        if (!token) throw new Error("Authentication token not found.");
-        const config = { headers: { Authorization: `Bearer ${token}` } };
-
-        // Fetch client, projects, and timesheets concurrently
-        const [clientRes, projectsRes, timesheetRes] = await Promise.all([
-          axios.get(`${API_URL}/clients/${clientId}`, config),
-          axios.get(`${API_URL}/projects/client/${clientId}`, config).catch(err => {
-            // Handle 404 specifically for projects, return empty array
-            if (err.response?.status === 404) return { data: [] };
-            throw err; // Re-throw other errors
-          }),
-          axios.get(`${API_URL}/timesheets`, config) // Fetch all timesheets
-        ]);
-
-        setClient(clientRes.data);
-        setProjects(projectsRes.data || []);
-
-        // Calculate total hours client-side
-        const timesheets = timesheetRes.data?.timesheets || [];
-        const filtered = timesheets.filter(
-          (t) => t.clientId?._id === clientId && t.leaveType === "None"
-        );
-        const total = filtered.reduce(
-          (sum, t) => sum + (parseFloat(t.totalHours) || 0),
-          0
-        );
-        setClientTotalHours(total);
+        // Dispatch fetch actions
+        dispatch(fetchClientById(clientId));
+        dispatch(fetchProjects(clientId)); // Fetch projects for this client
+        // Fetch timesheets if not already loaded/succeeded
+        if (timesheetStatus !== 'succeeded' && timesheetStatus !== 'loading') {
+            dispatch(fetchTimesheets());
+        }
 
       } catch (err) {
         console.error("Error fetching data:", err);
         let errorMessage = "Failed to fetch data from the server.";
         if (err.message === "Authentication token not found.") {
             errorMessage = "Authentication required. Please log in.";
-            navigate("/login");
-        } else if (err.response?.status === 404) {
-          errorMessage = "Client data not found."; // Adjusted error for client 404
-        } else if (err.response?.status === 401 || err.response?.status === 403) {
-          errorMessage = "Unauthorized. Please log in.";
-          navigate("/login");
+            // navigate("/login"); // Let auth handling redirect
         } else if (err.response?.data?.message) {
             errorMessage = err.response.data.message;
         } else if (err.message) {
             errorMessage = err.message;
         }
         setError(errorMessage);
-      } finally {
-        setLoading(false);
       }
     };
 
     fetchData();
-  }, [clientId, navigate]);
 
-  const deleteProject = async (projectId, projectName) => {
+    // Cleanup function
+    return () => {
+        dispatch(clearCurrentClient());
+        dispatch(clearProjects()); // Clear projects when leaving the page
+        dispatch(clearProjectError()); // Clear project errors
+    };
+  }, [clientId, dispatch, timesheetStatus]); // Depend on clientId and dispatch
+
+  // Calculate total hours when timesheets or client ID changes
+  useEffect(() => {
+    if (timesheetStatus === 'succeeded' && clientId) {
+      const filtered = allTimesheets.filter(
+        (t) => (t.clientId?._id || t.clientId) === clientId && (!t.leaveType || t.leaveType === "None")
+      );
+      const total = filtered.reduce(
+        (sum, t) => sum + (parseFloat(t.totalHours) || 0),
+        0
+      );
+      setClientTotalHours(total);
+    }
+  }, [allTimesheets, timesheetStatus, clientId]);
+
+  // Renamed function to avoid conflict with imported Redux action creator
+  const handleDeleteProject = async (projectId, projectName) => {
     if (!window.confirm(`Are you sure you want to delete project "${projectName}"?`)) return;
 
     setIsDeletingProject(true);
     setError(null); // Clear previous errors
 
     try {
-      const token = localStorage.getItem("token");
-      if (!token) throw new Error("Authentication token not found.");
-      const config = { headers: { Authorization: `Bearer ${token}` } };
-
-      await axios.delete(`${API_URL}/projects/${projectId}`, config);
-      setProjects((prev) => prev.filter((project) => project._id !== projectId));
-      // Consider adding success feedback (toast)
+      await dispatch(deleteProject(projectId)).unwrap();
+      // State updates automatically via reducer
+      dispatch(setAlert(`Project "${projectName}" deleted successfully.`, 'success'));
     } catch (err) {
       console.error("Error deleting project:", err);
-      setError(`Failed to delete project "${projectName}". ${err.response?.data?.message || err.message}`);
+      // Extract error message string before dispatching
+      let errorMessage = `Failed to delete project "${projectName}".`; // Default message
+      if (err?.message) { // Prioritize err.message if it exists (covers SerializedError from unwrap)
+        errorMessage = err.message;
+      } else if (typeof err === 'string') { // Handle if err itself is a string (from rejectWithValue)
+        errorMessage = err;
+      }
+      setError(errorMessage); // Set local error for display
+      dispatch(setAlert(String(errorMessage), 'danger')); // Force conversion to string just in case
     } finally {
       setIsDeletingProject(false);
     }
   };
 
+  // Combined loading and error states
+  const isLoading = useMemo(() =>
+    clientStatus === 'loading' || projectStatus === 'loading' || timesheetStatus === 'loading',
+    [clientStatus, projectStatus, timesheetStatus]
+  );
+  const combinedError = useMemo(() => error || clientError || projectError || timesheetError, [error, clientError, projectError, timesheetError]);
+
   // Define grid columns for projects
   const projectGridColumns = '1fr 1.5fr 1fr 1fr 1.5fr 1fr 1.5fr auto';
 
   // Loading state for the whole page
-  if (loading && !client) {
+  if (isLoading && clientStatus !== 'succeeded') { // Check specific client status
     return (
       <div className="vehicles-page"> {/* Use standard page class */}
         <div className='loading-indicator'>
@@ -136,12 +165,12 @@ const ViewClient = () => {
   }
 
   // Error state if client data failed to load
-  if (error && !client) {
+  if (clientError && clientStatus === 'failed') { // Check specific client error
     return (
       <div className="vehicles-page"> {/* Use standard page class */}
         <div className='error-message'>
           <FontAwesomeIcon icon={faExclamationCircle} />
-          <p>{error}</p>
+          <p>{clientError}</p>
           <Link to="/clients" className="btn btn-secondary" style={{marginTop: '1rem'}}>Back to Clients</Link>
         </div>
       </div>
@@ -202,10 +231,10 @@ const ViewClient = () => {
       </div>
 
       {/* Display general errors below header */}
-      {error && (
+      {combinedError && !clientError /* Don't show general if client fetch failed */ && (
          <div className='error-message' style={{marginBottom: '1rem'}}>
             <FontAwesomeIcon icon={faExclamationCircle} />
-            <p>{error}</p>
+            <p>{String(combinedError)}</p> {/* Ensure it's rendered as a string */}
          </div>
       )}
 
@@ -261,7 +290,7 @@ const ViewClient = () => {
         )}
 
         {/* Use standard grid for projects */}
-        <div className="vehicles-grid">
+        <div className="vehicles-grid"> {/* Use standard grid class */}
           <div className="vehicles-row header" style={{ gridTemplateColumns: projectGridColumns }}>
             <div>Status</div>
             <div>Name</div>
@@ -274,14 +303,14 @@ const ViewClient = () => {
           </div>
 
           {/* Display loading indicator inside grid if deleting */}
-          {loading && projects.length === 0 && !isDeletingProject && (
+          {projectStatus === 'loading' && projects.length === 0 && !isDeletingProject && ( // Check project status
              <div className='loading-indicator' style={{ gridColumn: '1 / -1' }}>
                 <FontAwesomeIcon icon={faSpinner} spin /> Loading projects...
              </div>
           )}
 
-          {!loading && projects.length === 0 && !isDeletingProject ? (
-            <div className="vehicles-row no-results">
+          {projectStatus !== 'loading' && projects.length === 0 && !isDeletingProject ? (
+            <div className="vehicles-row no-results"> {/* Use standard no-results class */}
               No projects found for this client.
             </div>
           ) : (
@@ -318,7 +347,7 @@ const ViewClient = () => {
                     </button>
                     <button
                       className="btn-icon btn-icon-red" // Standard icon button
-                      onClick={() => deleteProject(project._id, project.name)}
+                      onClick={() => handleDeleteProject(project._id, project.name)} // Call the renamed handler
                       title={`Delete ${project.name}`}
                       aria-label={`Delete ${project.name}`}
                       disabled={isDeletingProject}

@@ -11,7 +11,8 @@ import {
 const router = express.Router();
 
 
-router.post("/:clientId/projects", createProject);
+// Changed route to match frontend request: /projects/client/:clientId
+router.post("/client/:clientId", createProject);
 
 router.get("/client/:clientId", getProjectsByClientId);  
 
@@ -21,7 +22,7 @@ router.put("/:projectId", updateProject);
 
 router.delete("/:projectId", deleteProject);
 // Get all projects
-router.get("/", getAllProjects);  // ✅ New route
+router.get("/", getAllProjects);
 
 
 export default router;

@@ -1,0 +1,87 @@
+// /home/digilab/timesheet/client/src/styles/Alerts.scss
+
+$alert-padding: 1.1rem 1.25rem; // Slightly increased padding
+$alert-margin-bottom: 1rem;
+$alert-border-radius: 0.25rem;
+$alert-font-size: 0.95rem; // Slightly increased font size
+$alert-z-index: 1050; // Ensure it's above most other content
+
+// Colors (adjust as needed)
+$alert-color-success: #155724;
+$alert-bg-success: #d4edda;
+$alert-border-success: #c3e6cb;
+
+$alert-color-danger: #721c24;
+$alert-bg-danger: #f5c6cb; // Darker background
+$alert-border-danger: #f5c6cb;
+
+$alert-color-warning: #856404;
+$alert-bg-warning: #ffeeba; // Darker background
+$alert-border-warning: #ffeeba;
+
+$alert-color-info: #0c5460;
+$alert-bg-info: #bee5eb; // Darker background
+$alert-border-info: #bee5eb;
+
+.alert-container {
+    position: fixed; // Or absolute, depending on your layout needs
+    top: 70px; // Adjust based on your Navbar height
+    // Center horizontally
+    left: 50%;
+    transform: translateX(-50%);
+    width: 350px; // Slightly wider
+    z-index: $alert-z-index;
+}
+
+.alert {
+    position: relative;
+    padding: $alert-padding;
+    margin-bottom: $alert-margin-bottom;
+    border: 1px solid transparent;
+    border-radius: $alert-border-radius;
+    font-size: $alert-font-size;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+
+    // Default to info style
+    color: $alert-color-info;
+    background-color: $alert-bg-info;
+    border-color: $alert-border-info;
+
+    &.alert-success {
+        color: $alert-color-success;
+        background-color: $alert-bg-success;
+        border-color: $alert-border-success;
+    }
+
+    &.alert-danger {
+        color: $alert-color-danger;
+        background-color: $alert-bg-danger;
+        border-color: $alert-border-danger;
+    }
+
+    &.alert-warning {
+        color: $alert-color-warning;
+        background-color: $alert-bg-warning;
+        border-color: $alert-border-warning;
+    }
+
+    // Add other types like alert-info if needed explicitly
+}
+
+// Optional: Style for a close button if you add one
+.alert-close-btn {
+    position: absolute;
+    top: 0.5rem;
+    right: 0.75rem;
+    background: none;
+    border: none;
+    font-size: 1.2rem;
+    line-height: 1;
+    color: inherit; // Inherit color from the alert type
+    opacity: 0.7;
+    cursor: pointer;
+
+    &:hover {
+        opacity: 1;
+    }
+}

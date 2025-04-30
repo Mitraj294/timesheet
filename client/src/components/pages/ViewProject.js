@@ -1,8 +1,16 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useMemo } from "react";
 import { Link, useParams, useNavigate } from "react-router-dom";
-import axios from "axios";
-import { useSelector } from "react-redux";
+import { useSelector, useDispatch } from "react-redux";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+
+// Redux Imports
+import {
+  fetchProjectById, deleteProject,
+  selectCurrentProject, selectCurrentProjectStatus, selectCurrentProjectError, selectProjectStatus, // Added selectProjectStatus
+  clearCurrentProject, clearProjectError // Import clear actions
+} from "../../redux/slices/projectSlice";
+import { setAlert } from "../../redux/slices/alertSlice";
+
 import {
   faProjectDiagram,
   faCalendarAlt,
@@ -18,8 +26,6 @@ import {
 import ProjectTimesheet from "./ProjectTimesheet";
 import "../../styles/Vehicles.scss";
 import "../../styles/ViewProject.scss";
-
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 // --- Add this line ---
 const ALL_PROJECTS_VALUE = 'ALL_PROJECTS';
 // --------------------
@@ -27,9 +33,15 @@ const ALL_PROJECTS_VALUE = 'ALL_PROJECTS';
 const ViewProject = () => {
   const { clientId, projectId } = useParams();
   const navigate = useNavigate();
+  const dispatch = useDispatch();
 
-  const [project, setProject] = useState(null);
-  const [loading, setLoading] = useState(true);
+  // Redux State
+  const project = useSelector(selectCurrentProject);
+  const projectStatus = useSelector(selectCurrentProjectStatus);
+  const projectError = useSelector(selectCurrentProjectError);
+  const deleteStatus = useSelector(selectProjectStatus); // Use general status for delete
+
+  // Local State
   const [error, setError] = useState(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
@@ -37,42 +49,22 @@ const ViewProject = () => {
 
   useEffect(() => {
     const fetchProjectData = async () => {
-      setLoading(true);
       setError(null);
-      setProject(null);
 
       try {
-        const token = localStorage.getItem("token");
-        if (!token) throw new Error("Authentication token not found.");
-        const config = { headers: { Authorization: `Bearer ${token}` } };
-
-        const projectRes = await axios.get(`${API_URL}/projects/${projectId}`, config);
-        setProject(projectRes.data);
+        // Dispatch fetch action
+        dispatch(fetchProjectById(projectId));
 
       } catch (err) {
         console.error("Error fetching project data:", err);
-        let errorMessage = "Failed to fetch project data.";
-         if (err.message === "Authentication token not found.") {
-            errorMessage = "Authentication required. Please log in.";
-            navigate("/login");
-        } else if (err.response?.status === 404) {
-          errorMessage = "Project not found.";
-        } else if (err.response?.status === 401 || err.response?.status === 403) {
-          errorMessage = "Unauthorized. Please log in.";
-          navigate("/login");
-        } else if (err.response?.data?.message) {
-            errorMessage = err.response.data.message;
-        } else if (err.message) {
-            errorMessage = err.message;
-        }
+        // Error state is handled by projectError from Redux
+        const errorMessage = err?.message || "Failed to initiate project fetch.";
         setError(errorMessage);
-      } finally {
-        setLoading(false);
       }
     };
 
     fetchProjectData();
-  }, [projectId, navigate]);
+  }, [projectId, dispatch]);
 
   const handleProjectChangeInTimesheet = useCallback((newProjectId) => {
     // Now this condition will work correctly
@@ -92,26 +84,25 @@ const ViewProject = () => {
           return;
       }
       setIsDeleting(true);
-      setError(null);
+      setError(null); // Clear local error
+      dispatch(clearProjectError()); // Clear Redux error
+
       try {
-          const token = localStorage.getItem("token");
-          if (!token) {
-              navigate("/login"); // Redirect if no token
-              throw new Error("Authentication token not found.");
-          }
-          const config = { headers: { Authorization: `Bearer ${token}` } };
-          await axios.delete(`${API_URL}/projects/${projectId}`, config);
+          await dispatch(deleteProject(projectId)).unwrap();
+          dispatch(setAlert(`Project "${project.name}" deleted successfully.`, 'success'));
+
           const clientIdToNavigate = project?.clientId?._id || clientId || 'unknown';
-          // Ensure navigation only happens if clientIdToNavigate is not 'unknown'
           if (clientIdToNavigate !== 'unknown') {
               navigate(`/clients/view/${clientIdToNavigate}`);
           } else {
-              // Fallback navigation if client ID is somehow lost
               navigate('/clients');
           }
       } catch (err) {
           console.error("Failed to delete project:", err);
-          let deleteError = `Failed to delete project.`;
+          // Error state is handled by projectError from Redux
+          const errorMessage = err?.message || `Failed to delete project "${project.name}".`;
+          setError(errorMessage); // Set local error for display
+          dispatch(setAlert(errorMessage, 'danger'));
           if (err.response?.data?.message) {
               deleteError += ` ${err.response.data.message}`;
           } else if (err.message && err.message !== "Authentication token not found.") {
@@ -119,15 +110,18 @@ const ViewProject = () => {
           }
           setError(deleteError);
           // Only set isDeleting back to false if there was an error other than auth
-          if (err.message !== "Authentication token not found.") {
-              setIsDeleting(false);
-          }
+          // isDeleting state is now derived from Redux status
+      } finally {
+          // No need to manually set isDeleting if using Redux status
+          // setIsDeleting(false);
       }
   };
 
-  // --- No changes below this line needed for this specific error ---
+  // Combined loading/error states
+  const isLoading = useMemo(() => projectStatus === 'loading', [projectStatus]);
+  const combinedError = useMemo(() => error || projectError, [error, projectError]);
 
-  if (loading) {
+  if (isLoading && !project) { // Show loading only if project data isn't available yet
     return (
       <div className="vehicles-page">
         <div className='loading-indicator'>
@@ -138,12 +132,12 @@ const ViewProject = () => {
     );
   }
 
-  if (error) {
+  if (combinedError && !project) { // Show error only if project data failed to load
     return (
       <div className="vehicles-page">
         <div className='error-message'>
           <FontAwesomeIcon icon={faExclamationCircle} />
-          <p>{error}</p>
+          <p>{combinedError}</p>
           {clientId && clientId !== 'unknown' ? (
              <Link to={`/clients/view/${clientId}`} className="btn btn-secondary" style={{marginTop: '1rem'}}>Back to Client</Link>
           ) : (
@@ -210,16 +204,17 @@ const ViewProject = () => {
                         // Handle case where client ID is missing for edit navigation
                         console.warn("Cannot navigate to edit project: Client ID is unknown.");
                         // Optionally show an error message to the user
+                        setError("Cannot edit project: Client information is missing.");
                     }
                 }}
-                disabled={isDeleting}
+                disabled={deleteStatus === 'loading'} // Disable based on Redux status
               >
                 <FontAwesomeIcon icon={faEdit} /> Edit Project
               </button>
-              <button
-                className="btn btn-danger"
+              <button // Add the opening <button> tag here
                 onClick={handleDeleteProject}
                 disabled={isDeleting}
+                className="btn btn-danger" // Added standard delete button classes
               >
                 {isDeleting ? <FontAwesomeIcon icon={faSpinner} spin /> : <FontAwesomeIcon icon={faTrash} />}
                 {isDeleting ? ' Deleting...' : ' Delete Project'}

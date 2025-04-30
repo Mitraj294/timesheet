@@ -1,8 +1,24 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { useSelector } from "react-redux";
-import axios from "axios";
+import { useSelector, useDispatch } from "react-redux";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+
+// Redux Imports
+import {
+  fetchClients,
+  deleteClient,
+  downloadClients,
+  selectAllClients,
+  selectClientStatus,
+  selectClientError,
+  selectClientDeleteStatus,
+  selectClientDownloadStatus,
+  selectClientDownloadError,
+  clearClientError, // Import clear error action
+  clearDownloadStatus // Import clear download status action
+} from "../../redux/slices/clientSlice";
+import { setAlert } from "../../redux/slices/alertSlice"; // Import alert action
+
 import {
   faUsers,
   faDownload,
@@ -15,59 +31,54 @@ import {
   faExclamationCircle,
 } from "@fortawesome/free-solid-svg-icons";
 
-import "../../styles/Vehicles.scss"; 
-
-const API_URL = process.env.REACT_APP_API_URL || "https://timesheet-c4mj.onrender.com/api";
+import "../../styles/Vehicles.scss"; // Assuming shared styles
 
 const Clients = () => {
-  const [clients, setClients] = useState([]);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [downloading, setDownloading] = useState(false);
-  const [downloadError, setDownloadError] = useState(null);
-
-  const { user } = useSelector((state) => state.auth || {});
+  const dispatch = useDispatch();
   const navigate = useNavigate();
 
+  // Redux State
+  const clients = useSelector(selectAllClients);
+  const clientStatus = useSelector(selectClientStatus);
+  const clientError = useSelector(selectClientError);
+  const deleteStatus = useSelector(selectClientDeleteStatus); // Optional: for delete loading state
+  const downloadStatus = useSelector(selectClientDownloadStatus);
+  const downloadError = useSelector(selectClientDownloadError);
+  const { user } = useSelector((state) => state.auth || {});
+
+  // Local UI State
+  const [searchTerm, setSearchTerm] = useState("");
+  const [localDownloadError, setLocalDownloadError] = useState(null); // Local state for download error display
+
+  // Derived State
+  const isLoading = useMemo(() => clientStatus === 'loading', [clientStatus]);
+  const isDownloading = useMemo(() => downloadStatus === 'loading', [downloadStatus]);
+  const isDeleting = useMemo(() => deleteStatus === 'loading', [deleteStatus]); // Optional
+
   useEffect(() => {
-    const fetchClients = async () => {
-      setLoading(true);
-      setError(null);
-      setDownloadError(null); 
-      try {
-        const token = localStorage.getItem('token');
-        const config = token ? { headers: { Authorization: `Bearer ${token}` } } : {};
-        const res = await axios.get(`${API_URL}/clients`, config);
-        setClients(res.data || []);
-      } catch (err) {
-        console.error("Error fetching clients:", err);
-        setError(err.response?.data?.message || err.message || "Failed to fetch clients.");
-        if (err.response?.status === 401 || err.response?.status === 403) {
-            localStorage.removeItem('token');
-            navigate('/login');
-        }
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchClients();
-  }, [navigate]);
-
-  const deleteClient = async (clientId, clientName) => {
-    if (!window.confirm(`Are you sure you want to delete client "${clientName}"?`)) return;
-
-    setError(null); 
-    try {
-      const token = localStorage.getItem('token');
-      const config = token ? { headers: { Authorization: `Bearer ${token}` } } : {};
-      await axios.delete(`${API_URL}/clients/${clientId}`, config);
-      setClients(clients.filter((client) => client._id !== clientId));
-    
-    } catch (err) {
-      console.error("Error deleting client:", err);
-      setError(`Failed to delete client "${clientName}". ${err.response?.data?.message || err.message}`);
+    // Fetch clients if status is idle
+    if (clientStatus === 'idle') {
+      dispatch(fetchClients());
     }
+  }, [dispatch, clientStatus]);
+
+  // Effect to handle download errors locally
+  useEffect(() => {
+    if (downloadStatus === 'failed' && downloadError) {
+      setLocalDownloadError(downloadError);
+      dispatch(clearDownloadStatus()); // Reset Redux state after handling
+    }
+  }, [downloadStatus, downloadError, dispatch]);
+
+  const handleDeleteClient = (clientId, clientName) => {
+    if (!window.confirm(`Are you sure you want to delete client "${clientName}"?`)) return;
+    dispatch(deleteClient(clientId))
+      .unwrap()
+      .then(() => dispatch(setAlert(`Client "${clientName}" deleted successfully.`, 'success')))
+      .catch((err) => {
+        const errorMessage = err?.message || `Failed to delete client "${clientName}".`; // Extract message
+        dispatch(setAlert(errorMessage, 'danger'));
+      });
   };
 
   const filteredClients = clients.filter((client) =>
@@ -77,30 +88,28 @@ const Clients = () => {
   );
 
   const handleDownloadClients = async () => {
-    setDownloading(true);
-    setDownloadError(null);
-    setError(null); 
-    try {
-      const token = localStorage.getItem('token');
-      const config = token ? { headers: { Authorization: `Bearer ${token}` }, responseType: "blob" } : { responseType: "blob" };
+    setLocalDownloadError(null); // Clear local error on new attempt
+    dispatch(clearDownloadStatus()); // Clear Redux status
 
-      const response = await axios.get(`${API_URL}/clients/download`, config);
-
-      const blob = new Blob([response.data], { type: response.headers['content-type'] || 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.setAttribute("download", "clients.xlsx");
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      window.URL.revokeObjectURL(url);
-    } catch (error) {
-      console.error("Download failed:", error);
-      setDownloadError(error.response?.data?.message || "Failed to download clients.");
-    } finally {
-      setDownloading(false);
-    }
+    dispatch(downloadClients())
+      .unwrap()
+      .then((result) => {
+        // Success: Create and trigger download link
+        const blob = new Blob([result.blob], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.setAttribute('download', result.filename || 'clients_report.xlsx');
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        window.URL.revokeObjectURL(url);
+        dispatch(setAlert('Client report downloaded.', 'success'));
+      })
+      .catch((error) => {
+        // Error is handled by the useEffect watching downloadError
+        console.error('Download dispatch failed:', error);
+      });
   };
 
 
@@ -126,9 +135,9 @@ const Clients = () => {
           <button
             className="btn btn-danger" 
             onClick={handleDownloadClients}
-            disabled={downloading}
+            disabled={isDownloading} // Use Redux state
           >
-            {downloading ? (
+            {isDownloading ? (
                 <> <FontAwesomeIcon icon={faSpinner} spin /> Downloading... </>
             ) : (
                 <> <FontAwesomeIcon icon={faDownload} /> Download Excel </>
@@ -147,9 +156,9 @@ const Clients = () => {
       </div>
 
     
-       {downloadError && (
+       {localDownloadError && ( // Display local download error
             <div className='error-message' style={{marginBottom: '1rem'}}>
-              <FontAwesomeIcon icon={faExclamationCircle} /> {downloadError}
+              <FontAwesomeIcon icon={faExclamationCircle} /> {localDownloadError}
             </div>
         )}
 
@@ -166,7 +175,7 @@ const Clients = () => {
       </div>
 
   
-      {loading && (
+      {isLoading && ( // Use Redux loading state
         <div className='loading-indicator'>
           <FontAwesomeIcon icon={faSpinner} spin size='2x' />
           <p>Loading clients...</p>
@@ -174,16 +183,16 @@ const Clients = () => {
       )}
 
       {/* Error State */}
-      {error && !loading && (
+      {clientError && !isLoading && ( // Use Redux error state
         <div className='error-message'>
           <FontAwesomeIcon icon={faExclamationCircle} />
-          <p>{error}</p>
-        
+          <p>{clientError}</p>
+          <button className="btn btn-secondary" onClick={() => dispatch(fetchClients())}>Retry</button>
         </div>
       )}
 
    
-      {!loading && !error && (
+      {!isLoading && !clientError && ( // Use Redux states
         <div className="vehicles-grid"> 
         
           <div className="vehicles-row header" style={{ gridTemplateColumns: gridColumns }}>
@@ -233,7 +242,7 @@ const Clients = () => {
                     </button>
                     <button
                       className="btn-icon btn-icon-red" // Delete button
-                      onClick={() => deleteClient(client._id, client.name)}
+                      onClick={() => handleDeleteClient(client._id, client.name)} // Use Redux handler
                       title={`Delete ${client.name}`}
                       aria-label={`Delete ${client.name}`}
                     >

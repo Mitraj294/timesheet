@@ -1,6 +1,13 @@
 .timesheet-page {
-    padding: 15px;
-    font-family: sans-serif;
+    // Apply styles similar to .roster-page
+    padding: clamp(1rem, 2vw, 1.5rem); // Responsive padding
+    max-width: 1600px; // Max width from roster page
+    margin: 0 auto; // Center the content
+    font-family: 'Segoe UI', sans-serif; // Consistent font (assuming $font-family is Segoe UI)
+    background-color: #f8f9fa; // Consistent background (assuming $light-grey is #f8f9fa)
+    min-height: 100vh; // Full viewport height from roster page
+    display: flex; // Added from roster page
+    flex-direction: column; // Added from roster page
 }
 
 .timesheet-header {

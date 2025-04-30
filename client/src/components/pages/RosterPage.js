@@ -1,8 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react'; // Added useMemo
 import { useNavigate, Link } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
-import axios from 'axios';
-import {
+import { // Keep date-fns imports
   startOfWeek,
   addWeeks,
   addDays,
@@ -10,8 +9,16 @@ import {
   endOfWeek,
   isEqual,
 } from 'date-fns';
-import '../../styles/Forms.scss';
 
+// Redux Imports
+import { fetchEmployees, selectAllEmployees, selectEmployeeStatus, selectEmployeeError } from '../../redux/slices/employeeSlice';
+import { fetchRoles, deleteRole, deleteRoleScheduleEntry, updateRole, selectAllRoles, selectRoleStatus, selectRoleError, clearRoleError } from '../../redux/slices/roleSlice'; // Added updateRole
+import { fetchSchedules, bulkCreateSchedules, deleteSchedule, deleteSchedulesByDateRange, selectAllSchedules, selectScheduleStatus, selectScheduleError, clearScheduleError } from '../../redux/slices/scheduleSlice';
+import { selectAuthUser } from '../../redux/slices/authSlice';
+import { setAlert } from '../../redux/slices/alertSlice';
+
+// Styles and Icons
+import '../../styles/Forms.scss';
 import '../../styles/RosterPage.scss';
 import { DateTime } from 'luxon';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
@@ -28,8 +35,6 @@ import {
   faSpinner, // Added for loading states
   faExclamationCircle, // Added for error states
 } from '@fortawesome/free-solid-svg-icons';
-
-const API_URL = process.env.REACT_APP_API_URL || 'https://timesheet-c4mj.onrender.com/api';
 
 // Helper Components (ShiftCard, RoleCard - kept as is from your code)
 const ShiftCard = ({ schedule, formatTime, userRole, onDelete }) => (
@@ -87,14 +92,24 @@ const RoleCard = ({ role, scheduleEntry, formatTime, assignedEmployeeNames, user
 // Main Component
 const RosterPage = () => {
   const navigate = useNavigate();
+  const dispatch = useDispatch();
 
-  const { user } = useSelector((state) => state.auth);
+  // Redux State
+  const user = useSelector(selectAuthUser);
+  const employees = useSelector(selectAllEmployees);
+  const employeeStatus = useSelector(selectEmployeeStatus);
+  const employeeError = useSelector(selectEmployeeError);
+  const roles = useSelector(selectAllRoles);
+  const roleStatus = useSelector(selectRoleStatus);
+  const roleError = useSelector(selectRoleError);
+  const schedules = useSelector(selectAllSchedules);
+  const scheduleStatus = useSelector(selectScheduleStatus);
+  const scheduleError = useSelector(selectScheduleError);
+
+  // Local State
   const [currentWeekStart, setCurrentWeekStart] = useState(
     startOfWeek(new Date(), { weekStartsOn: 1 })
   );
-  const [employees, setEmployees] = useState([]);
-  const [roles, setRoles] = useState([]);
-  const [schedules, setSchedules] = useState([]);
   const [isLoading, setIsLoading] = useState(true); // Start loading initially
   const [error, setError] = useState(null); // Added error state
 
@@ -103,6 +118,21 @@ const RosterPage = () => {
   const [selectedDays, setSelectedDays] = useState([]);
   const [startTime, setStartTime] = useState({});
   const [endTime, setEndTime] = useState({});
+
+  // Combined Loading and Error States from Redux
+  const isDataLoading = useMemo(() =>
+    employeeStatus === 'loading' || roleStatus === 'loading' || scheduleStatus === 'loading',
+    [employeeStatus, roleStatus, scheduleStatus]
+  );
+
+  const combinedError = useMemo(() =>
+    employeeError || roleError || scheduleError,
+    [employeeError, roleError, scheduleError]
+  );
+
+  // Update local loading/error based on Redux state
+  useEffect(() => { setIsLoading(isDataLoading); }, [isDataLoading]);
+  useEffect(() => { setError(combinedError); }, [combinedError]);
 
   const weekDays = Array.from({ length: 7 }, (_, i) =>
     addDays(currentWeekStart, i)
@@ -137,42 +167,23 @@ const RosterPage = () => {
     }
   };
 
-  // Data Fetching Effects
+  // Data Fetching Effect using Redux
   useEffect(() => {
-    const fetchAllData = async () => {
-        setIsLoading(true);
-        setError(null);
-        const token = localStorage.getItem('token');
-        if (!token) {
-            setError("Authentication required.");
-            setIsLoading(false);
-            navigate('/login');
-            return;
-        }
-        const config = { headers: { Authorization: `Bearer ${token}` } };
-        const weekStartStr = format(currentWeekStart, 'yyyy-MM-dd');
+    // Fetch employees only if needed
+    if (employeeStatus === 'idle') {
+      dispatch(fetchEmployees());
+    }
+    // Fetch roles and schedules for the current week
+    dispatch(fetchRoles());
+    dispatch(fetchSchedules({ weekStart: format(currentWeekStart, 'yyyy-MM-dd') }));
 
-        try {
-            const [empRes, roleRes, scheduleRes] = await Promise.all([
-                axios.get(`${API_URL}/employees`, config),
-                axios.get(`${API_URL}/roles`, config),
-                axios.get(`${API_URL}/schedules?weekStart=${weekStartStr}`, config)
-            ]);
-            setEmployees(empRes.data || []);
-            setRoles(roleRes.data || []);
-            setSchedules(scheduleRes.data || []);
-        } catch (err) {
-            console.error('Failed to fetch roster data:', err);
-            setError(err.response?.data?.message || 'Failed to load roster data.');
-            if (err.response?.status === 401 || err.response?.status === 403) {
-                navigate('/login');
-            }
-        } finally {
-            setIsLoading(false);
-        }
-    };
-    fetchAllData();
-  }, [currentWeekStart, navigate]); // Fetch all when week changes
+    // Clear errors on week change
+    return () => {
+        dispatch(clearRoleError());
+        dispatch(clearScheduleError());
+        };
+    // Removed fetchAllData() call here
+  }, [currentWeekStart, dispatch, employeeStatus]); // Updated dependencies
 
   // Event Handlers
   const handlePrevWeek = () =>
@@ -216,44 +227,36 @@ const RosterPage = () => {
      if (!window.confirm('Are you sure you want to remove this role schedule entry for this day?')) {
         return;
     }
-    setError(null); // Clear previous errors
-    try {
-      const token = localStorage.getItem('token');
-      if (!token) { navigate('/login'); return; }
+    dispatch(clearRoleError()); // Clear previous Redux errors
 
-      await axios.delete(
-        `${API_URL}/roles/${roleId}/schedule/${scheduleEntryId}`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-
-      // Refetch roles to update the UI
-      const res = await axios.get(`${API_URL}/roles`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      setRoles(res.data);
-    } catch (err) {
-      console.error('Error deleting schedule entry from role:', err.response?.data?.message || err.message);
-      setError(err.response?.data?.message || 'Failed to delete role entry.');
-    }
+    dispatch(deleteRoleScheduleEntry({ roleId, scheduleEntryId }))
+      .unwrap()
+      .then(() => {
+        dispatch(setAlert('Role schedule entry removed.', 'success'));
+        // State updates automatically via reducer
+      })
+      .catch((err) => {
+        dispatch(setAlert(`Failed to remove role entry: ${err}`, 'danger'));
+      }); // Removed console.error and setError from outside the catch
+    // Removed console.error and setError from outside the catch
   };
 
   const handleDeleteRole = async (roleId) => {
     if (!window.confirm('Are you sure you want to delete this ENTIRE role and ALL its associated schedules? This action cannot be undone.')) {
       return;
     }
-    setError(null);
-    try {
-      const token = localStorage.getItem('token');
-       if (!token) { navigate('/login'); return; }
+    dispatch(clearRoleError());
 
-      await axios.delete(`${API_URL}/roles/${roleId}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      setRoles((prevRoles) => prevRoles.filter((role) => role._id !== roleId));
-    } catch (error) {
-      console.error('Failed to delete role:', error.response?.data?.message || error.message);
-      setError(error.response?.data?.message || 'Failed to delete role.');
-    }
+    dispatch(deleteRole(roleId))
+      .unwrap()
+      .then(() => {
+        dispatch(setAlert('Role deleted successfully.', 'success'));
+      })
+      .catch((error) => {
+        dispatch(setAlert(`Failed to delete role: ${error}`, 'danger'));
+        console.error('Failed to delete role:', error.response?.data?.message || error.message); // Keep inside catch
+        setError(error.response?.data?.message || 'Failed to delete role.'); // Keep inside catch
+      }); // Added missing closing brace for catch
   };
 
   const handleRolloutToNextWeek = async () => {
@@ -261,23 +264,17 @@ const RosterPage = () => {
         return;
     }
     setIsLoading(true); // Indicate loading during rollout
-    setError(null);
+    dispatch(clearScheduleError());
+    dispatch(clearRoleError());
+
     try {
-      const token = localStorage.getItem('token');
-       if (!token) { navigate('/login'); return; }
       const nextWeekStart = addWeeks(currentWeekStart, 1);
       const nextWeekStartStr = format(nextWeekStart, 'yyyy-MM-dd');
       const nextWeekEnd = endOfWeek(nextWeekStart, { weekStartsOn: 1 });
       const nextWeekEndStr = format(nextWeekEnd, 'yyyy-MM-dd');
 
       // 1. Delete existing schedules in the *next* week range
-      await axios.delete(
-        `${API_URL}/schedules/deleteByDateRange`,
-        {
-          data: { startDate: nextWeekStartStr, endDate: nextWeekEndStr },
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
+      await dispatch(deleteSchedulesByDateRange({ startDate: nextWeekStartStr, endDate: nextWeekEndStr })).unwrap();
 
        // 2. Clean role schedule entries *only within the next week*
        await Promise.all(
@@ -285,11 +282,8 @@ const RosterPage = () => {
            const currentEntries = role.schedule?.filter(entry =>
                 entry.day < nextWeekStartStr || entry.day > nextWeekEndStr
              ) || [];
-              await axios.put(
-                `${API_URL}/roles/${role._id}`,
-                { schedule: currentEntries }, // Only send schedule to update
-                { headers: { Authorization: `Bearer ${token}` } }
-             );
+            // Dispatch updateRole with only the schedule field
+            await dispatch(updateRole({ id: role._id, roleData: { schedule: currentEntries } })).unwrap();
          })
        );
 
@@ -313,11 +307,7 @@ const RosterPage = () => {
         .filter(Boolean);
 
       if (newEmployeeSchedules.length > 0) {
-        await axios.post(
-          `${API_URL}/schedules/bulk`,
-          newEmployeeSchedules,
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
+        await dispatch(bulkCreateSchedules(newEmployeeSchedules)).unwrap();
       }
 
       // 4. Clone role schedule entries to the next week
@@ -340,16 +330,12 @@ const RosterPage = () => {
             };
           });
 
-          // Fetch current role state before updating
-          const currentRoleStateRes = await axios.get(`${API_URL}/roles/${role._id}`, { headers: { Authorization: `Bearer ${token}` } });
-          const existingSchedule = currentRoleStateRes.data.schedule || [];
+          // Get existing schedule from current Redux state
+          const existingSchedule = roles.find(r => r._id === role._id)?.schedule || [];
           const updatedSchedule = [...existingSchedule, ...clonedEntries];
 
-          await axios.put(
-            `${API_URL}/roles/${role._id}`,
-            { schedule: updatedSchedule }, // Only send schedule to update
-            { headers: { Authorization: `Bearer ${token}` } }
-          );
+          // Dispatch updateRole with the combined schedule
+          await dispatch(updateRole({ id: role._id, roleData: { schedule: updatedSchedule } })).unwrap();
         })
       );
 
@@ -359,7 +345,7 @@ const RosterPage = () => {
 
     } catch (err) {
       console.error('Error during rollout:', err.response?.data || err.message, err);
-       setError(`Error during rollout: ${err.response?.data?.message || err.message}`);
+      dispatch(setAlert(`Error during rollout: ${err}`, 'danger'));
     } finally {
         setIsLoading(false); // Stop loading indicator
     }
@@ -390,11 +376,8 @@ const RosterPage = () => {
              return;
          }
     }
-    setError(null); // Clear previous errors
-
+    dispatch(clearScheduleError()); // Clear previous Redux errors
     try {
-      const token = localStorage.getItem('token');
-       if (!token) { navigate('/login'); return; }
       const dayOrder = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
       const schedulePayloads = selectedDays.map((day) => {
@@ -411,24 +394,18 @@ const RosterPage = () => {
         };
       });
 
-       await axios.post(
-         `${API_URL}/schedules/bulk`,
-         schedulePayloads,
-         { headers: { Authorization: `Bearer ${token}` } }
-       );
+      await dispatch(bulkCreateSchedules(schedulePayloads)).unwrap();
 
       setShowModal(false);
       setSelectedEmployee(null);
       setSelectedDays([]);
       setStartTime({});
       setEndTime({});
+      dispatch(setAlert('Shift(s) assigned successfully.', 'success'));
 
-      // Refetch schedules for the current week
-      const res = await axios.get(
-        `${API_URL}/schedules?weekStart=${format(currentWeekStart, 'yyyy-MM-dd')}`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      setSchedules(res.data);
+      // Trigger refetch after successful assignment
+      dispatch(fetchSchedules({ weekStart: format(currentWeekStart, 'yyyy-MM-dd') }));
+
 
     } catch (err) {
       console.error('Error assigning/updating shift:', err.response?.data?.message || err.message);
@@ -440,23 +417,18 @@ const RosterPage = () => {
      if (!window.confirm('Are you sure you want to delete this shift?')) {
         return;
     }
-    setError(null);
+    dispatch(clearScheduleError());
     try {
-      const token = localStorage.getItem('token');
-       if (!token) { navigate('/login'); return; }
+      await dispatch(deleteSchedule(scheduleId)).unwrap();
+      dispatch(setAlert('Shift deleted successfully.', 'success'));
+      // State updates automatically via reducer
 
-      await axios.delete(`${API_URL}/schedules/${scheduleId}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      // Optional: Explicitly refetch if optimistic update isn't sufficient
+      // dispatch(fetchSchedules({ weekStart: format(currentWeekStart, 'yyyy-MM-dd') }));
 
-      // Refetch schedules
-      const res = await axios.get(
-        `${API_URL}/schedules?weekStart=${format(currentWeekStart, 'yyyy-MM-dd')}`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      setSchedules(res.data);
     } catch (err) {
       console.error('Error deleting schedule:', err.response?.data?.message || err.message);
+      dispatch(setAlert(`Failed to delete shift: ${err}`, 'danger'));
       setError(err.response?.data?.message || 'Failed to delete shift.');
     }
   };
@@ -519,7 +491,7 @@ const RosterPage = () => {
 
        {/* Display Global Errors */}
        {error && (
-         <div className='error-message page-error'>
+         <div className='error-message page-error' style={{ marginTop: '1rem', marginBottom: '1rem' }}>
             <FontAwesomeIcon icon={faExclamationCircle} />
             <p>{error}</p>
          </div>

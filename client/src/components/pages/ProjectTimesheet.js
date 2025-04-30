@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import { useSelector, useDispatch } from 'react-redux'; // Import Redux hooks
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
   faPen,
@@ -22,14 +23,32 @@ import {
   faChevronDown,
   faChevronUp
 } from '@fortawesome/free-solid-svg-icons';
-import axios from 'axios';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 import '../../styles/Timesheet.scss';
 import { DateTime } from 'luxon';
 import Select from "react-select";
 
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+// Redux Imports
+import { fetchEmployees, selectAllEmployees, selectEmployeeStatus, selectEmployeeError } from '../../redux/slices/employeeSlice';
+import { fetchClients, selectAllClients, selectClientStatus, selectClientError } from '../../redux/slices/clientSlice';
+import { fetchProjects, selectProjectItems, selectProjectStatus, selectProjectError } from '../../redux/slices/projectSlice'; // Use selectProjectItems
+import {
+    fetchTimesheets,
+    deleteTimesheet,
+    downloadProjectTimesheet, // Use project-specific download
+    sendProjectTimesheet, // Use project-specific send
+    selectAllTimesheets,
+    selectTimesheetStatus,
+    selectTimesheetError,
+    selectTimesheetProjectDownloadStatus, // Use project download status
+    selectTimesheetProjectDownloadError, // Use project download error
+    selectTimesheetProjectSendStatus, // Use project send status
+    selectTimesheetProjectSendError, // Use project send error
+    clearTimesheetError, clearProjectDownloadStatus, clearProjectSendStatus // Import clear actions
+} from '../../redux/slices/timesheetSlice';
+import { setAlert } from '../../redux/slices/alertSlice';
+
 const ALL_PROJECTS_VALUE = 'ALL_PROJECTS';
 
 const formatDateString = (dateString, format = 'yyyy-MM-dd') => {
@@ -160,17 +179,36 @@ const getPeriodLabel = (viewType) => {
 
 
 const ProjectTimesheet = ({ initialProjectId = '', onProjectChange, showProjectSelector = true }) => {
+  const dispatch = useDispatch();
+  const navigate = useNavigate();
+
+  // --- Redux State ---
+  const employees = useSelector(selectAllEmployees);
+  const employeeStatus = useSelector(selectEmployeeStatus);
+  const employeeError = useSelector(selectEmployeeError);
+  const clients = useSelector(selectAllClients);
+  const clientStatus = useSelector(selectClientStatus);
+  const clientError = useSelector(selectClientError);
+  const projects = useSelector(selectProjectItems); // Use correct selector
+  const projectStatus = useSelector(selectProjectStatus);
+  const projectError = useSelector(selectProjectError);
+  const timesheets = useSelector(selectAllTimesheets);
+  const timesheetStatus = useSelector(selectTimesheetStatus);
+  const timesheetError = useSelector(selectTimesheetError);
+  const downloadStatus = useSelector(selectTimesheetProjectDownloadStatus); // Use project download status
+  const downloadErrorRedux = useSelector(selectTimesheetProjectDownloadError); // Use project download error
+  const sendStatus = useSelector(selectTimesheetProjectSendStatus); // Use project send status
+  const sendErrorRedux = useSelector(selectTimesheetProjectSendError); // Use project send error
+
+  // --- Local UI State ---
   const [viewType, setViewType] = useState('Weekly');
-  const [timesheets, setTimesheets] = useState([]);
-  const [employees, setEmployees] = useState([]);
-  const [clients, setClients] = useState([]);
-  const [projects, setProjects] = useState([]);
+  // const [timesheets, setTimesheets] = useState([]); // Replaced by Redux
+  // const [employees, setEmployees] = useState([]); // Replaced by Redux
+  // const [clients, setClients] = useState([]); // Replaced by Redux
+  // const [projects, setProjects] = useState([]); // Replaced by Redux
   const [selectedProjectId, setSelectedProjectId] = useState(initialProjectId || '');
   const [expandedRows, setExpandedRows] = useState({});
   const [currentDate, setCurrentDate] = useState(new Date());
-  const [isLoading, setIsLoading] = useState(false);
-  const [isDownloading, setIsDownloading] = useState(false);
-  const [isSending, setIsSending] = useState(false);
   const [email, setEmail] = useState('');
   const [selectedEmployee, setSelectedEmployee] = useState('');
   const [startDate, setStartDate] = useState(null);
@@ -178,96 +216,70 @@ const ProjectTimesheet = ({ initialProjectId = '', onProjectChange, showProjectS
   const [showDownloadFilters, setShowDownloadFilters] = useState(false);
   const [showSendFilters, setShowSendFilters] = useState(false);
   const [error, setError] = useState(null);
-  const [downloadError, setDownloadError] = useState(null);
-  const [sendError, setSendError] = useState(null);
+  const [downloadError, setDownloadError] = useState(null); // Local display error
+  const [sendError, setSendError] = useState(null); // Local display error
 
-  const navigate = useNavigate();
   const browserTimezone = useMemo(() => DateTime.local().zoneName, []);
 
-  const fetchWithAuth = useCallback(async (url, config = {}) => {
-      const token = localStorage.getItem('token');
-      if (!token) {
-          console.error("fetchWithAuth: No token found, redirecting to login.");
-          navigate('/login');
-          throw new Error('No authentication token found!');
-      }
-      const authConfig = {
-          ...config,
-          headers: { ...config.headers, Authorization: `Bearer ${token}` },
-      };
-      try {
-          const response = await axios.get(url.startsWith('http') ? url : `${API_URL}${url}`, authConfig);
-          return response.data;
-      } catch (err) {
-          if (err.response?.status === 401 || err.response?.status === 403) {
-              console.error(`fetchWithAuth: ${err.response.status} error, redirecting to login.`);
-              navigate('/login');
-          }
-          throw err;
-      }
-  }, [navigate]);
+  // --- Combined Loading and Error States ---
+  const isLoading = useMemo(() =>
+    employeeStatus === 'loading' ||
+    clientStatus === 'loading' ||
+    projectStatus === 'loading' ||
+    timesheetStatus === 'loading',
+    [employeeStatus, clientStatus, projectStatus, timesheetStatus]
+  );
+  const isDownloading = useMemo(() => downloadStatus === 'loading', [downloadStatus]);
+  const isSending = useMemo(() => sendStatus === 'loading', [sendStatus]);
+  const combinedError = useMemo(() =>
+    error || employeeError || clientError || projectError || timesheetError,
+    [error, employeeError, clientError, projectError, timesheetError]
+  );
 
-  const fetchEmployees = useCallback(async () => {
-    try {
-      const data = await fetchWithAuth(`/employees`);
-      setEmployees(data || []);
-    } catch (error) {
-      console.error('Error fetching employees:', error.response?.data || error.message);
-      if (!error.message?.includes('token')) {
-          setError('Failed to fetch employees.');
-      }
+  // Effect to update local download error state from Redux state
+  useEffect(() => {
+    if (downloadStatus === 'failed' && downloadErrorRedux) {
+      setDownloadError(downloadErrorRedux);
+      dispatch(clearProjectDownloadStatus()); // Clear Redux error state after setting local state
     }
-  }, [fetchWithAuth]);
+  }, [downloadStatus, downloadErrorRedux, dispatch]);
 
-  const fetchClients = useCallback(async () => {
-     try {
-      const data = await fetchWithAuth(`/clients`);
-      setClients(data || []);
-    } catch (error) {
-      console.error('Error fetching clients:', error.response?.data || error.message);
-       if (!error.message?.includes('token')) {
-           setError('Failed to fetch clients.');
-       }
+  // Effect to update local send error state from Redux state
+  useEffect(() => {
+    if (sendStatus === 'failed' && sendErrorRedux) {
+      setSendError(sendErrorRedux);
+      dispatch(clearProjectSendStatus()); // Clear Redux error state after setting local state
     }
-  }, [fetchWithAuth]);
+  }, [sendStatus, sendErrorRedux, dispatch]);
 
-  const fetchAllProjects = useCallback(async () => {
-    try {
-     const data = await fetchWithAuth(`/projects`);
-     setProjects(data || []);
-   } catch (error) {
-     console.error('Error fetching projects:', error.response?.data || error.message);
-      if (!error.message?.includes('token')) {
-          setError('Failed to fetch projects.');
-      }
-   }
- }, [fetchWithAuth]);
+  // Fetch initial data (employees, clients, all projects)
+  useEffect(() => {
+    if (employeeStatus === 'idle') dispatch(fetchEmployees());
+    if (clientStatus === 'idle') dispatch(fetchClients());
+    if (projectStatus === 'idle') dispatch(fetchProjects()); // Fetch all projects for the dropdown
+  }, [dispatch, employeeStatus, clientStatus, projectStatus]);
 
-  const fetchTimesheets = useCallback(async () => {
+  // Fetch timesheets when project, date, or view type changes
+  useEffect(() => {
     if (!selectedProjectId) {
-        setTimesheets([]);
+        // Optionally clear timesheets if no project is selected
+        // dispatch(clearTimesheets()); // Or handle this based on desired UX
         return;
     }
 
-    setIsLoading(true);
     setError(null);
     try {
       const { start, end } = calculateDateRange(currentDate, viewType);
       const startDateStr = DateTime.fromJSDate(start).toFormat('yyyy-MM-dd');
       const endDateStr = DateTime.fromJSDate(end).toFormat('yyyy-MM-dd');
-
       const params = {
           startDate: startDateStr,
           endDate: endDateStr
       };
-
       if (selectedProjectId !== ALL_PROJECTS_VALUE) {
           params.projectId = selectedProjectId;
       }
-
-      const data = await fetchWithAuth(`/timesheets`, { params });
-      const fetchedTimesheets = data?.timesheets;
-      setTimesheets(Array.isArray(fetchedTimesheets) ? fetchedTimesheets : []);
+      dispatch(fetchTimesheets(params));
 
     } catch (error) {
       console.error('ProjectTimesheet: Error fetching timesheets:', error.response?.data || error.message);
@@ -275,20 +287,9 @@ const ProjectTimesheet = ({ initialProjectId = '', onProjectChange, showProjectS
           setError(error.response?.data?.message || 'Failed to fetch project timesheets.');
       }
       setTimesheets([]);
-    } finally {
-      setIsLoading(false);
     }
-  }, [selectedProjectId, currentDate, viewType, fetchWithAuth]);
-
-  useEffect(() => {
-    fetchEmployees();
-    fetchClients();
-    fetchAllProjects();
-  }, [fetchEmployees, fetchClients, fetchAllProjects]);
-
-  useEffect(() => {
-    fetchTimesheets();
-  }, [fetchTimesheets]);
+    // No finally block needed as loading is handled by Redux status
+  }, [selectedProjectId, currentDate, viewType, dispatch]);
 
   useEffect(() => {
     setSelectedProjectId(initialProjectId || '');
@@ -312,16 +313,17 @@ const ProjectTimesheet = ({ initialProjectId = '', onProjectChange, showProjectS
 
   const handleDelete = useCallback(async (id) => {
     if (!window.confirm('Are you sure you want to delete this timesheet entry?')) return;
-    setError(null);
+    setError(null); // Clear local error
+    dispatch(clearTimesheetError()); // Clear Redux error
     try {
-      const token = localStorage.getItem('token');
-      if (!token) { navigate('/login'); throw new Error('Authentication error!'); }
-      await axios.delete(`${API_URL}/timesheets/${id}`, { headers: { Authorization: `Bearer ${token}` } });
-      fetchTimesheets();
+      await dispatch(deleteTimesheet(id)).unwrap();
+      dispatch(setAlert('Timesheet entry deleted successfully', 'success'));
+      // Timesheet list updates automatically via Redux state
     } catch (error) {
       console.error('Error deleting timesheet:', error.response?.data || error.message);
-      setError(error.response?.data?.message || 'Failed to delete timesheet entry.');
-      if (error.response?.status === 401) navigate('/login');
+      const errorMessage = error?.message || 'Failed to delete timesheet entry.';
+      setError(errorMessage); // Set local error
+      dispatch(setAlert(errorMessage, 'danger'));
     }
    }, [navigate, fetchTimesheets]);
 
@@ -357,57 +359,65 @@ const ProjectTimesheet = ({ initialProjectId = '', onProjectChange, showProjectS
 
    const handleSendEmail = useCallback(async () => {
     const isAllProjects = selectedProjectId === ALL_PROJECTS_VALUE;
-    const endpoint = isAllProjects ? `${API_URL}/timesheets/send` : `${API_URL}/timesheets/send-email/project`;
+    // const endpoint = isAllProjects ? `${API_URL}/timesheets/send` : `${API_URL}/timesheets/send-email/project`; // Endpoint handled in thunk
 
-    if (!isAllProjects && !selectedProjectId) { setSendError('No project selected.'); return; }
+    if (!isAllProjects && !selectedProjectId) { setSendError('No project selected.'); return; } // Keep validation
     if (!email || !/\S+@\S+\.\S+/.test(email)) { setSendError('Please enter a valid recipient email address.'); return; }
-    setSendError(null); setIsSending(true); setError(null);
+
+    setSendError(null); // Clear local error
+    dispatch(clearProjectSendStatus()); // Clear Redux status/error
+
     try {
-        const token = localStorage.getItem('token');
-        if (!token) { navigate('/login'); throw new Error('Authentication error!'); }
-        const body = {
+        const params = {
             email,
-            projectIds: !isAllProjects && selectedProjectId ? [selectedProjectId] : [],
+            projectIds: !isAllProjects && selectedProjectId ? [selectedProjectId] : [], // Pass project ID for project-specific thunk
             employeeIds: selectedEmployee ? [selectedEmployee] : [],
             startDate: startDate ? DateTime.fromJSDate(startDate).toFormat('yyyy-MM-dd') : null,
             endDate: endDate ? DateTime.fromJSDate(endDate).toFormat('yyyy-MM-dd') : null,
             timezone: browserTimezone,
         };
-        await axios.post(endpoint, body, { headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' } });
+
+        // Dispatch the project-specific send thunk
+        await dispatch(sendProjectTimesheet(params)).unwrap();
+
         setShowSendFilters(false); setEmail(''); setSelectedEmployee(''); setStartDate(null); setEndDate(null);
+        dispatch(setAlert(`Project timesheet report sent successfully to ${email}`, 'success'));
+
     } catch (error) {
-        console.error(`Error sending ${isAllProjects ? 'general' : 'project'} timesheet email:`, error.response?.data || error.message);
-        setSendError(error.response?.data?.message || `Failed to send ${isAllProjects ? 'general' : 'project'} timesheet. Please try again.`);
-        if (error.response?.status === 401) navigate('/login');
-    } finally { setIsSending(false); }
-}, [selectedProjectId, email, selectedEmployee, startDate, endDate, navigate, browserTimezone]);
+        // Error handled by useEffect watching sendErrorRedux
+        console.error(`Error sending project timesheet email:`, error);
+    }
+    // No finally block needed, loading state handled by Redux
+}, [selectedProjectId, email, selectedEmployee, startDate, endDate, navigate, browserTimezone, dispatch]);
 
 const handleDownload = useCallback(async () => {
     const isAllProjects = selectedProjectId === ALL_PROJECTS_VALUE;
-    const endpoint = isAllProjects ? `${API_URL}/timesheets/download` : `${API_URL}/timesheets/download/project`;
+    // const endpoint = isAllProjects ? `${API_URL}/timesheets/download` : `${API_URL}/timesheets/download/project`; // Endpoint handled in thunk
 
-    if (!isAllProjects && !selectedProjectId) { setDownloadError('No project selected.'); return; }
-    setDownloadError(null); setIsDownloading(true); setError(null);
+    if (!isAllProjects && !selectedProjectId) { setDownloadError('No project selected.'); return; } // Keep validation
+
+    setDownloadError(null); // Clear local error
+    dispatch(clearProjectDownloadStatus()); // Clear Redux status/error
+
     try {
-        const token = localStorage.getItem('token');
-        if (!token) { navigate('/login'); throw new Error('Authentication error!'); }
-        const body = {
+        const params = {
             projectIds: !isAllProjects && selectedProjectId ? [selectedProjectId] : [],
             employeeIds: selectedEmployee ? [selectedEmployee] : [],
             startDate: startDate ? DateTime.fromJSDate(startDate).toFormat('yyyy-MM-dd') : null,
             endDate: endDate ? DateTime.fromJSDate(endDate).toFormat('yyyy-MM-dd') : null,
             timezone: browserTimezone,
         };
-        const response = await axios.post(endpoint, body, { headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, responseType: 'blob' });
-        const blob = new Blob([response.data], { type: response.headers['content-type'] || 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+
+        // Dispatch the project-specific download thunk
+        const result = await dispatch(downloadProjectTimesheet(params)).unwrap();
+
+        const blob = new Blob([result.blob], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
         const url = window.URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url;
-        const contentDisposition = response.headers['content-disposition'];
         let filename = isAllProjects ? `Timesheet_Report.xlsx` : `Project_Timesheet_Report.xlsx`;
-        if (contentDisposition) {
-            const filenameMatch = contentDisposition.match(/filename\*?=['"]?(?:UTF-\d['"]*)?([^;\r\n"']*)['"]?;?/i);
-            if (filenameMatch && filenameMatch[1]) { filename = decodeURIComponent(filenameMatch[1]); }
+        if (result.filename) { // Use filename from thunk result
+            filename = result.filename;
         }
         link.setAttribute('download', filename);
         document.body.appendChild(link);
@@ -415,21 +425,12 @@ const handleDownload = useCallback(async () => {
         link.remove();
         window.URL.revokeObjectURL(url);
         setShowDownloadFilters(false); setSelectedEmployee(''); setStartDate(null); setEndDate(null);
-    } catch (err) {
-        console.error(`${isAllProjects ? 'General' : 'Project'} Download failed:`, err.response?.data || err.message || err);
-        let errorMessage = `Could not download ${isAllProjects ? 'general' : 'project'} report.`;
-        if (err.response?.data instanceof Blob && err.response?.data.type.includes('json')) {
-            try {
-                const errorJson = JSON.parse(await err.response.data.text());
-                errorMessage = errorJson.message || errorJson.error || errorMessage;
-            } catch (parseError) { console.error("Could not parse error blob:", parseError); }
-        } else if (err.response?.data?.message || err.response?.data?.error) {
-            errorMessage = err.response.data.message || err.response.data.error;
-        } else if (err.message) { errorMessage = err.message; }
-        setDownloadError(errorMessage);
-        if (err.response?.status === 401) navigate('/login');
-    } finally { setIsDownloading(false); }
-}, [selectedProjectId, selectedEmployee, startDate, endDate, navigate, browserTimezone]);
+    } catch (error) {
+        // Error handled by useEffect watching downloadErrorRedux
+        console.error(`Project Download failed:`, error);
+    }
+    // No finally block needed, loading state handled by Redux
+}, [selectedProjectId, selectedEmployee, startDate, endDate, navigate, browserTimezone, dispatch]);
 
   const dateColumns = useMemo(() => generateDateColumns(currentDate, viewType), [currentDate, viewType]);
 
@@ -500,7 +501,7 @@ const handleDownload = useCallback(async () => {
   const projectOptions = useMemo(() => {
       const options = projects.map(p => ({ value: p._id, label: p.name }));
       if (showProjectSelector) {
-          options.unshift({ value: ALL_PROJECTS_VALUE, label: 'All Projects' });
+          options.unshift({ value: ALL_PROJECTS_VALUE, label: 'All Projects (Timesheets)' }); // Clarify label
       }
       return options;
   }, [projects, showProjectSelector]);
