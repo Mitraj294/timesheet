@@ -4,6 +4,7 @@ import { useSelector, useDispatch } from "react-redux";
 import { fetchEmployees, selectAllEmployees, selectEmployeeStatus, selectEmployeeError } from "../../redux/slices/employeeSlice";
 import { fetchTimesheets, selectAllTimesheets, selectTimesheetStatus, selectTimesheetError, clearTimesheetError } from "../../redux/slices/timesheetSlice";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { setAlert } from "../../redux/slices/alertSlice"; // Import setAlert
 import Select from "react-select";
 import {
   faUsers,
@@ -14,8 +15,10 @@ import {
   faTasks,
   faBriefcase,
   faSpinner,
+  faSignOutAlt, // Added for logout confirmation
   faExclamationCircle,
 } from "@fortawesome/free-solid-svg-icons";
+import Alert from "../layout/Alert"; // Import the Alert component
 import Chart from "chart.js/auto";
 import "../../styles/Dashboard.scss";
 import { DateTime } from "luxon";
@@ -136,6 +139,7 @@ const Dashboard = () => {
   const [viewType, setViewType] = useState({ value: "Weekly", label: "View by Weekly" });
   const [selectedProjectClient, setSelectedProjectClient] = useState({ value: "All", label: "All Clients" });
 
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false); // State for logout confirmation UI
   const chartRef = useRef(null);
   const clientsChartRef = useRef(null);
   const projectsChartRef = useRef(null);
@@ -174,6 +178,24 @@ const Dashboard = () => {
       console.log(`[${new Date().toISOString()}] Dashboard: Cleaning up fetch effect for timesheets (token: ${!!token}, isAuthLoading: ${isAuthLoading}).`);
     };
   }, [token, isAuthLoading, timesheetStatus, dispatch]);
+
+  // --- Logout Logic ---
+  const handleLogoutClick = () => {
+    setShowLogoutConfirm(true); // Show confirmation UI instead of window.confirm
+  };
+
+  const confirmLogout = () => {
+    console.log("Logout confirmed!");
+    dispatch(logout());
+    dispatch(setAlert('Logout successful!', 'success'));
+    navigate("/login");
+    setShowLogoutConfirm(false); // Hide confirmation UI
+  };
+
+  const cancelLogout = () => {
+    setShowLogoutConfirm(false); // Hide confirmation UI
+  };
+  // --- End Logout Logic ---
 
   // Effect to Filter Timesheets by Employee
   useEffect(() => {
@@ -244,6 +266,15 @@ const Dashboard = () => {
   const isTimesheetLoading = timesheetStatus === 'loading';
   const showLoading = isAuthLoading || isEmployeeLoading || isTimesheetLoading;
   const combinedError = timesheetError || employeesError;
+
+  // Effect to show alert on error
+  useEffect(() => {
+    if (combinedError) {
+      // Dispatch an alert when an error occurs
+      // You might want to customize the message or type based on the error
+      dispatch(setAlert(combinedError, 'danger')); // Use 'danger' for errors
+    }
+  }, [combinedError, dispatch]);
 
   // Summary Calculations (remain the same)
   const totalHoursAllPeriodSummary = useMemo(() => filteredAllCurrentTimesheets.reduce((acc, sheet) => acc + (parseFloat(sheet.totalHours) || 0), 0), [filteredAllCurrentTimesheets]);
@@ -446,6 +477,7 @@ const Dashboard = () => {
   // JSX Rendering
   return (
     <div className="view-dashboard-page">
+      <Alert /> {/* Render the Alert component here */}
       <div className="dashboard-filters-container">
         <div className="greeting">
             <h4>Hello, {user?.name || "User"}!</h4>
@@ -480,6 +512,21 @@ const Dashboard = () => {
         </div>
       </div>
 
+      {/* Logout Confirmation Dialog */}
+      {showLogoutConfirm && (
+        <div className="logout-confirm-overlay">
+          <div className="logout-confirm-dialog">
+            <h4>Confirm Logout</h4>
+            <p>Are you sure you want to log out?</p>
+            <div className="logout-confirm-actions">
+              <button className="btn btn-secondary" onClick={cancelLogout}>Cancel</button>
+              <button className="btn btn-danger" onClick={confirmLogout}>Logout</button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* End Logout Confirmation Dialog */}
+
       {showLoading && (
         <div className='loading-indicator'>
           <FontAwesomeIcon icon={faSpinner} spin size='2x' />
@@ -487,7 +534,8 @@ const Dashboard = () => {
         </div>
       )}
 
-      {combinedError && !showLoading && (
+      {/* You can keep this inline error message or rely solely on the Alert component */}
+      {/* {combinedError && !showLoading && (
         <div className='error-message'>
           <FontAwesomeIcon icon={faExclamationCircle} />
           <p>{combinedError}</p>
@@ -500,7 +548,7 @@ const Dashboard = () => {
              }}>Retry Fetch</button>
           )}
         </div>
-      )}
+      )} */}
 
       {!showLoading && !combinedError && (
         <>
@@ -590,6 +638,8 @@ const Dashboard = () => {
               <div className="chart-total">
                 Total: <span>{displayTotalHours}</span>
               </div>
+              {/* Add a spacer div to match the height of the project card's select */}
+              <div className="client-chart-spacer"></div>
               <div className="chart-container pie-chart-container">
                 <canvas id="clientsGraph"></canvas>
               </div>

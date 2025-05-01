@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
 import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useSelector, useDispatch } from 'react-redux';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+
 import {
   faCar,
   faClipboardList,
@@ -11,10 +12,31 @@ import {
   faEdit,
   faTimes,
 } from '@fortawesome/free-solid-svg-icons';
-import '../../styles/Forms.scss'; // *** Use Forms.scss ***
 
-const API_URL =
-  process.env.REACT_APP_API_URL || 'https://timesheet-c4mj.onrender.com/api';
+import {
+  fetchVehicleById,
+  selectVehicleByIdState,
+  selectCurrentVehicleStatus as selectVehicleFetchStatus,
+  selectCurrentVehicleError as selectVehicleFetchError,
+  resetCurrentVehicle,
+} from '../../redux/slices/vehicleSlice';
+import {
+  fetchReviewById,
+  createVehicleReview,
+  updateVehicleReview,
+  selectCurrentReviewData,
+  selectCurrentReviewStatus as selectReviewFetchStatus,
+  selectCurrentReviewError as selectReviewFetchError,
+  selectReviewOperationStatus,
+  selectReviewOperationError,
+  resetCurrentReview as resetCurrentReviewState,
+  clearReviewOperationStatus,
+} from '../../redux/slices/vehicleReviewSlice';
+import { fetchEmployees, selectAllEmployees, selectEmployeeStatus, selectEmployeeError } from '../../redux/slices/employeeSlice';
+import { setAlert } from '../../redux/slices/alertSlice'; // Import setAlert
+import Alert from '../layout/Alert'; // Import Alert component
+
+import '../../styles/Forms.scss';
 
 const CreateOrUpdateVehicleReview = () => {
   const { vehicleId, reviewId } = useParams();
@@ -31,70 +53,77 @@ const CreateOrUpdateVehicleReview = () => {
     notes: '',
   });
 
-  const [employees, setEmployees] = useState([]);
-  const [vehicle, setVehicle] = useState(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState(null);
+  const [formError, setFormError] = useState(null);
+
+  const dispatch = useDispatch();
+
+  // Select state from Redux
+  const vehicle = useSelector(selectVehicleByIdState);
+  const vehicleFetchStatus = useSelector(selectVehicleFetchStatus);
+  const vehicleFetchError = useSelector(selectVehicleFetchError);
+
+  const employees = useSelector(selectAllEmployees);
+  const employeeFetchStatus = useSelector(selectEmployeeStatus);
+  const employeeFetchError = useSelector(selectEmployeeError);
+
+  const currentReview = useSelector(selectCurrentReviewData);
+  const reviewFetchStatus = useSelector(selectReviewFetchStatus);
+  const reviewFetchError = useSelector(selectReviewFetchError);
+
+  const operationStatus = useSelector(selectReviewOperationStatus);
+  const operationError = useSelector(selectReviewOperationError);
+
+  const isFetching = vehicleFetchStatus === 'loading' || employeeFetchStatus === 'loading' || (isEditMode && reviewFetchStatus === 'loading');
+  const fetchError = vehicleFetchError || employeeFetchError || (isEditMode && reviewFetchError);
+
+  // Effect to show alerts for fetch or save errors from Redux state
+  useEffect(() => {
+    const reduxError = fetchError || operationError;
+    if (reduxError) {
+      dispatch(setAlert(reduxError, 'danger'));
+      // Optionally clear the Redux error after showing the alert
+      // dispatch(clearReviewOperationStatus()); // Or specific error clear actions
+    }
+  }, [fetchError, operationError, dispatch]);
 
   useEffect(() => {
-    const fetchData = async () => {
-      setIsLoading(true);
-      setError(null);
-      const token = localStorage.getItem('token');
-      if (!token) {
-        setError('Authentication required.');
-        setIsLoading(false);
-        navigate('/login');
-        return;
-      }
-      const config = { headers: { Authorization: `Bearer ${token}` } };
-
-      try {
-        const vehiclePromise = axios.get(`${API_URL}/vehicles/${vehicleId}`, config);
-        const employeesPromise = axios.get(`${API_URL}/employees`, config);
-        const reviewPromise = reviewId
-          ? axios.get(`${API_URL}/vehicles/reviews/${reviewId}`, config)
-          : Promise.resolve(null);
-
-        const [vehicleRes, employeesRes, reviewRes] = await Promise.all([
-          vehiclePromise,
-          employeesPromise,
-          reviewPromise,
-        ]);
-
-        setVehicle(vehicleRes.data);
-        setEmployees(employeesRes.data || []);
-
-        if (reviewId && reviewRes?.data) {
-          const reviewData = reviewRes.data;
-          setFormData({
-            dateReviewed: reviewData.dateReviewed?.split('T')[0] || '',
-            employeeId: reviewData.employeeId?._id || reviewData.employeeId || '',
-            oilChecked: reviewData.oilChecked || false,
-            vehicleChecked: reviewData.vehicleChecked || false,
-            vehicleBroken: reviewData.vehicleBroken || false,
-            hours: reviewData.hours?.toString() || '',
-            notes: reviewData.notes || '',
-          });
-        } else if (!reviewId && vehicleRes.data) {
-          setFormData(prev => ({
-            ...prev,
-            hours: vehicleRes.data.hours?.toString() || '',
-          }));
-        }
-      } catch (err) {
-        console.error('Error fetching data:', err);
-        setError(err.response?.data?.message || 'Failed to load required data.');
-        if (err.response?.status === 401) {
-          navigate('/login');
-        }
-      } finally {
-        setIsLoading(false);
-      }
+    dispatch(fetchVehicleById(vehicleId));
+    dispatch(fetchEmployees());
+    if (isEditMode && reviewId) {
+      dispatch(fetchReviewById(reviewId));
+    } else if (!isEditMode) { // Reset form for create mode
+      // Reset form for create mode
+      setFormData({
+        dateReviewed: new Date().toISOString().split('T')[0],
+        employeeId: '',
+        oilChecked: false,
+        vehicleChecked: false,
+        vehicleBroken: false,
+        hours: vehicle?.hours?.toString() || '',
+        notes: '',
+      });
+      dispatch(resetCurrentReviewState());
+    } // End of else if block
+    return () => {
+      dispatch(resetCurrentVehicle());
+      dispatch(resetCurrentReviewState());
+      dispatch(clearReviewOperationStatus());
     };
+  }, [vehicleId, reviewId, isEditMode, dispatch, vehicle?.hours]); // Added vehicle?.hours dependency
 
-    fetchData();
-  }, [vehicleId, reviewId, navigate]);
+  useEffect(() => {
+    if (isEditMode && reviewFetchStatus === 'succeeded' && currentReview?._id === reviewId) {
+      setFormData({
+        dateReviewed: currentReview.dateReviewed?.split('T')[0] || '',
+        employeeId: currentReview.employeeId?._id || currentReview.employeeId || '',
+        oilChecked: currentReview.oilChecked || false,
+        vehicleChecked: currentReview.vehicleChecked || false,
+        vehicleBroken: currentReview.vehicleBroken || false,
+        hours: currentReview.hours?.toString() || '',
+        notes: currentReview.notes || '',
+      });
+    }
+  }, [isEditMode, reviewFetchStatus, currentReview, reviewId]);
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -102,6 +131,7 @@ const CreateOrUpdateVehicleReview = () => {
       ...prev,
       [name]: type === 'checkbox' ? checked : value,
     }));
+    if (formError) setFormError(null);
   };
 
   const validateForm = () => {
@@ -118,24 +148,16 @@ const CreateOrUpdateVehicleReview = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError(null);
+    setFormError(null); // Clear local validation error
+    dispatch(clearReviewOperationStatus());
 
     const validationError = validateForm();
     if (validationError) {
-      setError(validationError);
+      dispatch(setAlert(validationError, 'warning')); // Show validation error via Alert
+      setFormError(validationError);
       return;
     }
 
-    setIsLoading(true);
-    const token = localStorage.getItem('token');
-    if (!token) {
-      setError('Authentication required.');
-      setIsLoading(false);
-      navigate('/login');
-      return;
-    }
-
-    const config = { headers: { Authorization: `Bearer ${token}` } };
     const payload = {
       ...formData,
       vehicle: vehicleId,
@@ -144,27 +166,24 @@ const CreateOrUpdateVehicleReview = () => {
 
     try {
       if (reviewId) {
-        await axios.put(
-          `${API_URL}/vehicles/reviews/${reviewId}`,
-          payload,
-          config
-        );
+        await dispatch(updateVehicleReview({ reviewId, reviewData: payload })).unwrap();
+        dispatch(setAlert('Review updated successfully!', 'success'));
       } else {
-        await axios.post(`${API_URL}/vehicles/reviews`, payload, config);
+        await dispatch(createVehicleReview(payload)).unwrap();
+        dispatch(setAlert('Review created successfully!', 'success'));
       }
       navigate(`/vehicles/view/${vehicleId}`);
     } catch (err) {
       console.error('Error submitting review:', err);
-      setError(
-        err.response?.data?.message || 'Failed to submit review.'
-      );
-    } finally {
-      setIsLoading(false);
+      // Error state is managed by Redux (operationError) and displayed by useEffect
+      // If the thunk doesn't dispatch setAlert on error, uncomment the line below
+      dispatch(setAlert(err?.message || 'Failed to save review.', 'danger'));
     }
   };
 
   return (
-    <div className='vehicles-page'> {/* Use standard page class */}
+    <div className='vehicles-page'>
+      <Alert /> {/* Render Alert component here */}
       <div className='vehicles-header'> {/* Use standard header */}
         <div className='title-breadcrumbs'>
           <h2>
@@ -187,22 +206,22 @@ const CreateOrUpdateVehicleReview = () => {
         </div>
       </div>
 
-      {isLoading && !vehicle && (
-        <div className='loading-indicator'> {/* Use standard loading */}
+      {isFetching && !vehicle && (
+        <div className='loading-indicator'>
           <FontAwesomeIcon icon={faSpinner} spin size='2x' />
           <p>Loading...</p>
         </div>
       )}
 
-      {error && !isLoading && (
-        <div className='error-message'> {/* Use standard error */}
+      {/* {(fetchError || formError || operationError) && !isFetching && ( // Handled by Alert component
+        <div className='error-message'>
           <FontAwesomeIcon icon={faExclamationCircle} />
           <p>{error}</p>
         </div>
-      )}
-
-      {!isLoading && vehicle && (
-        <div className='form-container'> {/* Use standard form container */}
+      )} */}
+      
+      {!isFetching && vehicle && ( // <-- Replace isLoading with isFetching here
+        <div className='form-container'>
           <div className='vehicle-details-header' style={{ marginBottom: '1.5rem', paddingBottom: '1rem', borderBottom: '1px solid #dee2e6' }}>
             <h5>
               <FontAwesomeIcon icon={faCar} /> {vehicle.name}
@@ -212,14 +231,15 @@ const CreateOrUpdateVehicleReview = () => {
 
           <form
             onSubmit={handleSubmit}
-            className='employee-form' // Use standard form class
+            className='employee-form'
             noValidate
           >
-            {error && (
+            {/* {(formError || operationError) && ( // Handled by Alert component
               <div className='form-error-message'>
                 <FontAwesomeIcon icon={faExclamationCircle} /> {error}
               </div>
-            )}
+            )} */}
+            
 
             <div className='form-group'>
               <label htmlFor='dateReviewed'>Date Reviewed*</label>
@@ -230,7 +250,7 @@ const CreateOrUpdateVehicleReview = () => {
                 name='dateReviewed'
                 value={formData.dateReviewed}
                 onChange={handleChange}
-                disabled={isLoading}
+                disabled={isFetching || operationStatus === 'loading'}
               />
             </div>
 
@@ -242,7 +262,7 @@ const CreateOrUpdateVehicleReview = () => {
                 required
                 value={formData.employeeId}
                 onChange={handleChange}
-                disabled={isLoading}
+                disabled={isFetching || operationStatus === 'loading'}
               >
                 <option value=''>-- Select Employee --</option>
                 {employees.map((employee) => (
@@ -264,7 +284,7 @@ const CreateOrUpdateVehicleReview = () => {
                 value={formData.hours}
                 onChange={handleChange}
                 required
-                disabled={isLoading}
+                disabled={isFetching || operationStatus === 'loading'}
                 placeholder='Hours'
               />
             </div>
@@ -276,7 +296,7 @@ const CreateOrUpdateVehicleReview = () => {
                 name='oilChecked'
                 checked={formData.oilChecked}
                 onChange={handleChange}
-                disabled={isLoading}
+                disabled={isFetching || operationStatus === 'loading'}
               />
               <label htmlFor='oilChecked'>Oil Checked</label>
             </div>
@@ -288,7 +308,7 @@ const CreateOrUpdateVehicleReview = () => {
                 name='vehicleChecked'
                 checked={formData.vehicleChecked}
                 onChange={handleChange}
-                disabled={isLoading}
+                disabled={isFetching || operationStatus === 'loading'}
               />
               <label htmlFor='vehicleChecked'>Vehicle Checked</label>
             </div>
@@ -300,7 +320,7 @@ const CreateOrUpdateVehicleReview = () => {
                 name='vehicleBroken'
                 checked={formData.vehicleBroken}
                 onChange={handleChange}
-                disabled={isLoading}
+                disabled={isFetching || operationStatus === 'loading'}
               />
               <label htmlFor='vehicleBroken'>Vehicle Broken/Issues?</label>
             </div>
@@ -313,26 +333,26 @@ const CreateOrUpdateVehicleReview = () => {
                 value={formData.notes}
                 onChange={handleChange}
                 rows='4'
-                disabled={isLoading}
+                disabled={isFetching || operationStatus === 'loading'}
                 placeholder='Add any relevant notes about the vehicle check...'
               ></textarea>
             </div>
 
-            <div className='form-footer'> {/* Use standard footer */}
+            <div className='form-footer'>
               <button
                 type='button'
-                className='btn btn-danger' // Standard button class
+                className='btn btn-danger'
                 onClick={() => navigate(`/vehicles/view/${vehicleId}`)}
-                disabled={isLoading}
+                disabled={operationStatus === 'loading'}
               >
                 <FontAwesomeIcon icon={faTimes} /> Cancel
               </button>
               <button
                 type='submit'
                 className='btn btn-success' // Standard button class
-                disabled={isLoading}
+                disabled={isFetching || operationStatus === 'loading'} // Disable during fetch or operation
               >
-                {isLoading ? (
+                {operationStatus === 'loading' ? ( // Use operationStatus for saving state
                   <> <FontAwesomeIcon icon={faSpinner} spin /> Saving... </>
                 ) : (
                   <>
@@ -342,7 +362,7 @@ const CreateOrUpdateVehicleReview = () => {
                 )}
               </button>
             </div>
-          </form>//
+          </form>
         </div>
       )}
     </div>

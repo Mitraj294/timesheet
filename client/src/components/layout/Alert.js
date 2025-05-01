@@ -49,12 +49,18 @@ const Alert = () => {
            return null; // Skip rendering this invalid alert
         }
 
+        // Ensure the message is a string before rendering
+        let displayMsg = alert.msg;
+        if (typeof displayMsg === 'object' && displayMsg !== null) {
+            // Try to extract a meaningful message, e.g., from a 'message' or 'error' key, or stringify as fallback
+            displayMsg = displayMsg.message || displayMsg.error || JSON.stringify(displayMsg);
+        }
         // Render the alert
         return (
           <div key={alert.id} className={`alert alert-${alert.alertType || 'info'}`}>
-            {alert.msg || 'No message provided'}
+            <span>{displayMsg || 'No message provided'}</span>
             {/* Optional: Add a manual close button */}
-            {/* <button onClick={() => dispatch(removeAlert(alert.id))} className="alert-close-btn">&times;</button> */}
+            <button onClick={() => dispatch(removeAlert(alert.id))} className="alert-close-btn" aria-label="Close">&times;</button>
           </div>
         );
       })}

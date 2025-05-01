@@ -1,3 +1,4 @@
+// /home/digilab/timesheet/client/src/components/pages/Timesheet.js
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
@@ -47,7 +48,8 @@ import {
     clearTimesheetError, clearDownloadStatus, clearSendStatus // Import clear actions
 } from '../../redux/slices/timesheetSlice';
 import { selectIsAuthenticated, selectAuthUser } from '../../redux/slices/authSlice'; // Assuming you need user info
-import { setAlert } from '../../redux/slices/alertSlice'; // For potential notifications
+import { setAlert } from '../../redux/slices/alertSlice'; // Import setAlert
+import Alert from '../layout/Alert'; // Import Alert component
 
 
 import Select from "react-select"; // Assuming react-select is used here too based on filter controls
@@ -180,6 +182,9 @@ const getPeriodLabel = (viewType) => {
     }
 };
 
+// Get browser timezone once outside the component
+const browserTimezone = DateTime.local().zoneName;
+
 
 const Timesheet = () => {
   const dispatch = useDispatch();
@@ -208,22 +213,13 @@ const Timesheet = () => {
   const timesheetSendStatus = useSelector(selectTimesheetSendStatus);
   const timesheetSendError = useSelector(selectTimesheetSendError);
 
-  const isAuthenticated = useSelector(selectIsAuthenticated);
-  const user = useSelector(selectAuthUser); // Get user info if needed
-
   // --- Local UI State ---
   const [viewType, setViewType] = useState('Weekly');
   const [expandedRows, setExpandedRows] = useState({});
   const [currentDate, setCurrentDate] = useState(new Date());
-  // const [isDownloading, setIsDownloading] = useState(false); // Replaced by Redux state
-  // const [isSending, setIsSending] = useState(false); // Replaced by Redux state
   const [showDownloadFilters, setShowDownloadFilters] = useState(false);
   const [showSendFilters, setShowSendFilters] = useState(false);
-  // const [error, setError] = useState(null); // Replaced by combinedError
-  const [downloadError, setDownloadError] = useState(null);
-  const [sendError, setSendError] = useState(null);
 
-  // const navigate = useNavigate(); // Removed duplicate declaration
   // State for Download/Send filters (kept local as they are UI specific)
   const [downloadEmail, setDownloadEmail] = useState('');
   const [downloadSelectedEmployee, setDownloadSelectedEmployee] = useState('');
@@ -233,6 +229,9 @@ const Timesheet = () => {
   const [sendSelectedEmployee, setSendSelectedEmployee] = useState('');
   const [sendStartDate, setSendStartDate] = useState(null);
   const [sendEndDate, setSendEndDate] = useState(null);
+
+  const isAuthenticated = useSelector(selectIsAuthenticated); // Keep selectors inside component
+  const user = useSelector(selectAuthUser); // Keep selectors inside component
 
   // --- Combined Loading and Error States ---
   const isDataLoading = useMemo(() => // Renamed to avoid conflict with download loading
@@ -254,24 +253,19 @@ const Timesheet = () => {
     [employeeError, clientError, projectError, timesheetError]
   );
 
-  // Get browser timezone
-  const browserTimezone = useMemo(() => DateTime.local().zoneName, []);
-
-  // Effect to update local download error state from Redux state
+  // Effect to show alerts for fetch/operation errors from Redux state
   useEffect(() => {
-    if (timesheetDownloadStatus === 'failed' && timesheetDownloadError) {
-      setDownloadError(timesheetDownloadError);
-      dispatch(clearDownloadStatus()); // Clear Redux error state after setting local state
+    // Combine all relevant Redux errors
+    const reduxError = combinedError || timesheetDownloadError || timesheetSendError;
+    if (reduxError) {
+      dispatch(setAlert(reduxError, 'danger'));
+      // Optionally clear the specific Redux error after showing the alert
+      // if (timesheetDownloadError) dispatch(clearDownloadStatus());
+      // if (timesheetSendError) dispatch(clearSendStatus());
+      // if (timesheetError) dispatch(clearTimesheetError());
+      // etc.
     }
-  }, [timesheetDownloadStatus, timesheetDownloadError, dispatch]);
-
-  // Effect to update local send error state from Redux state
-  useEffect(() => {
-    if (timesheetSendStatus === 'failed' && timesheetSendError) {
-      setSendError(timesheetSendError);
-      dispatch(clearSendStatus()); // Clear Redux error state after setting local state
-    }
-  }, [timesheetSendStatus, timesheetSendError, dispatch]);
+  }, [combinedError, timesheetDownloadError, timesheetSendError, dispatch]);
 
   // Initial data fetching on component mount
   useEffect(() => {
@@ -318,7 +312,7 @@ const Timesheet = () => {
                 dispatch(setAlert(`Error deleting timesheet: ${err}`, 'danger'));
             });
     }
-   }, [navigate, fetchTimesheets]);
+   }, [navigate, dispatch]); // Removed fetchTimesheets dependency as list updates via Redux
 
   // Navigate to the previous time period
   const handlePrev = () => {
@@ -354,8 +348,8 @@ const Timesheet = () => {
 
   // Handle sending the timesheet report via email
   const handleSendEmail = useCallback(async () => {
-      if (!sendEmail || !/\S+@\S+\.\S+/.test(sendEmail)) { setSendError('Please enter a valid recipient email address.'); return; }
-      setSendError(null); // Clear local error on new attempt
+      if (!sendEmail || !/\S+@\S+\.\S+/.test(sendEmail)) { dispatch(setAlert('Please enter a valid recipient email address.', 'warning')); return; }
+      // Clear local error on new attempt - REMOVED
       dispatch(clearSendStatus()); // Clear previous Redux send status/error
 
       const params = {
@@ -375,14 +369,14 @@ const Timesheet = () => {
           dispatch(setAlert(`Timesheet report sent successfully to ${result.email}`, 'success'));
         })
         .catch((error) => {
-          // Error is handled by the useEffect that watches timesheetSendError
+          // Error is handled by the useEffect that watches timesheetSendError and dispatches setAlert
           console.error('Send email dispatch failed:', error);
         });
   }, [sendEmail, sendSelectedEmployee, sendStartDate, sendEndDate, navigate, browserTimezone, dispatch]);
 
   // Handle downloading the timesheet report as an Excel file
-  const handleDownload = useCallback(async () => {
-      setDownloadError(null); // Clear local error on new attempt
+  const handleDownload = useCallback(async () => { // Renamed from handleDownloadReport for clarity
+      // Clear local error on new attempt - REMOVED
       dispatch(clearDownloadStatus()); // Clear previous Redux download status/error
 
       const params = {
@@ -406,13 +400,41 @@ const Timesheet = () => {
           link.remove();
           window.URL.revokeObjectURL(url);
           setShowDownloadFilters(false); // Close filters on success
+          dispatch(setAlert('Timesheet report downloaded successfully.', 'success')); // Success alert
           setDownloadSelectedEmployee(''); setDownloadStartDate(null); setDownloadEndDate(null); // Reset filters
         })
         .catch((error) => {
-          // Error is handled by the useEffect that watches timesheetDownloadError
+          // Error is handled by the useEffect that watches timesheetDownloadError and dispatches setAlert
           console.error('Download dispatch failed:', error);
         });
   }, [downloadSelectedEmployee, downloadStartDate, downloadEndDate, navigate, browserTimezone, dispatch]);
+
+  // Toggle function for Send Report section
+  const toggleSendReport = () => {
+    const currentlyShowing = showSendFilters;
+    setShowSendFilters(!currentlyShowing);
+    setShowDownloadFilters(false);
+    // Clear errors when toggling - REMOVED
+    dispatch(clearSendStatus()); // Clear Redux report status/error
+    if (!currentlyShowing) { // Reset dates if opening
+        setSendStartDate(null);
+        setSendEndDate(null);
+    }
+  };
+
+  // Toggle function for Download Report section
+  const toggleDownloadReport = () => {
+    const currentlyShowing = showDownloadFilters;
+    setShowDownloadFilters(!currentlyShowing);
+    setShowSendFilters(false); // Close send if opening download
+    // Clear errors when toggling - REMOVED
+    dispatch(clearDownloadStatus()); // Clear Redux report status/error
+    if (!currentlyShowing) { // Reset dates if opening
+        setDownloadStartDate(null);
+        setDownloadEndDate(null);
+    }
+  };
+
 
   // Generate date columns based on the current view type and date
   const dateColumns = useMemo(() => generateDateColumns(currentDate, viewType), [currentDate, viewType]);
@@ -599,6 +621,7 @@ const Timesheet = () => {
 
   return (
     <div className='timesheet-page'>
+       <Alert /> {/* Render Alert component here */}
        <div className="timesheet-header">
         <div className="title-breadcrumbs">
           <h3><FontAwesomeIcon icon={faPen} /> Timesheets</h3>
@@ -609,10 +632,10 @@ const Timesheet = () => {
           </div>
         </div>
         <div className="header-actions">
-          <button className="btn btn-red" onClick={() => { setShowDownloadFilters(prev => !prev); setShowSendFilters(false); setDownloadError(null); }} aria-expanded={showDownloadFilters} aria-controls="timesheet-download-options">
+          <button className="btn btn-red" onClick={toggleDownloadReport} aria-expanded={showDownloadFilters} aria-controls="timesheet-download-options">
             <FontAwesomeIcon icon={faDownload} /> Download Report
           </button>
-          <button className="btn btn-purple" onClick={() => { setShowSendFilters(prev => !prev); setShowDownloadFilters(false); setSendError(null); }} aria-expanded={showSendFilters} aria-controls="timesheet-send-options">
+          <button className="btn btn-purple" onClick={toggleSendReport} aria-expanded={showSendFilters} aria-controls="timesheet-send-options">
             <FontAwesomeIcon icon={faEnvelope} /> Send Report
           </button>
         </div>
@@ -620,7 +643,7 @@ const Timesheet = () => {
       {showDownloadFilters && (
         <div id="timesheet-download-options" className="timesheet-options-container download-options">
           <h4>Download Timesheet Report</h4>
-          {downloadError && <p className='error-text'><FontAwesomeIcon icon={faExclamationCircle} /> {downloadError}</p>}
+          {/* {downloadError && <p className='error-text'><FontAwesomeIcon icon={faExclamationCircle} /> {downloadError}</p>} */} {/* Handled by Alert */}
           <div className="filter-controls">
              <Select
                 options={employeeOptions}
@@ -642,7 +665,7 @@ const Timesheet = () => {
       {showSendFilters && (
         <div id="timesheet-send-options" className="timesheet-options-container send-options">
           <h4>Send Timesheet Report</h4>
-           {sendError && <p className='error-text'><FontAwesomeIcon icon={faExclamationCircle} /> {sendError}</p>}
+           {/* {sendError && <p className='error-text'><FontAwesomeIcon icon={faExclamationCircle} /> {sendError}</p>} */} {/* Handled by Alert */}
           <div className="filter-controls">
              <Select
                 options={employeeOptions}
@@ -655,7 +678,7 @@ const Timesheet = () => {
             />
             <DatePicker selected={sendStartDate} onChange={setSendStartDate} selectsStart startDate={sendStartDate} endDate={sendEndDate} placeholderText="From Date" dateFormat="yyyy-MM-dd" className="filter-datepicker" wrapperClassName="date-picker-wrapper" aria-label="Send Start Date" />
             <DatePicker selected={sendEndDate} onChange={setSendEndDate} selectsEnd startDate={sendStartDate} endDate={sendEndDate} minDate={sendStartDate} placeholderText="To Date" dateFormat="yyyy-MM-dd" className="filter-datepicker" wrapperClassName="date-picker-wrapper" aria-label="Send End Date" />
-            <input type="email" placeholder="Recipient email" value={sendEmail} onChange={e => { setSendEmail(e.target.value); if (sendError) setSendError(null); }} className="filter-email" aria-label="Recipient Email" required />
+            <input type="email" placeholder="Recipient email" value={sendEmail} onChange={e => { setSendEmail(e.target.value); }} className="filter-email" aria-label="Recipient Email" required />
             <button className="btn btn-purple action-button" onClick={handleSendEmail} disabled={isSending || !sendEmail || !/\S+@\S+\.\S+/.test(sendEmail)}>
               {isSending ? (<><FontAwesomeIcon icon={faSpinner} spin /> Sending...</>) : (<><FontAwesomeIcon icon={faEnvelope} /> Send</>)}
             </button>
@@ -690,9 +713,9 @@ const Timesheet = () => {
 
        {isDataLoading ? (
          <div className='loading-indicator'><FontAwesomeIcon icon={faSpinner} spin size='2x' /> Loading Timesheets...</div>
-       ) : combinedError ? (
+       ) : /* combinedError ? ( // Handled by Alert component
          <div className='error-message'><FontAwesomeIcon icon={faExclamationCircle} /> {combinedError}</div>
-       ) : (
+       ) : */ (
          viewType === 'Daily' ? (
             renderDailyView()
          ) : (

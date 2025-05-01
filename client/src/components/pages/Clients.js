@@ -1,3 +1,4 @@
+// /home/digilab/timesheet/client/src/components/pages/Clients.js
 import React, { useEffect, useState, useMemo } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useSelector, useDispatch } from "react-redux";
@@ -18,6 +19,7 @@ import {
   clearDownloadStatus // Import clear download status action
 } from "../../redux/slices/clientSlice";
 import { setAlert } from "../../redux/slices/alertSlice"; // Import alert action
+import Alert from "../layout/Alert"; // Import the Alert component
 
 import {
   faUsers,
@@ -62,12 +64,21 @@ const Clients = () => {
     }
   }, [dispatch, clientStatus]);
 
-  // Effect to handle download errors locally
+  // Effect to handle general client fetch/delete errors
+  useEffect(() => {
+    if (clientError) {
+      dispatch(setAlert(clientError, 'danger'));
+      // Optional: Clear the error in the slice after showing the alert
+      // dispatch(clearClientError());
+    }
+  }, [clientError, dispatch]);
+
+  // Effect to handle download status/errors
   useEffect(() => {
     if (downloadStatus === 'failed' && downloadError) {
-      setLocalDownloadError(downloadError);
+      dispatch(setAlert(downloadError, 'danger')); // Show download error via Alert component
       dispatch(clearDownloadStatus()); // Reset Redux state after handling
-    }
+    } // Success alert for download is handled in handleDownloadClients
   }, [downloadStatus, downloadError, dispatch]);
 
   const handleDeleteClient = (clientId, clientName) => {
@@ -106,18 +117,19 @@ const Clients = () => {
         window.URL.revokeObjectURL(url);
         dispatch(setAlert('Client report downloaded.', 'success'));
       })
-      .catch((error) => {
+      .catch((error) => { // Error is now handled by the useEffect watching downloadStatus/downloadError
         // Error is handled by the useEffect watching downloadError
         console.error('Download dispatch failed:', error);
       });
   };
 
 
-  const gridColumns = '1.5fr 1.5fr 1fr 2fr 1.5fr auto'; 
+  const gridColumns = '1.5fr 1.5fr 1fr 2fr 1.5fr auto';
 
   return (
 
     <div className="vehicles-page">
+      <Alert /> {/* Render Alert component here */}
 
       <div className="vehicles-header">
         <div className="title-breadcrumbs">
@@ -130,10 +142,10 @@ const Clients = () => {
             <span className="breadcrumb-current">Clients</span>
           </div>
         </div>
-  
-        <div className="header-actions"> 
+
+        <div className="header-actions">
           <button
-            className="btn btn-danger" 
+            className="btn btn-danger"
             onClick={handleDownloadClients}
             disabled={isDownloading} // Use Redux state
           >
@@ -145,7 +157,7 @@ const Clients = () => {
           </button>
           {user?.role === "employer" && (
             <button
-              className="btn btn-success" 
+              className="btn btn-success"
               onClick={() => navigate('/clients/create')}
             >
               <FontAwesomeIcon icon={faPlus} /> Add New Client
@@ -155,14 +167,7 @@ const Clients = () => {
 
       </div>
 
-    
-       {localDownloadError && ( // Display local download error
-            <div className='error-message' style={{marginBottom: '1rem'}}>
-              <FontAwesomeIcon icon={faExclamationCircle} /> {localDownloadError}
-            </div>
-        )}
 
-   
       <div className="vehicles-search">
         <input
           type="text"
@@ -174,7 +179,7 @@ const Clients = () => {
         <FontAwesomeIcon icon={faSearch} className="search-icon" />
       </div>
 
-  
+
       {isLoading && ( // Use Redux loading state
         <div className='loading-indicator'>
           <FontAwesomeIcon icon={faSpinner} spin size='2x' />
@@ -182,29 +187,22 @@ const Clients = () => {
         </div>
       )}
 
-      {/* Error State */}
-      {clientError && !isLoading && ( // Use Redux error state
-        <div className='error-message'>
-          <FontAwesomeIcon icon={faExclamationCircle} />
-          <p>{clientError}</p>
-          <button className="btn btn-secondary" onClick={() => dispatch(fetchClients())}>Retry</button>
-        </div>
-      )}
+      {/* Error State Handled by Alert component */}
 
-   
       {!isLoading && !clientError && ( // Use Redux states
-        <div className="vehicles-grid"> 
-        
+        <div className="vehicles-grid">
+
           <div className="vehicles-row header" style={{ gridTemplateColumns: gridColumns }}>
             <div>Client Name</div>
             <div>Email Address</div>
             <div>Phone Number</div>
             <div>Address</div>
             <div>Notes</div>
-            {user?.role === "employer" && <div>Actions</div>}
+            {/* Always show Actions header */}
+            <div>Actions</div>
           </div>
 
-        
+
           {filteredClients.length === 0 ? (
             <div className="vehicles-row no-results">
               {searchTerm ? 'No clients match your search.' : 'No clients found.'}
@@ -213,43 +211,48 @@ const Clients = () => {
             filteredClients.map((client) => (
               <div
                 key={client._id}//
-                className="vehicles-row vehicle-card" 
+                className="vehicles-row vehicle-card"
                 style={{ gridTemplateColumns: gridColumns }}
               >
                 <div data-label="Client Name">{client.name || '--'}</div>
                 <div data-label="Email">{client.emailAddress || '--'}</div>
                 <div data-label="Phone">{client.phoneNumber || '--'}</div>
                 <div data-label="Address">{client.address || '--'}</div>
-                <div data-label="Notes">{client.notes || '--'}</div>
-                {user?.role === "employer" && (
-                  <div data-label="Actions" className="actions"> 
-            
-                    <button
-                      className="btn-icon btn-icon-blue" // View button
-                      onClick={() => navigate(`/clients/view/${client._id}`)}
-                      title={`View ${client.name}`}
-                      aria-label={`View ${client.name}`}
-                    >
-                      <FontAwesomeIcon icon={faEye} />
-                    </button>
-                    <button
-                      className="btn-icon btn-icon-yellow" // Edit button
-                      onClick={() => navigate(`/clients/update/${client._id}`)}
-                      title={`Edit ${client.name}`}
-                      aria-label={`Edit ${client.name}`}
-                    >
-                      <FontAwesomeIcon icon={faPen} />
-                    </button>
-                    <button
-                      className="btn-icon btn-icon-red" // Delete button
-                      onClick={() => handleDeleteClient(client._id, client.name)} // Use Redux handler
-                      title={`Delete ${client.name}`}
-                      aria-label={`Delete ${client.name}`}
-                    >
-                      <FontAwesomeIcon icon={faTrash} />
-                    </button>
-                  </div>
-                )}
+                <div data-label="Notes" className="notes-cell">{client.notes || '--'}</div>
+                {/* Always render the Actions cell */}
+                <div data-label="Actions" className="actions">
+                  {/* Always show View button */}
+                  <button
+                    className="btn-icon btn-icon-blue" // View button
+                    onClick={() => navigate(`/clients/view/${client._id}`)}
+                    title={`View ${client.name}`}
+                    aria-label={`View ${client.name}`}
+                  >
+                    <FontAwesomeIcon icon={faEye} />
+                  </button>
+                  {/* Only show Edit and Delete for employers */}
+                  {user?.role === 'employer' && (
+                    <>
+                      <button
+                        className="btn-icon btn-icon-yellow" // Edit button
+                        onClick={() => navigate(`/clients/update/${client._id}`)}
+                        title={`Edit ${client.name}`}
+                        aria-label={`Edit ${client.name}`}
+                      >
+                        <FontAwesomeIcon icon={faPen} />
+                      </button>
+                      <button
+                        className="btn-icon btn-icon-red" // Delete button
+                        onClick={() => handleDeleteClient(client._id, client.name)} // Use Redux handler
+                        title={`Delete ${client.name}`}
+                        aria-label={`Delete ${client.name}`}
+                        disabled={isDeleting} // Optional: Disable while deleting
+                      >
+                        <FontAwesomeIcon icon={faTrash} />
+                      </button>
+                    </>
+                  )}
+                </div>
               </div>
             ))
           )}

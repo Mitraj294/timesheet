@@ -3,8 +3,10 @@ import React, { useState, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate, useLocation } from "react-router-dom";
 // Correct the import name here - assuming you created and exported 'register'
-import { register } from "../../redux/slices/authSlice"; // Changed from registerUser
+import { register, login } from "../../redux/slices/authSlice"; // Import login action as well
+import { setAlert } from "../../redux/slices/alertSlice"; // Import setAlert
 import "../../styles/Register.scss";
+import Alert from "../layout/Alert"; // Import the Alert component
 
 const Register = () => {
   const dispatch = useDispatch();
@@ -21,9 +23,6 @@ const Register = () => {
     role: "employee", // Default role
   });
 
-  // Local state for alert messages derived from Redux error state
-  const [alert, setAlert] = useState("");
-
   useEffect(() => {
     if (isAuthenticated) {
       // Redirect after successful registration and authentication
@@ -31,20 +30,12 @@ const Register = () => {
     }
   }, [isAuthenticated, navigate]);
 
-  // Show alert messages based on Redux error state and clear them after 3 seconds
+  // Dispatch alert on error change
   useEffect(() => {
     if (error) {
-      // Use the error message directly from Redux state
-      setAlert(error);
-      const timer = setTimeout(() => {
-        setAlert("");
-        // Optional: Dispatch an action to clear the error in Redux state as well
-        // dispatch(clearAuthError()); // You would need to create this action/reducer
-      }, 3000);
-      return () => clearTimeout(timer);
-    } else {
-      // Clear local alert if Redux error becomes null
-      setAlert("");
+      dispatch(setAlert(error, 'danger')); // Dispatch error alert
+      // Note: The Alert component itself handles the timeout based on alertSlice logic
+      // Optional: Dispatch an action here to clear the error in authSlice if needed after showing the alert
     }
   }, [error]); // Depend only on the error from Redux
 
@@ -52,18 +43,37 @@ const Register = () => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => { // <-- Add async here
     e.preventDefault();
-    console.log("Registering user:", formData);
-    // Use the correctly imported action here
-    dispatch(register(formData)); // Changed from registerUser
+    const { email, password } = formData; // Extract credentials for login
+
+    try {
+      // Attempt registration
+      await dispatch(register(formData)).unwrap();
+
+      // If registration succeeds, show alert and attempt login
+      dispatch(setAlert('Registration successful!', 'success'));
+
+      try {
+        // Attempt automatic login
+        await dispatch(login({ email, password })).unwrap();
+        // If login succeeds, show alert (redirect is handled by useEffect)
+        dispatch(setAlert('Login successful!', 'success'));
+      } catch (loginError) {
+        // Handle login failure after successful registration
+        dispatch(setAlert(loginError || 'Automatic login failed. Please log in manually.', 'warning'));
+      }
+    } catch (registerError) {
+      // Registration failed - error alert is handled by the useEffect watching state.error
+      console.error("Registration failed:", registerError);
+      // No need to dispatch alert here, useEffect [error] handles it
+    }
   };
 
   return (
     <div className="auth-container">
+      <Alert /> {/* Render Alert component */}
       <h2>Sign Up</h2>
-      {/* Display the local alert message */}
-      {alert && <p className="error-message">{alert}</p>}
       <form onSubmit={handleSubmit}>
         <input
           type="text"

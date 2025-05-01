@@ -15,7 +15,8 @@ import { fetchEmployees, selectAllEmployees, selectEmployeeStatus, selectEmploye
 import { fetchRoles, deleteRole, deleteRoleScheduleEntry, updateRole, selectAllRoles, selectRoleStatus, selectRoleError, clearRoleError } from '../../redux/slices/roleSlice'; // Added updateRole
 import { fetchSchedules, bulkCreateSchedules, deleteSchedule, deleteSchedulesByDateRange, selectAllSchedules, selectScheduleStatus, selectScheduleError, clearScheduleError } from '../../redux/slices/scheduleSlice';
 import { selectAuthUser } from '../../redux/slices/authSlice';
-import { setAlert } from '../../redux/slices/alertSlice';
+import { setAlert } from '../../redux/slices/alertSlice'; // Import setAlert
+import Alert from '../layout/Alert'; // Import Alert component
 
 // Styles and Icons
 import '../../styles/Forms.scss';
@@ -111,7 +112,7 @@ const RosterPage = () => {
     startOfWeek(new Date(), { weekStartsOn: 1 })
   );
   const [isLoading, setIsLoading] = useState(true); // Start loading initially
-  const [error, setError] = useState(null); // Added error state
+  // const [error, setError] = useState(null); // Replaced by Redux alerts
 
   const [showModal, setShowModal] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState(null);
@@ -131,12 +132,19 @@ const RosterPage = () => {
   );
 
   // Update local loading/error based on Redux state
-  useEffect(() => { setIsLoading(isDataLoading); }, [isDataLoading]);
-  useEffect(() => { setError(combinedError); }, [combinedError]);
+  useEffect(() => {
+    setIsLoading(isDataLoading);
+    // Show alerts for fetch errors
+    if (combinedError) {
+      dispatch(setAlert(combinedError, 'danger'));
+      // Optionally clear the specific error after showing
+      // if (employeeError) dispatch(clearEmployeeError()); etc.
+    }
+  }, [isDataLoading, combinedError, dispatch]);
 
-  const weekDays = Array.from({ length: 7 }, (_, i) =>
-    addDays(currentWeekStart, i)
-  );
+  // Define weekDays based on currentWeekStart
+  const weekDays = useMemo(() => Array.from({ length: 7 }, (_, i) => addDays(currentWeekStart, i)), [currentWeekStart]);
+
   const maxAllowedWeek = addWeeks(
     startOfWeek(new Date(), { weekStartsOn: 1 }),
     1
@@ -255,7 +263,7 @@ const RosterPage = () => {
       .catch((error) => {
         dispatch(setAlert(`Failed to delete role: ${error}`, 'danger'));
         console.error('Failed to delete role:', error.response?.data?.message || error.message); // Keep inside catch
-        setError(error.response?.data?.message || 'Failed to delete role.'); // Keep inside catch
+        // setError(error.response?.data?.message || 'Failed to delete role.'); // Keep inside catch - Handled by Alert
       }); // Added missing closing brace for catch
   };
 
@@ -341,7 +349,7 @@ const RosterPage = () => {
 
       // 5. Navigate to the next week view after successful rollout
       setCurrentWeekStart(nextWeekStart);
-      alert("Schedule successfully rolled out to the next week!");
+      dispatch(setAlert("Schedule successfully rolled out to the next week!", 'success'));
 
     } catch (err) {
       console.error('Error during rollout:', err.response?.data || err.message, err);
@@ -361,18 +369,18 @@ const RosterPage = () => {
 
   const handleAssignShift = async () => {
     if (selectedDays.length === 0) {
-        alert("Please select at least one day.");
+        dispatch(setAlert("Please select at least one day.", 'warning'));
         return;
     }
      if (!selectedEmployee) return;
 
     for (const day of selectedDays) {
         if (!startTime[day] || !endTime[day]) {
-            alert(`Please enter both start and end times for ${day}.`);
+            dispatch(setAlert(`Please enter both start and end times for ${day}.`, 'warning'));
             return;
         }
          if (startTime[day] >= endTime[day]) {
-             alert(`End time must be after start time for ${day}.`);
+             dispatch(setAlert(`End time must be after start time for ${day}.`, 'warning'));
              return;
          }
     }
@@ -409,7 +417,8 @@ const RosterPage = () => {
 
     } catch (err) {
       console.error('Error assigning/updating shift:', err.response?.data?.message || err.message);
-       setError(`Error assigning shift: ${err.response?.data?.message || err.message}`);
+       // setError(`Error assigning shift: ${err.response?.data?.message || err.message}`); // Handled by Alert
+       dispatch(setAlert(`Error assigning shift: ${err.response?.data?.message || err.message}`, 'danger'));
     }
   };
 
@@ -429,7 +438,7 @@ const RosterPage = () => {
     } catch (err) {
       console.error('Error deleting schedule:', err.response?.data?.message || err.message);
       dispatch(setAlert(`Failed to delete shift: ${err}`, 'danger'));
-      setError(err.response?.data?.message || 'Failed to delete shift.');
+      // setError(err.response?.data?.message || 'Failed to delete shift.'); // Handled by Alert
     }
   };
 
@@ -451,6 +460,7 @@ const RosterPage = () => {
 
   return (
     <div className='roster-page'>
+      <Alert /> {/* Render Alert component here */}
       <header className='roster-header'>
         <div className='title'>
           <h2><FontAwesomeIcon icon={faCalendar} /> Rosters</h2>
@@ -490,13 +500,13 @@ const RosterPage = () => {
       </div>
 
        {/* Display Global Errors */}
-       {error && (
+       {/* {error && ( // Handled by Alert component via useEffect
          <div className='error-message page-error' style={{ marginTop: '1rem', marginBottom: '1rem' }}>
             <FontAwesomeIcon icon={faExclamationCircle} />
             <p>{error}</p>
          </div>
-       )}
-
+       )} */}
+       
       {/* Roster Body */}
       {/* Add conditional class for centering */}
       <div className={`roster-body ${!canShowSidebars ? 'roster-body--center-content' : ''}`}>

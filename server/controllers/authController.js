@@ -99,6 +99,46 @@ export const loginUser = async (req, res) => {
   }
 };
 
+// Change Password
+export const changePassword = async (req, res) => {
+    try {
+        const { currentPassword, newPassword } = req.body;
+        const userId = req.user.id; // Get user ID from protect middleware
+
+        // Basic validation
+        if (!currentPassword || !newPassword) {
+            return res.status(400).json({ message: "Current and new passwords are required." });
+        }
+        if (newPassword.length < 6) {
+            return res.status(400).json({ message: "New password must be at least 6 characters long." });
+        }
+
+        // Find user
+        const user = await User.findById(userId);
+        if (!user) {
+            // Should not happen if protect middleware works, but good check
+            return res.status(404).json({ message: "User not found." });
+        }
+
+        // Verify current password
+        const isMatch = await bcrypt.compare(currentPassword, user.password);
+        if (!isMatch) {
+            return res.status(401).json({ message: "Incorrect current password." });
+        }
+
+        // Hash and save new password (pre-save hook in User model will handle hashing)
+        user.password = newPassword;
+        await user.save();
+
+        res.json({ message: "Password updated successfully." });
+
+    } catch (error) {
+        console.error("Error changing password:", error);
+        res.status(500).json({ message: "Server error during password change." });
+    }
+};
+
+
 // Helper function to generate token (optional, can be inline as above)
 // const generateToken = (id, role) => {
 //   return jwt.sign({ id, role }, process.env.JWT_SECRET, {

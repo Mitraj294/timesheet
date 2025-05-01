@@ -64,7 +64,7 @@ export const addEmployee = createAsyncThunk(
       if (user?.role !== 'employer') {
         return rejectWithValue('Access Denied: Only employers can add employees.');
       }
-      const response = await axios.post(`${API_URL}/employees`, employeeData, getAuthHeaders(token));
+      const response = await axios.post(`${API_URL}/employees`, employeeData, getAuthHeaders(token)); // employeeData should include userId now
       return response.data;
     } catch (error) {
       console.error("Error adding employee:", error);
@@ -212,4 +212,10 @@ export const selectEmployeeById = (state, employeeId) =>
   // Ensure state.employees.employees is an array before finding
   Array.isArray(state?.employees?.employees)
     ? state.employees.employees.find(emp => emp._id === employeeId)
+    : undefined;
+
+// Selector to find an employee by their linked User ID
+export const selectEmployeeByUserId = (state, userId) =>
+  Array.isArray(state?.employees?.employees)
+    ? state.employees.employees.find(emp => emp.userId === userId)
     : undefined;

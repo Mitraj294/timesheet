@@ -2,8 +2,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
-// --- UPDATED IMPORTS ---
-// Import from employeeSlice instead of employeeActions
 import {
   addEmployee,
   updateEmployee,
@@ -12,7 +10,9 @@ import {
   selectEmployeeStatus,
   selectEmployeeError
 } from '../../redux/slices/employeeSlice';
-// --- END UPDATED IMPORTS ---
+import { setAlert } from '../../redux/slices/alertSlice'; // Import setAlert
+import { register } from '../../redux/slices/authSlice'; // Import register action if needed, or use fetch directly
+import Alert from '../layout/Alert'; // Import Alert component
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
   faUserPlus,
@@ -32,11 +32,9 @@ const EmployeeForm = () => {
   const dispatch = useDispatch();
   const isEditMode = Boolean(id);
 
-  // --- UPDATED SELECTORS ---
   const employees = useSelector(selectAllEmployees);
-  const employeeStatus = useSelector(selectEmployeeStatus); // Use status selector
-  const employeesError = useSelector(selectEmployeeError); // Use error selector
-  // --- END UPDATED SELECTORS ---
+  const employeeStatus = useSelector(selectEmployeeStatus);
+  const employeesError = useSelector(selectEmployeeError);
 
   const initialFormState = {
     name: '',
@@ -51,16 +49,23 @@ const EmployeeForm = () => {
   };
 
   const [formData, setFormData] = useState(initialFormState);
-  // Use Redux status for loading, local state for submission error
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState(null); // Local error for form validation/submission
+  const [error, setError] = useState(null); // Local error for form validation
 
   useEffect(() => {
-    // Fetch employees if status is idle
     if (employeeStatus === 'idle') {
-      dispatch(fetchEmployees()); // <-- Dispatch fetchEmployees thunk
+      dispatch(fetchEmployees());
     }
   }, [dispatch, employeeStatus]);
+
+  // Effect to show alerts for fetch errors from Redux state
+  useEffect(() => {
+    // Show fetch error only if not editing or if the specific employee wasn't found after fetch
+    if (employeesError && (!isEditMode || (isEditMode && employeeStatus === 'failed'))) {
+      dispatch(setAlert(employeesError, 'danger'));
+      // Optionally clear the Redux error after showing the alert
+    }
+  }, [employeesError, isEditMode, employeeStatus, dispatch]);
 
   useEffect(() => {
     if (id && employees.length > 0) {
@@ -79,7 +84,6 @@ const EmployeeForm = () => {
         });
       } else {
         console.warn(`Employee with ID ${id} not found.`);
-        // Set local error if employee not found after fetch succeeded
         if (employeeStatus === 'succeeded') {
             setError(`Employee with ID ${id} not found.`);
         }
@@ -87,15 +91,13 @@ const EmployeeForm = () => {
     } else if (!id) {
       setFormData(initialFormState);
     }
-  }, [id, employees, employeeStatus]); // Add employeeStatus dependency
-
-  // ... (handleChange, validateForm remain the same)
+  }, [id, employees, employeeStatus]);
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
     setFormData((prevState) => ({
       ...prevState,
-      [name]: type === 'checkbox' ? checked : value,
+      [name]: type === 'checkbox' ? (checked ? 'Yes' : 'No') : value, // Handle checkbox correctly
     }));
      // Clear local error on change
     if (error) setError(null);
@@ -118,12 +120,14 @@ const EmployeeForm = () => {
 
     const validationError = validateForm();
     if (validationError) {
+      dispatch(setAlert(validationError, 'warning')); // Show validation error via Alert
       setError(validationError);
       return;
     }
 
     setIsSubmitting(true); // Use local submitting state
 
+    let userCheckData = { exists: false }; // Declare userCheckData outside the if block
     let employeeData = {
       ...formData,
       wage: parseFloat(formData.wage),
@@ -134,8 +138,8 @@ const EmployeeForm = () => {
     };
 
     try {
-      // --- User Check Logic (Keep as is for now, consider moving to backend/thunk later) ---
       if (!isEditMode) {
+        // --- Register User Logic ---
         const userCheckResponse = await fetch(`${API_URL}/auth/check-user`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -146,16 +150,17 @@ const EmployeeForm = () => {
             const errorData = await userCheckResponse.json();
             throw new Error(errorData.message || 'Failed to check user existence.');
         }
-        const userCheckData = await userCheckResponse.json();
+        userCheckData = await userCheckResponse.json(); // Assign value here
 
         if (!userCheckData.exists) {
+          const tempPassword = '123456'; // Preset password
           const registerResponse = await fetch(`${API_URL}/auth/register`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               name: formData.name,
               email: formData.email,
-              password: '123456',
+              password: tempPassword, // Use preset password
               role: 'employee',
             }),
           });
@@ -169,20 +174,26 @@ const EmployeeForm = () => {
           }
           employeeData.userId = registeredUser.user._id;
         }
+        // --- End Register User Logic ---
       }
-      // --- End User Check Logic ---
 
-      // Dispatch thunks from slice
       if (isEditMode) {
-        // Pass object { id, employeeData } to updateEmployee thunk
         await dispatch(updateEmployee({ id, employeeData })).unwrap(); // Use unwrap to catch errors
+        dispatch(setAlert('Employee updated successfully!', 'success')); // Success alert
       } else {
+        // Ensure userId is in employeeData before adding
+        if (!employeeData.userId && userCheckData.exists) {
+           // Handle case where user exists but wasn't linked (maybe fetch user ID based on email?)
+           console.warn("User exists but wasn't linked during creation."); // Or fetch user ID
+        }
         await dispatch(addEmployee(employeeData)).unwrap(); // Use unwrap to catch errors
+        dispatch(setAlert(`Employee added & User account created!  Temporary password is '123456' and advise to change it upon first login.`, 'success', 10000)); // Updated alert message
       }
 
       navigate('/employees');
 
     } catch (rejectedValueOrSerializedError) {
+      // Error from fetch, register, addEmployee, or updateEmployee
       // unwrap throws the error payload or a SerializedError
       console.error(`Error ${isEditMode ? 'updating' : 'adding'} employee:`, rejectedValueOrSerializedError);
       // Error message might be directly in rejectedValueOrSerializedError or in .message
@@ -190,6 +201,7 @@ const EmployeeForm = () => {
           ? rejectedValueOrSerializedError
           : rejectedValueOrSerializedError?.message || `Failed to ${isEditMode ? 'update' : 'add'} employee.`;
       setError(message); // Set local error state
+      dispatch(setAlert(message, 'danger')); // Show submission error via Alert
     } finally {
       setIsSubmitting(false); // Stop local submitting indicator
     }
@@ -197,8 +209,6 @@ const EmployeeForm = () => {
 
   // Use Redux status for initial loading
   const isLoadingInitialData = employeeStatus === 'loading' && !employees.length;
-
-  // ... (JSX remains largely the same, but disable based on isSubmitting and show Redux error (employeesError) for initial load)
 
   if (isLoadingInitialData) {
      return (
@@ -212,7 +222,7 @@ const EmployeeForm = () => {
   }
 
   // Show Redux error if initial fetch failed
-  if (employeesError && !employees.length && employeeStatus === 'failed') {
+  /* if (employeesError && !employees.length && employeeStatus === 'failed') { // Handled by Alert component via useEffect
      return (
         <div className='vehicles-page'>
             <div className='error-message'>
@@ -220,13 +230,14 @@ const EmployeeForm = () => {
               <p>Error loading employee data: {employeesError}</p>
                <button className="btn btn-secondary" onClick={() => dispatch(fetchEmployees())}>Retry</button>
             </div>
-        </div>
+        </div> // Handled by Alert component via useEffect
       );
-  }
+  } */
 
 
   return (
     <div className='vehicles-page'>
+      <Alert /> {/* Render Alert component here */}
       <div className='vehicles-header'>
         <div className='title-breadcrumbs'>
           <h2>
@@ -251,14 +262,12 @@ const EmployeeForm = () => {
 
       <div className='form-container'>
         <form onSubmit={handleSubmit} className='employee-form' noValidate>
-          {/* Show local submission/validation error */}
-          {error && (
+          {/* {error && ( // Handled by Alert component
             <div className='form-error-message'>
               <FontAwesomeIcon icon={faExclamationCircle} /> {error}
             </div>
-          )}
+          )} */}
 
-          {/* Disable inputs based on local isSubmitting state */}
           <div className='form-group'>
             <label htmlFor='name'>Name*</label>
             <input

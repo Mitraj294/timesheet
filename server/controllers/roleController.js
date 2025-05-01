@@ -65,21 +65,23 @@ export const getRoleById = async (req, res) => {
 export const updateRole = async (req, res) => {
   try {
     const { id } = req.params;
-    const { roleName, roleDescription, color, assignedEmployees, schedule } = req.body;
+    // Only extract fields that might be updated.
+    // findByIdAndUpdate will handle partial updates.
+    const updateData = req.body;
 
-    const role = await Role.findById(id);
-    if (!role) {
+    // Use findByIdAndUpdate for cleaner partial updates
+    // { new: true } returns the updated document
+    // { runValidators: true } ensures schema validation runs on the update
+    const updatedRole = await Role.findByIdAndUpdate(id, updateData, {
+      new: true,
+      runValidators: true, // Make sure validation runs!
+    });
+
+    if (!updatedRole) {
       return res.status(404).json({ message: 'Role not found' });
     }
 
-    role.roleName = roleName;
-    role.roleDescription = roleDescription;
-    role.color = color;
-    role.assignedEmployees = assignedEmployees;
-    role.schedule = schedule;
-
-    await role.save();
-    res.status(200).json({ message: 'Role updated successfully', role });
+    res.status(200).json({ message: 'Role updated successfully', role: updatedRole });
   } catch (err) {
     console.error('Error updating role:', err);
     res.status(500).json({ message: 'Server error while updating role' });

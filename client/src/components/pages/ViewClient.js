@@ -14,7 +14,7 @@ import {
 import {
   fetchTimesheets, selectAllTimesheets, selectTimesheetStatus, selectTimesheetError
 } from "../../redux/slices/timesheetSlice";
-import { setAlert } from "../../redux/slices/alertSlice";
+import { setAlert } from "../../redux/slices/alertSlice"; // Import setAlert
 
 import {
   faUser,
@@ -30,6 +30,7 @@ import {
   faExclamationCircle,
   faBriefcase,
 } from "@fortawesome/free-solid-svg-icons";
+import Alert from "../layout/Alert"; // Import Alert component
 // Import the shared SCSS file
 import "../../styles/Vehicles.scss"; // *** Use Vehicles.scss ***
 import "../../styles/ViewClient.scss"; // *** Use ViewClient.scss ***
@@ -54,19 +55,12 @@ const ViewClient = () => {
 
   // Local State
   const [clientTotalHours, setClientTotalHours] = useState(0);
-  // const [loading, setLoading] = useState(true); // Replaced by Redux statuses
   const [error, setError] = useState(null);
   // Keep local state for delete action if needed for UI feedback
   const [isDeletingProject, setIsDeletingProject] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
-      // setLoading(true); // Removed - isLoading is derived from Redux statuses
-      setError(null);
-      // setClient(null); // Managed by Redux state (clearCurrentClient)
-      // setProjects([]); // Managed by Redux state (clearProjects)
-      // setClientTotalHours(0); // Calculated later
-
       try {
         // Dispatch fetch actions
         dispatch(fetchClientById(clientId));
@@ -87,7 +81,7 @@ const ViewClient = () => {
         } else if (err.message) {
             errorMessage = err.message;
         }
-        setError(errorMessage);
+        dispatch(setAlert(errorMessage, 'danger'));
       }
     };
 
@@ -115,6 +109,15 @@ const ViewClient = () => {
     }
   }, [allTimesheets, timesheetStatus, clientId]);
 
+  // Effect to show alerts for fetch errors from Redux state
+  useEffect(() => {
+    const reduxError = clientError || projectError || timesheetError;
+    if (reduxError) {
+      dispatch(setAlert(reduxError, 'danger'));
+      // Optionally clear the Redux error after showing the alert
+    }
+  }, [clientError, projectError, timesheetError, dispatch]);
+
   // Renamed function to avoid conflict with imported Redux action creator
   const handleDeleteProject = async (projectId, projectName) => {
     if (!window.confirm(`Are you sure you want to delete project "${projectName}"?`)) return;
@@ -135,7 +138,6 @@ const ViewClient = () => {
       } else if (typeof err === 'string') { // Handle if err itself is a string (from rejectWithValue)
         errorMessage = err;
       }
-      setError(errorMessage); // Set local error for display
       dispatch(setAlert(String(errorMessage), 'danger')); // Force conversion to string just in case
     } finally {
       setIsDeletingProject(false);
@@ -147,7 +149,6 @@ const ViewClient = () => {
     clientStatus === 'loading' || projectStatus === 'loading' || timesheetStatus === 'loading',
     [clientStatus, projectStatus, timesheetStatus]
   );
-  const combinedError = useMemo(() => error || clientError || projectError || timesheetError, [error, clientError, projectError, timesheetError]);
 
   // Define grid columns for projects
   const projectGridColumns = '1fr 1.5fr 1fr 1fr 1.5fr 1fr 1.5fr auto';
@@ -164,10 +165,11 @@ const ViewClient = () => {
     );
   }
 
-  // Error state if client data failed to load
-  if (clientError && clientStatus === 'failed') { // Check specific client error
+  // Error state if client data failed to load - Handled by Alert
+  /*
+  if (clientError && clientStatus === 'failed') {
     return (
-      <div className="vehicles-page"> {/* Use standard page class */}
+      <div className="vehicles-page">
         <div className='error-message'>
           <FontAwesomeIcon icon={faExclamationCircle} />
           <p>{clientError}</p>
@@ -176,6 +178,7 @@ const ViewClient = () => {
       </div>
     );
   }
+  */
 
   // Fallback if loading finished but client is still null
   if (!client) {
@@ -187,17 +190,17 @@ const ViewClient = () => {
            <Link to="/clients" className="btn btn-secondary" style={{marginTop: '1rem'}}>Back to Clients</Link>
         </div>
       </div>
-     );
+     ); // Semicolon moved after parenthesis
   }
 
   return (
     // Use standard page class
     <div className="vehicles-page">
+      <Alert /> {/* Render Alert component here */}
       {/* Use standard header */}
       <div className="vehicles-header">
         <div className="title-breadcrumbs">
           <h2>
-            {/* Changed Title */}
             <FontAwesomeIcon icon={faUser} /> View Client
           </h2>
           <div className="breadcrumbs">
@@ -205,7 +208,6 @@ const ViewClient = () => {
             <span className="breadcrumb-separator"> / </span>
             <Link to="/clients" className="breadcrumb-link">Clients</Link>
             <span className="breadcrumb-separator"> / </span>
-            {/* Keep client name in breadcrumb */}
             <span className="breadcrumb-current">{client.name}</span>
           </div>
         </div>
@@ -230,13 +232,15 @@ const ViewClient = () => {
          )}
       </div>
 
-      {/* Display general errors below header */}
-      {combinedError && !clientError /* Don't show general if client fetch failed */ && (
+      {/* Display general errors below header - Handled by Alert */}
+      {/*
+      {combinedError && !clientError && (
          <div className='error-message' style={{marginBottom: '1rem'}}>
             <FontAwesomeIcon icon={faExclamationCircle} />
-            <p>{String(combinedError)}</p> {/* Ensure it's rendered as a string */}
+            <p>{String(combinedError)}</p>
          </div>
       )}
+      */}
 
       {/* --- START: New Client Summary Section --- */}
       <div className="client-summary-section">
@@ -244,7 +248,6 @@ const ViewClient = () => {
         <div className="client-summary-cards">
           {/* Card 1: Client Details */}
           <div className="summary-card client-details-card">
-            {/* Added Large User Icon */}
             <FontAwesomeIcon icon={faUser} className="client-avatar-icon" size="3x" />
             <div className="card-content">
               <h4 className="client-name-summary">{client.name}</h4>
@@ -327,16 +330,20 @@ const ViewClient = () => {
                 <div data-label="Address">{project.address || '--'}</div>
                 <div data-label="Expected Hrs">{project.expectedHours != null ? `${project.expectedHours} h` : '--'}</div>
                 <div data-label="Notes">{project.notes || '--'}</div>
-                {user?.role === "employer" && (
-                  <div data-label="Actions" className="actions"> {/* Use standard actions class */}
-                    <button
-                      className="btn-icon btn-icon-blue" // Standard icon button
-                      onClick={() => navigate(`/clients/${clientId}/projects/view/${project._id}`)}
-                      title={`View ${project.name}`}
-                      aria-label={`View ${project.name}`}
-                    >
-                      <FontAwesomeIcon icon={faEye} />
-                    </button>
+                {/* Always render the Actions cell, but conditionally render buttons inside */}
+                <div data-label="Actions" className="actions"> {/* Use standard actions class */}
+                  {/* View button always visible for authenticated users */}
+                  <button
+                    className="btn-icon btn-icon-blue" // Standard icon button
+                    onClick={() => navigate(`/clients/${clientId}/projects/view/${project._id}`)}
+                    title={`View ${project.name}`}
+                    aria-label={`View ${project.name}`}
+                  >
+                    <FontAwesomeIcon icon={faEye} />
+                  </button>
+                  {/* Edit and Delete buttons only for employers */}
+                  {user?.role === "employer" && (
+                    <>
                     <button
                       className="btn-icon btn-icon-yellow" // Standard icon button
                       onClick={() => navigate(`/clients/${clientId}/projects/update/${project._id}`)}
@@ -344,7 +351,7 @@ const ViewClient = () => {
                       aria-label={`Edit ${project.name}`}
                     >
                       <FontAwesomeIcon icon={faPen} />
-                    </button>
+                    </button> 
                     <button
                       className="btn-icon btn-icon-red" // Standard icon button
                       onClick={() => handleDeleteProject(project._id, project.name)} // Call the renamed handler
@@ -354,8 +361,9 @@ const ViewClient = () => {
                     >
                       <FontAwesomeIcon icon={faTrash} />
                     </button>
-                  </div>
-                )}
+                    </>
+                  )}
+                </div>
               </div>
             ))
           )}

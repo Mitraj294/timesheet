@@ -34,6 +34,8 @@ import ViewProject from "./components/pages/ViewProject";
 import ViewVehicle from "./components/pages/ViewVehicle";
 import ViewReview from './components/pages/ViewReview';
 import CreateOrUpdateVehicleReview from "./components/pages/CreateOrUpdateVehicleReview";
+import SettingsPage from './components/pages/SettingsPage'; // Import SettingsPage
+
 import 'leaflet/dist/leaflet.css';
 
 
@@ -135,14 +137,15 @@ const AppContent = () => {
 
 
         <Route path="/vehicles" element={<PrivateRoute><Vehicles /></PrivateRoute>} />
-        {/* Consider more RESTful naming like /vehicles/new */}
-        <Route path="/employer/vehicles/create" element={<PrivateRoute><CreateOrUpdateVehicle /></PrivateRoute>} />
+        {/* Route for creating a new vehicle */}
+        <Route path="/vehicles/create" element={<PrivateRoute><CreateOrUpdateVehicle /></PrivateRoute>} />
         <Route path="/vehicles/update/:vehicleId" element={<PrivateRoute><CreateOrUpdateVehicle /></PrivateRoute>} />
         <Route path="/vehicles/view/:vehicleId" element={<PrivateRoute><ViewVehicle /></PrivateRoute>} />
 
         <Route path="/vehicles/:vehicleId/review" element={<PrivateRoute><CreateOrUpdateVehicleReview /></PrivateRoute>} />
         <Route path="/vehicles/:vehicleId/reviews/:reviewId/edit" element={<PrivateRoute><CreateOrUpdateVehicleReview /></PrivateRoute>} />
         <Route path="/vehicles/reviews/:reviewId/view" element={<PrivateRoute><ViewReview /></PrivateRoute>} />
+        <Route path="/settings" element={<SettingsPage />} /> {/* Add Settings Route */}
 
         {/* Catch-all for undefined routes - Redirects to dashboard */}
         <Route path="*" element={<Navigate to="/dashboard" replace />} />

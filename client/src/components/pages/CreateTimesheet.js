@@ -35,6 +35,7 @@ import {
 } from '@fortawesome/free-solid-svg-icons';
 import '../../styles/Forms.scss';
 import { setAlert } from '../../redux/slices/alertSlice'; // Import setAlert
+import Alert from '../layout/Alert'; // Import Alert component
 import { DateTime } from 'luxon';
 
 const API_URL = process.env.REACT_APP_API_URL || 'https://timesheet-c4mj.onrender.com/api';
@@ -141,6 +142,15 @@ const CreateTimesheet = () => {
     [checkStatus, createStatus, updateStatus]
   );
 
+  // Effect to show alerts for fetch or save errors from Redux state
+  useEffect(() => {
+    const reduxError = projectError || checkError || createError || updateError;
+    if (reduxError) {
+      dispatch(setAlert(reduxError, 'danger'));
+      // Optionally clear the Redux error after showing the alert
+    }
+  }, [projectError, checkError, createError, updateError, dispatch]);
+
   useEffect(() => {
     dispatch(fetchEmployees());
     dispatch(fetchClients());
@@ -215,6 +225,7 @@ const CreateTimesheet = () => {
           const initialHours = calculateHoursPure(initialFormData);
           setFormData(prev => ({ ...prev, totalHours: initialHours }));
       } catch (calcError) {
+          dispatch(setAlert(`Error calculating initial hours: ${calcError.message}`, 'warning'));
           setError(`Error calculating initial hours: ${calcError.message}`);
       }
     } else { setFormData(DEFAULT_FORM_DATA); } // Reset form if not editing
@@ -254,6 +265,7 @@ const CreateTimesheet = () => {
           setFormData(prev => (prev.totalHours !== currentHours ? { ...prev, totalHours: currentHours } : prev));
           setError(null); // Clear calculation errors if successful
       } catch (calcError) {
+          dispatch(setAlert(calcError.message, 'warning')); // Show calculation error via Alert
           setError(calcError.message); // Show calculation errors
           setFormData(prev => (prev.totalHours !== 0 ? { ...prev, totalHours: 0 } : prev)); // Reset hours on error
       }
@@ -311,6 +323,7 @@ const CreateTimesheet = () => {
         }
     } catch (calcError) {
         setError(calcError.message); return;
+        dispatch(setAlert(calcError.message, 'danger')); // Show calculation error via Alert
     }
 
     const validationError = validateForm();
@@ -328,6 +341,7 @@ const CreateTimesheet = () => {
         })).unwrap(); // unwrap to catch potential rejections here
 
         if (checkAction.exists) {
+          dispatch(setAlert('A timesheet for this employee on this date already exists.', 'warning'));
           setError('A timesheet for this employee on this date already exists.');
           return; // Stop submission
         }
@@ -412,11 +426,11 @@ const CreateTimesheet = () => {
   const isProjectLoading = projectStatus === 'loading';
 
   return (
-    <div className='vehicles-page'>
+    <div className='vehicles-page'> 
+      <Alert /> {/* Render Alert component here */}
       <div className='vehicles-header'>
         <div className='title-breadcrumbs'>
           <h2>
-            <FontAwesomeIcon icon={isEditing ? faPen : faClock} />{' '}
             {isEditing ? 'Edit' : 'Create'} Timesheet
           </h2>
           <div className='breadcrumbs'>
@@ -431,11 +445,11 @@ const CreateTimesheet = () => {
 
       <div className='form-container'>
         <form onSubmit={handleSubmit} className='employee-form' noValidate>
-          {(error || projectError || checkError || createError || updateError) && (
+          {/* {(error || projectError || checkError || createError || updateError) && ( // Handled by Alert component
             <div className='form-error-message'>
               <FontAwesomeIcon icon={faExclamationCircle} /> {error || projectError || checkError || createError || updateError}
             </div>
-          )}
+          )} */}
 
           <div className='form-group'>
             <label htmlFor='employeeId'><FontAwesomeIcon icon={faUserTie} /> Employee*</label>

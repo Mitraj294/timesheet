@@ -1,14 +1,16 @@
+// /home/digilab/timesheet/client/src/styles/Navbar.scss
+
 .navbar {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    background: #007bff;
+    background: #007bff; // Primary background color
     padding: 15px 20px;
     color: white;
     position: sticky;
     width: 100%;
     top: 0;
-    left: 0;
+    left: 0; // Ensure it sticks to the left edge
     z-index: 1000;
 }
 
@@ -18,6 +20,12 @@
     color: white;
     font-size: 20px;
     cursor: pointer;
+    padding: 5px; // Add some padding
+    line-height: 1; // Ensure icon aligns well
+
+    &:hover {
+        background-color: rgba(255, 255, 255, 0.1); // Slight hover effect
+    }
 }
 
 .navbar-center {
@@ -26,50 +34,179 @@
     gap: 10px;
 }
 
-.navbar-logo {
-    height: 40px;
+// --- START: Updated Center Section Styles ---
+.navbar-logo-container {
+    display: flex;
+    align-items: center; // Vertically align logo and text group
+    gap: 8px; // Space between logo and text group
+    // Allow this section to take up available space if needed, but not push others out
+    flex-grow: 1;
+    justify-content: center; // Center the logo/title group within its section
 }
 
-.logo {
+.navbar-logo-icon {
+    height: 35px; // Adjust this value to make the logo smaller or larger
+    width: auto; // Maintain aspect ratio
+}
+
+.navbar-title-role {
+    display: flex; // Keep title and role inline
+    align-items: baseline; // Align text nicely
+    gap: 5px; // Space between "TimeSheet" and "(Role)"
+}
+
+.navbar-logo-text {
     font-size: 20px;
     font-weight: bold;
+    margin: 0; // Remove default margin
+    color: white; // Ensure text is white
 }
 
-.user-role {
+.navbar-user-role-text {
     font-size: 14px;
-    background: rgba(255, 255, 255, 0.2);
+    background: rgba(255, 255, 255, 0.2); // Light background for role
     padding: 5px 10px;
     border-radius: 5px;
+    font-weight: 500; // Slightly bolder
+    color: white; // Ensure text is white
 }
 
-.navbar-user {
+// --- END: Updated Center Section Styles ---
+
+// --- START: Updated Right Section Styles ---
+.navbar-user-nav {
     display: flex;
     align-items: center;
-    gap: 15px;
+    position: relative; // Needed for absolute positioning of dropdown
 }
 
-.user-icon {
-    font-size: 20px;
-}
-
-.username {
-    font-size: 16px;
-}
-
-.navbar-icon {
-    font-size: 18px;
-    color: white;
-    cursor: pointer;
-}
-
-.logout-btn {
-    background: none;
+.navbar-user-button {
+    background: none; // No background for the button itself
     border: none;
-    font-size: 18px;
     color: white;
     cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 5px 10px; // Add some padding
+    border-radius: 4px; // Optional: slight rounding
+    transition: background-color 0.2s ease;
+
+    &:hover {
+        background-color: rgba(255, 255, 255, 0.1); // Hover effect
+    }
 }
 
-.logout-btn:hover {
-    color: #ff4d4d;
+.navbar-user-name {
+    font-size: 16px;
+    font-weight: 500;
 }
+
+.navbar-user-caret {
+    font-size: 14px; // Adjust caret size
+}
+
+.navbar-user-dropdown {
+    position: absolute;
+    top: 100%; // Position below the button
+    right: 0; // Align to the right
+    background-color: white; // White background for dropdown
+    color: #333; // Dark text for dropdown items
+    border-radius: 4px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    min-width: 160px; // Minimum width
+    z-index: 1001; // Ensure it's above other content
+    padding: 8px 0; // Padding top/bottom
+    display: flex; // Use flex for vertical layout
+    flex-direction: column; // Stack items vertically
+}
+
+.navbar-dropdown-link {
+    display: flex; // Use flex for icon and text alignment
+    align-items: center;
+    gap: 10px; // Space between icon and text
+    padding: 10px 15px; // Padding for each link
+    color: #333; // Link text color
+    text-decoration: none;
+    font-size: 15px;
+    cursor: pointer;
+    background: none; // Ensure button variant has no background initially
+    border: none; // Ensure button variant has no border
+    text-align: left; // Align button text left
+    width: 100%; // Make button take full width
+
+    &:hover {
+        background-color: #f0f0f0; // Hover background for links
+    }
+}
+
+.navbar-dropdown-icon {
+    width: 16px; // Fixed width for icon alignment
+    text-align: center;
+    color: #555; // Icon color
+}
+
+.logout-button {
+
+    // Specific styling for logout button if needed
+    &:hover {
+        color: #dc3545; // Red hover text for logout
+        background-color: #f8d7da; // Light red background on hover
+    }
+}
+
+// --- END: Updated Right Section Styles ---
+
+// --- START: Responsive Styles ---
+@media (max-width: 768px) {
+    .navbar {
+        padding: 10px 15px; // Reduce padding on smaller screens
+    }
+
+    .navbar-logo-container {
+        flex-grow: 0; // Don't let it grow too much
+        margin: 0 auto; // Attempt to center it more reliably
+    }
+
+    .navbar-logo-text {
+        font-size: 18px; // Slightly smaller title
+    }
+
+    .navbar-user-role-text {
+        font-size: 12px; // Smaller role text
+        padding: 3px 6px;
+    }
+
+    .navbar-user-name {
+        display: none; // Hide username on small screens, show only dropdown icon/button
+    }
+
+    .navbar-user-button {
+        padding: 5px; // Reduce padding if only icon is shown
+    }
+
+    .navbar-user-dropdown {
+        min-width: 140px; // Slightly smaller dropdown
+    }
+
+    .navbar-dropdown-link {
+        font-size: 14px;
+        padding: 8px 12px;
+    }
+}
+
+@media (max-width: 480px) {
+    .navbar-logo-text {
+        font-size: 16px; // Even smaller title
+    }
+
+    .navbar-user-role-text {
+        display: none; // Hide role text on very small screens
+    }
+
+    .navbar-logo-container {
+        gap: 5px; // Reduce gap
+    }
+}
+
+// --- END: Responsive Styles ---

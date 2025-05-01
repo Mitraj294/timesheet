@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
-import axios from 'axios';
+import { useSelector, useDispatch } from 'react-redux';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
   faEdit,
@@ -11,10 +11,24 @@ import {
   faTimes,
   faSave,
 } from '@fortawesome/free-solid-svg-icons';
-import '../../styles/Forms.scss';
 
-const API_URL =
-  process.env.REACT_APP_API_URL || 'https://timesheet-c4mj.onrender.com/api';
+import {
+  fetchVehicleById,
+  createVehicle,
+  updateVehicle,
+  selectVehicleByIdState,
+  selectCurrentVehicleStatus,
+  selectCurrentVehicleError,
+  selectVehicleOperationStatus,
+  selectVehicleOperationError,
+  resetCurrentVehicle,
+  clearOperationStatus,
+} from '../../redux/slices/vehicleSlice';
+import { setAlert } from '../../redux/slices/alertSlice'; // Import setAlert
+import Alert from '../layout/Alert'; // Import Alert component
+
+
+import '../../styles/Forms.scss';
 
 const CreateOrUpdateVehicle = () => {
   const { vehicleId } = useParams();
@@ -26,48 +40,58 @@ const CreateOrUpdateVehicle = () => {
     hours: '',
     wofRego: '',
   });
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState(null);
+  const [formError, setFormError] = useState(null);
+
+  const dispatch = useDispatch();
+
+  const currentVehicle = useSelector(selectVehicleByIdState);
+  const fetchStatus = useSelector(selectCurrentVehicleStatus);
+  const fetchError = useSelector(selectCurrentVehicleError);
+  const operationStatus = useSelector(selectVehicleOperationStatus);
+  const operationError = useSelector(selectVehicleOperationError);
+
+  // Effect to show alerts for fetch or save errors from Redux state
+  useEffect(() => {
+    const reduxError = fetchError || operationError;
+    if (reduxError) {
+      dispatch(setAlert(reduxError, 'danger'));
+      // Optionally clear the Redux error after showing the alert
+      // dispatch(clearOperationStatus()); // Or specific error clear actions
+    }
+  }, [fetchError, operationError, dispatch]);
 
   useEffect(() => {
-    if (isEditMode) {
-      setIsLoading(true);
-      setError(null);
-      const fetchVehicle = async () => {
-        try {
-          const token = localStorage.getItem('token');
-          if (!token) throw new Error('Authentication required.');
+    dispatch(clearOperationStatus());
 
-          const res = await axios.get(`${API_URL}/vehicles/${vehicleId}`, {
-            headers: { Authorization: `Bearer ${token}` },
-          });
-          const data = res.data;
-          setVehicleData({
-            name: data.name || '',
-            hours: data.hours?.toString() || '',
-            wofRego: data.wofRego || '',
-          });
-        } catch (err) {
-          console.error('Error fetching vehicle:', err);
-          setError(
-            err.response?.data?.message || 'Failed to load vehicle data.'
-          );
-          if (err.response?.status === 401) {
-            navigate('/login');
-          }
-        } finally {
-          setIsLoading(false);
-        }
-      };
-      fetchVehicle();
+    if (isEditMode) {
+      if (fetchStatus === 'idle' || currentVehicle?._id !== vehicleId) {
+         dispatch(fetchVehicleById(vehicleId));
+      }
     } else {
+      // Reset form and current vehicle state for create mode
       setVehicleData({
         name: '',
         hours: '',
         wofRego: '',
       });
+      dispatch(resetCurrentVehicle());
     }
-  }, [isEditMode, vehicleId, navigate]);
+
+    return () => {
+      dispatch(resetCurrentVehicle());
+      dispatch(clearOperationStatus());
+    };
+  }, [isEditMode, vehicleId, dispatch, fetchStatus, currentVehicle?._id]); // Added fetchStatus and currentVehicle?._id
+
+  useEffect(() => {
+    if (isEditMode && fetchStatus === 'succeeded' && currentVehicle?._id === vehicleId) {
+      setVehicleData({
+        name: currentVehicle.name || '',
+        hours: currentVehicle.hours?.toString() || '',
+        wofRego: currentVehicle.wofRego || '',
+      });
+    }
+  }, [fetchStatus, currentVehicle, isEditMode, vehicleId]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -75,6 +99,7 @@ const CreateOrUpdateVehicle = () => {
       ...prev,
       [name]: value,
     }));
+    if (formError) setFormError(null);
   };
 
   const validateForm = () => {
@@ -90,52 +115,45 @@ const CreateOrUpdateVehicle = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError(null);
+    setFormError(null);
+    dispatch(clearOperationStatus());
 
     const validationError = validateForm();
     if (validationError) {
-      setError(validationError);
+      dispatch(setAlert(validationError, 'warning')); // Show validation error via Alert
+      setFormError(validationError);
       return;
     }
 
-    setIsLoading(true);
     try {
-      const token = localStorage.getItem('token');
-      if (!token) throw new Error('Authentication required.');
-
-      const config = { headers: { Authorization: `Bearer ${token}` } };
       const dataToSubmit = {
         ...vehicleData,
         hours: parseFloat(vehicleData.hours),
       };
 
       if (isEditMode) {
-        await axios.put(
-          `${API_URL}/vehicles/${vehicleId}`,
-          dataToSubmit,
-          config
-        );
+        await dispatch(updateVehicle({ vehicleId, vehicleData: dataToSubmit })).unwrap();
+        dispatch(setAlert('Vehicle updated successfully!', 'success'));
       } else {
-        await axios.post(`${API_URL}/vehicles`, dataToSubmit, config);
+        await dispatch(createVehicle(dataToSubmit)).unwrap();
+        dispatch(setAlert('Vehicle created successfully!', 'success'));
       }
 
       navigate('/vehicles');
     } catch (err) {
       console.error('Failed to save vehicle:', err);
-      setError(
-        err.response?.data?.message ||
-          `Failed to ${isEditMode ? 'update' : 'create'} vehicle.`
-      );
-      if (err.response?.status === 401) {
+      // Error is now handled by Redux state (operationError) and displayed by useEffect
+      // If the thunk doesn't dispatch setAlert on error, uncomment the line below
+      dispatch(setAlert(err?.message || `Failed to ${isEditMode ? 'update' : 'create'} vehicle.`, 'danger'));
+      if (err?.message?.includes('401') || err?.message?.includes('403')) {
         navigate('/login');
       }
-    } finally {
-      setIsLoading(false);
     }
   };
 
   return (
-    <div className='vehicles-page'> {/* Use standard page class */}
+    <div className='vehicles-page'>
+      <Alert /> {/* Render Alert component here */}
       <div className='vehicles-header'> {/* Use standard header */}
         <div className='title-breadcrumbs'>
           <h2>
@@ -154,16 +172,23 @@ const CreateOrUpdateVehicle = () => {
         </div>
       </div>
 
-      <div className='form-container'>
+      {isEditMode && fetchStatus === 'loading' && (
+        <div className='loading-indicator'>
+          <FontAwesomeIcon icon={faSpinner} spin size="2x" /> <p>Loading vehicle data...</p>
+        </div>
+      )}
+
+      <div className='form-container'> {/* Ensure this div is closed */}
         <form
           onSubmit={handleSubmit}
-          className='employee-form' 
+          className='employee-form'
         >
-          {error && (
+          {/* {(formError || fetchError || operationError) && ( // Handled by Alert component
             <div className='form-error-message'>
-              <FontAwesomeIcon icon={faExclamationCircle} /> {error}
+              <FontAwesomeIcon icon={faExclamationCircle} /> {formError || fetchError || operationError}
             </div>
-          )}
+          )} */}
+          
 
           <div className='form-group'>
             <label htmlFor='name'>Name*</label>
@@ -174,7 +199,7 @@ const CreateOrUpdateVehicle = () => {
               value={vehicleData.name}
               onChange={handleChange}
               required
-              disabled={isLoading}
+              disabled={operationStatus === 'loading' || fetchStatus === 'loading'}
               placeholder='Vehicle Name'
             />
           </div>
@@ -188,7 +213,7 @@ const CreateOrUpdateVehicle = () => {
               value={vehicleData.hours}
               onChange={handleChange}
               required
-              disabled={isLoading}
+              disabled={operationStatus === 'loading' || fetchStatus === 'loading'}
               placeholder='Hours'
               min='0'
               step='any'
@@ -203,26 +228,26 @@ const CreateOrUpdateVehicle = () => {
               name='wofRego'
               value={vehicleData.wofRego}
               onChange={handleChange}
-              disabled={isLoading}
+              disabled={operationStatus === 'loading' || fetchStatus === 'loading'}
               placeholder='WOF/Rego Details'
             />
           </div>
 
-          <div className='form-footer'> {/* Use standard footer */}
+          <div className='form-footer'>
             <button
               type='button'
-              className='btn btn-danger' 
+              className='btn btn-danger'
               onClick={() => navigate('/vehicles')}
-              disabled={isLoading}
+              disabled={operationStatus === 'loading'}
             >
               <FontAwesomeIcon icon={faTimes} /> Cancel
             </button>
             <button
               type='submit'
-              className='btn btn-success' 
-              disabled={isLoading}
+              className='btn btn-success' // Standard button class
+              disabled={operationStatus === 'loading' || fetchStatus === 'loading'} // Disable during fetch or operation
             >
-              {isLoading ? (
+              {operationStatus === 'loading' ? ( // Check Redux operationStatus instead of isLoading
                 <> <FontAwesomeIcon icon={faSpinner} spin /> Saving... </>
               ) : (
                 <>
@@ -232,8 +257,8 @@ const CreateOrUpdateVehicle = () => {
               )}
             </button>
           </div>
-        </form>
-      </div>
+        </form> 
+      </div> {/* Closes form-container div */}
     </div>
   );
 };

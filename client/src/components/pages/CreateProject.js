@@ -10,7 +10,8 @@ import {
   selectProjectStatus, selectProjectError, // For create/update status
   clearCurrentProject, clearProjectError // Import clear actions
 } from "../../redux/slices/projectSlice";
-import { setAlert } from "../../redux/slices/alertSlice";
+import { setAlert } from "../../redux/slices/alertSlice"; // Import setAlert
+import Alert from "../layout/Alert"; // Import Alert component
 
 import {
   faBriefcase,
@@ -65,6 +66,15 @@ const CreateProject = () => {
     saveError, // Include save error
     [error, currentProjectError, saveError]
   );
+
+  // Effect to show alerts for fetch or save errors from Redux state
+  useEffect(() => {
+    const reduxError = currentProjectError || saveError;
+    if (reduxError) {
+      dispatch(setAlert(reduxError, 'danger'));
+      // Optionally clear the Redux error after showing the alert
+    }
+  }, [currentProjectError, saveError, dispatch]);
 
   useEffect(() => {
     if (isEditing) {
@@ -128,6 +138,7 @@ const CreateProject = () => {
     const validationError = validateForm();
     if (validationError) {
       setError(validationError);
+      dispatch(setAlert(validationError, 'warning')); // Show validation error via Alert
       return;
     }
 
@@ -171,6 +182,7 @@ const CreateProject = () => {
 
   return (
     <div className="vehicles-page"> {/* Use standard page class */}
+       <Alert /> {/* Render Alert component here */}
        <div className="vehicles-header"> {/* Use standard header */}
         <div className="title-breadcrumbs">
           <h2>
@@ -191,11 +203,11 @@ const CreateProject = () => {
 
       <div className="form-container"> {/* Use standard form container */}
         <form onSubmit={handleSubmit} className="employee-form" noValidate> {/* Use standard form class */}
-           {combinedError && ( // Use combined error state
+           {/* {combinedError && ( // Handled by Alert component
             <div className='form-error-message'>
               <FontAwesomeIcon icon={faExclamationCircle} /> {combinedError}
             </div>
-          )}
+          )} */}
 
           <div className="form-group">
             <label htmlFor="projectName">Project Name*</label>

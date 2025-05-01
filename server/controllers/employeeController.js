@@ -18,19 +18,23 @@ export const addEmployee = async (req, res) => {
     console.log("Type of wage:", typeof req.body.wage);
     console.log("Type of employeeCode:", typeof req.body.employeeCode);
 
-    const { name, email, role, department, employeeCode, wage } = req.body;
+    // Include all fields from the request body, including userId
+    const { name, email, employeeCode, wage, isAdmin, overtime, expectedHours, holidayMultiplier, userId } = req.body;
 
     if (!name || !email || !employeeCode || !wage) {
-      return res.status(400).json({ error: "All fields are required" });
+      return res.status(400).json({ error: "Name, Email, Employee Code, and Wage are required" });
     }
-
+    // Create new employee using all provided data
     const newEmployee = new Employee({
       name,
       email,
-      role,
-      department,
       employeeCode,
       wage: Number(wage), 
+      isAdmin,
+      overtime,
+      expectedHours,
+      holidayMultiplier,
+      userId // Save the linked userId
     });
 
     await newEmployee.save();
@@ -75,5 +79,3 @@ export const deleteEmployee = async (req, res) => {
     res.status(500).json({ error: "Server error" });
   }
 };
-
-

@@ -47,7 +47,8 @@ import {
     selectTimesheetProjectSendError, // Use project send error
     clearTimesheetError, clearProjectDownloadStatus, clearProjectSendStatus // Import clear actions
 } from '../../redux/slices/timesheetSlice';
-import { setAlert } from '../../redux/slices/alertSlice';
+import { setAlert } from '../../redux/slices/alertSlice'; // Import setAlert
+import Alert from '../layout/Alert'; // Import Alert component
 
 const ALL_PROJECTS_VALUE = 'ALL_PROJECTS';
 
@@ -216,10 +217,10 @@ const ProjectTimesheet = ({ initialProjectId = '', onProjectChange, showProjectS
   const [showDownloadFilters, setShowDownloadFilters] = useState(false);
   const [showSendFilters, setShowSendFilters] = useState(false);
   const [error, setError] = useState(null);
-  const [downloadError, setDownloadError] = useState(null); // Local display error
-  const [sendError, setSendError] = useState(null); // Local display error
+  // const [downloadError, setDownloadError] = useState(null); // Replaced by Redux alert
+  // const [sendError, setSendError] = useState(null); // Replaced by Redux alert
 
-  const browserTimezone = useMemo(() => DateTime.local().zoneName, []);
+  const browserTimezone = useMemo(() => DateTime.local().zoneName, []); // Keep this
 
   // --- Combined Loading and Error States ---
   const isLoading = useMemo(() =>
@@ -231,26 +232,21 @@ const ProjectTimesheet = ({ initialProjectId = '', onProjectChange, showProjectS
   );
   const isDownloading = useMemo(() => downloadStatus === 'loading', [downloadStatus]);
   const isSending = useMemo(() => sendStatus === 'loading', [sendStatus]);
-  const combinedError = useMemo(() =>
-    error || employeeError || clientError || projectError || timesheetError,
-    [error, employeeError, clientError, projectError, timesheetError]
-  );
 
-  // Effect to update local download error state from Redux state
+  // Effect to show alerts for fetch/operation errors from Redux state
   useEffect(() => {
-    if (downloadStatus === 'failed' && downloadErrorRedux) {
-      setDownloadError(downloadErrorRedux);
-      dispatch(clearProjectDownloadStatus()); // Clear Redux error state after setting local state
+    // Combine all relevant Redux errors
+    const reduxError = employeeError || clientError || projectError || timesheetError || downloadErrorRedux || sendErrorRedux;
+    if (reduxError) {
+      dispatch(setAlert(reduxError, 'danger'));
+      // Optionally clear the specific Redux error after showing the alert
+      // if (downloadErrorRedux) dispatch(clearProjectDownloadStatus());
+      // if (sendErrorRedux) dispatch(clearProjectSendStatus());
+      // if (timesheetError) dispatch(clearTimesheetError());
+      // etc.
     }
-  }, [downloadStatus, downloadErrorRedux, dispatch]);
+  }, [employeeError, clientError, projectError, timesheetError, downloadErrorRedux, sendErrorRedux, dispatch]);
 
-  // Effect to update local send error state from Redux state
-  useEffect(() => {
-    if (sendStatus === 'failed' && sendErrorRedux) {
-      setSendError(sendErrorRedux);
-      dispatch(clearProjectSendStatus()); // Clear Redux error state after setting local state
-    }
-  }, [sendStatus, sendErrorRedux, dispatch]);
 
   // Fetch initial data (employees, clients, all projects)
   useEffect(() => {
@@ -270,11 +266,11 @@ const ProjectTimesheet = ({ initialProjectId = '', onProjectChange, showProjectS
     setError(null);
     try {
       const { start, end } = calculateDateRange(currentDate, viewType);
-      const startDateStr = DateTime.fromJSDate(start).toFormat('yyyy-MM-dd');
-      const endDateStr = DateTime.fromJSDate(end).toFormat('yyyy-MM-dd');
+      const startDateStr = DateTime.fromJSDate(start).toISODate(); // Use ISO Date format
+      const endDateStr = DateTime.fromJSDate(end).toISODate(); // Use ISO Date format
       const params = {
           startDate: startDateStr,
-          endDate: endDateStr
+          endDate: endDateStr,
       };
       if (selectedProjectId !== ALL_PROJECTS_VALUE) {
           params.projectId = selectedProjectId;
@@ -284,9 +280,10 @@ const ProjectTimesheet = ({ initialProjectId = '', onProjectChange, showProjectS
     } catch (error) {
       console.error('ProjectTimesheet: Error fetching timesheets:', error.response?.data || error.message);
       if (!error.message?.includes('token')) {
-          setError(error.response?.data?.message || 'Failed to fetch project timesheets.');
+          // setError(error.response?.data?.message || 'Failed to fetch project timesheets.'); // Handled by Alert
+          dispatch(setAlert(error.response?.data?.message || 'Failed to fetch project timesheets.', 'danger'));
       }
-      setTimesheets([]);
+      // setTimesheets([]); // Data comes from Redux now
     }
     // No finally block needed as loading is handled by Redux status
   }, [selectedProjectId, currentDate, viewType, dispatch]);
@@ -322,7 +319,7 @@ const ProjectTimesheet = ({ initialProjectId = '', onProjectChange, showProjectS
     } catch (error) {
       console.error('Error deleting timesheet:', error.response?.data || error.message);
       const errorMessage = error?.message || 'Failed to delete timesheet entry.';
-      setError(errorMessage); // Set local error
+      // setError(errorMessage); // Handled by Alert
       dispatch(setAlert(errorMessage, 'danger'));
     }
    }, [navigate, fetchTimesheets]);
@@ -360,10 +357,16 @@ const ProjectTimesheet = ({ initialProjectId = '', onProjectChange, showProjectS
    const handleSendEmail = useCallback(async () => {
     const isAllProjects = selectedProjectId === ALL_PROJECTS_VALUE;
     // const endpoint = isAllProjects ? `${API_URL}/timesheets/send` : `${API_URL}/timesheets/send-email/project`; // Endpoint handled in thunk
+    
+    // Validation
+    if (!isAllProjects && !selectedProjectId) {
+        dispatch(setAlert('No project selected.', 'warning')); return;
+    }
+    if (!email || !/\S+@\S+\.\S+/.test(email)) {
+        dispatch(setAlert('Please enter a valid recipient email address.', 'warning')); return;
+    }
 
-    if (!isAllProjects && !selectedProjectId) { setSendError('No project selected.'); return; } // Keep validation
-    if (!email || !/\S+@\S+\.\S+/.test(email)) { setSendError('Please enter a valid recipient email address.'); return; }
-
+    // --- Removed local error state handling ---
     setSendError(null); // Clear local error
     dispatch(clearProjectSendStatus()); // Clear Redux status/error
 
@@ -372,8 +375,8 @@ const ProjectTimesheet = ({ initialProjectId = '', onProjectChange, showProjectS
             email,
             projectIds: !isAllProjects && selectedProjectId ? [selectedProjectId] : [], // Pass project ID for project-specific thunk
             employeeIds: selectedEmployee ? [selectedEmployee] : [],
-            startDate: startDate ? DateTime.fromJSDate(startDate).toFormat('yyyy-MM-dd') : null,
-            endDate: endDate ? DateTime.fromJSDate(endDate).toFormat('yyyy-MM-dd') : null,
+            startDate: startDate ? DateTime.fromJSDate(startDate).toISODate() : null,
+            endDate: endDate ? DateTime.fromJSDate(endDate).toISODate() : null,
             timezone: browserTimezone,
         };
 
@@ -384,7 +387,7 @@ const ProjectTimesheet = ({ initialProjectId = '', onProjectChange, showProjectS
         dispatch(setAlert(`Project timesheet report sent successfully to ${email}`, 'success'));
 
     } catch (error) {
-        // Error handled by useEffect watching sendErrorRedux
+        // Error handled by useEffect watching sendErrorRedux and dispatching setAlert
         console.error(`Error sending project timesheet email:`, error);
     }
     // No finally block needed, loading state handled by Redux
@@ -393,10 +396,11 @@ const ProjectTimesheet = ({ initialProjectId = '', onProjectChange, showProjectS
 const handleDownload = useCallback(async () => {
     const isAllProjects = selectedProjectId === ALL_PROJECTS_VALUE;
     // const endpoint = isAllProjects ? `${API_URL}/timesheets/download` : `${API_URL}/timesheets/download/project`; // Endpoint handled in thunk
-
-    if (!isAllProjects && !selectedProjectId) { setDownloadError('No project selected.'); return; } // Keep validation
-
+    if (!isAllProjects && !selectedProjectId) {
+        dispatch(setAlert('No project selected.', 'warning')); return;
+    }
     setDownloadError(null); // Clear local error
+    // --- Removed local error state handling ---
     dispatch(clearProjectDownloadStatus()); // Clear Redux status/error
 
     try {
@@ -404,8 +408,8 @@ const handleDownload = useCallback(async () => {
             projectIds: !isAllProjects && selectedProjectId ? [selectedProjectId] : [],
             employeeIds: selectedEmployee ? [selectedEmployee] : [],
             startDate: startDate ? DateTime.fromJSDate(startDate).toFormat('yyyy-MM-dd') : null,
-            endDate: endDate ? DateTime.fromJSDate(endDate).toFormat('yyyy-MM-dd') : null,
-            timezone: browserTimezone,
+            endDate: endDate ? DateTime.fromJSDate(endDate).toISODate() : null,
+            timezone: browserTimezone, // Ensure this is passed
         };
 
         // Dispatch the project-specific download thunk
@@ -424,9 +428,10 @@ const handleDownload = useCallback(async () => {
         link.click();
         link.remove();
         window.URL.revokeObjectURL(url);
+        dispatch(setAlert('Project timesheet report downloaded successfully.', 'success')); // Success alert
         setShowDownloadFilters(false); setSelectedEmployee(''); setStartDate(null); setEndDate(null);
     } catch (error) {
-        // Error handled by useEffect watching downloadErrorRedux
+        // Error handled by useEffect watching downloadErrorRedux and dispatching setAlert
         console.error(`Project Download failed:`, error);
     }
     // No finally block needed, loading state handled by Redux
@@ -611,6 +616,7 @@ const handleDownload = useCallback(async () => {
 
   return (
     <div className='project-timesheet-container timesheet-page'>
+       <Alert /> {/* Render Alert component here */}
        <div className="timesheet-header">
         <div className="title-breadcrumbs">
           <h3><FontAwesomeIcon icon={faProjectDiagram} /> Project Timesheet</h3>
@@ -627,7 +633,7 @@ const handleDownload = useCallback(async () => {
 
       {showDownloadFilters && (
         <div id="project-timesheet-download-options" className="timesheet-options-container download-options">
-          <h4>Download Timesheet Report</h4>
+          <h4>Download Project Timesheet Report</h4>
           {downloadError && <p className='error-text'><FontAwesomeIcon icon={faExclamationCircle} /> {downloadError}</p>}
           <div className="filter-controls">
        
@@ -642,7 +648,7 @@ const handleDownload = useCallback(async () => {
       )}
       {showSendFilters && (
         <div id="project-timesheet-send-options" className="timesheet-options-container send-options">
-          <h4>Send Timesheet Report</h4>
+          <h4>Send Project Timesheet Report</h4>
            {sendError && <p className='error-text'><FontAwesomeIcon icon={faExclamationCircle} /> {sendError}</p>}
           <div className="filter-controls">
            
@@ -700,9 +706,9 @@ const handleDownload = useCallback(async () => {
 
        {isLoading ? (
          <div className='loading-indicator'><FontAwesomeIcon icon={faSpinner} spin size='2x' /> Loading Timesheets...</div>
-       ) : error ? (
+       ) : /* error ? ( // Handled by Alert component
          <div className='error-message'><FontAwesomeIcon icon={faExclamationCircle} /> {error}</div>
-       ) : !selectedProjectId ? (
+       ) : */ !selectedProjectId ? (
          <div className='no-results'>Please select a project {showProjectSelector ? '(or "All Projects") ' : ''}to view timesheets.</div>
        ) : (
          viewType === 'Daily' ? (

@@ -1,6 +1,6 @@
 // /home/digilab/timesheet/server/routes/authRoutes.js
 import express from "express";
-import { registerUser, loginUser } from "../controllers/authController.js";
+import { registerUser, loginUser, changePassword } from "../controllers/authController.js"; // Import changePassword
 import User from "../models/User.js";
 // Import the authentication middleware
 import { protect } from '../middleware/authMiddleware.js'; // Adjust path if needed
@@ -33,6 +33,9 @@ router.post("/check-user", async (req, res) => {
     return res.status(500).json({ message: "Server error checking user." });
   }
 });
+
+// PUT /api/auth/change-password - Handles password change for logged-in user
+router.put('/change-password', protect, changePassword); // Add this line
 
 
 // --- Protected Routes ---

@@ -1,7 +1,7 @@
-import React, { useEffect, useState } from 'react';
+// /home/digilab/timesheet/client/src/components/pages/ViewVehicle.js
+import React, { useEffect, useState, useMemo } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { useSelector } from 'react-redux';
-import axios from 'axios';
+import { useSelector, useDispatch } from 'react-redux';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
   faDownload,
@@ -19,73 +19,79 @@ import {
 } from '@fortawesome/free-solid-svg-icons';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
-// Import the dedicated SCSS file
-import '../../styles/ViewVehicle.scss'; // Use ViewVehicle.scss
-
-const API_URL =
-  process.env.REACT_APP_API_URL || 'https://timesheet-c4mj.onrender.com/api';
+import {
+  fetchVehicleById,
+  downloadVehicleReport,
+  sendVehicleReportByEmail,
+  selectVehicleByIdState,
+  selectCurrentVehicleStatus,
+  selectCurrentVehicleError,
+  selectVehicleReportStatus,
+  selectVehicleReportError,
+  resetCurrentVehicle,
+  clearReportStatus,
+} from '../../redux/slices/vehicleSlice';
+import {
+  fetchReviewsByVehicleId,
+  deleteVehicleReview,
+  selectAllReviewsForVehicle,
+  selectReviewListStatus,
+  selectReviewListError,
+  selectReviewOperationStatus,
+  selectReviewOperationError,
+  clearReviewOperationStatus,
+  resetReviewState,
+} from '../../redux/slices/vehicleReviewSlice';
+import { setAlert } from '../../redux/slices/alertSlice'; // Import setAlert
+import Alert from '../layout/Alert'; // Import Alert component
+import '../../styles/ViewVehicle.scss';
 
 const ViewVehicle = () => {
   const { vehicleId } = useParams();
   const navigate = useNavigate();
-
-  const [vehicle, setVehicle] = useState(null);
-  const [vehicleHistory, setVehicleHistory] = useState([]);
   const [search, setSearch] = useState('');
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-
   const [showDateRangePicker, setShowDateRangePicker] = useState(false);
   const [startDate, setStartDate] = useState(null);
   const [endDate, setEndDate] = useState(null);
-  const [downloading, setDownloading] = useState(false);
-  const [downloadError, setDownloadError] = useState(null);
   const [showSendReport, setShowSendReport] = useState(false);
   const [sendEmail, setSendEmail] = useState('');
-  const [sending, setSending] = useState(false);
-  const [sendError, setSendError] = useState(null);
+  // Local validation errors handled by dispatching alerts
+
+  const dispatch = useDispatch();
 
   const { user } = useSelector((state) => state.auth || {});
+  const vehicle = useSelector(selectVehicleByIdState);
+  const vehicleFetchStatus = useSelector(selectCurrentVehicleStatus);
+  const vehicleFetchError = useSelector(selectCurrentVehicleError);
+  const vehicleHistory = useSelector(selectAllReviewsForVehicle);
+  const reviewFetchStatus = useSelector((state) => state.vehicleReviews.status);
+  const reviewFetchError = useSelector((state) => state.vehicleReviews.error);
+  const reviewOperationStatus = useSelector(selectReviewOperationStatus);
+  const reviewOperationError = useSelector(selectReviewOperationError);
+  const reportStatus = useSelector(selectVehicleReportStatus);
+  const reportError = useSelector(selectVehicleReportError);
+
+  const isLoading = vehicleFetchStatus === 'loading' || reviewFetchStatus === 'loading';
+  const fetchError = vehicleFetchError || reviewFetchError;
 
   useEffect(() => {
-    const fetchVehicleWithReviews = async () => {
-      setLoading(true);
-      setError(null);
-      setDownloadError(null);
-      setSendError(null);
-      try {
-        const token = localStorage.getItem('token');
-        if (!token) throw new Error('Authentication required.');
-
-        const config = { headers: { Authorization: `Bearer ${token}` } };
-
-        const [vehicleRes, reviewsRes] = await Promise.all([
-          axios.get(`${API_URL}/vehicles/${vehicleId}`, config),
-          axios.get(`${API_URL}/vehicles/vehicle/${vehicleId}/reviews`, config),
-        ]);
-
-        setVehicle(vehicleRes.data);
-        setVehicleHistory(reviewsRes.data.reviews || []);
-      } catch (err) {
-        console.error('Error fetching vehicle data:', err);
-        setError(
-          err.response?.data?.message || 'Failed to load vehicle data.'
-        );
-        if (err.response?.status === 401) {
-          navigate('/login');
-        }
-      } finally {
-        setLoading(false);
-      }
+    dispatch(fetchVehicleById(vehicleId));
+    dispatch(fetchReviewsByVehicleId(vehicleId));
+    return () => {
+      dispatch(resetCurrentVehicle());
+      dispatch(resetReviewState());
+      dispatch(clearReportStatus());
+      dispatch(clearReviewOperationStatus());
     };
+  }, [vehicleId, dispatch]);
 
-    fetchVehicleWithReviews();
-  }, [vehicleId, navigate]);
-
-  const filteredHistory = vehicleHistory.filter((entry) => {
-    const employeeName = entry.employeeId?.name?.toLowerCase() || '';
-    return employeeName.includes(search.toLowerCase());
-  });
+  // Effect to show alerts for fetch, operation, or report errors from Redux state
+  useEffect(() => {
+    const reduxError = fetchError || reviewOperationError || reportError;
+    if (reduxError) {
+      dispatch(setAlert(reduxError, 'danger'));
+    }
+  }, [fetchError, reviewOperationError, reportError, dispatch]);
 
   const handleCreateReviewClick = () => {
     navigate(`/vehicles/${vehicleId}/review`);
@@ -93,24 +99,17 @@ const ViewVehicle = () => {
 
   const handleDeleteReview = async (reviewId, employeeName) => {
     const confirmDelete = window.confirm(
-      `Are you sure you want to delete this review by ${
-        employeeName || 'this employee'
-      }? This action cannot be undone.`
+      `Are you sure you want to delete this review by ${employeeName || 'this employee'}? This action cannot be undone.`
     );
     if (!confirmDelete) return;
 
-    setError(null);
+    dispatch(clearReviewOperationStatus());
     try {
-      const token = localStorage.getItem('token');
-      await axios.delete(`${API_URL}/vehicles/reviews/${reviewId}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      setVehicleHistory((prev) =>
-        prev.filter((review) => review._id !== reviewId)
-      );
+      await dispatch(deleteVehicleReview(reviewId)).unwrap();
+      dispatch(setAlert(`Review by ${employeeName || 'employee'} deleted successfully.`, 'success'));
     } catch (err) {
       console.error('Error deleting review:', err);
-      setError(err.response?.data?.message || 'Error deleting review');
+      // Error handled by useEffect watching reviewOperationError
     }
   };
 
@@ -120,208 +119,165 @@ const ViewVehicle = () => {
 
   const handleDownloadExcelReport = async () => {
     if (!startDate || !endDate) {
-      setDownloadError('Please select a start and end date.');
+      dispatch(setAlert('Please select a start and end date.', 'warning'));
       return;
     }
-    setDownloadError(null);
-    setDownloading(true);
-    setError(null);
-    try {
-      const token = localStorage.getItem('token');
-      const response = await axios.get(
-        `${API_URL}/vehicles/${vehicleId}/download-report`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-          responseType: 'blob',
-          params: {
-            startDate: startDate.toISOString(),
-            endDate: endDate.toISOString(),
-          },
-        }
-      );
+    dispatch(clearReportStatus());
 
-      const blob = new Blob([response.data], {
-        type:
-          response.headers['content-type'] ||
-          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-      });
+    try {
+      const resultAction = await dispatch(downloadVehicleReport({
+        vehicleId,
+        startDate: startDate.toISOString(),
+        endDate: endDate.toISOString(),
+      })).unwrap();
+
+      const { blob, filename } = resultAction;
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
       const safeVehicleName = vehicle?.name?.replace(/\s+/g, '_') || 'vehicle';
       const formattedStartDate = startDate.toISOString().split('T')[0];
       const formattedEndDate = endDate.toISOString().split('T')[0];
-      link.download = `${safeVehicleName}_report_${formattedStartDate}_to_${formattedEndDate}.xlsx`;
+      link.download = filename || `${safeVehicleName}_report_${formattedStartDate}_to_${formattedEndDate}.xlsx`;
       document.body.appendChild(link);
       link.click();
       link.remove();
       window.URL.revokeObjectURL(url);
       setShowDateRangePicker(false);
-      setStartDate(null);
-      setEndDate(null);
-    } catch (error) {
-      console.error('Error downloading Excel report:', error);
-      setDownloadError(error.response?.data?.message || 'Failed to download report.');
-    } finally {
-      setDownloading(false);
+      dispatch(setAlert('Vehicle report downloaded successfully.', 'success'));
+    } catch (err) {
+      console.error('Error downloading Excel report:', err);
+      // Error handled by useEffect watching reportError
     }
   };
 
   const handleSendVehicleReport = async () => {
     if (!startDate || !endDate || !sendEmail) {
-      setSendError('Please select a date range and enter an email address.');
+      dispatch(setAlert('Please select a date range and enter an email address.', 'warning'));
       return;
     }
     if (!/\S+@\S+\.\S+/.test(sendEmail)) {
-      setSendError('Please enter a valid email address.');
+      dispatch(setAlert('Please enter a valid email address.', 'warning'));
       return;
     }
-    setSendError(null);
-    setSending(true);
-    setError(null);
+    dispatch(clearReportStatus());
+
     try {
-      const token = localStorage.getItem('token');
-      await axios.post(
-        `${API_URL}/vehicles/report/email/${vehicleId}`,
-        {
-          startDate: startDate.toISOString(),
-          endDate: endDate.toISOString(),
-          email: sendEmail,
-        },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      await dispatch(sendVehicleReportByEmail({
+        vehicleId,
+        startDate: startDate.toISOString(),
+        endDate: endDate.toISOString(),
+        email: sendEmail,
+      })).unwrap();
+
       setShowSendReport(false);
       setSendEmail('');
       setStartDate(null);
       setEndDate(null);
-    } catch (error) {
-      console.error('Error sending report:', error);
-      setSendError(error.response?.data?.message || 'Failed to send report.');
-    } finally {
-      setSending(false);
+      dispatch(setAlert('Vehicle report sent successfully.', 'success'));
+    } catch (err) {
+      console.error('Error sending report:', err);
+      // Error handled by useEffect watching reportError
     }
   };
 
-  // Toggle function for Send Report section
   const toggleSendReport = () => {
     const currentlyShowing = showSendReport;
     setShowSendReport(!currentlyShowing);
     setShowDateRangePicker(false);
-    setSendError(null);
+    dispatch(clearReportStatus());
     if (!currentlyShowing) {
         setStartDate(null);
         setEndDate(null);
     }
   };
 
-  // Toggle function for Download Report section
   const toggleDownloadReport = () => {
     const currentlyShowing = showDateRangePicker;
     setShowDateRangePicker(!currentlyShowing);
     setShowSendReport(false);
-    setDownloadError(null);
+    dispatch(clearReportStatus());
     if (!currentlyShowing) {
         setStartDate(null);
         setEndDate(null);
     }
   };
 
-  // Define grid columns for the review history
+  const filteredHistory = vehicleHistory.filter((entry) => {
+    const employeeName = entry.employeeId?.name?.toLowerCase() || '';
+    return employeeName.includes(search.toLowerCase());
+  });
+
   const gridColumns = '1fr 1.5fr 1.5fr 0.8fr 0.8fr 0.8fr 0.8fr 1.2fr';
 
-  if (loading && !vehicle) {
+  if (isLoading && !vehicle) {
     return (
       <div className='loading-indicator page-loading'>
-        <FontAwesomeIcon
-          icon={faSpinner}
-          spin
-          size='2x'
-        />
+        <FontAwesomeIcon icon={faSpinner} spin size='2x' />
         <p>Loading vehicle details...</p>
       </div>
     );
   }
 
-  if (error && !vehicle) {
+  // Error state handled by Alert component
+  /*
+  if (fetchError && !isLoading && !vehicle) {
     return (
       <div className='error-message page-error'>
-        <FontAwesomeIcon icon={faExclamationCircle} />
-        <p>{error}</p>
-        <Link
-          to='/vehicles'
-          className='btn btn-secondary'
-        >
+        <FontAwesomeIcon icon={faExclamationCircle} /> {fetchError}
+        <Link to='/vehicles' className='btn btn-secondary'>
           Back to Vehicles
         </Link>
       </div>
     );
   }
+  */
 
   return (
-    // Use standard page class
     <div className='vehicles-page'>
-      {/* Use standard header */}
+      <Alert />
       <div className='vehicles-header'>
         <div className='title-breadcrumbs'>
           <h2>
             <FontAwesomeIcon icon={faCar} /> {vehicle?.name ?? 'Vehicle Details'}
           </h2>
           <div className='breadcrumbs'>
-            <Link
-              to='/dashboard'
-              className='breadcrumb-link'
-            >
-              Dashboard
-            </Link>
+            <Link to='/dashboard' className='breadcrumb-link'>Dashboard</Link>
             <span className='breadcrumb-separator'> / </span>
-            <Link
-              to='/vehicles'
-              className='breadcrumb-link'
-            >
-              Vehicles
-            </Link>
+            <Link to='/vehicles' className='breadcrumb-link'>Vehicles</Link>
             <span className='breadcrumb-separator'> / </span>
             <span className='breadcrumb-current'>View</span>
           </div>
         </div>
-        {/* Use standard header actions container */}
         <div className='header-actions'>
           {user?.role === 'employer' && (
-            <button
-              className='btn btn-success'
-              onClick={handleCreateReviewClick}
-            >
+            <button className='btn btn-success' onClick={handleCreateReviewClick}>
               <FontAwesomeIcon icon={faPlus} /> Create Review
             </button>
           )}
           <button
-            className='btn btn-purple' 
+            className='btn btn-purple'
             onClick={toggleSendReport}
             aria-expanded={showSendReport}
-            aria-controls="send-report-options-view" // Unique ID for ARIA
+            aria-controls="send-report-options-view"
           >
             <FontAwesomeIcon icon={faPaperPlane} /> Send Report
           </button>
           <button
-            className='btn btn-danger' 
+            className='btn btn-danger'
             onClick={toggleDownloadReport}
             aria-expanded={showDateRangePicker}
-            aria-controls="download-report-options-view" // Unique ID for ARIA
+            aria-controls="download-report-options-view"
           >
             <FontAwesomeIcon icon={faDownload} /> Download Report
           </button>
         </div>
       </div>
 
-      {/* Report Options Containers */}
       {showSendReport && (
         <div id="send-report-options-view" className='report-options-container send-report-container'>
-          <h4>Send Vehicle Report</h4>
-          {sendError && (
-            <p className='error-text'>
-              <FontAwesomeIcon icon={faExclamationCircle} /> {sendError}
-            </p>
-          )}
+          <h4>Send Report for {vehicle?.name}</h4>
+          {/* Error handled by Alert component */}
           <div className='date-picker-range'>
             <DatePicker
               selected={startDate}
@@ -354,22 +310,19 @@ const ViewVehicle = () => {
               type='email'
               placeholder='Enter recipient email'
               value={sendEmail}
-              onChange={(e) => {
-                setSendEmail(e.target.value);
-                setSendError(null);
-              }}
+              onChange={(e) => setSendEmail(e.target.value)}
               aria-label='Recipient Email'
               required
             />
             <button
-              className='btn btn-purple' 
+              className='btn btn-purple'
               onClick={handleSendVehicleReport}
-              disabled={sending || !startDate || !endDate || !sendEmail || !/\S+@\S+\.\S+/.test(sendEmail)}
+              disabled={reportStatus === 'loading' || !startDate || !endDate || !sendEmail || !/\S+@\S+\.\S+/.test(sendEmail)}
             >
-              {sending ? (
-                <> <FontAwesomeIcon icon={faSpinner} spin /> Sending... </>
+              {reportStatus === 'loading' ? (
+                <><FontAwesomeIcon icon={faSpinner} spin /> Sending...</>
               ) : (
-                <> <FontAwesomeIcon icon={faPaperPlane} /> Send </>
+                <><FontAwesomeIcon icon={faPaperPlane} /> Send</>
               )}
             </button>
           </div>
@@ -378,12 +331,8 @@ const ViewVehicle = () => {
 
       {showDateRangePicker && (
         <div id="download-report-options-view" className='report-options-container download-date-range'>
-          <h4>Download Vehicle Report</h4>
-          {downloadError && (
-            <p className='error-text'>
-              <FontAwesomeIcon icon={faExclamationCircle} /> {downloadError}
-            </p>
-          )}
+          <h4>Download Report for {vehicle?.name}</h4>
+          {/* Error handled by Alert component */}
           <div className='date-picker-range'>
             <DatePicker
               selected={startDate}
@@ -412,28 +361,29 @@ const ViewVehicle = () => {
             />
           </div>
           <button
-            className='btn btn-danger' 
+            className='btn btn-danger'
             onClick={handleDownloadExcelReport}
-            disabled={downloading || !startDate || !endDate}
+            disabled={reportStatus === 'loading' || !startDate || !endDate}
           >
-            {downloading ? (
-              <> <FontAwesomeIcon icon={faSpinner} spin /> Downloading... </>
+            {reportStatus === 'loading' ? (
+              <><FontAwesomeIcon icon={faSpinner} spin /> Downloading...</>
             ) : (
-              <> <FontAwesomeIcon icon={faDownload} /> Download Excel </>
+              <><FontAwesomeIcon icon={faDownload} /> Download Excel</>
             )}
           </button>
         </div>
       )}
 
-      {/* Display general errors below report options */}
-      {error && (
+      {/* Error state handled by Alert component */}
+      {/*
+      {(fetchError || reviewOperationError || reportError) && !isLoading && (
         <div className='error-message' style={{ marginBottom: '1.5rem' }}>
           <FontAwesomeIcon icon={faExclamationCircle} />
-          <p>{error}</p>
+          <p>{fetchError || reviewOperationError || reportError}</p>
         </div>
       )}
+      */}
 
-      {/* Use standard search bar */}
       <div className='vehicles-search'>
         <input
           type='text'
@@ -442,15 +392,10 @@ const ViewVehicle = () => {
           onChange={(e) => setSearch(e.target.value)}
           aria-label='Search Reviews'
         />
-        <FontAwesomeIcon
-          icon={faSearch}
-          className='search-icon'
-        />
+        <FontAwesomeIcon icon={faSearch} className='search-icon' />
       </div>
 
-      {/* Use standard grid structure */}
       <div className='vehicles-grid'>
-        {/* Header Row */}
         <div className='vehicles-row header' style={{ gridTemplateColumns: gridColumns }}>
           <div>Date</div>
           <div>Employee</div>
@@ -462,54 +407,36 @@ const ViewVehicle = () => {
           <div>Actions</div>
         </div>
 
-        {/* Loading state specific to the grid */}
-        {loading && vehicleHistory.length === 0 && (
+        {isLoading && vehicleHistory.length === 0 && (
           <div className='loading-indicator' style={{ gridColumn: '1 / -1' }}>
             <FontAwesomeIcon icon={faSpinner} spin /> Loading history...
           </div>
         )}
 
-        {/* Data Rows */}
-        {!loading && filteredHistory.length === 0 ? (
+        {!isLoading && filteredHistory.length === 0 ? (
           <div className='vehicles-row no-results'>
             {vehicleHistory.length === 0 ? 'No reviews found for this vehicle.' : 'No reviews match your search criteria.'}
           </div>
         ) : (
-          !loading &&
+          !isLoading &&
           filteredHistory.map((item) => (
-            <div
-              key={item._id}
-              // Use standard row and card classes
-              className='vehicles-row vehicle-card'
-              style={{ gridTemplateColumns: gridColumns }}
-            >
+            <div key={item._id} className='vehicles-row vehicle-card' style={{ gridTemplateColumns: gridColumns }}>
               <div data-label='Date'>
-                {item.dateReviewed
-                  ? new Date(item.dateReviewed).toLocaleDateString()
-                  : '--'}
+                {item.dateReviewed ? new Date(item.dateReviewed).toLocaleDateString() : '--'}
               </div>
               <div data-label='Employee'>{item.employeeId?.name || '--'}</div>
               <div data-label='WOF/Rego'>{vehicle?.wofRego ?? '--'}</div>
               <div data-label='Oil Checked'>
-                <FontAwesomeIcon
-                  icon={item.oilChecked ? faCheck : faTimes}
-                  className={item.oilChecked ? 'icon-green' : 'icon-red'}
-                />
+                <FontAwesomeIcon icon={item.oilChecked ? faCheck : faTimes} className={item.oilChecked ? 'icon-green' : 'icon-red'} />
               </div>
               <div data-label='Vehicle Checked'>
-                <FontAwesomeIcon
-                  icon={item.vehicleChecked ? faCheck : faTimes}
-                  className={item.vehicleChecked ? 'icon-green' : 'icon-red'}
-                />
+                <FontAwesomeIcon icon={item.vehicleChecked ? faCheck : faTimes} className={item.vehicleChecked ? 'icon-green' : 'icon-red'} />
               </div>
               <div data-label='Vehicle Broken'>
                 {item.vehicleBroken ? 'Yes' : 'No'}
               </div>
               <div data-label='Hours'>{item.hours || '--'}</div>
-              <div
-                data-label='Actions'
-                className='actions' // Standard actions class
-              >
+              <div data-label='Actions' className='actions'>
                 <button
                   onClick={() => handleViewReviewClick(item)}
                   className='btn-icon btn-icon-blue'
@@ -518,8 +445,7 @@ const ViewVehicle = () => {
                 >
                   <FontAwesomeIcon icon={faEye} />
                 </button>
-                {(user?.role === 'employer' ||
-                  user?.name === item.employeeId?.name) && (
+                {(user?.role === 'employer' || user?.name === item.employeeId?.name) && (
                   <Link
                     to={`/vehicles/${vehicleId}/reviews/${item._id}/edit`}
                     className='btn-icon btn-icon-yellow'
@@ -529,12 +455,10 @@ const ViewVehicle = () => {
                     <FontAwesomeIcon icon={faPen} />
                   </Link>
                 )}
-                {(user?.role === 'employer' ||
-                  user?.name === item.employeeId?.name) && (
+                {(user?.role === 'employer' || user?.name === item.employeeId?.name) && (
                   <button
-                    onClick={() =>
-                      handleDeleteReview(item._id, item.employeeId?.name)
-                    }
+                    onClick={() => handleDeleteReview(item._id, item.employeeId?.name)}
+                    disabled={reviewOperationStatus === 'loading'}
                     className='btn-icon btn-icon-red'
                     title='Delete Review'
                     aria-label={`Delete review by ${item.employeeId?.name || 'employee'}`}

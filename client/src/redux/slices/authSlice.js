@@ -43,6 +43,27 @@ export const register = createAsyncThunk(
   }
 );
 
+// --- Async Thunk for Changing Password ---
+export const changePassword = createAsyncThunk(
+    'auth/changePassword',
+    async (passwordData, { getState, rejectWithValue }) => {
+        const { token } = getState().auth;
+        if (!token) {
+            return rejectWithValue('Authentication required.');
+        }
+        try {
+            // Assuming endpoint is PUT /api/auth/change-password
+            const response = await axios.put(`${API_URL}/auth/change-password`, passwordData, {
+                headers: { Authorization: `Bearer ${token}` },
+            });
+            return response.data; // Expecting success message e.g., { message: 'Password updated successfully' }
+        } catch (error) {
+            const message = error.response?.data?.message || error.message || 'Password change failed';
+            return rejectWithValue(message);
+        }
+    }
+);
+
 // --- Async Thunk to Load User from Token ---
 export const loadUserFromToken = createAsyncThunk(
     'auth/loadUserFromToken',
@@ -192,6 +213,21 @@ const authSlice = createSlice({
       .addCase(loadUserFromToken.rejected, (state, action) => {
         // State is updated by dispatch(setAuthError(...)) within the thunk
         // isLoading is set to false within setAuthError
+      })
+
+      // Change Password cases
+      .addCase(changePassword.pending, (state) => {
+        // Optionally set a specific loading state if needed, e.g., state.passwordChangeLoading = true;
+        state.isLoading = true; // Use general loading or specific one
+        state.error = null;
+      })
+      .addCase(changePassword.fulfilled, (state, action) => {
+        state.isLoading = false;
+        // No state change needed other than maybe showing success via alertSlice
+      })
+      .addCase(changePassword.rejected, (state, action) => {
+        state.isLoading = false;
+        state.error = action.payload; // Set auth error on failure
       });
   },
 });

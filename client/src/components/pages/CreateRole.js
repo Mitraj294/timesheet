@@ -12,7 +12,8 @@ import {
     selectRoleStatus, selectRoleError, // For create/update status
     clearCurrentRole, clearRoleError // Import clear actions
 } from '../../redux/slices/roleSlice';
-import { setAlert } from '../../redux/slices/alertSlice';
+import { setAlert } from '../../redux/slices/alertSlice'; // Import setAlert
+import Alert from '../layout/Alert'; // Import Alert component
 
 import '../../styles/Forms.scss'; // *** Use Forms.scss ***
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
@@ -172,6 +173,15 @@ const CreateRole = () => {
         [error, employeeError, currentRoleError, saveError]
     );
 
+    // Effect to show alerts for fetch or save errors from Redux state
+    useEffect(() => {
+        const reduxError = employeeError || currentRoleError || saveError;
+        if (reduxError) {
+            dispatch(setAlert(reduxError, 'danger'));
+            // Optionally clear the Redux error after showing the alert
+        }
+    }, [employeeError, currentRoleError, saveError, dispatch]);
+
     // Handlers
     const handleAddEmployee = useCallback((e) => {
         const empId = e.target.value;
@@ -250,6 +260,7 @@ const CreateRole = () => {
         const validationError = validateInputs();
         if (validationError) {
             setError(validationError);
+            dispatch(setAlert(validationError, 'warning')); // Show validation error via Alert
             return;
         }
 
@@ -294,6 +305,7 @@ const CreateRole = () => {
 
     return (
         <div className="vehicles-page"> {/* Use standard page class */}
+            <Alert /> {/* Render Alert component here */}
             <div className="vehicles-header"> {/* Use standard header */}
                 <div className="title-breadcrumbs">
                     <h2>
@@ -312,11 +324,11 @@ const CreateRole = () => {
 
             <div className="form-container"> {/* Use standard form container */}
                 <form onSubmit={handleSubmit} className="employee-form" noValidate> {/* Use standard form class */}
-                    {combinedError && (
+                    {/* {combinedError && ( // Handled by Alert component
                         <div className="form-error-message">
                             <FontAwesomeIcon icon={faExclamationCircle} /> {combinedError}
                         </div>
-                    )}
+                    )} */}
 
                     <div className="form-group">
                         <label htmlFor="roleName">Role Name*</label>

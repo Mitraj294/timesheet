@@ -1,3 +1,4 @@
+// /home/digilab/timesheet/client/src/components/pages/ViewProject.js
 import React, { useEffect, useState, useCallback, useMemo } from "react";
 import { Link, useParams, useNavigate } from "react-router-dom";
 import { useSelector, useDispatch } from "react-redux";
@@ -6,10 +7,11 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 // Redux Imports
 import {
   fetchProjectById, deleteProject,
-  selectCurrentProject, selectCurrentProjectStatus, selectCurrentProjectError, selectProjectStatus, // Added selectProjectStatus
-  clearCurrentProject, clearProjectError // Import clear actions
+  selectCurrentProject, selectCurrentProjectStatus, selectCurrentProjectError, selectProjectStatus,
+  clearCurrentProject, clearProjectError
 } from "../../redux/slices/projectSlice";
 import { setAlert } from "../../redux/slices/alertSlice";
+import Alert from "../layout/Alert"; // Import Alert component
 
 import {
   faProjectDiagram,
@@ -26,9 +28,8 @@ import {
 import ProjectTimesheet from "./ProjectTimesheet";
 import "../../styles/Vehicles.scss";
 import "../../styles/ViewProject.scss";
-// --- Add this line ---
+
 const ALL_PROJECTS_VALUE = 'ALL_PROJECTS';
-// --------------------
 
 const ViewProject = () => {
   const { clientId, projectId } = useParams();
@@ -42,37 +43,49 @@ const ViewProject = () => {
   const deleteStatus = useSelector(selectProjectStatus); // Use general status for delete
 
   // Local State
-  const [error, setError] = useState(null);
-  const [isDeleting, setIsDeleting] = useState(false);
+  // const [error, setError] = useState(null); // Replaced by Alert
+  const [isDeleting, setIsDeleting] = useState(false); // Keep for button state if needed
 
   const { user } = useSelector((state) => state.auth || {});
 
   useEffect(() => {
     const fetchProjectData = async () => {
-      setError(null);
+      // setError(null); // Replaced by Alert
 
       try {
-        // Dispatch fetch action
         dispatch(fetchProjectById(projectId));
-
       } catch (err) {
         console.error("Error fetching project data:", err);
-        // Error state is handled by projectError from Redux
         const errorMessage = err?.message || "Failed to initiate project fetch.";
-        setError(errorMessage);
+        // setError(errorMessage); // Replaced by Alert
+        dispatch(setAlert(errorMessage, 'danger'));
       }
     };
 
     fetchProjectData();
+
+    // Cleanup
+    return () => {
+        dispatch(clearCurrentProject());
+        dispatch(clearProjectError());
+    };
   }, [projectId, dispatch]);
 
+  // Effect to show alerts for fetch errors from Redux state
+  useEffect(() => {
+    if (projectError) {
+      dispatch(setAlert(projectError, 'danger'));
+      // Optionally clear the Redux error after showing the alert
+      // dispatch(clearProjectError());
+    }
+  }, [projectError, dispatch]);
+
   const handleProjectChangeInTimesheet = useCallback((newProjectId) => {
-    // Now this condition will work correctly
     if (newProjectId && newProjectId !== projectId && newProjectId !== ALL_PROJECTS_VALUE) {
       const currentClientId = project?.clientId?._id || clientId || 'unknown';
       const targetUrl = `/clients/view/${currentClientId}/project/${newProjectId}`;
       console.log('Navigating to:', targetUrl, 'New Project ID:', newProjectId, 'Current Client ID:', currentClientId);
-      navigate(targetUrl); // Use the calculated targetUrl
+      navigate(targetUrl);
     } else {
       console.log('Navigation skipped. New Project ID:', newProjectId, 'Current Project ID:', projectId);
     }
@@ -83,8 +96,8 @@ const ViewProject = () => {
       if (!project || !window.confirm(`Are you sure you want to delete project "${project.name}"? This action cannot be undone.`)) {
           return;
       }
-      setIsDeleting(true);
-      setError(null); // Clear local error
+      setIsDeleting(true); // Keep local state for button UI
+      // setError(null); // Replaced by Alert
       dispatch(clearProjectError()); // Clear Redux error
 
       try {
@@ -95,31 +108,22 @@ const ViewProject = () => {
           if (clientIdToNavigate !== 'unknown') {
               navigate(`/clients/view/${clientIdToNavigate}`);
           } else {
-              navigate('/clients');
+              navigate('/clients'); // Fallback if client context is lost
           }
       } catch (err) {
           console.error("Failed to delete project:", err);
-          // Error state is handled by projectError from Redux
           const errorMessage = err?.message || `Failed to delete project "${project.name}".`;
-          setError(errorMessage); // Set local error for display
+          // setError(errorMessage); // Replaced by Alert
           dispatch(setAlert(errorMessage, 'danger'));
-          if (err.response?.data?.message) {
-              deleteError += ` ${err.response.data.message}`;
-          } else if (err.message && err.message !== "Authentication token not found.") {
-              deleteError += ` ${err.message}`;
-          }
-          setError(deleteError);
-          // Only set isDeleting back to false if there was an error other than auth
-          // isDeleting state is now derived from Redux status
+          // No need to re-set local error from deleteError variable
       } finally {
-          // No need to manually set isDeleting if using Redux status
-          // setIsDeleting(false);
+          setIsDeleting(false); // Reset local button state
       }
   };
 
   // Combined loading/error states
   const isLoading = useMemo(() => projectStatus === 'loading', [projectStatus]);
-  const combinedError = useMemo(() => error || projectError, [error, projectError]);
+  // const combinedError = useMemo(() => error || projectError, [error, projectError]); // Replaced by useEffect
 
   if (isLoading && !project) { // Show loading only if project data isn't available yet
     return (
@@ -132,12 +136,14 @@ const ViewProject = () => {
     );
   }
 
-  if (combinedError && !project) { // Show error only if project data failed to load
+  // Error state handled by Alert component via useEffect
+  /*
+  if (projectError && !project) {
     return (
       <div className="vehicles-page">
         <div className='error-message'>
           <FontAwesomeIcon icon={faExclamationCircle} />
-          <p>{combinedError}</p>
+          <p>{projectError}</p>
           {clientId && clientId !== 'unknown' ? (
              <Link to={`/clients/view/${clientId}`} className="btn btn-secondary" style={{marginTop: '1rem'}}>Back to Client</Link>
           ) : (
@@ -147,10 +153,13 @@ const ViewProject = () => {
       </div>
     );
   }
+  */
 
   if (!project) {
      return (
       <div className="vehicles-page">
+        {/* Alert component will show fetch errors if any */}
+        <Alert />
         <div className='error-message'>
           <FontAwesomeIcon icon={faExclamationCircle} />
           <p>Project data could not be loaded or is unavailable.</p>
@@ -166,6 +175,7 @@ const ViewProject = () => {
 
   return (
     <div className="vehicles-page view-project-container">
+      <Alert /> {/* Render Alert component here */}
       <div className="vehicles-header">
         <div className="title-breadcrumbs">
           <h2>
@@ -201,20 +211,19 @@ const ViewProject = () => {
                     if (editClientId !== 'unknown') {
                         navigate(`/clients/${editClientId}/projects/update/${project._id}`)
                     } else {
-                        // Handle case where client ID is missing for edit navigation
                         console.warn("Cannot navigate to edit project: Client ID is unknown.");
-                        // Optionally show an error message to the user
-                        setError("Cannot edit project: Client information is missing.");
+                        dispatch(setAlert("Cannot edit project: Client information is missing.", 'warning'));
+                        // setError("Cannot edit project: Client information is missing."); // Replaced by Alert
                     }
                 }}
-                disabled={deleteStatus === 'loading'} // Disable based on Redux status
+                disabled={deleteStatus === 'loading' || isDeleting} // Disable based on Redux status or local delete state
               >
                 <FontAwesomeIcon icon={faEdit} /> Edit Project
               </button>
-              <button // Add the opening <button> tag here
+              <button
                 onClick={handleDeleteProject}
-                disabled={isDeleting}
-                className="btn btn-danger" // Added standard delete button classes
+                disabled={isDeleting || deleteStatus === 'loading'} // Disable based on Redux status or local delete state
+                className="btn btn-danger"
               >
                 {isDeleting ? <FontAwesomeIcon icon={faSpinner} spin /> : <FontAwesomeIcon icon={faTrash} />}
                 {isDeleting ? ' Deleting...' : ' Delete Project'}

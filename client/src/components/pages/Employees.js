@@ -11,6 +11,8 @@ import {
   selectEmployeeStatus,
   selectEmployeeError
 } from '../../redux/slices/employeeSlice';
+import { setAlert } from '../../redux/slices/alertSlice'; // Import setAlert
+import Alert from '../layout/Alert'; // Import Alert component
 // --- END UPDATED IMPORTS ---
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
@@ -83,6 +85,15 @@ const Employees = () => {
 
   }, [dispatch, employeeStatus, token, isAuthLoading, isAuthenticated, navigate]); // Added dependencies
 
+  // Effect to show alerts for fetch errors from Redux state
+  useEffect(() => {
+    if (error) {
+      dispatch(setAlert(error, 'danger'));
+      // Optionally clear the Redux error after showing the alert
+      // dispatch(clearEmployeeError()); // You'd need to create this action
+    }
+  }, [error, dispatch]);
+
   const handleDelete = (id, name) => {
     if (
       window.confirm(
@@ -90,7 +101,14 @@ const Employees = () => {
       )
     ) {
       // Dispatch deleteEmployee thunk from slice
-      dispatch(deleteEmployee(id));
+      dispatch(deleteEmployee(id))
+        .unwrap()
+        .then(() => {
+          dispatch(setAlert(`Employee "${name}" deleted successfully.`, 'success')); // Success alert
+        })
+        .catch((err) => {
+          dispatch(setAlert(err?.message || `Failed to delete employee "${name}".`, 'danger')); // Error alert
+        });
     }
   };
 
@@ -109,6 +127,7 @@ const Employees = () => {
 
   return (
     <div className='vehicles-page'> {/* Consider renaming class if not specific to vehicles */}
+      <Alert /> {/* Render Alert component here */}
       <div className='vehicles-header'>
         <div className='title-breadcrumbs'>
           <h2>
@@ -154,18 +173,18 @@ const Employees = () => {
       )}
 
       {/* Use Redux error state - show only if not loading */}
-      {error && !showLoading && (
+      {/* {error && !showLoading && ( // Handled by Alert component via useEffect
         <div className='error-message'>
           <FontAwesomeIcon icon={faExclamationCircle} />
           <p>Error loading employees: {error}</p>
-          {/* Provide retry only if the error is specifically 'Not authorized...' */}
+          {/* Provide retry only if the error is specifically 'Not authorized...' * /}
           {error === 'Not authorized, no token provided' ? (
              <p>Please try logging in again.</p>
           ) : (
              <button className="btn btn-secondary" onClick={() => dispatch(fetchEmployees())}>Retry</button>
           )}
         </div>
-      )}
+      )} */}
 
       {/* Employee Grid - Show only if not loading and no error */}
       {!showLoading && !error && (

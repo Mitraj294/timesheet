@@ -11,6 +11,7 @@ import {
   clearCurrentClient, clearClientError // Import clear actions
 } from "../../redux/slices/clientSlice";
 import { setAlert } from "../../redux/slices/alertSlice";
+import Alert from "../layout/Alert"; // Import Alert component
 
 import {
   faUserTie,
@@ -65,13 +66,13 @@ const CreateClient = () => {
     [error, currentClientError, saveError]
   );
 
+  // Effect to show alerts for fetch or save errors from Redux state
   useEffect(() => {
-    if (isEditing) {
+    if (isEditing && currentClientStatus === 'idle') { // Fetch only if editing and not already fetched/loading
       dispatch(fetchClientById(id));
     } else {
       dispatch(clearCurrentClient()); // Clear if creating new
       setClientData({ // Reset form
-        name: "", emailAddress: "", phoneNumber: "", address: "", notes: "", isImportant: false,
       });
     }
     // Cleanup on unmount or ID change
@@ -80,6 +81,15 @@ const CreateClient = () => {
       dispatch(clearClientError()); // Clear potential save errors
     };
   }, [id, isEditing, dispatch]);
+
+  // Effect to show alerts for fetch or save errors from Redux state
+  useEffect(() => {
+    const reduxError = currentClientError || saveError;
+    if (reduxError) {
+      dispatch(setAlert(reduxError, 'danger'));
+      // Optionally clear the Redux error after showing the alert
+    }
+  }, [currentClientError, saveError, dispatch]);
 
   // Populate form when editing and data is loaded
   useEffect(() => {
@@ -92,9 +102,10 @@ const CreateClient = () => {
         notes: currentClient.notes || "",
         isImportant: currentClient.isImportant || false,
       });
-      setError(null); // Clear local error if data loads
+      // setError(null); // Local error state is less needed now
     } else if (isEditing && currentClientStatus === 'failed') {
-      setError(currentClientError); // Show fetch error
+      // Error is handled by the useEffect watching currentClientError
+      // setError(currentClientError);
     }
   }, [isEditing, currentClientStatus, currentClient, currentClientError]);
 
@@ -104,7 +115,7 @@ const CreateClient = () => {
       ...prevData,
       [name]: type === "checkbox" ? checked : value,
     }));
-    if (error) setError(null); // Clear local error on change
+    // if (error) setError(null); // Less needed
   };
 
   const validateForm = () => {
@@ -118,12 +129,13 @@ const CreateClient = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError(null); // Clear local validation error
+    // setError(null); // Clear local validation error
     dispatch(clearClientError()); // Clear Redux save error
 
     const validationError = validateForm();
     if (validationError) {
-      setError(validationError);
+      // setError(validationError);
+      dispatch(setAlert(validationError, 'warning')); // Show validation error via Alert
       return;
     }
 
@@ -138,7 +150,7 @@ const CreateClient = () => {
       navigate("/clients");
     } catch (err) {
       console.error("Error saving client:", err.response || err);
-      // Error state is handled by combinedError via Redux state
+      // Error state is handled by the useEffect watching saveError
       const errorMessage = err?.response?.data?.message || err?.message || `Failed to ${isEditing ? 'save' : 'create'} client.`;
       dispatch(setAlert(errorMessage, 'danger'));
     }
@@ -158,6 +170,7 @@ const CreateClient = () => {
 
   return (
     <div className="vehicles-page"> {/* Use standard page class */}
+      <Alert /> {/* Render Alert component here */}
       <div className="vehicles-header"> {/* Use standard header */}
         <div className="title-breadcrumbs">
           <h2>
@@ -176,11 +189,11 @@ const CreateClient = () => {
 
       <div className="form-container"> {/* Use standard form container */}
         <form onSubmit={handleSubmit} className="employee-form" noValidate> {/* Use standard form class */}
-          {combinedError && ( // Use combined error state
+          {/* {combinedError && ( // Use combined error state - Removed inline display
             <div className='form-error-message'>
               <FontAwesomeIcon icon={faExclamationCircle} /> {combinedError}
             </div>
-          )}
+          )} */}
 
           <div className="form-group">
             <label htmlFor="clientName">Client Name*</label>

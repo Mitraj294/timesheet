@@ -274,6 +274,13 @@ $breakpoint-sm: 576px;
     margin-bottom: 1.5rem;
 }
 
+// Spacer for the client chart card to balance height with project card's selector
+.client-chart-spacer {
+    height: 35px; // Adjust this value to match the approximate height of the select container in the project card
+    margin-bottom: 1rem; // Match the margin of the select container if needed
+    // border: 1px dashed lightgray; // Optional: uncomment to visualize the spacer during adjustment
+}
+
 
 // --- Loading/Error States ---
 .loading-indicator,
@@ -377,6 +384,81 @@ $breakpoint-sm: 576px;
         // Reduce chart height
         .chart-container.bar-chart-container {
             height: 300px;
+        }
+    }
+}
+
+/* Add at the end of Dashboard.scss or a relevant global styles file */
+
+.logout-confirm-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.6);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1050; // Ensure it's above other content like navbar/sidebar
+}
+
+.logout-confirm-dialog {
+    background-color: #fff;
+    padding: 1.5rem 2rem;
+    border-radius: 8px;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+    text-align: center;
+    max-width: 400px;
+    width: 90%;
+
+    h4 {
+        margin-top: 0;
+        margin-bottom: 1rem;
+        font-size: 1.25rem;
+        color: #333;
+    }
+
+    p {
+        margin-bottom: 1.5rem;
+        color: #555;
+    }
+
+    .logout-confirm-actions {
+        display: flex;
+        justify-content: center;
+        gap: 1rem;
+
+        .btn {
+            // Use existing button styles if available, or define basic ones
+            padding: 0.5rem 1.2rem;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: 500;
+            border: 1px solid transparent; // Base border
+            transition: background-color 0.2s ease, border-color 0.2s ease;
+
+            &.btn-secondary {
+                background-color: #6c757d; // Use your $secondary-color variable if defined
+                color: white;
+                border-color: #6c757d;
+
+                &:hover {
+                    background-color: #5a6268;
+                    border-color: #545b62;
+                }
+            }
+
+            &.btn-danger {
+                background-color: #dc3545; // Use your $danger-color variable if defined
+                color: white;
+                border-color: #dc3545;
+
+                &:hover {
+                    background-color: #c82333;
+                    border-color: #bd2130;
+                }
+            }
         }
     }
 }
