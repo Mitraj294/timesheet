@@ -113,6 +113,28 @@ export const loadUserFromToken = createAsyncThunk(
     }
 );
 
+// --- Async Thunk for Updating User Profile ---
+export const updateUserProfile = createAsyncThunk(
+  'auth/updateProfile',
+  async (userData, { getState, rejectWithValue }) => {
+    const { token } = getState().auth;
+    if (!token) {
+        return rejectWithValue('Authentication required.');
+    }
+    try {
+      // Assuming endpoint is PUT /api/users/profile (adjust if different)
+      const response = await axios.put(`${API_URL}/users/profile`, userData, {
+          headers: { Authorization: `Bearer ${token}` },
+      });
+      return response.data; // Should return the updated user object (without password)
+    } catch (err) {
+      const message =
+        err.response?.data?.message || err.message || 'Failed to update profile';
+      return rejectWithValue(message);
+    }
+  }
+);
+
 
 // --- Slice Definition ---
 const authSlice = createSlice({
@@ -275,6 +297,31 @@ const authSlice = createSlice({
       .addCase(deleteAccount.rejected, (state, action) => {
         state.isLoading = false;
         state.error = action.payload; // Set auth error on failure
+      })
+
+      // --- Add Cases for updateUserProfile ---
+      .addCase(updateUserProfile.pending, (state) => {
+        state.isLoading = true; // Or a specific loading state like state.profileUpdateLoading = true;
+        state.error = null;
+      })
+      .addCase(updateUserProfile.fulfilled, (state, action) => {
+        state.isLoading = false;
+        // Update the user state with the data returned from the API
+        if (action.payload) {
+          // Make sure the payload contains the updated user fields (e.g., name, email)
+          // Only update fields that are expected to change to avoid overwriting other parts of user object
+          state.user = {
+            ...state.user,
+            name: action.payload.name ?? state.user.name, // Use new name if provided, else keep old
+            email: action.payload.email ?? state.user.email, // Use new email if provided, else keep old
+            // Add other fields returned by your API if necessary
+          };
+        }
+        state.error = null;
+      })
+      .addCase(updateUserProfile.rejected, (state, action) => {
+        state.isLoading = false;
+        state.error = action.payload; // Error message from rejectWithValue
       });
   },
 });
@@ -294,4 +341,4 @@ export const selectAuthError = (state) => state.auth.error;
 
 // Export the async thunks
 // No need to re-export async thunks here as they were defined with 'export const'
-// export { login, register, changePassword, deleteAccount, loadUserFromToken };
+// export { login, register, changePassword, deleteAccount, loadUserFromToken, updateUserProfile };

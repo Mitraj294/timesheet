@@ -18,6 +18,7 @@ import projectRoutes from "./routes/projectRoutes.js";
 import roleRoutes from "./routes/roleRoutes.js";
 import scheduleRoutes from "./routes/scheduleRoutes.js";
 import vehicleRoutes from "./routes/vehicleRoutes.js";
+import userRoutes from './routes/userRoutes.js'; 
 
 const app = express();
 
@@ -27,6 +28,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(helmet());
 app.use(cookieParser());
+app.use('/api/users', userRoutes);
 
 // MongoDB Connection
 const connectDB = async () => {

@@ -3,9 +3,11 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { Link, useNavigate } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faUserCog, faLock, faSpinner, faSave, faEdit, faExclamationCircle, faTrashAlt } from '@fortawesome/free-solid-svg-icons'; // Added faTrashAlt
+import {
+ faUserCog, faLock, faSpinner, faSave, faEdit, faExclamationCircle, faTrashAlt, faTimes
+} from '@fortawesome/free-solid-svg-icons'; // Added faTrashAlt
 
-import { selectAuthUser, changePassword, deleteAccount, logout, selectAuthError, selectIsAuthLoading, clearAuthError } from '../../redux/slices/authSlice'; // Added deleteAccount, logout
+import { selectAuthUser, changePassword, deleteAccount, logout, updateUserProfile, selectAuthError, selectIsAuthLoading, clearAuthError } from '../../redux/slices/authSlice'; // Added deleteAccount, logout, updateUserProfile (assuming)
 import { selectEmployeeByUserId, fetchEmployees, selectEmployeeStatus } from '../../redux/slices/employeeSlice'; // Assuming you have a selector like this
 import { setAlert } from '../../redux/slices/alertSlice';
 import Alert from '../layout/Alert';
@@ -34,6 +36,13 @@ const SettingsPage = () => {
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false); // State for delete confirmation
     const [isDeletingAccount, setIsDeletingAccount] = useState(false); // State for delete loading
 
+    // --- State for Editing Info ---
+    const [isEditingInfo, setIsEditingInfo] = useState(false);
+    const [infoFormData, setInfoFormData] = useState({ name: '', email: '' });
+    const [infoError, setInfoError] = useState(null); // Local validation error for info form
+    const [isSubmittingInfo, setIsSubmittingInfo] = useState(false);
+
+
     // Fetch employees if needed to find the linked one
     useEffect(() => {
         if (user?.role === 'employee' && !employee && employeeStatus === 'idle') {
@@ -46,6 +55,15 @@ const SettingsPage = () => {
         dispatch(clearAuthError());
         return () => { dispatch(clearAuthError()); };
     }, [dispatch]);
+
+
+    // Pre-fill info form data when user loads
+    useEffect(() => {
+        if (user) {
+            setInfoFormData({ name: user.name, email: user.email });
+        }
+    }, [user]);
+
 
     // --- Handlers ---
     const handlePasswordChange = (e) => {
@@ -98,6 +116,52 @@ const SettingsPage = () => {
         }
     };
 
+    const handleInfoEditToggle = () => {
+        if (!isEditingInfo && user) {
+            // Pre-fill form when opening
+            setInfoFormData({ name: user.name, email: user.email });
+            setInfoError(null); // Clear previous errors
+            dispatch(clearAuthError()); // Clear API errors
+        }
+        setIsEditingInfo(!isEditingInfo);
+    };
+
+    const handleInfoChange = (e) => {
+        setInfoFormData({ ...infoFormData, [e.target.name]: e.target.value });
+        if (infoError) setInfoError(null); // Clear local error on change
+    };
+
+    const handleInfoSubmit = async (e) => {
+        e.preventDefault();
+        setInfoError(null);
+        dispatch(clearAuthError());
+
+        if (!infoFormData.name || !infoFormData.email) {
+            setInfoError('Name and Email are required.');
+            dispatch(setAlert('Name and Email are required.', 'warning'));
+            return;
+        }
+        // Basic email format check
+        if (!/\S+@\S+\.\S+/.test(infoFormData.email)) {
+             setInfoError('Please enter a valid email address.');
+             dispatch(setAlert('Please enter a valid email address.', 'warning'));
+             return;
+        }
+
+        setIsSubmittingInfo(true);
+        try {
+            // Assume updateUserProfile exists in authSlice and handles the API call
+            await dispatch(updateUserProfile(infoFormData)).unwrap();
+            dispatch(setAlert('Profile updated successfully!', 'success'));
+            setIsEditingInfo(false); // Close form on success
+        } catch (err) {
+            // Error alert handled by useEffect watching authError
+            console.error("Profile update failed:", err);
+        } finally {
+            setIsSubmittingInfo(false);
+        }
+    };
+
     const handleDeleteClick = () => {
         setShowDeleteConfirm(true);
     };
@@ -126,7 +190,7 @@ const SettingsPage = () => {
     };
 
     // --- Derived Data ---
-    const isLoading = authLoading || (employeeStatus === 'loading' && !employee);
+    const isLoading = authLoading || isSubmittingInfo || isSubmittingPassword || (employeeStatus === 'loading' && !employee);
 
     // --- Render ---
     if (isLoading && !user) {
@@ -171,41 +235,72 @@ const SettingsPage = () => {
             {/* Account Information Section */}
             <div className="settings-section form-container">
                 <h3>Account Information</h3>
-                <div className="account-info-grid">
-                    <div className="info-item"><span className="info-label">Name:</span> <span className="info-value">{user.name}</span></div>
-                    <div className="info-item"><span className="info-label">Email:</span> <span className="info-value">{user.email}</span></div>
-                    <div className="info-item"><span className="info-label">Role:</span> <span className="info-value">{user.role}</span></div>
-                    {/* Display Employee specific info if available */}
-                    {employee && (
-                        <>
-                            <div className="info-item"><span className="info-label">Employee Code:</span> <span className="info-value">{employee.employeeCode || 'N/A'}</span></div>
-                            <div className="info-item"><span className="info-label">Wage:</span> <span className="info-value">{employee.wage ? `$${employee.wage.toFixed(2)}/hr` : 'N/A'}</span></div>
-                            <div className="info-item"><span className="info-label">Expected Hours:</span> <span className="info-value">{employee.expectedHours || 'N/A'} hrs/week</span></div>
-                            {/* Add more employee fields as needed */}
-                        </>
-                    )}
-                </div>
-                <div className="form-footer">
-                    {/* Navigate to a dedicated edit page or implement inline editing */}
-                    <button
-                        className="btn btn-warning"
-                        onClick={() => navigate(user.role === 'employee' && employee ? `/employees/edit/${employee._id}` : '/settings/edit-account')} // Example navigation
-                        disabled={isLoading}
-                    >
-                        <FontAwesomeIcon icon={faEdit} /> Edit Information
-                    </button>
-                    {/* Delete Account Button */}
-                    <button
-                        className="btn btn-danger" // Danger style for delete
-                        onClick={handleDeleteClick}
-                        disabled={isLoading || isDeletingAccount} // Disable while loading or deleting
-                    >
-                        <FontAwesomeIcon icon={faTrashAlt} /> Delete Account
-                    </button>
-                </div>
+                {!isEditingInfo ? (
+                    <>
+                        <div className="account-info-grid">
+                            <div className="info-item"><span className="info-label">Name:</span> <span className="info-value">{user.name}</span></div>
+                            <div className="info-item"><span className="info-label">Email:</span> <span className="info-value">{user.email}</span></div>
+                            <div className="info-item"><span className="info-label">Role:</span> <span className="info-value">{user.role}</span></div>
+                            {/* Display Employee specific info if available */}
+                            {employee && (
+                                <>
+                                    <div className="info-item"><span className="info-label">Employee Code:</span> <span className="info-value">{employee.employeeCode || 'N/A'}</span></div>
+                                    <div className="info-item"><span className="info-label">Wage:</span> <span className="info-value">{employee.wage ? `$${employee.wage.toFixed(2)}/hr` : 'N/A'}</span></div>
+                                    <div className="info-item"><span className="info-label">Expected Hours:</span> <span className="info-value">{employee.expectedHours || 'N/A'} hrs/week</span></div>
+                                    {/* Link to employee edit page */}
+                                    <div className="info-item full-width">
+                                        <Link to={`/employees/edit/${employee._id}`} className="link-like-button">Edit Employee Details (Wage, Code, etc.)</Link>
+                                    </div>
+                                </>
+                            )}
+                        </div>
+                        <div className="form-footer">
+                            <button
+                                className="btn btn-warning"
+                                onClick={handleInfoEditToggle} // Use the toggle handler
+                                disabled={isLoading}
+                            >
+                                <FontAwesomeIcon icon={faEdit} /> Edit Account Info
+                            </button>
+                            <button
+                                className="btn btn-danger"
+                                onClick={handleDeleteClick}
+                                disabled={isLoading || isDeletingAccount}
+                            >
+                                <FontAwesomeIcon icon={faTrashAlt} /> Delete Account
+                            </button>
+                        </div>
+                    </>
+                ) : (
+                    // --- Inline Edit Form ---
+                    <form onSubmit={handleInfoSubmit} className="employee-form" noValidate>
+                        {(infoError || authError) && (
+                            <div className='form-error-message'>
+                                <FontAwesomeIcon icon={faExclamationCircle} /> {infoError || authError}
+                            </div>
+                        )}
+                        <div className="form-group">
+                            <label htmlFor="infoName">Name*</label>
+                            <input id="infoName" type="text" name="name" value={infoFormData.name} onChange={handleInfoChange} required disabled={isSubmittingInfo} />
+                        </div>
+                        <div className="form-group">
+                            <label htmlFor="infoEmail">Email*</label>
+                            <input id="infoEmail" type="email" name="email" value={infoFormData.email} onChange={handleInfoChange} required disabled={isSubmittingInfo} />
+                        </div>
+                        <div className="form-footer">
+                            <button type="button" className="btn btn-secondary" onClick={handleInfoEditToggle} disabled={isSubmittingInfo}>
+                                <FontAwesomeIcon icon={faTimes} /> Cancel
+                            </button>
+                            <button type="submit" className="btn btn-success" disabled={isSubmittingInfo || !infoFormData.name || !infoFormData.email}>
+                                {isSubmittingInfo ? <><FontAwesomeIcon icon={faSpinner} spin /> Saving...</> : <><FontAwesomeIcon icon={faSave} /> Save Changes</>}
+                            </button>
+                        </div>
+                    </form>
+                )}
             </div>
 
-            {/* Change Password Section */}
+            {/* Change Password Section - Only show if NOT editing info */}
+            {!isEditingInfo && (
             <div className="settings-section form-container">
                 <h3>Change Password</h3>
                 <form onSubmit={handlePasswordSubmit} className="employee-form" noValidate>
@@ -264,6 +359,7 @@ const SettingsPage = () => {
                     </div>
                 </form>
             </div>
+            )}
 
             {/* Delete Confirmation Dialog */}
             {showDeleteConfirm && (
