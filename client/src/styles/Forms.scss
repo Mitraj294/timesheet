@@ -522,4 +522,23 @@ $breakpoint-sm: 576px;
             }
         }
     }
+
+
+
+
+    .phone-input-group {
+        display: flex;
+        align-items: center; // Align items vertically
+        gap: 5px; // Add a small gap
+
+        .country-code-select {
+            flex-shrink: 0; // Prevent the select from shrinking too much
+            width: auto; // Adjust width as needed, maybe fixed or based on content
+            padding: 10px 5px; // Adjust padding
+        }
+
+        input[type="tel"] {
+            flex-grow: 1; // Allow the phone number input to take remaining space
+        }
+    }
 }

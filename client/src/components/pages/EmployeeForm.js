@@ -49,7 +49,7 @@ const EmployeeForm = () => {
   };
 
   const [formData, setFormData] = useState(initialFormState);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  // const [isSubmitting, setIsSubmitting] = useState(false); // Replaced by Redux status
   const [error, setError] = useState(null); // Local error for form validation
 
   useEffect(() => {
@@ -103,6 +103,9 @@ const EmployeeForm = () => {
     if (error) setError(null);
   };
 
+  // Use Redux status for disabling form during add/update
+  const isSaving = employeeStatus === 'loading';
+
   const validateForm = () => {
     if (!formData.name.trim()) return 'Name is required.';
     if (!formData.employeeCode.trim()) return 'Employee Code is required.';
@@ -125,7 +128,7 @@ const EmployeeForm = () => {
       return;
     }
 
-    setIsSubmitting(true); // Use local submitting state
+    // setIsSubmitting(true); // Redux status will handle this for add/update
 
     let userCheckData = { exists: false }; // Declare userCheckData outside the if block
     let employeeData = {
@@ -138,6 +141,7 @@ const EmployeeForm = () => {
     };
 
     try {
+      // --- Consider refactoring this user check/registration part ---
       if (!isEditMode) {
         // --- Register User Logic ---
         const userCheckResponse = await fetch(`${API_URL}/auth/check-user`, {
@@ -175,6 +179,7 @@ const EmployeeForm = () => {
           employeeData.userId = registeredUser.user._id;
         }
         // --- End Register User Logic ---
+        // --- End of section to consider refactoring ---
       }
 
       if (isEditMode) {
@@ -202,9 +207,7 @@ const EmployeeForm = () => {
           : rejectedValueOrSerializedError?.message || `Failed to ${isEditMode ? 'update' : 'add'} employee.`;
       setError(message); // Set local error state
       dispatch(setAlert(message, 'danger')); // Show submission error via Alert
-    } finally {
-      setIsSubmitting(false); // Stop local submitting indicator
-    }
+    } // No finally block needed if using Redux status
   };
 
   // Use Redux status for initial loading
@@ -273,7 +276,7 @@ const EmployeeForm = () => {
             <input
               id='name' type='text' name='name' placeholder='Full Name'
               value={formData.name} onChange={handleChange} required
-              disabled={isSubmitting} // Use local submitting state
+              disabled={isSaving} // Use Redux status
             />
           </div>
 
@@ -282,7 +285,7 @@ const EmployeeForm = () => {
             <input
               id='employeeCode' type='text' name='employeeCode' placeholder='Unique Employee Code'
               value={formData.employeeCode} onChange={handleChange} required
-              disabled={isSubmitting} // Use local submitting state
+              disabled={isSaving} // Use Redux status
             />
           </div>
 
@@ -291,7 +294,7 @@ const EmployeeForm = () => {
             <input
               id='email' type='email' name='email' placeholder='employee@example.com'
               value={formData.email} onChange={handleChange} required
-              disabled={isSubmitting || isEditMode} // Use local submitting state
+              disabled={isSaving || isEditMode} // Use Redux status
             />
              {isEditMode && <small>Email cannot be changed after creation.</small>}
           </div>
@@ -302,7 +305,7 @@ const EmployeeForm = () => {
               id='wage' type='number' name='wage' placeholder='e.g., 25.50'
               value={formData.wage} onChange={handleChange} required
               min='0' step='0.01'
-              disabled={isSubmitting} // Use local submitting state
+              disabled={isSaving} // Use Redux status
             />
           </div>
 
@@ -312,7 +315,7 @@ const EmployeeForm = () => {
               id='expectedHours' type='number' name='expectedHours' placeholder='e.g., 40'
               value={formData.expectedHours} onChange={handleChange} required
               min='0' step='1'
-              disabled={isSubmitting} // Use local submitting state
+              disabled={isSaving} // Use Redux status
             />
           </div>
 
@@ -322,7 +325,7 @@ const EmployeeForm = () => {
               id='holidayMultiplier' type='number' name='holidayMultiplier' placeholder='e.g., 1.5'
               value={formData.holidayMultiplier} onChange={handleChange} required
               min='0' step='0.1'
-              disabled={isSubmitting} // Use local submitting state
+              disabled={isSaving} // Use Redux status
             />
           </div>
 
@@ -330,7 +333,7 @@ const EmployeeForm = () => {
             <label htmlFor='isAdmin'>Admin Role*</label>
             <select
               id='isAdmin' name='isAdmin' value={formData.isAdmin} onChange={handleChange} required
-              disabled={isSubmitting} // Use local submitting state
+              disabled={isSaving} // Use Redux status
             >
               <option value='No'>No</option>
               <option value='Yes'>Yes</option>
@@ -341,7 +344,7 @@ const EmployeeForm = () => {
             <label htmlFor='overtime'>Overtime Allowed*</label>
             <select
               id='overtime' name='overtime' value={formData.overtime} onChange={handleChange} required
-              disabled={isSubmitting} // Use local submitting state
+              disabled={isSaving} // Use Redux status
             >
               <option value='No'>No</option>
               <option value='Yes'>Yes</option>
@@ -352,16 +355,16 @@ const EmployeeForm = () => {
             <button
               type='button' className='btn btn-danger'
               onClick={() => navigate('/employees')}
-              disabled={isSubmitting} // Use local submitting state
+              disabled={isSaving} // Use Redux status
             >
                <FontAwesomeIcon icon={faTimes} /> Cancel
             </button>
             <button
               type='submit' className='btn btn-success'
-              disabled={isSubmitting} // Use local submitting state
+              disabled={isSaving} // Use Redux status
             >
-              {/* Show spinner based on local isSubmitting state */}
-              {isSubmitting ? (
+              {/* Show spinner based on Redux status */}
+              {isSaving ? (
                 <>
                   <FontAwesomeIcon icon={faSpinner} spin /> Saving...
                 </>

@@ -43,6 +43,8 @@ const Vehicles = () => {
   const [sendEmail, setSendEmail] = useState('');
   const [showSendReport, setShowSendReport] = useState(false);
   const [showDateRangePicker, setShowDateRangePicker] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [itemToDelete, setItemToDelete] = useState(null); // { id, name }
   // Local validation errors are handled by dispatching alerts directly
 
   const dispatch = useDispatch();
@@ -141,13 +143,27 @@ const Vehicles = () => {
     }
   };
 
-  const handleDeleteVehicle = async (vehicleId, vehicleName) => {
-    if (!window.confirm(`Are you sure you want to delete vehicle "${vehicleName}"?`)) return;
+  // --- Refactored Delete Confirmation ---
+  const handleDeleteClick = (vehicleId, vehicleName) => {
+    setItemToDelete({ id: vehicleId, name: vehicleName });
+    setShowDeleteConfirm(true);
+  };
+
+  const cancelDelete = () => {
+    setShowDeleteConfirm(false);
+    setItemToDelete(null);
+  };
+
+  const confirmDeleteVehicle = async () => {
+    if (!itemToDelete) return;
+    const { id: vehicleId, name: vehicleName } = itemToDelete;
 
     dispatch(clearOperationStatus());
     try {
       await dispatch(deleteVehicle(vehicleId)).unwrap();
       dispatch(setAlert(`Vehicle "${vehicleName}" deleted successfully.`, 'success'));
+      setShowDeleteConfirm(false); // Close modal on success
+      setItemToDelete(null);
     } catch (err) {
       console.error('Error deleting vehicle:', err);
       // Error handled by useEffect watching operationError
@@ -180,6 +196,7 @@ const Vehicles = () => {
     }
   };
 
+  const isDeleting = operationStatus === 'loading'; // Use Redux status
   return (
     <div className='vehicles-page'>
       <Alert />
@@ -392,8 +409,8 @@ const Vehicles = () => {
                   {user?.role === 'employer' && (
                     <button
                       className='btn-icon btn-icon-red'
-                      onClick={() => handleDeleteVehicle(vehicle._id, vehicle.name)}
-                      disabled={operationStatus === 'loading'}
+                      onClick={() => handleDeleteClick(vehicle._id, vehicle.name)} // Trigger modal
+                      disabled={isDeleting} // Use Redux status
                       title='Delete Vehicle'
                       aria-label={`Delete ${vehicle.name}`}
                     >
@@ -405,6 +422,22 @@ const Vehicles = () => {
             ))
           )}
         </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteConfirm && itemToDelete && (
+          <div className="logout-confirm-overlay"> {/* Re-use styles */}
+            <div className="logout-confirm-dialog">
+              <h4>Confirm Vehicle Deletion</h4>
+              <p>Are you sure you want to permanently delete vehicle "<strong>{itemToDelete.name}</strong>"? This action cannot be undone.</p>
+              <div className="logout-confirm-actions">
+                <button className="btn btn-secondary" onClick={cancelDelete} disabled={isDeleting}>Cancel</button>
+                <button className="btn btn-danger" onClick={confirmDeleteVehicle} disabled={isDeleting}>
+                  {isDeleting ? <><FontAwesomeIcon icon={faSpinner} spin /> Deleting...</> : 'Delete Vehicle'}
+                </button>
+              </div>
+            </div>
+          </div>
       )}
     </div>
   );

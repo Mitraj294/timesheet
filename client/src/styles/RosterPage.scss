@@ -934,3 +934,56 @@ $breakpoint-xs: 576px;
         }
     }
 }
+
+// --- Confirmation Modal Styles (Reusing Logout Styles) ---
+.logout-confirm-overlay,
+.modal-overlay {
+    // Apply to both modal types
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.6);
+    z-index: 1050; // Ensure it's above other content but potentially below highest elements if needed
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 1rem;
+}
+
+.logout-confirm-dialog,
+.modal-content {
+    // Apply common styles to both dialog types
+    background-color: #fff;
+    padding: 1.5rem 2rem;
+    border-radius: $border-radius;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+    max-width: 500px; // Adjust as needed
+    width: 100%;
+    text-align: center; // Center text by default
+    position: relative; // For potential close button positioning
+
+    h4 {
+        margin-top: 0;
+        margin-bottom: 1rem;
+        font-size: 1.5rem; // Slightly larger title
+        font-weight: 600;
+        color: $text-color;
+    }
+
+    p {
+        margin-bottom: 1.5rem;
+        color: $dark-grey;
+        font-size: 1rem;
+    }
+
+    .logout-confirm-actions,
+    .modal-footer {
+        // Apply to both action containers
+        display: flex;
+        justify-content: center; // Center buttons
+        gap: 1rem; // Space between buttons
+        margin-top: 1.5rem;
+    }
+}

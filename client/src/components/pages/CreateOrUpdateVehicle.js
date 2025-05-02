@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
@@ -24,9 +24,8 @@ import {
   resetCurrentVehicle,
   clearOperationStatus,
 } from '../../redux/slices/vehicleSlice';
-import { setAlert } from '../../redux/slices/alertSlice'; // Import setAlert
-import Alert from '../layout/Alert'; // Import Alert component
-
+import { setAlert } from '../../redux/slices/alertSlice';
+import Alert from '../layout/Alert';
 
 import '../../styles/Forms.scss';
 
@@ -40,7 +39,7 @@ const CreateOrUpdateVehicle = () => {
     hours: '',
     wofRego: '',
   });
-  const [formError, setFormError] = useState(null);
+  const [formError, setFormError] = useState(null); // Local validation error
 
   const dispatch = useDispatch();
 
@@ -50,47 +49,63 @@ const CreateOrUpdateVehicle = () => {
   const operationStatus = useSelector(selectVehicleOperationStatus);
   const operationError = useSelector(selectVehicleOperationError);
 
+  const isLoading = useMemo(() =>
+    fetchStatus === 'loading' || operationStatus === 'loading',
+    [fetchStatus, operationStatus]
+  );
+
   // Effect to show alerts for fetch or save errors from Redux state
   useEffect(() => {
     const reduxError = fetchError || operationError;
     if (reduxError) {
       dispatch(setAlert(reduxError, 'danger'));
-      // Optionally clear the Redux error after showing the alert
-      // dispatch(clearOperationStatus()); // Or specific error clear actions
     }
   }, [fetchError, operationError, dispatch]);
 
+  // Effect to fetch data on edit mode or reset form on create mode
   useEffect(() => {
-    dispatch(clearOperationStatus());
+    dispatch(clearOperationStatus()); // Clear any previous operation status
 
-    if (isEditMode) {
-      if (fetchStatus === 'idle' || currentVehicle?._id !== vehicleId) {
+    if (isEditMode && vehicleId) {
+      // Fetch only if status is idle OR if the loaded vehicle ID doesn't match the URL ID
+      if (fetchStatus === 'idle' || (currentVehicle?._id !== vehicleId && fetchStatus !== 'loading')) {
          dispatch(fetchVehicleById(vehicleId));
       }
     } else {
       // Reset form and current vehicle state for create mode
-      setVehicleData({
-        name: '',
-        hours: '',
-        wofRego: '',
-      });
+      setVehicleData({ name: '', hours: '', wofRego: '' });
       dispatch(resetCurrentVehicle());
     }
 
+    // Cleanup on unmount or if switching between create/edit
     return () => {
       dispatch(resetCurrentVehicle());
       dispatch(clearOperationStatus());
     };
-  }, [isEditMode, vehicleId, dispatch, fetchStatus, currentVehicle?._id]); // Added fetchStatus and currentVehicle?._id
+    // Dependencies: Only re-run if mode changes or ID changes
+  }, [isEditMode, vehicleId, dispatch]);
 
+  // Effect to populate form *after* data is successfully fetched for edit mode
   useEffect(() => {
+    // Only populate if editing, fetch succeeded, and the correct vehicle is loaded
     if (isEditMode && fetchStatus === 'succeeded' && currentVehicle?._id === vehicleId) {
-      setVehicleData({
+      const newVehicleData = {
         name: currentVehicle.name || '',
         hours: currentVehicle.hours?.toString() || '',
         wofRego: currentVehicle.wofRego || '',
+      };
+
+      // Update local state only if necessary to prevent potential loops
+      setVehicleData(prevData => {
+        if (prevData.name !== newVehicleData.name ||
+            prevData.hours !== newVehicleData.hours ||
+            prevData.wofRego !== newVehicleData.wofRego) {
+          return newVehicleData;
+        }
+        return prevData;
       });
     }
+    // Dependencies: Re-run only when fetch status or the loaded vehicle changes
   }, [fetchStatus, currentVehicle, isEditMode, vehicleId]);
 
   const handleChange = (e) => {
@@ -99,7 +114,7 @@ const CreateOrUpdateVehicle = () => {
       ...prev,
       [name]: value,
     }));
-    if (formError) setFormError(null);
+    if (formError) setFormError(null); // Clear local validation error on change
   };
 
   const validateForm = () => {
@@ -120,15 +135,17 @@ const CreateOrUpdateVehicle = () => {
 
     const validationError = validateForm();
     if (validationError) {
-      dispatch(setAlert(validationError, 'warning')); // Show validation error via Alert
+      dispatch(setAlert(validationError, 'warning'));
       setFormError(validationError);
       return;
     }
 
     try {
+      // Convert hours back to number for submission
       const dataToSubmit = {
         ...vehicleData,
-        hours: parseFloat(vehicleData.hours),
+        hours: vehicleData.hours, // Keep as string if model expects string
+        // hours: parseFloat(vehicleData.hours), // Use this if model expects number
       };
 
       if (isEditMode) {
@@ -142,19 +159,19 @@ const CreateOrUpdateVehicle = () => {
       navigate('/vehicles');
     } catch (err) {
       console.error('Failed to save vehicle:', err);
-      // Error is now handled by Redux state (operationError) and displayed by useEffect
-      // If the thunk doesn't dispatch setAlert on error, uncomment the line below
+      // Error alert is handled by the useEffect watching operationError
+      // Optionally, re-dispatch alert here if needed for immediate feedback on submit button
       dispatch(setAlert(err?.message || `Failed to ${isEditMode ? 'update' : 'create'} vehicle.`, 'danger'));
       if (err?.message?.includes('401') || err?.message?.includes('403')) {
-        navigate('/login');
+        navigate('/login'); // Redirect on auth errors
       }
     }
   };
 
   return (
     <div className='vehicles-page'>
-      <Alert /> {/* Render Alert component here */}
-      <div className='vehicles-header'> {/* Use standard header */}
+      <Alert />
+      <div className='vehicles-header'>
         <div className='title-breadcrumbs'>
           <h2>
             <FontAwesomeIcon icon={faCar} />{' '}
@@ -172,93 +189,98 @@ const CreateOrUpdateVehicle = () => {
         </div>
       </div>
 
+      {/* Show loading indicator specifically when fetching for edit mode */}
       {isEditMode && fetchStatus === 'loading' && (
         <div className='loading-indicator'>
           <FontAwesomeIcon icon={faSpinner} spin size="2x" /> <p>Loading vehicle data...</p>
         </div>
       )}
 
-      <div className='form-container'> {/* Ensure this div is closed */}
-        <form
-          onSubmit={handleSubmit}
-          className='employee-form'
-        >
-          {/* {(formError || fetchError || operationError) && ( // Handled by Alert component
-            <div className='form-error-message'>
-              <FontAwesomeIcon icon={faExclamationCircle} /> {formError || fetchError || operationError}
+      {/* Show form only when not initially loading in edit mode, or always in create mode */}
+      {(!isEditMode || fetchStatus !== 'loading') && (
+        <div className='form-container'>
+          <form
+            onSubmit={handleSubmit}
+            className='employee-form'
+            noValidate
+          >
+            {/* Local validation errors */}
+            {formError && (
+              <div className='form-error-message'>
+                <FontAwesomeIcon icon={faExclamationCircle} /> {formError}
+              </div>
+            )}
+
+            <div className='form-group'>
+              <label htmlFor='name'>Name*</label>
+              <input
+                type='text'
+                id='name'
+                name='name'
+                value={vehicleData.name}
+                onChange={handleChange}
+                required
+                disabled={isLoading} // Disable if fetching OR saving
+                placeholder='Vehicle Name'
+              />
             </div>
-          )} */}
-          
 
-          <div className='form-group'>
-            <label htmlFor='name'>Name*</label>
-            <input
-              type='text'
-              id='name'
-              name='name'
-              value={vehicleData.name}
-              onChange={handleChange}
-              required
-              disabled={operationStatus === 'loading' || fetchStatus === 'loading'}
-              placeholder='Vehicle Name'
-            />
-          </div>
+            <div className='form-group'>
+              <label htmlFor='hours'>Hours*</label>
+              <input
+                type='number' // Use number for better input control, but handle as string in state/submit if needed
+                id='hours'
+                name='hours'
+                value={vehicleData.hours}
+                onChange={handleChange}
+                required
+                disabled={isLoading}
+                placeholder='Hours'
+                min='0'
+                step='any' // Allow decimals if needed
+              />
+            </div>
 
-          <div className='form-group'>
-            <label htmlFor='hours'>Hours*</label>
-            <input
-              type='number'
-              id='hours'
-              name='hours'
-              value={vehicleData.hours}
-              onChange={handleChange}
-              required
-              disabled={operationStatus === 'loading' || fetchStatus === 'loading'}
-              placeholder='Hours'
-              min='0'
-              step='any'
-            />
-          </div>
+            <div className='form-group'>
+              <label htmlFor='wofRego'>WOF/Rego</label>
+              <input
+                type='text' // Changed to text, assuming it's details not just a date
+                id='wofRego'
+                name='wofRego'
+                value={vehicleData.wofRego}
+                onChange={handleChange}
+                disabled={isLoading}
+                placeholder='WOF/Rego Details or Due Date'
+              />
+            </div>
 
-          <div className='form-group'>
-            <label htmlFor='wofRego'>WOF/Rego</label>
-            <input
-              type='text'
-              id='wofRego'
-              name='wofRego'
-              value={vehicleData.wofRego}
-              onChange={handleChange}
-              disabled={operationStatus === 'loading' || fetchStatus === 'loading'}
-              placeholder='WOF/Rego Details'
-            />
-          </div>
-
-          <div className='form-footer'>
-            <button
-              type='button'
-              className='btn btn-danger'
-              onClick={() => navigate('/vehicles')}
-              disabled={operationStatus === 'loading'}
-            >
-              <FontAwesomeIcon icon={faTimes} /> Cancel
-            </button>
-            <button
-              type='submit'
-              className='btn btn-success' // Standard button class
-              disabled={operationStatus === 'loading' || fetchStatus === 'loading'} // Disable during fetch or operation
-            >
-              {operationStatus === 'loading' ? ( // Check Redux operationStatus instead of isLoading
-                <> <FontAwesomeIcon icon={faSpinner} spin /> Saving... </>
-              ) : (
-                <>
-                  <FontAwesomeIcon icon={isEditMode ? faEdit : faSave} />
-                  {isEditMode ? 'Update Vehicle' : 'Create Vehicle'}
-                </>
-              )}
-            </button>
-          </div>
-        </form> 
-      </div> {/* Closes form-container div */}
+            <div className='form-footer'>
+              <button
+                type='button'
+                className='btn btn-danger'
+                onClick={() => navigate('/vehicles')}
+                disabled={isLoading} // Disable if fetching OR saving
+              >
+                <FontAwesomeIcon icon={faTimes} /> Cancel
+              </button>
+              <button
+                type='submit'
+                className='btn btn-success'
+                disabled={isLoading} // Disable if fetching OR saving
+              >
+                {operationStatus === 'loading' ? ( // Spinner only during save operation
+                  <> <FontAwesomeIcon icon={faSpinner} spin /> Saving... </>
+                ) : (
+                  <>
+                    <FontAwesomeIcon icon={isEditMode ? faEdit : faSave} />
+                    {isEditMode ? 'Update Vehicle' : 'Create Vehicle'}
+                  </>
+                )}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
     </div>
   );
 };

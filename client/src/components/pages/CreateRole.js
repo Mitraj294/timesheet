@@ -119,42 +119,49 @@ const CreateRole = () => {
 
     // Populate form when editing and currentRole data is loaded
     useEffect(() => {
-        if (isEditing && currentRoleStatus === 'succeeded' && currentRole) {
-            const data = currentRole;
-            setRoleName(data.roleName || '');
-            setRoleDescription(data.roleDescription || '');
-            setColor(data.color || COLORS[0]);
-            setSelectedEmployees((data.assignedEmployees || []).map(emp => typeof emp === 'object' ? emp._id : emp));
+      if (isEditing && currentRoleStatus === 'succeeded' && currentRole) {
+          const data = currentRole;
+          const newRoleName = data.roleName || '';
+          const newRoleDescription = data.roleDescription || '';
+          const newColor = data.color || COLORS[0];
+          const newSelectedEmployees = (data.assignedEmployees || []).map(emp => typeof emp === 'object' ? emp._id : emp);
 
-            const formattedSchedule = {};
-            (data.schedule || []).forEach((entry) => {
-                const dayStr = entry.day;
-                // Check if dayStr is valid before parsing
-                if (dayStr && dayStr.match(/^\d{4}-\d{2}-\d{2}$/)) {
-                    try {
-                        const entryWeekStart = format(startOfWeek(parseISO(dayStr), { weekStartsOn: 1 }), 'yyyy-MM-dd');
-                        const currentDisplayWeekStart = format(weekStart, 'yyyy-MM-dd');
+          const newFormattedSchedule = {};
+          (data.schedule || []).forEach((entry) => {
+              const dayStr = entry.day;
+              if (dayStr && dayStr.match(/^\d{4}-\d{2}-\d{2}$/)) {
+                  try {
+                      const entryWeekStart = format(startOfWeek(parseISO(dayStr), { weekStartsOn: 1 }), 'yyyy-MM-dd');
+                      const currentDisplayWeekStart = format(weekStart, 'yyyy-MM-dd');
+                      if (entryWeekStart === currentDisplayWeekStart) {
+                          newFormattedSchedule[dayStr] = {
+                              from: formatTimeUTCtoLocal(entry.startTime, dayStr),
+                              to: formatTimeUTCtoLocal(entry.endTime, dayStr),
+                          };
+                      }
+                  } catch (parseError) {
+                      console.error(`Error parsing date string: ${dayStr}`, parseError);
+                  }
+              } else {
+                  console.warn(`Invalid or missing date string in schedule entry: ${dayStr}`);
+              }
+          });
 
-                        if (entryWeekStart === currentDisplayWeekStart) {
-                            formattedSchedule[dayStr] = {
-                                from: formatTimeUTCtoLocal(entry.startTime, dayStr),
-                                to: formatTimeUTCtoLocal(entry.endTime, dayStr),
-                            };
-                        }
-                    } catch (parseError) {
-                        console.error(`Error parsing date string: ${dayStr}`, parseError);
-                        // Handle the error, e.g., skip this entry or set default values
+          // Only update state if values have actually changed
+          setRoleName(prev => prev !== newRoleName ? newRoleName : prev);
+          setRoleDescription(prev => prev !== newRoleDescription ? newRoleDescription : prev);
+          setColor(prev => prev !== newColor ? newColor : prev);
+          // Simple comparison for arrays (might need deep comparison if order matters and changes)
+          setSelectedEmployees(prev => JSON.stringify(prev) !== JSON.stringify(newSelectedEmployees) ? newSelectedEmployees : prev);
+          setSchedule(prev => JSON.stringify(prev) !== JSON.stringify(newFormattedSchedule) ? newFormattedSchedule : prev);
+
+          if (error) setError(null); // Clear local error if data loads successfully
+      } else if (isEditing && currentRoleStatus === 'failed') {
+          if (error !== currentRoleError) { // Avoid setting error if it's already the same
+              setError(currentRoleError); // Show fetch error
                     }
-                } else {
-                    console.warn(`Invalid or missing date string in schedule entry: ${dayStr}`);
-                }
-            });
-            setSchedule(formattedSchedule);
-            setError(null); // Clear local error if data loads successfully
-        } else if (isEditing && currentRoleStatus === 'failed') {
-            setError(currentRoleError); // Show fetch error
-        }
-    }, [isEditing, currentRoleStatus, currentRole, currentRoleError, weekStart]); // Added weekStart
+      }
+  }, [isEditing, currentRoleStatus, currentRole, currentRoleError, weekStart, error]); // Added error dependency
 
     // Combined loading state
     const isLoading = useMemo(() =>

@@ -197,6 +197,7 @@ const ProjectTimesheet = ({ initialProjectId = '', onProjectChange, showProjectS
   const timesheetStatus = useSelector(selectTimesheetStatus);
   const timesheetError = useSelector(selectTimesheetError);
   const downloadStatus = useSelector(selectTimesheetProjectDownloadStatus); // Use project download status
+  // Corrected variable names for Redux state
   const downloadErrorRedux = useSelector(selectTimesheetProjectDownloadError); // Use project download error
   const sendStatus = useSelector(selectTimesheetProjectSendStatus); // Use project send status
   const sendErrorRedux = useSelector(selectTimesheetProjectSendError); // Use project send error
@@ -217,6 +218,8 @@ const ProjectTimesheet = ({ initialProjectId = '', onProjectChange, showProjectS
   const [showDownloadFilters, setShowDownloadFilters] = useState(false);
   const [showSendFilters, setShowSendFilters] = useState(false);
   const [error, setError] = useState(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [itemToDelete, setItemToDelete] = useState(null); // { id }
   // const [downloadError, setDownloadError] = useState(null); // Replaced by Redux alert
   // const [sendError, setSendError] = useState(null); // Replaced by Redux alert
 
@@ -304,25 +307,41 @@ const ProjectTimesheet = ({ initialProjectId = '', onProjectChange, showProjectS
     setExpandedRows((prev) => ({ ...prev, [id]: !prev[id] }));
    };
 
+  // --- Refactored Delete Confirmation ---
+  const handleDeleteClick = (timesheetId) => {
+    setItemToDelete({ id: timesheetId });
+    setShowDeleteConfirm(true);
+  };
+
+  const cancelDelete = () => {
+    setShowDeleteConfirm(false);
+    setItemToDelete(null);
+  };
+
   const handleUpdate = (timesheet) => {
-    navigate('/timesheet/create', { state: { timesheet } });
+    // Navigate to the project-specific edit route
+    const clientId = timesheet.clientId?._id || timesheet.clientId;
+    const projectId = timesheet.projectId?._id || timesheet.projectId;
+    navigate(`/timesheet/project/edit/${clientId}/${projectId}/${timesheet._id}`);
    };
 
-  const handleDelete = useCallback(async (id) => {
-    if (!window.confirm('Are you sure you want to delete this timesheet entry?')) return;
+  const confirmDeleteTimesheet = useCallback(async () => {
+    if (!itemToDelete) return;
+    const { id } = itemToDelete;
     setError(null); // Clear local error
-    dispatch(clearTimesheetError()); // Clear Redux error
     try {
       await dispatch(deleteTimesheet(id)).unwrap();
       dispatch(setAlert('Timesheet entry deleted successfully', 'success'));
-      // Timesheet list updates automatically via Redux state
     } catch (error) {
       console.error('Error deleting timesheet:', error.response?.data || error.message);
       const errorMessage = error?.message || 'Failed to delete timesheet entry.';
-      // setError(errorMessage); // Handled by Alert
+      
       dispatch(setAlert(errorMessage, 'danger'));
+    } finally {
+      setShowDeleteConfirm(false); // Close modal regardless of outcome
+      setItemToDelete(null);
     }
-   }, [navigate, fetchTimesheets]);
+   }, [itemToDelete, dispatch]); // Corrected dependencies
 
   const handlePrev = () => {
     setCurrentDate(prevDate => {
@@ -366,8 +385,8 @@ const ProjectTimesheet = ({ initialProjectId = '', onProjectChange, showProjectS
         dispatch(setAlert('Please enter a valid recipient email address.', 'warning')); return;
     }
 
-    // --- Removed local error state handling ---
-    setSendError(null); // Clear local error
+    // --- Removed local error state handling, Redux handles it ---
+    // setSendError(null); // Removed local error state
     dispatch(clearProjectSendStatus()); // Clear Redux status/error
 
     try {
@@ -399,8 +418,8 @@ const handleDownload = useCallback(async () => {
     if (!isAllProjects && !selectedProjectId) {
         dispatch(setAlert('No project selected.', 'warning')); return;
     }
-    setDownloadError(null); // Clear local error
-    // --- Removed local error state handling ---
+    // --- Removed local error state handling, Redux handles it ---
+    // setDownloadError(null); // Removed local error state
     dispatch(clearProjectDownloadStatus()); // Clear Redux status/error
 
     try {
@@ -551,7 +570,7 @@ const handleDownload = useCallback(async () => {
           <span className="total-hours">{formatHoursMinutes(totalHours)}</span>
           <div className="inline-actions">
             <button className='icon-btn edit-btn' onClick={() => handleUpdate(entry)} title="Edit Entry"><FontAwesomeIcon icon={faPen} /></button>
-            <button className='icon-btn delete-btn' onClick={() => handleDelete(entry._id)} title="Delete Entry"><FontAwesomeIcon icon={faTrash} /></button>
+            <button className='icon-btn delete-btn' onClick={() => handleDeleteClick(entry._id)} title="Delete Entry"><FontAwesomeIcon icon={faTrash} /></button>
           </div>
         </div>
         <div className="daily-entry-body">
@@ -622,10 +641,10 @@ const handleDownload = useCallback(async () => {
           <h3><FontAwesomeIcon icon={faProjectDiagram} /> Project Timesheet</h3>
         </div>
         <div className="header-actions">
-          <button className="btn btn-red" onClick={() => { setShowDownloadFilters(prev => !prev); setShowSendFilters(false); setDownloadError(null); }} aria-expanded={showDownloadFilters} aria-controls="project-timesheet-download-options">
+          <button className="btn btn-red" onClick={() => { setShowDownloadFilters(prev => !prev); setShowSendFilters(false); dispatch(clearProjectDownloadStatus()); }} aria-expanded={showDownloadFilters} aria-controls="project-timesheet-download-options">
             <FontAwesomeIcon icon={faDownload} /> Download Report
           </button>
-          <button className="btn btn-purple" onClick={() => { setShowSendFilters(prev => !prev); setShowDownloadFilters(false); setSendError(null); }} aria-expanded={showSendFilters} aria-controls="project-timesheet-send-options">
+          <button className="btn btn-purple" onClick={() => { setShowSendFilters(prev => !prev); setShowDownloadFilters(false); dispatch(clearProjectSendStatus()); }} aria-expanded={showSendFilters} aria-controls="project-timesheet-send-options">
             <FontAwesomeIcon icon={faEnvelope} /> Send Report
           </button>
         </div>
@@ -634,7 +653,7 @@ const handleDownload = useCallback(async () => {
       {showDownloadFilters && (
         <div id="project-timesheet-download-options" className="timesheet-options-container download-options">
           <h4>Download Project Timesheet Report</h4>
-          {downloadError && <p className='error-text'><FontAwesomeIcon icon={faExclamationCircle} /> {downloadError}</p>}
+          {/* Error handled by Alert component */}
           <div className="filter-controls">
        
             <DatePicker selected={startDate} onChange={setStartDate} selectsStart startDate={startDate} endDate={endDate} placeholderText="From Date" dateFormat="yyyy-MM-dd" className="filter-datepicker" wrapperClassName="date-picker-wrapper" aria-label="Download Start Date" />
@@ -649,12 +668,12 @@ const handleDownload = useCallback(async () => {
       {showSendFilters && (
         <div id="project-timesheet-send-options" className="timesheet-options-container send-options">
           <h4>Send Project Timesheet Report</h4>
-           {sendError && <p className='error-text'><FontAwesomeIcon icon={faExclamationCircle} /> {sendError}</p>}
+           {/* Error handled by Alert component */}
           <div className="filter-controls">
            
             <DatePicker selected={startDate} onChange={setStartDate} selectsStart startDate={startDate} endDate={endDate} placeholderText="From Date" dateFormat="yyyy-MM-dd" className="filter-datepicker" wrapperClassName="date-picker-wrapper" aria-label="Send Start Date" />
             <DatePicker selected={endDate} onChange={setEndDate} selectsEnd startDate={startDate} endDate={endDate} minDate={startDate} placeholderText="To Date" dateFormat="yyyy-MM-dd" className="filter-datepicker" wrapperClassName="date-picker-wrapper" aria-label="Send End Date" />
-            <input type="email" placeholder="Recipient email" value={email} onChange={e => { setEmail(e.target.value); if (sendError) setSendError(null); }} className="filter-email" aria-label="Recipient Email" required />
+            <input type="email" placeholder="Recipient email" value={email} onChange={e => setEmail(e.target.value)} className="filter-email" aria-label="Recipient Email" required />
             <button className="btn btn-purple action-button" onClick={handleSendEmail} disabled={isSending || !email || !/\S+@\S+\.\S+/.test(email) || !selectedProjectId}>
               {isSending ? (<><FontAwesomeIcon icon={faSpinner} spin /> Sending...</>) : (<><FontAwesomeIcon icon={faEnvelope} /> Send</>)}
             </button>
@@ -699,7 +718,13 @@ const handleDownload = useCallback(async () => {
             <FontAwesomeIcon icon={faArrowRight} />
           </button>
         </div>
-        <Link to="/timesheet/create" className='btn btn-success create-timesheet-link'>
+        {/* Pass context to CreateTimesheet page */}
+        <Link
+          // Update route to use URL params for the new component
+          to={`/timesheet/project/create/${projects.find(p => p._id === selectedProjectId)?.clientId?._id}/${selectedProjectId}`}
+          className={`btn btn-success create-timesheet-link ${!selectedProjectId || selectedProjectId === ALL_PROJECTS_VALUE ? 'disabled-link' : ''}`} // Disable if no specific project selected
+          aria-disabled={!selectedProjectId || selectedProjectId === ALL_PROJECTS_VALUE || !projects.find(p => p._id === selectedProjectId)?.clientId?._id} // Also disable if client ID can't be found
+        >
           <FontAwesomeIcon icon={faPlus} /> Create Timesheet
         </Link>
       </div>
@@ -771,8 +796,8 @@ const handleDownload = useCallback(async () => {
                                             return (
                                               <div key={entry._id} className="timesheet-entry-detail-inline">
                                                 <div className="inline-actions">
-                                                    <button className='icon-btn edit-btn' onClick={() => handleUpdate(entry)} title="Edit Entry"><FontAwesomeIcon icon={faPen} /></button>
-                                                    <button className='icon-btn delete-btn' onClick={() => handleDelete(entry._id)} title="Delete Entry"><FontAwesomeIcon icon={faTrash} /></button>
+                                                    <button className='icon-btn edit-btn' onClick={() => handleUpdate(entry)} title="Edit Entry"><FontAwesomeIcon icon={faPen} /></button> {/* Corrected: handleUpdate already navigates */}
+                                                    <button className='icon-btn delete-btn' onClick={() => handleDeleteClick(entry._id)} title="Delete Entry"><FontAwesomeIcon icon={faTrash} /></button>
                                                 </div>
                                                 <div className="detail-section"><span className="detail-label">EMPLOYEE:</span><span className="detail-value">{employeeGroup.name}</span></div>
 
@@ -834,6 +859,22 @@ const handleDownload = useCallback(async () => {
             </div>
          )
        )}
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteConfirm && itemToDelete && (
+          <div className="logout-confirm-overlay"> {/* Re-use styles */}
+            <div className="logout-confirm-dialog">
+              <h4>Confirm Timesheet Deletion</h4>
+              <p>Are you sure you want to permanently delete this timesheet entry? This action cannot be undone.</p>
+              <div className="logout-confirm-actions">
+                <button className="btn btn-secondary" onClick={cancelDelete} disabled={timesheetStatus === 'loading'}>Cancel</button>
+                <button className="btn btn-danger" onClick={confirmDeleteTimesheet} disabled={timesheetStatus === 'loading'}>
+                  {timesheetStatus === 'loading' ? <><FontAwesomeIcon icon={faSpinner} spin /> Deleting...</> : 'Delete Entry'}
+                </button>
+              </div>
+            </div>
+          </div>
+      )}
     </div>
   );
 };

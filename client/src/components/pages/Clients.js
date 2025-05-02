@@ -72,7 +72,7 @@ const Clients = () => {
       // dispatch(clearClientError());
     }
   }, [clientError, dispatch]);
-
+  
   // Effect to handle download status/errors
   useEffect(() => {
     if (downloadStatus === 'failed' && downloadError) {
@@ -81,8 +81,24 @@ const Clients = () => {
     } // Success alert for download is handled in handleDownloadClients
   }, [downloadStatus, downloadError, dispatch]);
 
-  const handleDeleteClient = (clientId, clientName) => {
-    if (!window.confirm(`Are you sure you want to delete client "${clientName}"?`)) return;
+  // --- Refactored Delete Confirmation ---
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [itemToDelete, setItemToDelete] = useState(null); // { id, name }
+
+  const handleDeleteClick = (clientId, clientName) => {
+    setItemToDelete({ id: clientId, name: clientName });
+    setShowDeleteConfirm(true);
+  };
+
+  const cancelDelete = () => {
+    setShowDeleteConfirm(false);
+    setItemToDelete(null);
+  };
+
+  const confirmDeleteClient = () => {
+    if (!itemToDelete) return;
+    const { id: clientId, name: clientName } = itemToDelete;
+
     dispatch(deleteClient(clientId))
       .unwrap()
       .then(() => dispatch(setAlert(`Client "${clientName}" deleted successfully.`, 'success')))
@@ -90,6 +106,9 @@ const Clients = () => {
         const errorMessage = err?.message || `Failed to delete client "${clientName}".`; // Extract message
         dispatch(setAlert(errorMessage, 'danger'));
       });
+    // Close modal after dispatching
+    setShowDeleteConfirm(false);
+    setItemToDelete(null);
   };
 
   const filteredClients = clients.filter((client) =>
@@ -243,7 +262,7 @@ const Clients = () => {
                       </button>
                       <button
                         className="btn-icon btn-icon-red" // Delete button
-                        onClick={() => handleDeleteClient(client._id, client.name)} // Use Redux handler
+                        onClick={() => handleDeleteClick(client._id, client.name)} // Trigger modal
                         title={`Delete ${client.name}`}
                         aria-label={`Delete ${client.name}`}
                         disabled={isDeleting} // Optional: Disable while deleting
@@ -258,6 +277,23 @@ const Clients = () => {
           )}
         </div>
       )}
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteConfirm && itemToDelete && (
+          <div className="logout-confirm-overlay"> {/* Re-use styles */}
+            <div className="logout-confirm-dialog">
+              <h4>Confirm Client Deletion</h4>
+              <p>Are you sure you want to permanently delete client "<strong>{itemToDelete.name}</strong>"? This action cannot be undone.</p>
+              <div className="logout-confirm-actions">
+                <button className="btn btn-secondary" onClick={cancelDelete} disabled={isDeleting}>Cancel</button>
+                <button className="btn btn-danger" onClick={confirmDeleteClient} disabled={isDeleting}>
+                  {isDeleting ? <><FontAwesomeIcon icon={faSpinner} spin /> Deleting...</> : 'Delete Client'}
+                </button>
+              </div>
+            </div>
+          </div>
+      )}
+
     </div>
   );
 };

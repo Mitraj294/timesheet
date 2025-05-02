@@ -44,7 +44,8 @@ const ViewProject = () => {
 
   // Local State
   // const [error, setError] = useState(null); // Replaced by Alert
-  const [isDeleting, setIsDeleting] = useState(false); // Keep for button state if needed
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [itemToDelete, setItemToDelete] = useState(null); // { id, name }
 
   const { user } = useSelector((state) => state.auth || {});
 
@@ -80,14 +81,22 @@ const ViewProject = () => {
     }
   }, [projectError, dispatch]);
 
+  // --- Refactored Delete Confirmation ---
+  const handleDeleteClick = (projectId, projectName) => {
+    setItemToDelete({ id: projectId, name: projectName });
+    setShowDeleteConfirm(true);
+  };
+
+  const cancelDelete = () => {
+    setShowDeleteConfirm(false);
+    setItemToDelete(null);
+  };
+
   const handleProjectChangeInTimesheet = useCallback((newProjectId) => {
     if (newProjectId && newProjectId !== projectId && newProjectId !== ALL_PROJECTS_VALUE) {
       const currentClientId = project?.clientId?._id || clientId || 'unknown';
       const targetUrl = `/clients/view/${currentClientId}/project/${newProjectId}`;
-      console.log('Navigating to:', targetUrl, 'New Project ID:', newProjectId, 'Current Client ID:', currentClientId);
       navigate(targetUrl);
-    } else {
-      console.log('Navigation skipped. New Project ID:', newProjectId, 'Current Project ID:', projectId);
     }
   }, [navigate, projectId, project, clientId]);
 
@@ -95,11 +104,10 @@ const ViewProject = () => {
   const handleDeleteProject = async () => {
       if (!project || !window.confirm(`Are you sure you want to delete project "${project.name}"? This action cannot be undone.`)) {
           return;
-      }
-      setIsDeleting(true); // Keep local state for button UI
-      // setError(null); // Replaced by Alert
+      } // This window.confirm should be removed, handled by modal now
+      if (!itemToDelete) return; // Ensure itemToDelete is set
+      const { id: projectIdToDelete, name: projectNameToDelete } = itemToDelete;
       dispatch(clearProjectError()); // Clear Redux error
-
       try {
           await dispatch(deleteProject(projectId)).unwrap();
           dispatch(setAlert(`Project "${project.name}" deleted successfully.`, 'success'));
@@ -111,18 +119,18 @@ const ViewProject = () => {
               navigate('/clients'); // Fallback if client context is lost
           }
       } catch (err) {
-          console.error("Failed to delete project:", err);
-          const errorMessage = err?.message || `Failed to delete project "${project.name}".`;
-          // setError(errorMessage); // Replaced by Alert
+          console.error("Failed to delete project:", err); // Keep console log
+          const errorMessage = err?.message || `Failed to delete project "${projectNameToDelete}".`;
           dispatch(setAlert(errorMessage, 'danger'));
-          // No need to re-set local error from deleteError variable
       } finally {
-          setIsDeleting(false); // Reset local button state
+          setShowDeleteConfirm(false); // Close modal
+          setItemToDelete(null);
       }
   };
 
   // Combined loading/error states
   const isLoading = useMemo(() => projectStatus === 'loading', [projectStatus]);
+  const isDeleting = deleteStatus === 'loading'; // Use Redux status for disabling buttons
   // const combinedError = useMemo(() => error || projectError, [error, projectError]); // Replaced by useEffect
 
   if (isLoading && !project) { // Show loading only if project data isn't available yet
@@ -216,17 +224,25 @@ const ViewProject = () => {
                         // setError("Cannot edit project: Client information is missing."); // Replaced by Alert
                     }
                 }}
-                disabled={deleteStatus === 'loading' || isDeleting} // Disable based on Redux status or local delete state
+                disabled={isDeleting} // Use Redux status
               >
                 <FontAwesomeIcon icon={faEdit} /> Edit Project
               </button>
-              <button
+              {/* <button // Original button, replaced by modal trigger
                 onClick={handleDeleteProject}
                 disabled={isDeleting || deleteStatus === 'loading'} // Disable based on Redux status or local delete state
                 className="btn btn-danger"
               >
                 {isDeleting ? <FontAwesomeIcon icon={faSpinner} spin /> : <FontAwesomeIcon icon={faTrash} />}
                 {isDeleting ? ' Deleting...' : ' Delete Project'}
+              </button>
+              */}
+              <button
+                onClick={() => handleDeleteClick(project._id, project.name)} // Trigger modal
+                disabled={isDeleting} // Use Redux status
+                className="btn btn-danger"
+              >
+                <FontAwesomeIcon icon={faTrash} /> Delete Project
               </button>
             </div>
          )}
@@ -293,6 +309,22 @@ const ViewProject = () => {
             showProjectSelector={true}
         />
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteConfirm && itemToDelete && (
+          <div className="logout-confirm-overlay"> {/* Re-use styles */}
+            <div className="logout-confirm-dialog">
+              <h4>Confirm Project Deletion</h4>
+              <p>Are you sure you want to permanently delete project "<strong>{itemToDelete.name}</strong>"? This action cannot be undone.</p>
+              <div className="logout-confirm-actions">
+                <button className="btn btn-secondary" onClick={cancelDelete} disabled={isDeleting}>Cancel</button>
+                <button className="btn btn-danger" onClick={handleDeleteProject} disabled={isDeleting}>
+                  {isDeleting ? <><FontAwesomeIcon icon={faSpinner} spin /> Deleting...</> : 'Delete Project'}
+                </button>
+              </div>
+            </div>
+          </div>
+      )}
     </div>
   );
 };

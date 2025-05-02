@@ -1,5 +1,5 @@
 // /home/digilab/timesheet/client/src/components/pages/Employees.js
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react'; // Added useCallback
 import { Link, useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 // --- UPDATED IMPORTS ---
@@ -30,6 +30,8 @@ const Employees = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const [search, setSearch] = useState('');
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false); // State for modal visibility
+  const [itemToDelete, setItemToDelete] = useState(null); // State for employee to delete { id, name }
 
   // --- Selectors with defensive checks ---
   const employees = useSelector(state => {
@@ -94,23 +96,32 @@ const Employees = () => {
     }
   }, [error, dispatch]);
 
-  const handleDelete = (id, name) => {
-    if (
-      window.confirm(
-        `Are you sure you want to delete employee "${name}"? This action cannot be undone.`
-      )
-    ) {
-      // Dispatch deleteEmployee thunk from slice
-      dispatch(deleteEmployee(id))
-        .unwrap()
-        .then(() => {
-          dispatch(setAlert(`Employee "${name}" deleted successfully.`, 'success')); // Success alert
-        })
-        .catch((err) => {
-          dispatch(setAlert(err?.message || `Failed to delete employee "${name}".`, 'danger')); // Error alert
-        });
-    }
+  // --- Refactored Delete Confirmation ---
+  const handleDeleteClick = (id, name) => {
+    setItemToDelete({ id, name });
+    setShowDeleteConfirm(true);
   };
+
+  const cancelDelete = () => {
+    setShowDeleteConfirm(false);
+    setItemToDelete(null);
+  };
+
+  const confirmDeleteEmployee = useCallback(async () => {
+    if (!itemToDelete) return;
+    const { id, name } = itemToDelete;
+
+    dispatch(deleteEmployee(id))
+      .unwrap()
+      .then(() => {
+        dispatch(setAlert(`Employee "${name}" deleted successfully.`, 'success'));
+      })
+      .catch((err) => {
+        dispatch(setAlert(err?.message || `Failed to delete employee "${name}".`, 'danger'));
+      });
+    setShowDeleteConfirm(false); // Close modal after dispatch
+    setItemToDelete(null);
+  }, [itemToDelete, dispatch]); // Added dependencies
 
    // Ensure employees is an array before filtering
    const filteredEmployees = Array.isArray(employees) ? employees.filter(
@@ -235,7 +246,7 @@ const Employees = () => {
                     </button>
                     <button
                       className='btn-icon btn-icon-red'
-                      onClick={() => handleDelete(emp._id, emp.name)} // handleDelete already uses the thunk
+                      onClick={() => handleDeleteClick(emp._id, emp.name)} // Updated to call handleDeleteClick
                       aria-label={`Delete ${emp.name}`}
                       title={`Delete ${emp.name}`}
                     >
@@ -247,6 +258,22 @@ const Employees = () => {
             ))
           )}
         </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteConfirm && itemToDelete && (
+          <div className="logout-confirm-overlay"> {/* Re-use styles */}
+            <div className="logout-confirm-dialog">
+              <h4>Confirm Employee Deletion</h4>
+              <p>Are you sure you want to permanently delete employee "<strong>{itemToDelete.name}</strong>"? This action cannot be undone.</p>
+              <div className="logout-confirm-actions">
+                <button className="btn btn-secondary" onClick={cancelDelete} disabled={loading}>Cancel</button>
+                <button className="btn btn-danger" onClick={confirmDeleteEmployee} disabled={loading}>
+                  {loading ? <><FontAwesomeIcon icon={faSpinner} spin /> Deleting...</> : 'Delete Employee'}
+                </button>
+              </div>
+            </div>
+          </div>
       )}
     </div>
   );

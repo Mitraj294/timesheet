@@ -1,3 +1,4 @@
+// /home/digilab/timesheet/client/src/redux/slices/timesheetSlice.js
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import axios from 'axios';
 
@@ -242,6 +243,23 @@ export const updateTimesheet = createAsyncThunk(
   }
 );
 
+// --- Add Async Thunk for Fetching Single Timesheet ---
+export const fetchTimesheetById = createAsyncThunk(
+  'timesheets/fetchTimesheetById',
+  async (timesheetId, { getState, rejectWithValue }) => {
+    try {
+      const { token } = getState().auth;
+      if (!token) return rejectWithValue('Authentication required.');
+      // Assuming endpoint is GET /api/timesheets/:id
+      const response = await axios.get(`${API_URL}/timesheets/${timesheetId}`, getAuthHeaders(token));
+      return response.data; // Expecting the single timesheet object
+    } catch (error) {
+      console.error("Error fetching timesheet by ID:", error);
+      return rejectWithValue(getErrorMessage(error));
+    }
+  }
+);
+
 const initialState = {
   timesheets: [],
   totalHours: 0,
@@ -257,17 +275,21 @@ const initialState = {
   // Add specific state for send action
   sendStatus: 'idle', // 'idle' | 'loading' | 'succeeded' | 'failed'
   sendError: null,
+  // Add specific state for project send action
+  projectSendStatus: 'idle',
+  projectSendError: null,
   // Add specific state for check/create/update actions
   checkStatus: 'idle',
   checkError: null,
   checkResult: null, // To store { exists: boolean, timesheet: object | null }
   createStatus: 'idle',
-  // Add specific state for project send action
-  projectSendStatus: 'idle',
-  projectSendError: null,
   createError: null,
   updateStatus: 'idle',
   updateError: null,
+  // Add state for the single timesheet being viewed/edited
+  currentTimesheet: null,
+  currentTimesheetStatus: 'idle', // 'idle' | 'loading' | 'succeeded' | 'failed'
+  currentTimesheetError: null,
 };
 
 const timesheetSlice = createSlice({
@@ -308,6 +330,12 @@ const timesheetSlice = createSlice({
     clearUpdateStatus: (state) => {
         state.updateStatus = 'idle';
         state.updateError = null;
+    },
+    // Add reducer to clear current timesheet
+    clearCurrentTimesheet: (state) => {
+        state.currentTimesheet = null;
+        state.currentTimesheetStatus = 'idle';
+        state.currentTimesheetError = null;
     },
     // Action to clear all timesheet data (e.g., on logout)
     clearTimesheets: () => initialState,
@@ -419,6 +447,41 @@ const timesheetSlice = createSlice({
       .addCase(createTimesheet.rejected, (state, action) => {
         state.createStatus = 'failed';
         state.createError = action.payload;
+      })
+      // --- Add cases for fetchTimesheetById ---
+      .addCase(fetchTimesheetById.pending, (state) => {
+        state.currentTimesheetStatus = 'loading';
+        state.currentTimesheetError = null;
+        state.currentTimesheet = null; // Clear previous one while loading
+      })
+      .addCase(fetchTimesheetById.fulfilled, (state, action) => {
+        state.currentTimesheetStatus = 'succeeded';
+        state.currentTimesheet = action.payload; // Store the fetched timesheet
+      })
+      .addCase(fetchTimesheetById.rejected, (state, action) => {
+        state.currentTimesheetStatus = 'failed';
+        state.currentTimesheetError = action.payload;
+        state.currentTimesheet = null;
+      })
+      // --- Add cases for updateTimesheet ---
+      .addCase(updateTimesheet.pending, (state) => {
+        state.updateStatus = 'loading';
+        state.updateError = null;
+      })
+      .addCase(updateTimesheet.fulfilled, (state, action) => {
+        state.updateStatus = 'succeeded';
+        const index = state.timesheets.findIndex(ts => ts._id === action.payload.timesheet._id);
+        if (index !== -1) {
+          state.timesheets[index] = action.payload.timesheet;
+        }
+        // Also update currentTimesheet if it matches
+        if (state.currentTimesheet?._id === action.payload.timesheet._id) {
+            state.currentTimesheet = action.payload.timesheet;
+        }
+      })
+      .addCase(updateTimesheet.rejected, (state, action) => {
+        state.updateStatus = 'failed';
+        state.updateError = action.payload;
       });
   },
 });
@@ -446,7 +509,7 @@ export const selectTimesheetProjectSendError = (state) => state.timesheets.proje
 export const {
     clearTimesheetError, clearTimesheets,
     clearDownloadStatus, clearSendStatus, clearProjectDownloadStatus, clearProjectSendStatus, // Export new clear actions
-    clearCheckStatus, clearCreateStatus, clearUpdateStatus // Export new clear actions
+    clearCheckStatus, clearCreateStatus, clearUpdateStatus, clearCurrentTimesheet // Export new clear actions
 } = timesheetSlice.actions;
 // Selectors for check/create/update state
 export const selectTimesheetCheckStatus = (state) => state.timesheets.checkStatus;
@@ -456,3 +519,7 @@ export const selectTimesheetCreateStatus = (state) => state.timesheets.createSta
 export const selectTimesheetCreateError = (state) => state.timesheets.createError;
 export const selectTimesheetUpdateStatus = (state) => state.timesheets.updateStatus;
 export const selectTimesheetUpdateError = (state) => state.timesheets.updateError;
+// --- Add exports for current timesheet ---
+export const selectCurrentTimesheet = (state) => state.timesheets.currentTimesheet;
+export const selectCurrentTimesheetStatus = (state) => state.timesheets.currentTimesheetStatus;
+export const selectCurrentTimesheetError = (state) => state.timesheets.currentTimesheetError;

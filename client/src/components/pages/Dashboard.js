@@ -181,7 +181,7 @@ const Dashboard = () => {
 
   // --- Logout Logic ---
   const handleLogoutClick = () => {
-    setShowLogoutConfirm(true); // Show confirmation UI instead of window.confirm
+    setShowLogoutConfirm(true); 
   };
 
   const confirmLogout = () => {

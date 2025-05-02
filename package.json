@@ -29,6 +29,7 @@
     "express": "^5.1.0",
     "helmet": "^8.1.0",
     "leaflet": "^1.9.4",
+    "libphonenumber-js": "^1.12.7",
     "luxon": "^3.6.1",
     "mongoose": "^8.13.2",
     "morgan": "^1.10.0",

@@ -11,7 +11,7 @@ import timesheetReducer from "../redux/slices/timesheetSlice.js";
 import alertReducer from "../redux/slices/alertSlice.js";
 import roleReducer from '../redux/slices/roleSlice'; 
 import scheduleReducer from '../redux/slices/scheduleSlice';
-import vehicleReducer from '../redux/slices/vehicleSlice';
+import vehicleReducer from '../redux/slices/vehicleSlice'; 
 import vehicleReviewReducer from '../redux/slices/vehicleReviewSlice'; 
 const store = configureStore({
   reducer: {
@@ -22,8 +22,8 @@ const store = configureStore({
     clients: clientReducer,
     projects: projectReducer,
     auth: authReducer,
-    vehicleReviews: vehicleReviewReducer,
     vehicles: vehicleReducer,
+    vehicleReviews: vehicleReviewReducer, 
     roles: roleReducer,
     schedules: scheduleReducer,
 

@@ -66,9 +66,7 @@ const Map = () => {
             if (response.status === 401) {
                 console.error('Unauthorized: Invalid or expired token.');
                 dispatch(setAlert('Session expired. Please log in again.', 'danger')); // Alert for 401
-                // Optionally clear token and redirect to login
-                // localStorage.removeItem('token');
-                // window.location.href = '/login';
+              
             }
             throw new Error(`HTTP error! status: ${response.status}`);
         }

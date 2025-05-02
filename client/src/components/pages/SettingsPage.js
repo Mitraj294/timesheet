@@ -81,8 +81,14 @@ const SettingsPage = () => {
                 newPassword: passwordData.newPassword,
             })).unwrap();
 
-            dispatch(setAlert('Password changed successfully!', 'success'));
-            setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' }); // Clear form
+             // --- CHANGE START ---
+            // Navigate to login page with email and flag after successful password change.
+            // The logout logic in authSlice will clear the state, triggering the redirect anyway,
+            // but navigating explicitly ensures the state is passed correctly.
+            const userEmail = user?.email; // Get email before potential state clear
+            if (userEmail) {
+                navigate('/login', { state: { email: userEmail, passwordChanged: true } });
+            }
         } catch (err) {
             // Error alert is handled by the authSlice/useEffect watching authError
             console.error("Password change failed:", err);

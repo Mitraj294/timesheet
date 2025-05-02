@@ -25,6 +25,7 @@ import ViewClient from "./components/pages/ViewClient";
 import Map from "./components/pages/Map";
 import Timesheet from "./components/pages/Timesheet";
 import CreateTimesheet from "./components/pages/CreateTimesheet";
+import CreateProjectTimesheet from './components/pages/CreateProjectTimesheet'; // Import the new component
 import CreateProject from "./components/pages/CreateProject";
 import RosterPage from "./components/pages/RosterPage";
 import CreateRole from "./components/pages/CreateRole";
@@ -125,9 +126,14 @@ const AppContent = () => {
         <Route path="/clients/:clientId/projects/update/:projectId" element={<PrivateRoute><CreateProject /></PrivateRoute>} />
         <Route path="/clients/:clientId/projects/view/:projectId" element={<PrivateRoute><ViewProject /></PrivateRoute>} />
 
+        {/* General Timesheet Create/Edit */}
         <Route path="/timesheet" element={<PrivateRoute><Timesheet /></PrivateRoute>} />
         <Route path="/timesheet/create" element={<PrivateRoute><CreateTimesheet /></PrivateRoute>} />
-        <Route path="/timesheet/edit/:id" element={<PrivateRoute><CreateTimesheet /></PrivateRoute>} />
+        <Route path="/timesheet/edit/:id" element={<PrivateRoute><CreateTimesheet /></PrivateRoute>} /> {/* Assuming edit uses same component */}
+
+        {/* Project-Specific Timesheet Create/Edit */}
+        <Route path="/timesheet/project/create/:clientId/:projectId" element={<PrivateRoute><CreateProjectTimesheet /></PrivateRoute>} />
+        <Route path="/timesheet/project/edit/:clientId/:projectId/:timesheetId" element={<PrivateRoute><CreateProjectTimesheet /></PrivateRoute>} />
 
         <Route path="/map" element={<PrivateRoute><Map /></PrivateRoute>} />
 

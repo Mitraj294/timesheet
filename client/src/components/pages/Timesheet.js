@@ -36,16 +36,16 @@ import { fetchProjects, selectProjectItems, selectProjectStatus, selectProjectEr
 import {
     fetchTimesheets,
     deleteTimesheet,
-    downloadTimesheet, // Import the download thunk
-    sendTimesheet, // Import the send thunk
+    downloadTimesheet, 
+    sendTimesheet,
     selectAllTimesheets,
     selectTimesheetStatus,
     selectTimesheetError,
-    selectTimesheetDownloadStatus, // Import download status selector
-    selectTimesheetDownloadError, // Import download error selector
-    selectTimesheetSendStatus, // Import send status selector
-    selectTimesheetSendError, // Import send error selector
-    clearTimesheetError, clearDownloadStatus, clearSendStatus // Import clear actions
+    selectTimesheetDownloadStatus, 
+    selectTimesheetDownloadError,
+    selectTimesheetSendStatus, 
+    selectTimesheetSendError, 
+    clearTimesheetError, clearDownloadStatus, clearSendStatus 
 } from '../../redux/slices/timesheetSlice';
 import { selectIsAuthenticated, selectAuthUser } from '../../redux/slices/authSlice'; // Assuming you need user info
 import { setAlert } from '../../redux/slices/alertSlice'; // Import setAlert
@@ -227,6 +227,8 @@ const Timesheet = () => {
   const [downloadEndDate, setDownloadEndDate] = useState(null);
   const [sendEmail, setSendEmail] = useState('');
   const [sendSelectedEmployee, setSendSelectedEmployee] = useState('');
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [itemToDelete, setItemToDelete] = useState(null); // { id }
   const [sendStartDate, setSendStartDate] = useState(null);
   const [sendEndDate, setSendEndDate] = useState(null);
 
@@ -295,24 +297,37 @@ const Timesheet = () => {
     setExpandedRows((prev) => ({ ...prev, [id]: !prev[id] }));
    };
 
+    // --- Refactored Delete Confirmation ---
+  const handleDeleteClick = (timesheetId) => {
+    setItemToDelete({ id: timesheetId });
+    setShowDeleteConfirm(true);
+  };
+
+  const cancelDelete = () => {
+    setShowDeleteConfirm(false);
+    setItemToDelete(null);
+  };
   const handleUpdate = (timesheet) => {
     // Navigate to the create/update timesheet page with the selected timesheet data
     navigate('/timesheet/create', { state: { timesheet } });
    };
 
-  const handleDelete = useCallback(async (id) => {
+   const confirmDeleteTimesheet = useCallback(async () => {
     // Delete a timesheet entry after confirmation
-    if (window.confirm('Are you sure you want to delete this timesheet entry?')) {
-        dispatch(deleteTimesheet(id))
+    if (!itemToDelete) return;
+    const { id } = itemToDelete;
+    dispatch(deleteTimesheet(id))
             .unwrap() // unwrap allows catching errors from the thunk promise
             .then(() => {
                 dispatch(setAlert('Timesheet entry deleted successfully', 'success'));
+                setShowDeleteConfirm(false); // Close modal on success
+                setItemToDelete(null);
             })
             .catch((err) => {
                 dispatch(setAlert(`Error deleting timesheet: ${err}`, 'danger'));
             });
     }
-   }, [navigate, dispatch]); // Removed fetchTimesheets dependency as list updates via Redux
+   , [itemToDelete, dispatch]); // Added itemToDelete, removed unused navigate
 
   // Navigate to the previous time period
   const handlePrev = () => {
@@ -547,7 +562,7 @@ const Timesheet = () => {
           <span className="total-hours">{formatHoursMinutes(totalHours)}</span>
           <div className="inline-actions">
             <button className='icon-btn edit-btn' onClick={() => handleUpdate(entry)} title="Edit Entry"><FontAwesomeIcon icon={faPen} /></button>
-            <button className='icon-btn delete-btn' onClick={() => handleDelete(entry._id)} title="Delete Entry"><FontAwesomeIcon icon={faTrash} /></button>
+            <button className='icon-btn delete-btn' onClick={() => handleDeleteClick(entry._id)} title="Delete Entry"><FontAwesomeIcon icon={faTrash} /></button>
           </div>
         </div>
         <div className="daily-entry-body">
@@ -777,7 +792,8 @@ const Timesheet = () => {
                                               <div key={entry._id} className="timesheet-entry-detail-inline">
                                                 <div className="inline-actions">
                                                     <button className='icon-btn edit-btn' onClick={() => handleUpdate(entry)} title="Edit Entry"><FontAwesomeIcon icon={faPen} /></button>
-                                                    <button className='icon-btn delete-btn' onClick={() => handleDelete(entry._id)} title="Delete Entry"><FontAwesomeIcon icon={faTrash} /></button>
+                                                    {/* <button className='icon-btn delete-btn' onClick={() => handleDelete(entry._id)} title="Delete Entry"><FontAwesomeIcon icon={faTrash} /></button> */}
+                                                    <button className='icon-btn delete-btn' onClick={() => handleDeleteClick(entry._id)} title="Delete Entry"><FontAwesomeIcon icon={faTrash} /></button>
                                                 </div>
                                                 <div className="detail-section"><span className="detail-label">EMPLOYEE:</span><span className="detail-value">{employeeGroup.name}</span></div>
 
@@ -854,6 +870,22 @@ const Timesheet = () => {
             </div>
          )
        )}
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteConfirm && itemToDelete && (
+          <div className="logout-confirm-overlay"> {/* Re-use styles */}
+            <div className="logout-confirm-dialog">
+              <h4>Confirm Timesheet Deletion</h4>
+              <p>Are you sure you want to permanently delete this timesheet entry? This action cannot be undone.</p>
+              <div className="logout-confirm-actions">
+                <button className="btn btn-secondary" onClick={cancelDelete} disabled={timesheetStatus === 'loading'}>Cancel</button>
+                <button className="btn btn-danger" onClick={confirmDeleteTimesheet} disabled={timesheetStatus === 'loading'}>
+                  {timesheetStatus === 'loading' ? <><FontAwesomeIcon icon={faSpinner} spin /> Deleting...</> : 'Delete Entry'}
+                </button>
+              </div>
+            </div>
+          </div>
+      )}
     </div>
   );
 };

@@ -1,7 +1,7 @@
 // /home/digilab/timesheet/client/src/components/auth/Login.js
 import React, { useState, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom"; // Import useLocation
 // Correct the import name here
 import { login } from "../../redux/slices/authSlice"; // Changed from loginUser to login
 import { setAlert } from "../../redux/slices/alertSlice"; // Import setAlert
@@ -11,14 +11,16 @@ import Alert from "../layout/Alert"; // Import the Alert component
 const Login = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
+  const location = useLocation(); // Get location object
   // Selects state needed for UI feedback and redirection
   const { isAuthenticated, error, loading } = useSelector((state) => state.auth);
 
   const [formData, setFormData] = useState({
-    email: "",
+    // Pre-fill email if passed from registration or password change
+    email: location.state?.email || "",
     password: "",
   });
-
+  
   // Redirects user to dashboard upon successful authentication
   useEffect(() => {
     if (isAuthenticated) {
@@ -26,12 +28,25 @@ const Login = () => {
     }
   }, [isAuthenticated, navigate]);
 
-  // Dispatch alert on error change
+  // Handle alerts for errors or specific messages (like password change)
   useEffect(() => {
     if (error) {
       dispatch(setAlert(error, 'danger')); // Dispatch error alert
+    } else if (location.state?.passwordChanged) {
+      // Show specific message after password change
+      dispatch(setAlert('Password changed successfully. Please log in with your new password.', 'success'));
+      // Clear the location state to prevent the message from showing again on refresh/re-render
+      navigate(location.pathname, { replace: true, state: {} });
     }
-  }, [error, dispatch]);
+    // Only run when error changes or when location state indicates password change
+  }, [error, location.state, dispatch, navigate, location.pathname]);
+
+  // Pre-fill email if passed via state (redundant with initialState but safe)
+  // useEffect(() => {
+  //   if (location.state?.email) {
+  //     setFormData(prev => ({ ...prev, email: location.state.email }));
+  //   }
+  // }, [location.state?.email]);
 
   // Handles form input changes
   const handleChange = (e) => {

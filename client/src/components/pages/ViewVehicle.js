@@ -57,6 +57,8 @@ const ViewVehicle = () => {
   const [sendEmail, setSendEmail] = useState('');
   // Local validation errors handled by dispatching alerts
 
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [itemToDelete, setItemToDelete] = useState(null); // { id, name }
   const dispatch = useDispatch();
 
   const { user } = useSelector((state) => state.auth || {});
@@ -78,8 +80,10 @@ const ViewVehicle = () => {
     dispatch(fetchVehicleById(vehicleId));
     dispatch(fetchReviewsByVehicleId(vehicleId));
     return () => {
-      dispatch(resetCurrentVehicle());
+      // Don't reset currentVehicle here, Create/Update might need it immediately.
+      // dispatch(resetCurrentVehicle());
       dispatch(resetReviewState());
+      // Reset statuses specific to this page's operations
       dispatch(clearReportStatus());
       dispatch(clearReviewOperationStatus());
     };
@@ -93,20 +97,31 @@ const ViewVehicle = () => {
     }
   }, [fetchError, reviewOperationError, reportError, dispatch]);
 
+  // --- Refactored Delete Confirmation ---
+  const handleDeleteClick = (reviewId, employeeName) => {
+    setItemToDelete({ id: reviewId, name: employeeName || 'this employee' });
+    setShowDeleteConfirm(true);
+  };
+
+  const cancelDelete = () => {
+    setShowDeleteConfirm(false);
+    setItemToDelete(null);
+  };
+
   const handleCreateReviewClick = () => {
     navigate(`/vehicles/${vehicleId}/review`);
   };
 
-  const handleDeleteReview = async (reviewId, employeeName) => {
-    const confirmDelete = window.confirm(
-      `Are you sure you want to delete this review by ${employeeName || 'this employee'}? This action cannot be undone.`
-    );
-    if (!confirmDelete) return;
+  const confirmDeleteReview = async () => {
+    if (!itemToDelete) return;
+    const { id: reviewId, name: employeeName } = itemToDelete;
 
     dispatch(clearReviewOperationStatus());
     try {
       await dispatch(deleteVehicleReview(reviewId)).unwrap();
       dispatch(setAlert(`Review by ${employeeName || 'employee'} deleted successfully.`, 'success'));
+      setShowDeleteConfirm(false); // Close modal on success
+      setItemToDelete(null);
     } catch (err) {
       console.error('Error deleting review:', err);
       // Error handled by useEffect watching reviewOperationError
@@ -209,6 +224,7 @@ const ViewVehicle = () => {
   });
 
   const gridColumns = '1fr 1.5fr 1.5fr 0.8fr 0.8fr 0.8fr 0.8fr 1.2fr';
+  const isDeleting = reviewOperationStatus === 'loading'; // Use Redux status
 
   if (isLoading && !vehicle) {
     return (
@@ -457,8 +473,8 @@ const ViewVehicle = () => {
                 )}
                 {(user?.role === 'employer' || user?.name === item.employeeId?.name) && (
                   <button
-                    onClick={() => handleDeleteReview(item._id, item.employeeId?.name)}
-                    disabled={reviewOperationStatus === 'loading'}
+                    onClick={() => handleDeleteClick(item._id, item.employeeId?.name)} // Trigger modal
+                    disabled={isDeleting} // Use Redux status
                     className='btn-icon btn-icon-red'
                     title='Delete Review'
                     aria-label={`Delete review by ${item.employeeId?.name || 'employee'}`}
@@ -471,6 +487,22 @@ const ViewVehicle = () => {
           ))
         )}
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteConfirm && itemToDelete && (
+          <div className="logout-confirm-overlay"> {/* Re-use styles */}
+            <div className="logout-confirm-dialog">
+              <h4>Confirm Review Deletion</h4>
+              <p>Are you sure you want to permanently delete the review by <strong>{itemToDelete.name}</strong>? This action cannot be undone.</p>
+              <div className="logout-confirm-actions">
+                <button className="btn btn-secondary" onClick={cancelDelete} disabled={isDeleting}>Cancel</button>
+                <button className="btn btn-danger" onClick={confirmDeleteReview} disabled={isDeleting}>
+                  {isDeleting ? <><FontAwesomeIcon icon={faSpinner} spin /> Deleting...</> : 'Delete Review'}
+                </button>
+              </div>
+            </div>
+          </div>
+      )}
     </div>
   );
 };

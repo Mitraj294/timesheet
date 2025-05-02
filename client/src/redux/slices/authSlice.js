@@ -244,7 +244,14 @@ const authSlice = createSlice({
       })
       .addCase(changePassword.fulfilled, (state, action) => {
         state.isLoading = false;
-        // No state change needed other than maybe showing success via alertSlice
+        // --- CHANGE START ---
+        // Logout the user after successful password change
+        localStorage.removeItem('token'); // Remove token from storage
+        state.user = null;
+        state.token = null;
+        state.isAuthenticated = false;
+        state.error = null;
+        // --- CHANGE END ---
       })
       .addCase(changePassword.rejected, (state, action) => {
         state.isLoading = false;

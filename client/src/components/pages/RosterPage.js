@@ -1,13 +1,14 @@
-import React, { useState, useEffect, useMemo } from 'react'; // Added useMemo
+import React, { useState, useEffect, useMemo, useCallback } from 'react'; // Added useCallback
 import { useNavigate, Link } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
-import { // Keep date-fns imports
+import { 
   startOfWeek,
   addWeeks,
   addDays,
   format,
   endOfWeek,
   isEqual,
+  parseISO, 
 } from 'date-fns';
 
 // Redux Imports
@@ -15,8 +16,8 @@ import { fetchEmployees, selectAllEmployees, selectEmployeeStatus, selectEmploye
 import { fetchRoles, deleteRole, deleteRoleScheduleEntry, updateRole, selectAllRoles, selectRoleStatus, selectRoleError, clearRoleError } from '../../redux/slices/roleSlice'; // Added updateRole
 import { fetchSchedules, bulkCreateSchedules, deleteSchedule, deleteSchedulesByDateRange, selectAllSchedules, selectScheduleStatus, selectScheduleError, clearScheduleError } from '../../redux/slices/scheduleSlice';
 import { selectAuthUser } from '../../redux/slices/authSlice';
-import { setAlert } from '../../redux/slices/alertSlice'; // Import setAlert
-import Alert from '../layout/Alert'; // Import Alert component
+import { setAlert } from '../../redux/slices/alertSlice'; 
+import Alert from '../layout/Alert'; 
 
 // Styles and Icons
 import '../../styles/Forms.scss';
@@ -119,6 +120,14 @@ const RosterPage = () => {
   const [selectedDays, setSelectedDays] = useState([]);
   const [startTime, setStartTime] = useState({});
   const [endTime, setEndTime] = useState({});
+
+  // State for Confirmation Modal
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [confirmAction, setConfirmAction] = useState(null); // Function to run on confirm
+  const [confirmTitle, setConfirmTitle] = useState('Confirm Action');
+  const [confirmMessage, setConfirmMessage] = useState('');
+  const [confirmButtonText, setConfirmButtonText] = useState('Confirm');
+  const [confirmButtonClass, setConfirmButtonClass] = useState('btn-danger');
 
   // Combined Loading and Error States from Redux
   const isDataLoading = useMemo(() =>
@@ -227,14 +236,35 @@ const RosterPage = () => {
     );
   };
 
-  const handleDeleteScheduleFromRole = async (roleId, scheduleEntryId) => {
+  // --- Confirmation Modal Logic ---
+  const handleConfirmAction = useCallback(() => {
+    if (typeof confirmAction === 'function') {
+      confirmAction();
+    }
+    setShowConfirmModal(false);
+    setConfirmAction(null);
+  }, [confirmAction]);
+
+  const handleCancelAction = () => {
+    setShowConfirmModal(false);
+    setConfirmAction(null);
+  };
+  // --- End Confirmation Modal Logic ---
+
+  const handleDeleteScheduleFromRoleClick = (roleId, scheduleEntryId, roleName, day) => {
     if (!scheduleEntryId) {
         console.error("Cannot delete role schedule entry without an ID.");
         return;
     }
-     if (!window.confirm('Are you sure you want to remove this role schedule entry for this day?')) {
-        return;
-    }
+    setConfirmTitle('Confirm Role Schedule Deletion');
+    setConfirmMessage(`Are you sure you want to remove the schedule entry for role "${roleName}" on ${format(parseISO(day), 'EEE, MMM d')}?`);
+    setConfirmButtonText('Remove Entry');
+    setConfirmButtonClass('btn-danger');
+    setConfirmAction(() => () => executeDeleteScheduleFromRole(roleId, scheduleEntryId)); // Wrap execute logic
+    setShowConfirmModal(true);
+  };
+
+  const executeDeleteScheduleFromRole = (roleId, scheduleEntryId) => {
     dispatch(clearRoleError()); // Clear previous Redux errors
 
     dispatch(deleteRoleScheduleEntry({ roleId, scheduleEntryId }))
@@ -245,15 +275,21 @@ const RosterPage = () => {
       })
       .catch((err) => {
         dispatch(setAlert(`Failed to remove role entry: ${err}`, 'danger'));
-      }); // Removed console.error and setError from outside the catch
-    // Removed console.error and setError from outside the catch
+      });
   };
 
-  const handleDeleteRole = async (roleId) => {
-    if (!window.confirm('Are you sure you want to delete this ENTIRE role and ALL its associated schedules? This action cannot be undone.')) {
-      return;
-    }
+  const handleDeleteRoleClick = (roleId, roleName) => {
+    setConfirmTitle('Confirm Role Deletion');
+    setConfirmMessage(`Are you sure you want to delete the role "${roleName}" and ALL its associated schedule entries? This action cannot be undone.`);
+    setConfirmButtonText('Delete Role');
+    setConfirmButtonClass('btn-danger');
+    setConfirmAction(() => () => executeDeleteRole(roleId, roleName)); // Wrap execute logic
+    setShowConfirmModal(true);
+  };
+
+  const executeDeleteRole = (roleId, roleName) => {
     dispatch(clearRoleError());
+    // Actual deletion logic moved here
 
     dispatch(deleteRole(roleId))
       .unwrap()
@@ -263,15 +299,21 @@ const RosterPage = () => {
       .catch((error) => {
         dispatch(setAlert(`Failed to delete role: ${error}`, 'danger'));
         console.error('Failed to delete role:', error.response?.data?.message || error.message); // Keep inside catch
-        // setError(error.response?.data?.message || 'Failed to delete role.'); // Keep inside catch - Handled by Alert
-      }); // Added missing closing brace for catch
+      });
   };
 
-  const handleRolloutToNextWeek = async () => {
-     if (!window.confirm('This will DELETE all schedules in the next week and copy the current week\'s schedule. Are you sure?')) {
-        return;
-    }
+  const handleRolloutClick = () => {
+    setConfirmTitle('Confirm Schedule Rollout');
+    setConfirmMessage(`This will DELETE all schedules in the next week (${format(addWeeks(currentWeekStart, 1), 'MMM d')} onwards) and copy the current week's schedule. Are you sure?`);
+    setConfirmButtonText('Confirm Rollout');
+    setConfirmButtonClass('btn-warning'); // Use warning color for potentially destructive copy action
+    setConfirmAction(() => executeRollout); // Set the action to execute
+    setShowConfirmModal(true);
+  };
+
+  const executeRollout = async () => {
     setIsLoading(true); // Indicate loading during rollout
+    // Actual rollout logic moved here
     dispatch(clearScheduleError());
     dispatch(clearRoleError());
 
@@ -422,10 +464,17 @@ const RosterPage = () => {
     }
   };
 
-  const handleDeleteSchedule = async (scheduleId) => {
-     if (!window.confirm('Are you sure you want to delete this shift?')) {
-        return;
-    }
+  const handleDeleteShiftClick = (scheduleId, employeeName) => {
+    setConfirmTitle('Confirm Shift Deletion');
+    setConfirmMessage(`Are you sure you want to delete this shift for ${employeeName || 'this employee'}?`);
+    setConfirmButtonText('Delete Shift');
+    setConfirmButtonClass('btn-danger');
+    setConfirmAction(() => () => executeDeleteSchedule(scheduleId)); // Wrap execute logic
+    setShowConfirmModal(true);
+  };
+
+  const executeDeleteSchedule = async (scheduleId) => {
+    // Actual deletion logic moved here
     dispatch(clearScheduleError());
     try {
       await dispatch(deleteSchedule(scheduleId)).unwrap();
@@ -438,7 +487,6 @@ const RosterPage = () => {
     } catch (err) {
       console.error('Error deleting schedule:', err.response?.data?.message || err.message);
       dispatch(setAlert(`Failed to delete shift: ${err}`, 'danger'));
-      // setError(err.response?.data?.message || 'Failed to delete shift.'); // Handled by Alert
     }
   };
 
@@ -471,7 +519,7 @@ const RosterPage = () => {
         {canRollout && (
             <button
               className='btn btn-green'
-              onClick={handleRolloutToNextWeek}
+              onClick={handleRolloutClick} // Updated onClick
               title={`Copy schedule from ${format(currentWeekStart, 'MMM d')} week to ${format(addWeeks(currentWeekStart, 1), 'MMM d')} week`}
               disabled={isLoading} // Disable during loading/rollout
             >
@@ -534,7 +582,7 @@ const RosterPage = () => {
                   {user?.role === 'employer' && (
                     <button
                       className='delete-btn'
-                      onClick={(e) => { e.stopPropagation(); handleDeleteRole(role._id); }}
+                      onClick={(e) => { e.stopPropagation(); handleDeleteRoleClick(role._id, role.roleName); }} // Updated onClick
                       title='Delete Role Permanently'
                     >
                       <FontAwesomeIcon icon={faTrash} />
@@ -580,7 +628,7 @@ const RosterPage = () => {
                                                 schedule={sch}
                                                 formatTime={formatTimeUTCtoLocal}
                                                 userRole={user?.role}
-                                                onDelete={handleDeleteSchedule}
+                                                onDelete={(id) => handleDeleteShiftClick(id, sch.employee?.name)} // Updated onDelete
                                             />
                                         ))}
                                         {dayRoles.map((role) => {
@@ -597,7 +645,7 @@ const RosterPage = () => {
                                                     formatTime={formatTimeUTCtoLocal}
                                                     assignedEmployeeNames={assignedNames}
                                                     userRole={user?.role}
-                                                    onDelete={handleDeleteScheduleFromRole}
+                                                    onDelete={(rId, sId) => handleDeleteScheduleFromRoleClick(rId, sId, role.roleName, scheduleEntry.day)} // Updated onDelete
                                                 />
                                             );
                                         })}
@@ -724,8 +772,25 @@ const RosterPage = () => {
         </div>
       )}
 
+      {/* Confirmation Modal */}
+      {showConfirmModal && (
+          <div className="logout-confirm-overlay"> {/* Re-use styles */}
+            <div className="logout-confirm-dialog">
+              <h4>{confirmTitle}</h4>
+              <p>{confirmMessage}</p>
+              <div className="logout-confirm-actions">
+                <button className="btn btn-secondary" onClick={handleCancelAction} disabled={isLoading}>Cancel</button>
+                <button className={confirmButtonClass} onClick={handleConfirmAction} disabled={isLoading}>
+                  {isLoading ? <><FontAwesomeIcon icon={faSpinner} spin /> Processing...</> : confirmButtonText}
+                </button>
+              </div>
+            </div>
+          </div>
+      )}
+
     </div>
   );
 };
 
 export default RosterPage;
+

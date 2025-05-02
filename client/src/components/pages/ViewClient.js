@@ -56,8 +56,8 @@ const ViewClient = () => {
   // Local State
   const [clientTotalHours, setClientTotalHours] = useState(0);
   const [error, setError] = useState(null);
-  // Keep local state for delete action if needed for UI feedback
-  const [isDeletingProject, setIsDeletingProject] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [itemToDelete, setItemToDelete] = useState(null); // { id, name }
 
   useEffect(() => {
     const fetchData = async () => {
@@ -118,20 +118,28 @@ const ViewClient = () => {
     }
   }, [clientError, projectError, timesheetError, dispatch]);
 
-  // Renamed function to avoid conflict with imported Redux action creator
-  const handleDeleteProject = async (projectId, projectName) => {
-    if (!window.confirm(`Are you sure you want to delete project "${projectName}"?`)) return;
+  // --- Refactored Delete Confirmation ---
+  const handleDeleteClick = (projectId, projectName) => {
+    setItemToDelete({ id: projectId, name: projectName });
+    setShowDeleteConfirm(true);
+  };
 
-    setIsDeletingProject(true);
+  const cancelDelete = () => {
+    setShowDeleteConfirm(false);
+    setItemToDelete(null);
+  };
+
+  const confirmDeleteProject = async () => {
+    if (!itemToDelete) return;
+    const { id: projectId, name: projectName } = itemToDelete;
+
     setError(null); // Clear previous errors
 
     try {
       await dispatch(deleteProject(projectId)).unwrap();
-      // State updates automatically via reducer
       dispatch(setAlert(`Project "${projectName}" deleted successfully.`, 'success'));
     } catch (err) {
       console.error("Error deleting project:", err);
-      // Extract error message string before dispatching
       let errorMessage = `Failed to delete project "${projectName}".`; // Default message
       if (err?.message) { // Prioritize err.message if it exists (covers SerializedError from unwrap)
         errorMessage = err.message;
@@ -139,9 +147,10 @@ const ViewClient = () => {
         errorMessage = err;
       }
       dispatch(setAlert(String(errorMessage), 'danger')); // Force conversion to string just in case
-    } finally {
-      setIsDeletingProject(false);
     }
+    // Close modal after dispatching
+    setShowDeleteConfirm(false);
+    setItemToDelete(null);
   };
 
   // Combined loading and error states
@@ -149,6 +158,7 @@ const ViewClient = () => {
     clientStatus === 'loading' || projectStatus === 'loading' || timesheetStatus === 'loading',
     [clientStatus, projectStatus, timesheetStatus]
   );
+  const isDeleting = projectStatus === 'loading'; // Use Redux status for disabling buttons
 
   // Define grid columns for projects
   const projectGridColumns = '1fr 1.5fr 1fr 1fr 1.5fr 1fr 1.5fr auto';
@@ -286,12 +296,6 @@ const ViewClient = () => {
             <h3><FontAwesomeIcon icon={faBriefcase} /> Projects</h3>
         </div>
 
-        {isDeletingProject && (
-             <div className='loading-indicator' style={{maxWidth: 'none', margin: '0 0 1rem 0', background: '#fff', padding: '1rem'}}>
-                <FontAwesomeIcon icon={faSpinner} spin /> Deleting project...
-             </div>
-        )}
-
         {/* Use standard grid for projects */}
         <div className="vehicles-grid"> {/* Use standard grid class */}
           <div className="vehicles-row header" style={{ gridTemplateColumns: projectGridColumns }}>
@@ -306,7 +310,7 @@ const ViewClient = () => {
           </div>
 
           {/* Display loading indicator inside grid if deleting */}
-          {projectStatus === 'loading' && projects.length === 0 && !isDeletingProject && ( // Check project status
+          {projectStatus === 'loading' && projects.length === 0 && !isDeleting && ( // Check project status
              <div className='loading-indicator' style={{ gridColumn: '1 / -1' }}>
                 <FontAwesomeIcon icon={faSpinner} spin /> Loading projects...
              </div>
@@ -354,10 +358,10 @@ const ViewClient = () => {
                     </button> 
                     <button
                       className="btn-icon btn-icon-red" // Standard icon button
-                      onClick={() => handleDeleteProject(project._id, project.name)} // Call the renamed handler
+                      onClick={() => handleDeleteClick(project._id, project.name)} // Trigger modal
                       title={`Delete ${project.name}`}
                       aria-label={`Delete ${project.name}`}
-                      disabled={isDeletingProject}
+                      disabled={isDeleting} // Use Redux status
                     >
                       <FontAwesomeIcon icon={faTrash} />
                     </button>
@@ -369,6 +373,22 @@ const ViewClient = () => {
           )}
         </div>
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteConfirm && itemToDelete && (
+          <div className="logout-confirm-overlay"> {/* Re-use styles */}
+            <div className="logout-confirm-dialog">
+              <h4>Confirm Project Deletion</h4>
+              <p>Are you sure you want to permanently delete project "<strong>{itemToDelete.name}</strong>"? This action cannot be undone.</p>
+              <div className="logout-confirm-actions">
+                <button className="btn btn-secondary" onClick={cancelDelete} disabled={isDeleting}>Cancel</button>
+                <button className="btn btn-danger" onClick={confirmDeleteProject} disabled={isDeleting}>
+                  {isDeleting ? <><FontAwesomeIcon icon={faSpinner} spin /> Deleting...</> : 'Delete Project'}
+                </button>
+              </div>
+            </div>
+          </div>
+      )}
     </div>
   );
 };
