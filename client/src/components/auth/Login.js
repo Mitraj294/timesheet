@@ -1,7 +1,7 @@
 // /home/digilab/timesheet/client/src/components/auth/Login.js
 import React, { useState, useEffect } from "react";
-import { useDispatch, useSelector } from "react-redux";
-import { useNavigate, useLocation } from "react-router-dom"; // Import useLocation
+import { useDispatch, useSelector } from "react-redux"; // Added Link
+import { useNavigate, useLocation, Link } from "react-router-dom"; // Import useLocation and Link
 // Correct the import name here
 import { login } from "../../redux/slices/authSlice"; // Changed from loginUser to login
 import { setAlert } from "../../redux/slices/alertSlice"; // Import setAlert
@@ -94,6 +94,10 @@ const Login = () => {
               onChange={handleChange}
               required
             />
+          </div>
+          {/* --- Add Forgot Password Link --- */}
+          <div className="styles_ForgotPasswordLink">
+            <Link to="/forgot-password">Forgot Password?</Link>
           </div>
           {/* Displays login errors */}
           {/* {error && <p className="styles_Error">{error}</p>}  <- Removed inline error display */}

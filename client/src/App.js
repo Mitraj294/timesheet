@@ -14,6 +14,8 @@ import Alert from "./components/layout/Alert";
 // Auth
 import Login from "./components/auth/Login";
 import Register from "./components/auth/Register";
+import ForgotPassword from './components/auth/ForgotPassword'; // Import ForgotPassword
+import ResetPassword from './components/auth/ResetPassword';   // Import ResetPassword
 
 // Pages
 import Dashboard from "./components/pages/Dashboard";
@@ -100,6 +102,8 @@ const AppContent = () => {
         {/* Public Routes */}
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} /> {/* Add Forgot Password Route */}
+        <Route path="/reset-password/:token" element={<ResetPassword />} /> {/* Add Reset Password Route */}
 
         {/* Redirect root to dashboard if authenticated, else to login */}
         <Route

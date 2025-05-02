@@ -1,49 +1,38 @@
-// /home/digilab/timesheet/client/src/redux/slices/authSlice.js
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import axios from 'axios'; // Or your API utility
+import axios from 'axios';
 
-// Define the base URL for your API
 const API_URL = process.env.REACT_APP_API_URL || 'https://timesheet-c4mj.onrender.com/api';
 
-// --- Async Thunk for Login ---
 export const login = createAsyncThunk(
   'auth/login',
   async (credentials, { rejectWithValue }) => {
     try {
       const response = await axios.post(`${API_URL}/auth/login`, credentials);
-      // Store token in localStorage on successful login
       localStorage.setItem('token', response.data.token);
-      return response.data; // Contains token and user data
+      return response.data;
     } catch (error) {
-      // Extract error message or provide a default
       const message = error.response?.data?.message || error.message || 'Login failed';
       return rejectWithValue(message);
     }
   }
 );
 
-// --- Async Thunk for Registration ---
 export const register = createAsyncThunk(
   'auth/register',
   async (userData, { rejectWithValue }) => {
     try {
-      // Adjust the endpoint '/auth/register' if yours is different
       const response = await axios.post(`${API_URL}/auth/register`, userData);
-      // Optionally store token immediately upon registration if your API returns one
-      // and logs the user in directly. Adjust based on your API behavior.
       if (response.data.token) {
          localStorage.setItem('token', response.data.token);
       }
-      return response.data; // Should contain user info and maybe token
+      return response.data;
     } catch (error) {
-      // Extract error message or provide a default
       const message = error.response?.data?.message || error.message || 'Registration failed';
       return rejectWithValue(message);
     }
   }
 );
 
-// --- Async Thunk for Changing Password ---
 export const changePassword = createAsyncThunk(
     'auth/changePassword',
     async (passwordData, { getState, rejectWithValue }) => {
@@ -52,11 +41,10 @@ export const changePassword = createAsyncThunk(
             return rejectWithValue('Authentication required.');
         }
         try {
-            // Assuming endpoint is PUT /api/auth/change-password
             const response = await axios.put(`${API_URL}/auth/change-password`, passwordData, {
                 headers: { Authorization: `Bearer ${token}` },
             });
-            return response.data; // Expecting success message e.g., { message: 'Password updated successfully' }
+            return response.data;
         } catch (error) {
             const message = error.response?.data?.message || error.message || 'Password change failed';
             return rejectWithValue(message);
@@ -64,7 +52,6 @@ export const changePassword = createAsyncThunk(
     }
 );
 
-// --- Async Thunk for Deleting Account ---
 export const deleteAccount = createAsyncThunk(
     'auth/deleteAccount',
     async (_, { getState, rejectWithValue }) => {
@@ -73,11 +60,10 @@ export const deleteAccount = createAsyncThunk(
             return rejectWithValue('Authentication required.');
         }
         try {
-            // Assuming endpoint is DELETE /api/auth/me
             const response = await axios.delete(`${API_URL}/auth/me`, {
                 headers: { Authorization: `Bearer ${token}` },
             });
-            return response.data; // Expecting success message e.g., { message: 'Account deleted successfully' }
+            return response.data;
         } catch (error) {
             const message = error.response?.data?.message || error.message || 'Account deletion failed';
             return rejectWithValue(message);
@@ -85,35 +71,28 @@ export const deleteAccount = createAsyncThunk(
     }
 );
 
-// --- Async Thunk to Load User from Token ---
 export const loadUserFromToken = createAsyncThunk(
     'auth/loadUserFromToken',
     async (_, { dispatch, rejectWithValue }) => {
         const token = localStorage.getItem('token');
         if (!token) {
-            // No need to reject here, just means no user is logged in
-            return null; // Indicate no user loaded
+            return null;
         }
-        dispatch(setAuthLoading()); // Set loading state while validating
+        dispatch(setAuthLoading());
         try {
-            // API endpoint to get user profile using the token
             const response = await axios.get(`${API_URL}/auth/me`, {
                 headers: { Authorization: `Bearer ${token}` },
             });
-            // Dispatch setAuth with user data and token to update state
             dispatch(setAuth({ user: response.data, token }));
-            return response.data; // Return user data
+            return response.data;
         } catch (error) {
              console.error("Token validation failed:", error.response?.data || error.message);
-             // Dispatch error action, which also clears token/auth state
              dispatch(setAuthError(error.response?.data?.message || 'Token validation failed'));
-             // Reject the promise so components know loading failed
              return rejectWithValue(error.response?.data?.message || 'Token validation failed');
         }
     }
 );
 
-// --- Async Thunk for Updating User Profile ---
 export const updateUserProfile = createAsyncThunk(
   'auth/updateProfile',
   async (userData, { getState, rejectWithValue }) => {
@@ -122,11 +101,10 @@ export const updateUserProfile = createAsyncThunk(
         return rejectWithValue('Authentication required.');
     }
     try {
-      // Assuming endpoint is PUT /api/users/profile (adjust if different)
       const response = await axios.put(`${API_URL}/users/profile`, userData, {
           headers: { Authorization: `Bearer ${token}` },
       });
-      return response.data; // Should return the updated user object (without password)
+      return response.data;
     } catch (err) {
       const message =
         err.response?.data?.message || err.message || 'Failed to update profile';
@@ -135,62 +113,77 @@ export const updateUserProfile = createAsyncThunk(
   }
 );
 
+export const forgotPassword = createAsyncThunk(
+  'auth/forgotPassword',
+  async (emailData, { rejectWithValue }) => {
+    try {
+      const response = await axios.post(`${API_URL}/auth/forgot-password`, emailData);
+      return response.data;
+    } catch (err) {
+      const message =
+        err.response?.data?.message || err.message || 'Failed to send reset email';
+      return rejectWithValue(message);
+    }
+  }
+);
 
-// --- Slice Definition ---
+export const resetPassword = createAsyncThunk(
+  'auth/resetPassword',
+  async ({ token, newPassword }, { rejectWithValue }) => {
+    try {
+      const response = await axios.put(`${API_URL}/auth/reset-password/${token}`, { newPassword });
+      return response.data;
+    } catch (err) {
+      const message =
+        err.response?.data?.message || err.message || 'Failed to reset password';
+      return rejectWithValue(message);
+    }
+  }
+);
+
 const authSlice = createSlice({
   name: 'auth',
   initialState: {
     user: null,
-    // Initialize token from localStorage, default to null if not found
     token: localStorage.getItem('token') || null,
-    // Initialize isAuthenticated based on token presence
     isAuthenticated: !!localStorage.getItem('token'),
-    // Start with isLoading true only if a token exists, otherwise false
-    isLoading: !!localStorage.getItem('token'), // True if token exists, needs validation
+    isLoading: !!localStorage.getItem('token'),
     error: null,
   },
   reducers: {
-    // Standard reducer for logging out
-    logout(state) {
-      localStorage.removeItem('token'); // Remove token from storage
-      // Reset state to initial non-authenticated values
+    logout: (state) => {
+      localStorage.removeItem('token');
       state.user = null;
       state.token = null;
       state.isAuthenticated = false;
       state.isLoading = false;
       state.error = null;
     },
-    // Standard reducer to manually set auth state (used by loadUserFromToken)
-    setAuth(state, action) {
+    setAuth: (state, action) => {
         state.user = action.payload.user;
         state.token = action.payload.token;
         state.isAuthenticated = true;
-        state.isLoading = false; // Finished loading/validating
+        state.isLoading = false;
         state.error = null;
     },
-    // Standard reducer to set loading state
-    setAuthLoading(state) {
+    setAuthLoading: (state) => {
         state.isLoading = true;
-        state.error = null; // Clear previous errors when starting to load
+        state.error = null;
     },
-    // Standard reducer to handle authentication errors
-    setAuthError(state, action) {
+    setAuthError: (state, action) => {
         state.isLoading = false;
         state.error = action.payload;
-        // Clear auth state on error (e.g., invalid token)
         localStorage.removeItem('token');
         state.user = null;
         state.token = null;
         state.isAuthenticated = false;
     },
-    // Optional: Reducer to clear only the error message
-    clearAuthError(state) {
-        state.error = null;
+    clearAuthError: (state) => {
+      state.error = null;
     }
   },
   extraReducers: (builder) => {
     builder
-      // Login cases
       .addCase(login.pending, (state) => {
         state.isLoading = true;
         state.error = null;
@@ -198,96 +191,74 @@ const authSlice = createSlice({
       .addCase(login.fulfilled, (state, action) => {
         state.isLoading = false;
         state.isAuthenticated = true;
-        state.user = action.payload.user; // Assuming API returns user object
+        state.user = action.payload.user;
         state.token = action.payload.token;
         state.error = null;
-        // localStorage is set in the thunk itself
       })
       .addCase(login.rejected, (state, action) => {
         state.isLoading = false;
-        state.error = action.payload; // Error message from rejectWithValue
+        state.error = action.payload;
         state.isAuthenticated = false;
         state.user = null;
         state.token = null;
-        localStorage.removeItem('token'); // Ensure token is removed on failed login
+        localStorage.removeItem('token');
       })
-
-      // Register cases
       .addCase(register.pending, (state) => {
         state.isLoading = true;
         state.error = null;
       })
       .addCase(register.fulfilled, (state, action) => {
         state.isLoading = false;
-        // Update state based on successful registration
-        // If API returns token and user on register (auto-login):
         if (action.payload.token) {
             state.isAuthenticated = true;
-            state.user = action.payload.user; // Assuming API returns user object
+            state.user = action.payload.user;
             state.token = action.payload.token;
         } else {
-            // Handle cases where registration requires separate login or verification
-            // State remains largely unchanged, maybe show a success message via alert slice
             state.isAuthenticated = false;
         }
         state.error = null;
       })
       .addCase(register.rejected, (state, action) => {
         state.isLoading = false;
-        state.error = action.payload; // Error message from rejectWithValue
+        state.error = action.payload;
         state.isAuthenticated = false;
         state.user = null;
         state.token = null;
-        localStorage.removeItem('token'); // Ensure token is removed if set prematurely
+        localStorage.removeItem('token');
       })
-
-      // Load user from token cases
       .addCase(loadUserFromToken.pending, (state) => {
-        // isLoading is already handled by dispatch(setAuthLoading()) within the thunk
+        // isLoading handled by dispatch(setAuthLoading())
       })
       .addCase(loadUserFromToken.fulfilled, (state, action) => {
-        // State is updated by dispatch(setAuth(...)) within the thunk
-        // isLoading is set to false within setAuth
-        // If action.payload is null (no token found), state remains unchanged (still loading: false, isAuthenticated: false)
         if (action.payload === null) {
-            state.isLoading = false; // Ensure loading stops if no token was found initially
+            state.isLoading = false;
         }
       })
       .addCase(loadUserFromToken.rejected, (state, action) => {
-        // State is updated by dispatch(setAuthError(...)) within the thunk
-        // isLoading is set to false within setAuthError
+        // State updated by dispatch(setAuthError())
       })
-
-      // Change Password cases
       .addCase(changePassword.pending, (state) => {
-        // Optionally set a specific loading state if needed, e.g., state.passwordChangeLoading = true;
-        state.isLoading = true; // Use general loading or specific one
+        state.isLoading = true;
         state.error = null;
       })
       .addCase(changePassword.fulfilled, (state, action) => {
         state.isLoading = false;
-        // --- CHANGE START ---
-        // Logout the user after successful password change
-        localStorage.removeItem('token'); // Remove token from storage
+        localStorage.removeItem('token');
         state.user = null;
         state.token = null;
         state.isAuthenticated = false;
         state.error = null;
-        // --- CHANGE END ---
       })
       .addCase(changePassword.rejected, (state, action) => {
         state.isLoading = false;
-        state.error = action.payload; // Set auth error on failure
+        state.error = action.payload;
       })
-
-      // Delete Account cases
       .addCase(deleteAccount.pending, (state) => {
-        state.isLoading = true; // Use general loading or a specific one like state.isDeleting = true;
+        state.isLoading = true;
         state.error = null;
       })
       .addCase(deleteAccount.fulfilled, (state, action) => {
-        // On successful deletion, reset the auth state completely (similar to logout)
-        localStorage.removeItem('token');
+        localStorage.removeItem('token'); // Ensure token is removed on delete success
         state.user = null;
         state.token = null;
         state.isAuthenticated = false;
@@ -296,49 +267,60 @@ const authSlice = createSlice({
       })
       .addCase(deleteAccount.rejected, (state, action) => {
         state.isLoading = false;
-        state.error = action.payload; // Set auth error on failure
+        state.error = action.payload;
       })
-
-      // --- Add Cases for updateUserProfile ---
       .addCase(updateUserProfile.pending, (state) => {
-        state.isLoading = true; // Or a specific loading state like state.profileUpdateLoading = true;
+        state.isLoading = true;
         state.error = null;
       })
       .addCase(updateUserProfile.fulfilled, (state, action) => {
         state.isLoading = false;
-        // Update the user state with the data returned from the API
         if (action.payload) {
-          // Make sure the payload contains the updated user fields (e.g., name, email)
-          // Only update fields that are expected to change to avoid overwriting other parts of user object
           state.user = {
             ...state.user,
-            name: action.payload.name ?? state.user.name, // Use new name if provided, else keep old
-            email: action.payload.email ?? state.user.email, // Use new email if provided, else keep old
-            // Add other fields returned by your API if necessary
+            name: action.payload.name ?? state.user.name,
+            email: action.payload.email ?? state.user.email,
           };
         }
         state.error = null;
       })
       .addCase(updateUserProfile.rejected, (state, action) => {
         state.isLoading = false;
-        state.error = action.payload; // Error message from rejectWithValue
+        state.error = action.payload;
+      })
+      .addCase(forgotPassword.pending, (state) => {
+        state.isLoading = true;
+        state.error = null;
+      })
+      .addCase(forgotPassword.fulfilled, (state, action) => {
+        state.isLoading = false;
+        state.error = null;
+      })
+      .addCase(forgotPassword.rejected, (state, action) => {
+        state.isLoading = false;
+        state.error = action.payload;
+      })
+      .addCase(resetPassword.pending, (state) => {
+        state.isLoading = true;
+        state.error = null;
+      })
+      .addCase(resetPassword.fulfilled, (state, action) => {
+        state.isLoading = false;
+        state.error = null;
+      })
+      .addCase(resetPassword.rejected, (state, action) => {
+        state.isLoading = false;
+        state.error = action.payload;
       });
   },
 });
 
-// Export the action creators generated by createSlice
-export const { logout, setAuth, setAuthLoading, setAuthError, clearAuthError } = authSlice.actions; // Keep existing exports
+export const { logout, setAuth, setAuthLoading, setAuthError, clearAuthError } = authSlice.actions;
 
-// Export the reducer function
 export default authSlice.reducer;
 
-// Optional: Selectors for convenience
 export const selectIsAuthenticated = (state) => state.auth.isAuthenticated;
 export const selectAuthUser = (state) => state.auth.user;
 export const selectAuthToken = (state) => state.auth.token;
 export const selectIsAuthLoading = (state) => state.auth.isLoading;
 export const selectAuthError = (state) => state.auth.error;
-
-// Export the async thunks
-// No need to re-export async thunks here as they were defined with 'export const'
-// export { login, register, changePassword, deleteAccount, loadUserFromToken, updateUserProfile };

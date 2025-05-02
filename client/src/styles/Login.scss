@@ -56,6 +56,23 @@
     }
 }
 
+// --- Forgot Password Link Styling ---
+.styles_ForgotPasswordLink {
+    text-align: right; // Align link to the right
+    margin-top: -10px; // Adjust spacing above the link
+    margin-bottom: 15px; // Add space below the link
+
+    a {
+        color: #007bff; // Standard link color, adjust as needed
+        text-decoration: none;
+        font-size: 0.9em; // Slightly smaller font size
+
+        &:hover {
+            text-decoration: underline;
+        }
+    }
+}
+
 .styles_Error {
     color: red;
     font-size: 14px;
