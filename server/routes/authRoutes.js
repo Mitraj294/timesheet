@@ -1,6 +1,6 @@
 // /home/digilab/timesheet/server/routes/authRoutes.js
 import express from "express";
-import { registerUser, loginUser, changePassword } from "../controllers/authController.js"; // Import changePassword
+import { registerUser, loginUser, changePassword, deleteAccount } from "../controllers/authController.js"; // Import changePassword, deleteAccount
 import User from "../models/User.js";
 // Import the authentication middleware
 import { protect } from '../middleware/authMiddleware.js'; // Adjust path if needed
@@ -57,6 +57,9 @@ router.get('/me', protect, async (req, res) => {
     res.status(500).send('Server Error');
   }
 });
+
+// DELETE /api/auth/me - Deletes the logged-in user's account
+router.delete('/me', protect, deleteAccount); // Add this line
 
 // --- ADD THIS LOG ---
 console.log(`[${new Date().toISOString()}] authRoutes.js file loaded and router configured.`);

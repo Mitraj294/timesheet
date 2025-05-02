@@ -138,6 +138,34 @@ export const changePassword = async (req, res) => {
     }
 };
 
+// Delete User Account
+export const deleteAccount = async (req, res) => {
+    try {
+        const userId = req.user.id; // Get user ID from protect middleware
+
+        // Find user to ensure they exist before attempting delete
+        const user = await User.findById(userId);
+        if (!user) {
+            // Should not happen if protect middleware works
+            return res.status(404).json({ message: "User not found." });
+        }
+
+        // --- Optional: Add password verification step here for extra security ---
+        // const { password } = req.body; // If requiring password confirmation
+        // if (!password || !(await bcrypt.compare(password, user.password))) {
+        //     return res.status(401).json({ message: "Incorrect password. Account deletion failed." });
+        // }
+
+        await User.findByIdAndDelete(userId);
+
+        // TODO: Add logic here to delete associated data (e.g., Employee record, Timesheets, Reviews) if necessary
+
+        res.json({ message: "Account deleted successfully." });
+    } catch (error) {
+        console.error("Error deleting account:", error);
+        res.status(500).json({ message: "Server error during account deletion." });
+    }
+};
 
 // Helper function to generate token (optional, can be inline as above)
 // const generateToken = (id, role) => {
