@@ -1,6 +1,13 @@
 // /home/digilab/timesheet/server/routes/authRoutes.js
 import express from "express";
-import { registerUser, loginUser, changePassword, deleteAccount } from "../controllers/authController.js"; // Import changePassword, deleteAccount
+import {
+    registerUser,
+    loginUser,
+    changePassword,
+    deleteAccount,
+    forgotPassword, // Import new controller
+    resetPassword   // Import new controller
+} from "../controllers/authController.js";
 import User from "../models/User.js";
 // Import the authentication middleware
 import { protect } from '../middleware/authMiddleware.js'; // Adjust path if needed
@@ -14,6 +21,12 @@ router.post("/register", registerUser);
 
 // POST /api/auth/login - Handles user login
 router.post("/login", loginUser);
+
+// POST /api/auth/forgot-password - Initiates password reset
+router.post("/forgot-password", forgotPassword);
+
+// PUT /api/auth/reset-password/:token - Resets password using token
+router.put("/reset-password/:token", resetPassword);
 
 // POST /api/auth/check-user - Checks if a user exists by email (Public)
 router.post("/check-user", async (req, res) => {
