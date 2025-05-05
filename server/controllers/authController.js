@@ -203,7 +203,7 @@ export const forgotPassword = async (req, res) => {
             });
             res.json({ message: "If an account with that email exists, a password reset link has been sent." });
         } catch (emailError) {
-            console.error("Error sending password reset email:", emailError);
+            console.error("Error sending password reset email:", emailError); // This line is already present
             // Clear token fields if email fails to prevent unusable token
             user.passwordResetToken = undefined;
             user.passwordResetExpires = undefined;
