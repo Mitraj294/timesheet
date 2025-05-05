@@ -195,12 +195,14 @@ export const forgotPassword = async (req, res) => {
         `;
 
         try {
+            console.log(`[${new Date().toISOString()}] Attempting to send password reset email to: ${user.email}`); // Log before sending
             // --- Actually send the email ---
             await sendEmail({
                 to: user.email,
                 subject: 'Your Password Reset Link (Valid for 10 min)',
                 html: message,
             });
+            console.log(`[${new Date().toISOString()}] Password reset email successfully sent (or appeared to send) to: ${user.email}`); // Log after sending
             res.json({ message: "If an account with that email exists, a password reset link has been sent." });
         } catch (emailError) {
             console.error("Error sending password reset email:", emailError); // This line is already present
@@ -208,11 +210,13 @@ export const forgotPassword = async (req, res) => {
             user.passwordResetToken = undefined;
             user.passwordResetExpires = undefined;
             await user.save({ validateBeforeSave: false });
+            console.error(`[${new Date().toISOString()}] FAILED to send password reset email to ${email}. Error: ${emailError.message}`); // More explicit log
             return res.status(500).json({ message: "Error sending password reset email. Please try again later." });
         }
 
     } catch (error) {
         console.error("Error in forgot password:", error);
+        console.error(`[${new Date().toISOString()}] UNCAUGHT error in forgotPassword controller for email ${req.body.email}. Error: ${error.message}`); // Log uncaught errors in the main try block
         res.status(500).json({ message: "Server error during forgot password process." });
     }
 };
