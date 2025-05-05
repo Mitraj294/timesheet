@@ -1,109 +1,114 @@
-// /home/digilab/timesheet/client/src/components/auth/Login.js
 import React, { useState, useEffect } from "react";
-import { useDispatch, useSelector } from "react-redux"; // Added Link
-import { useNavigate, useLocation, Link } from "react-router-dom"; // Import useLocation and Link
-// Correct the import name here
-import { login } from "../../redux/slices/authSlice"; // Changed from loginUser to login
-import { setAlert } from "../../redux/slices/alertSlice"; // Import setAlert
+import { useDispatch, useSelector } from "react-redux";
+import { useNavigate, useLocation, Link } from "react-router-dom";
+import { login, clearAuthError } from "../../redux/slices/authSlice";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faEye, faEyeSlash, faEnvelope, faSignInAlt, faUserPlus } from "@fortawesome/free-solid-svg-icons"; // Removed faLock
+import { setAlert } from "../../redux/slices/alertSlice";
 import "../../styles/Login.scss";
-import Alert from "../layout/Alert"; // Import the Alert component
+import Alert from "../layout/Alert";
 
 const Login = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
-  const location = useLocation(); // Get location object
-  // Selects state needed for UI feedback and redirection
+  const location = useLocation();
   const { isAuthenticated, error, loading } = useSelector((state) => state.auth);
 
   const [formData, setFormData] = useState({
-    // Pre-fill email if passed from registration or password change
     email: location.state?.email || "",
     password: "",
   });
-  
-  // Redirects user to dashboard upon successful authentication
+  const [showPassword, setShowPassword] = useState(false);
+
+  useEffect(() => {
+    dispatch(clearAuthError());
+    return () => {
+        dispatch(clearAuthError());
+    };
+  }, [dispatch]);
+
   useEffect(() => {
     if (isAuthenticated) {
       navigate("/dashboard");
     }
   }, [isAuthenticated, navigate]);
 
-  // Handle alerts for errors or specific messages (like password change)
   useEffect(() => {
     if (error) {
-      dispatch(setAlert(error, 'danger')); // Dispatch error alert
+      dispatch(setAlert(error, 'danger'));
     } else if (location.state?.passwordChanged) {
-      // Show specific message after password change
-      dispatch(setAlert('Password changed successfully. Please log in with your new password.', 'success'));
-      // Clear the location state to prevent the message from showing again on refresh/re-render
+      dispatch(setAlert('Password changed successfully. Please log in.', 'success'));
       navigate(location.pathname, { replace: true, state: {} });
     }
-    // Only run when error changes or when location state indicates password change
   }, [error, location.state, dispatch, navigate, location.pathname]);
 
-  // Pre-fill email if passed via state (redundant with initialState but safe)
-  // useEffect(() => {
-  //   if (location.state?.email) {
-  //     setFormData(prev => ({ ...prev, email: location.state.email }));
-  //   }
-  // }, [location.state?.email]);
-
-  // Handles form input changes
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  // Handles form submission by dispatching the login action
-  const handleSubmit = async (e) => { // Make the function async
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    dispatch(clearAuthError());
     try {
-      // Attempt login and wait for the result
       await dispatch(login(formData)).unwrap();
-      // If login succeeds, show success alert (redirect is handled by useEffect)
       dispatch(setAlert('Login successful!', 'success'));
     } catch (loginError) {
-      // Login failed - error alert is handled by the useEffect watching state.error
       console.error("Login failed:", loginError);
+      // Error alert handled by useEffect
     }
   };
 
   return (
     <div className="styles_LoginSignupContainer">
-      <Alert /> {/* Render Alert component */}
+      <Alert />
       <div className="styles_Card styles_Login">
         <div className="styles_Login_header">
-          <img src="/img/download.png" alt="App Logo" />
+          <img src="/img/download.png" alt="App Logo" className="styles_LoginLogo" />
         </div>
+        <hr className="styles_Separator" />
+        <h5 className="styles_FormHeader">Sign In with TimeSheet</h5>
+        <hr className="styles_Separator" />
         <form onSubmit={handleSubmit} className="styles_LoginForm">
           <div className="styles_InputGroup">
-            <label>Email</label>
-            <input
-              type="email"
-              name="email"
-              value={formData.email}
-              onChange={handleChange}
-              required
-            />
+            <label htmlFor="email">Email</label>
+            <div className="styles_InputWithIcon"> {/* Email input with icon on the right */}
+              <input
+                id="email"
+                type="email"
+                name="email"
+                placeholder="you@example.com"
+                value={formData.email}
+                onChange={handleChange}
+                required
+                disabled={loading}
+              />
+              <FontAwesomeIcon icon={faEnvelope} className="styles_InputIcon styles_InputIconRight" /> {/* Icon moved after input */}
+            </div>
           </div>
           <div className="styles_InputGroup">
-            <label>Password</label>
-            <input
-              type="password"
-              name="password"
-              value={formData.password}
-              onChange={handleChange}
-              required
-            />
+            <label htmlFor="password">Password</label>
+            <div className="styles_PasswordInputContainer"> {/* Password input with only eye toggle */}
+              {/* Lock icon removed */}
+              <input
+                id="password"
+                type={showPassword ? "text" : "password"}
+                name="password"
+                placeholder="Enter your password"
+                value={formData.password}
+                onChange={handleChange}
+                required
+                disabled={loading}
+              />
+              <button type="button" onClick={() => setShowPassword(!showPassword)} className="styles_PasswordToggleBtn" disabled={loading}>
+                <FontAwesomeIcon icon={showPassword ? faEyeSlash : faEye} />
+              </button>
+            </div>
           </div>
-          {/* --- Add Forgot Password Link --- */}
           <div className="styles_ForgotPasswordLink">
             <Link to="/forgot-password">Forgot Password?</Link>
           </div>
-          {/* Displays login errors */}
-          {/* {error && <p className="styles_Error">{error}</p>}  <- Removed inline error display */}
-          {/* Disables button while loading */}
           <button type="submit" className="styles_Button" disabled={loading}>
-            {loading ? "Logging in..." : "Login"}
+            {loading ? "Logging in..." : <><FontAwesomeIcon icon={faSignInAlt} className="button-icon" /> Login</>}
           </button>
         </form>
         <p className="styles_SignupPrompt">
@@ -111,8 +116,9 @@ const Login = () => {
           <button
             className="styles_SignupButton"
             onClick={() => navigate("/register", { state: { email: formData.email } })}
+            disabled={loading}
           >
-            Sign Up
+            <FontAwesomeIcon icon={faUserPlus} className="button-icon" /> Sign Up
           </button>
         </p>
       </div>

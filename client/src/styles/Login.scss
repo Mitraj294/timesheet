@@ -2,8 +2,9 @@
     display: flex;
     justify-content: center;
     align-items: center;
-    height: 100vh;
+    min-height: 100vh;
     background: #f4f7f6;
+    padding: 20px;
 }
 
 .styles_Card {
@@ -12,25 +13,45 @@
     border-radius: 12px;
     box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
     text-align: center;
-    width: 350px;
+    width: 100%;
+    max-width: 350px; // Specific width for Login card
+    box-sizing: border-box;
 }
 
 .styles_Login_header {
     margin-bottom: 1rem;
 
-    img {
-        width: 100px;
+    .styles_LoginLogo {
+        width: 180px;
         height: auto;
     }
+}
+
+.styles_Separator {
+    border: none;
+    height: 1px;
+    background-color: #ddd;
+    margin: 1.5rem 0;
+}
+
+.styles_FormHeader {
+    color: #777;
+    font-size: 0.95em;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin: 0 0 1.5rem 0; // Consistent margin
 }
 
 .styles_LoginForm {
     display: flex;
     flex-direction: column;
+    gap: 1rem; // Consistent gap for spacing
+    margin-top: 0; // Remove top margin if gap handles spacing sufficiently after header
 }
 
 .styles_InputGroup {
-    margin-bottom: 1rem;
+    margin-bottom: 0; // Spacing handled by form gap
     text-align: left;
 
     label {
@@ -42,30 +63,105 @@
     }
 
     input {
+        // Base input styles shared with Register
         width: 100%;
-        padding: 10px;
+        padding: 10px 12px;
         border: 1px solid #ccc;
         border-radius: 5px;
         font-size: 14px;
-        transition: 0.3s;
+        box-sizing: border-box;
+        transition: border-color 0.3s;
 
         &:focus {
             border-color: #007bff;
             outline: none;
         }
+
+        &::placeholder {
+            color: #aaa;
+            opacity: 1;
+        }
+
+        // Filled state style - Shared with Register
+        &:not(:placeholder-shown):not(:focus) {
+            border-color: #a0c9ff;
+        }
     }
 }
 
-// --- Forgot Password Link Styling ---
+// Container for inputs with icons - Shared with Register
+.styles_InputWithIcon {
+    position: relative;
+    display: flex;
+    align-items: center;
+
+    input {
+        // Consistent padding for icon space
+        padding-right: 40px;
+        padding-left: 12px;
+    }
+}
+
+// Container for password input - Shared with Register
+.styles_PasswordInputContainer {
+    position: relative;
+    display: flex;
+    align-items: center;
+
+    input[type="password"],
+    input[type="text"] {
+        // Consistent padding for icon space
+        padding-left: 12px;
+        padding-right: 40px;
+    }
+}
+
+// Icon/Button Positioning - Shared with Register
+.styles_InputIconRight,
+.styles_PasswordToggleBtn {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #666;
+    z-index: 2;
+
+    &.styles_InputIconRight {
+        // Static icons
+        right: 20px;
+        font-size: 1em;
+        pointer-events: none;
+    }
+}
+
+.styles_PasswordToggleBtn {
+    // Toggle button specific area/interaction
+    right: 0;
+    width: 40px;
+    height: 100%;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: auto;
+
+    &:focus {
+        outline: none;
+    }
+}
+
+// Forgot Password Link - Specific to Login
 .styles_ForgotPasswordLink {
-    text-align: right; // Align link to the right
-    margin-top: -10px; // Adjust spacing above the link
-    margin-bottom: 15px; // Add space below the link
+    text-align: right;
+    margin-top: -0.5rem; // Adjust spacing relative to gap
+    margin-bottom: 0.5rem; // Adjust spacing relative to gap
 
     a {
-        color: #007bff; // Standard link color, adjust as needed
+        color: #007bff;
         text-decoration: none;
-        font-size: 0.9em; // Slightly smaller font size
+        font-size: 0.9em;
 
         &:hover {
             text-decoration: underline;
@@ -73,34 +169,36 @@
     }
 }
 
-.styles_Error {
-    color: red;
-    font-size: 14px;
-    margin-bottom: 10px;
-}
-
+// Main Button - Shared with Register
 .styles_Button {
     background: #007bff;
     color: #fff;
-    padding: 10px;
+    padding: 12px;
     font-size: 16px;
+    font-weight: 600;
     border: none;
     border-radius: 5px;
     cursor: pointer;
-    transition: 0.3s;
+    transition: background 0.3s ease;
+    margin-top: 1rem; // Keep some top margin for separation
 
     &:hover {
         background: #0056b3;
     }
 
     &:disabled {
-        background: #ccc;
+        background: #a0a0a0;
         cursor: not-allowed;
+    }
+
+    .button-icon {
+        margin-right: 8px;
     }
 }
 
+// Signup Prompt/Button - Shared with Register
 .styles_SignupPrompt {
-    margin-top: 1rem;
+    margin-top: 1.5rem;
     font-size: 14px;
     color: #333;
 }
@@ -112,16 +210,29 @@
     font-weight: bold;
     cursor: pointer;
     text-decoration: underline;
+    margin-left: 5px;
+    padding: 0;
+    font-size: inherit;
 
     &:hover {
         color: #0056b3;
+    }
+
+    .button-icon {
+        margin-right: 5px;
     }
 }
 
 /* Responsive */
 @media (max-width: 400px) {
+
+    // Adjusted breakpoint slightly
     .styles_Card {
-        width: 90%;
+        width: 95%; // Consistent responsive width
         padding: 1.5rem;
+    }
+
+    .styles_Login_header .styles_LoginLogo {
+        width: 150px; // Consistent responsive logo size
     }
 }

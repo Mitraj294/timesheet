@@ -55,7 +55,7 @@ export const changePassword = createAsyncThunk(
 export const deleteAccount = createAsyncThunk(
     'auth/deleteAccount',
     async (_, { getState, rejectWithValue }) => {
-        const { token } = getState().auth;
+        const { token, user } = getState().auth; // Get user for potential password check data
         if (!token) {
             return rejectWithValue('Authentication required.');
         }
@@ -63,6 +63,11 @@ export const deleteAccount = createAsyncThunk(
             const response = await axios.delete(`${API_URL}/auth/me`, {
                 headers: { Authorization: `Bearer ${token}` },
             });
+            // If backend requires password confirmation, send it in the data field:
+            // const response = await axios.delete(`${API_URL}/auth/me`, {
+            //     headers: { Authorization: `Bearer ${token}` },
+            //     data: { password: /* get password from user input */ }
+            // });
             return response.data;
         } catch (error) {
             const message = error.response?.data?.message || error.message || 'Account deletion failed';
@@ -191,7 +196,7 @@ const authSlice = createSlice({
       .addCase(login.fulfilled, (state, action) => {
         state.isLoading = false;
         state.isAuthenticated = true;
-        state.user = action.payload.user;
+        state.user = action.payload.user; // Ensure this payload.user contains ALL fields from backend
         state.token = action.payload.token;
         state.error = null;
       })
@@ -278,8 +283,12 @@ const authSlice = createSlice({
         if (action.payload) {
           state.user = {
             ...state.user,
-            name: action.payload.name ?? state.user.name,
-            email: action.payload.email ?? state.user.email,
+            // Update all fields returned from the backend
+            name: action.payload.name,
+            email: action.payload.email,
+            country: action.payload.country,
+            phoneNumber: action.payload.phoneNumber,
+            companyName: action.payload.companyName, // Will be undefined/null if not employer
           };
         }
         state.error = null;

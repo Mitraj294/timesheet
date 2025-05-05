@@ -5,13 +5,13 @@ import { useSelector, useDispatch } from "react-redux";
 import { logout } from "../../redux/slices/authSlice";
 import { setAlert } from "../../redux/slices/alertSlice";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import {
+import { 
   faBars,
   faCog,
   faSignOutAlt,
-  faUser, // faUser is not used, can be removed if desired
-  faSpinner, // Added for loading state
-  faCaretDown
+   faUser, 
+  faSpinner,
+  faCaretDown,
 } from "@fortawesome/free-solid-svg-icons";
 import Alert from "./Alert";
 import "../../styles/Navbar.scss";
@@ -22,12 +22,13 @@ const Navbar = () => {
   const dispatch = useDispatch();
 
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
-  const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false); 
+  const [isLoggingOut, setIsLoggingOut] = useState(false); 
   const dropdownRef = useRef(null);
   const { isAuthenticated, user } = useSelector((state) => state.auth || {});
   const userName = user?.name || "Guest";
   const userRole = user?.role || "Unknown";
+  
 
   const handleLogoutClick = () => {
     setIsDropdownOpen(false);
@@ -36,10 +37,9 @@ const Navbar = () => {
 
   const confirmLogoutAction = () => {
     setIsLoggingOut(true); // Show loading state
-    console.log("Logout confirmed!");
 
-    // Dispatch the logout action - this handles state reset and localStorage removal
     dispatch(logout());
+    // Show success alert
 
     dispatch(setAlert('Logout successful!', 'success'));
 
@@ -54,6 +54,7 @@ const Navbar = () => {
     setIsLoggingOut(false);
   };
 
+  // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
@@ -64,10 +65,10 @@ const Navbar = () => {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [dropdownRef]);
 
-
   return (
     <>
       <div className="navbar">
+ 
         <Alert />
 
         <div className="navbar-section">
@@ -104,6 +105,7 @@ const Navbar = () => {
         </div>
       </div>
 
+      {/* Logout Confirmation Modal */}
       {showLogoutConfirm && (
           <div className="logout-confirm-overlay">
             <div className="logout-confirm-dialog">

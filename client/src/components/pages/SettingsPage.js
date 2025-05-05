@@ -4,15 +4,17 @@ import { useSelector, useDispatch } from 'react-redux';
 import { Link, useNavigate } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
- faUserCog, faLock, faSpinner, faSave, faEdit, faExclamationCircle, faTrashAlt, faTimes
+ faUserCog, faLock, faSpinner, faSave, faEdit, faExclamationCircle, faTrashAlt, faTimes,
+ faEye, faEyeSlash, faPhone, faGlobe // Added password toggle icons and phone/globe
 } from '@fortawesome/free-solid-svg-icons'; // Added faTrashAlt
 
-import { selectAuthUser, changePassword, deleteAccount, logout, updateUserProfile, selectAuthError, selectIsAuthLoading, clearAuthError } from '../../redux/slices/authSlice'; // Added deleteAccount, logout, updateUserProfile (assuming)
-import { selectEmployeeByUserId, fetchEmployees, selectEmployeeStatus } from '../../redux/slices/employeeSlice'; // Assuming you have a selector like this
+import { selectAuthUser, changePassword, deleteAccount, logout, updateUserProfile, selectAuthError, selectIsAuthLoading, clearAuthError } from '../../redux/slices/authSlice';
+import { selectEmployeeByUserId, fetchEmployees, selectEmployeeStatus } from '../../redux/slices/employeeSlice';
 import { setAlert } from '../../redux/slices/alertSlice';
 import Alert from '../layout/Alert';
 import '../../styles/Forms.scss'; // Re-use forms styling
 import '../../styles/SettingsPage.scss'; // Add specific styles
+import { parsePhoneNumberFromString, isValidPhoneNumber, getCountries, getCountryCallingCode } from 'libphonenumber-js'; // Import validation and country list functions
 
 const SettingsPage = () => {
     const dispatch = useDispatch();
@@ -22,7 +24,7 @@ const SettingsPage = () => {
     const user = useSelector(selectAuthUser);
     const authError = useSelector(selectAuthError);
     const authLoading = useSelector(selectIsAuthLoading);
-    const employee = useSelector((state) => user ? selectEmployeeByUserId(state, user.id || user._id) : null); // Find linked employee
+    const employee = useSelector((state) => user ? selectEmployeeByUserId(state, user.id || user._id) : null);
     const employeeStatus = useSelector(selectEmployeeStatus);
 
     // --- Local State ---
@@ -32,49 +34,71 @@ const SettingsPage = () => {
         confirmPassword: '',
     });
     const [isSubmittingPassword, setIsSubmittingPassword] = useState(false);
-    const [passwordError, setPasswordError] = useState(null); // Local validation error
-    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false); // State for delete confirmation
-    const [isDeletingAccount, setIsDeletingAccount] = useState(false); // State for delete loading
+    const [passwordError, setPasswordError] = useState(null);
+    // Password visibility states
+    const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+    const [showNewPassword, setShowNewPassword] = useState(false);
+    const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+    const [isDeletingAccount, setIsDeletingAccount] = useState(false);
 
     // --- State for Editing Info ---
     const [isEditingInfo, setIsEditingInfo] = useState(false);
-    const [infoFormData, setInfoFormData] = useState({ name: '', email: '' });
-    const [infoError, setInfoError] = useState(null); // Local validation error for info form
+    const [infoFormData, setInfoFormData] = useState({
+        name: '',
+        email: '',
+        country: '',
+        phoneNumber: '',
+        companyName: '' });
+    const [infoError, setInfoError] = useState(null);
     const [isSubmittingInfo, setIsSubmittingInfo] = useState(false);
+    const [countryCode, setCountryCode] = useState('IN'); // Default country code set to India
 
 
-    // Fetch employees if needed to find the linked one
+    // Fetch employees if needed
     useEffect(() => {
         if (user?.role === 'employee' && !employee && employeeStatus === 'idle') {
             dispatch(fetchEmployees());
         }
     }, [dispatch, user, employee, employeeStatus]);
 
-    // Clear auth error on component mount/unmount
+    // Clear auth error on mount/unmount
     useEffect(() => {
         dispatch(clearAuthError());
         return () => { dispatch(clearAuthError()); };
     }, [dispatch]);
 
 
-    // Pre-fill info form data when user loads
+    // Pre-fill info form data when user loads and auth is not loading
     useEffect(() => {
-        if (user) {
-            setInfoFormData({ name: user.name, email: user.email });
+        if (user && !authLoading) {
+            const validCountries = getCountries();
+            const initialCountryCode = user.country && validCountries.includes(user.country.toUpperCase())
+                ? user.country.toUpperCase()
+                : 'IN'; // Default to IN
+
+            setInfoFormData({
+                name: user.name || '',
+                email: user.email || '',
+                country: user.country || '',
+                phoneNumber: user.phoneNumber || '',
+                companyName: user.companyName || '' });
+            setCountryCode(initialCountryCode);
         }
-    }, [user]);
+    }, [user, authLoading]); // Add authLoading dependency
 
 
     // --- Handlers ---
     const handlePasswordChange = (e) => {
         setPasswordData({ ...passwordData, [e.target.name]: e.target.value });
-        if (passwordError) setPasswordError(null); // Clear local error on change
+        if (passwordError) setPasswordError(null);
     };
 
     const handlePasswordSubmit = async (e) => {
         e.preventDefault();
         setPasswordError(null);
-        dispatch(clearAuthError()); // Clear previous API errors
+        dispatch(clearAuthError());
 
         if (!passwordData.currentPassword || !passwordData.newPassword || !passwordData.confirmPassword) {
             setPasswordError('All password fields are required.');
@@ -86,7 +110,7 @@ const SettingsPage = () => {
             dispatch(setAlert('New password and confirmation do not match.', 'warning'));
             return;
         }
-        if (passwordData.newPassword.length < 6) { // Example validation
+        if (passwordData.newPassword.length < 6) {
             setPasswordError('New password must be at least 6 characters long.');
             dispatch(setAlert('New password must be at least 6 characters long.', 'warning'));
             return;
@@ -99,18 +123,12 @@ const SettingsPage = () => {
                 newPassword: passwordData.newPassword,
             })).unwrap();
 
-             // --- CHANGE START ---
-            // Navigate to login page with email and flag after successful password change.
-            // The logout logic in authSlice will clear the state, triggering the redirect anyway,
-            // but navigating explicitly ensures the state is passed correctly.
-            const userEmail = user?.email; // Get email before potential state clear
+            const userEmail = user?.email;
             if (userEmail) {
                 navigate('/login', { state: { email: userEmail, passwordChanged: true } });
             }
         } catch (err) {
-            // Error alert is handled by the authSlice/useEffect watching authError
             console.error("Password change failed:", err);
-            // Optionally set local error too: setPasswordError(err || 'Failed to change password.');
         } finally {
             setIsSubmittingPassword(false);
         }
@@ -119,16 +137,27 @@ const SettingsPage = () => {
     const handleInfoEditToggle = () => {
         if (!isEditingInfo && user) {
             // Pre-fill form when opening
-            setInfoFormData({ name: user.name, email: user.email });
-            setInfoError(null); // Clear previous errors
-            dispatch(clearAuthError()); // Clear API errors
+            setInfoFormData({
+                name: user.name || '',
+                email: user.email || '',
+                country: user.country || '',
+                phoneNumber: user.phoneNumber || '',
+                companyName: user.companyName || ''
+            });
+            const validCountries = getCountries();
+            const initialCountryCode = user.country && validCountries.includes(user.country.toUpperCase())
+                ? user.country.toUpperCase()
+                : 'IN'; // Default to IN
+            setCountryCode(initialCountryCode);
+            setInfoError(null);
+            dispatch(clearAuthError());
         }
         setIsEditingInfo(!isEditingInfo);
     };
 
     const handleInfoChange = (e) => {
         setInfoFormData({ ...infoFormData, [e.target.name]: e.target.value });
-        if (infoError) setInfoError(null); // Clear local error on change
+        if (infoError) setInfoError(null);
     };
 
     const handleInfoSubmit = async (e) => {
@@ -141,21 +170,44 @@ const SettingsPage = () => {
             dispatch(setAlert('Name and Email are required.', 'warning'));
             return;
         }
-        // Basic email format check
         if (!/\S+@\S+\.\S+/.test(infoFormData.email)) {
              setInfoError('Please enter a valid email address.');
              dispatch(setAlert('Please enter a valid email address.', 'warning'));
              return;
         }
+        if (infoFormData.phoneNumber) {
+            try {
+                if (!isValidPhoneNumber(infoFormData.phoneNumber, countryCode)) {
+                    setInfoError(`Please enter a valid phone number for the selected country (${countryCode}).`);
+                    dispatch(setAlert(`Please enter a valid phone number for the selected country (${countryCode}).`, 'warning'));
+                    return;
+                }
+            } catch (e) {
+                setInfoError("Invalid phone number format.");
+                dispatch(setAlert("Invalid phone number format.", 'warning'));
+                return;
+            }
+        }
 
         setIsSubmittingInfo(true);
+        const dataToSubmit = { ...infoFormData };
+        if (user?.role !== 'employer') delete dataToSubmit.companyName;
+
+        // Format phone number before sending
+        let formattedPhoneNumber = dataToSubmit.phoneNumber;
+        if (dataToSubmit.phoneNumber) {
+            try {
+                const phoneNumberParsed = parsePhoneNumberFromString(dataToSubmit.phoneNumber, countryCode);
+                if (phoneNumberParsed) formattedPhoneNumber = phoneNumberParsed.format('E.164');
+            } catch (e) { console.warn("Could not format phone number to E.164", e); }
+        }
+        dataToSubmit.phoneNumber = formattedPhoneNumber;
+
         try {
-            // Assume updateUserProfile exists in authSlice and handles the API call
-            await dispatch(updateUserProfile(infoFormData)).unwrap();
+            await dispatch(updateUserProfile(dataToSubmit)).unwrap();
             dispatch(setAlert('Profile updated successfully!', 'success'));
-            setIsEditingInfo(false); // Close form on success
+            setIsEditingInfo(false);
         } catch (err) {
-            // Error alert handled by useEffect watching authError
             console.error("Profile update failed:", err);
         } finally {
             setIsSubmittingInfo(false);
@@ -174,15 +226,12 @@ const SettingsPage = () => {
         setIsDeletingAccount(true);
         dispatch(clearAuthError());
         try {
-            // Dispatch the deleteAccount thunk (we'll create this in authSlice)
             await dispatch(deleteAccount()).unwrap();
             dispatch(setAlert('Account deleted successfully.', 'success'));
-            // Logout and redirect after successful deletion
-            dispatch(logout()); // Dispatch logout action from authSlice
+            dispatch(logout());
             navigate('/login');
         } catch (err) {
             console.error("Account deletion failed:", err);
-            // Error alert is handled by the authSlice/useEffect watching authError
         } finally {
             setIsDeletingAccount(false);
             setShowDeleteConfirm(false);
@@ -190,10 +239,18 @@ const SettingsPage = () => {
     };
 
     // --- Derived Data ---
+    const countryOptions = useMemo(() => {
+        const countries = getCountries();
+        return countries.map(country => ({
+        value: country,
+        label: `+${getCountryCallingCode(country)} (${country})`
+        })).sort((a, b) => a.label.localeCompare(b.label));
+    }, []);
     const isLoading = authLoading || isSubmittingInfo || isSubmittingPassword || (employeeStatus === 'loading' && !employee);
 
-    // --- Render ---
-    if (isLoading && !user) {
+    // --- Render --- //
+    // Updated loading check
+    if (isLoading || (user && typeof user.country === 'undefined')) {
         return (
             <div className='vehicles-page'>
                 <div className='loading-indicator'>
@@ -218,9 +275,11 @@ const SettingsPage = () => {
     }
 
     return (
-        <div className="vehicles-page settings-page"> {/* Use standard page class + specific */}
+        // Use standard page class + specific settings class
+        <div className="vehicles-page settings-page">
             <Alert />
-            <div className="vehicles-header"> {/* Use standard header */}
+            {/* Use standard header structure if applicable */}
+            <div className="vehicles-header">
                 <div className="title-breadcrumbs">
                     <h2><FontAwesomeIcon icon={faUserCog} /> Settings</h2>
                     <div className="breadcrumbs">
@@ -229,35 +288,39 @@ const SettingsPage = () => {
                         <span className="breadcrumb-current">Settings</span>
                     </div>
                 </div>
-                {/* No header actions needed usually */}
             </div>
 
             {/* Account Information Section */}
+            {/* Apply settings-section and form-container classes */}
             <div className="settings-section form-container">
                 <h3>Account Information</h3>
                 {!isEditingInfo ? (
                     <>
+                        {/* Apply account-info-grid and related classes */}
                         <div className="account-info-grid">
                             <div className="info-item"><span className="info-label">Name:</span> <span className="info-value">{user.name}</span></div>
                             <div className="info-item"><span className="info-label">Email:</span> <span className="info-value">{user.email}</span></div>
                             <div className="info-item"><span className="info-label">Role:</span> <span className="info-value">{user.role}</span></div>
-                            {/* Display Employee specific info if available */}
+                            <div className="info-item"><span className="info-label">Country:</span> <span className="info-value">{user.country || 'N/A'}</span></div>
+                            <div className="info-item"><span className="info-label">Phone:</span> <span className="info-value">{user.phoneNumber || 'N/A'}</span></div>
+                            {user.role === 'employer' && <div className="info-item"><span className="info-label">Company:</span> <span className="info-value">{user.companyName || 'N/A'}</span></div>}
                             {employee && (
                                 <>
                                     <div className="info-item"><span className="info-label">Employee Code:</span> <span className="info-value">{employee.employeeCode || 'N/A'}</span></div>
                                     <div className="info-item"><span className="info-label">Wage:</span> <span className="info-value">{employee.wage ? `$${employee.wage.toFixed(2)}/hr` : 'N/A'}</span></div>
                                     <div className="info-item"><span className="info-label">Expected Hours:</span> <span className="info-value">{employee.expectedHours || 'N/A'} hrs/week</span></div>
-                                    {/* Link to employee edit page */}
                                     <div className="info-item full-width">
+                                        {/* Apply link-like-button class */}
                                         <Link to={`/employees/edit/${employee._id}`} className="link-like-button">Edit Employee Details (Wage, Code, etc.)</Link>
                                     </div>
                                 </>
                             )}
                         </div>
+                        {/* Apply form-footer class */}
                         <div className="form-footer">
                             <button
                                 className="btn btn-warning"
-                                onClick={handleInfoEditToggle} // Use the toggle handler
+                                onClick={handleInfoEditToggle}
                                 disabled={isLoading}
                             >
                                 <FontAwesomeIcon icon={faEdit} /> Edit Account Info
@@ -273,12 +336,15 @@ const SettingsPage = () => {
                     </>
                 ) : (
                     // --- Inline Edit Form ---
+                    // Apply employee-form class (assuming it's in Forms.scss)
                     <form onSubmit={handleInfoSubmit} className="employee-form" noValidate>
                         {(infoError || authError) && (
+                            // Apply form-error-message class
                             <div className='form-error-message'>
                                 <FontAwesomeIcon icon={faExclamationCircle} /> {infoError || authError}
                             </div>
                         )}
+                        {/* Apply form-group class */}
                         <div className="form-group">
                             <label htmlFor="infoName">Name*</label>
                             <input id="infoName" type="text" name="name" value={infoFormData.name} onChange={handleInfoChange} required disabled={isSubmittingInfo} />
@@ -287,6 +353,36 @@ const SettingsPage = () => {
                             <label htmlFor="infoEmail">Email*</label>
                             <input id="infoEmail" type="email" name="email" value={infoFormData.email} onChange={handleInfoChange} required disabled={isSubmittingInfo} />
                         </div>
+                        <div className="form-group">
+                            <label htmlFor="infoCountry">Country</label>
+                            <input id="infoCountry" type="text" name="country" placeholder="Your Country" value={infoFormData.country} onChange={handleInfoChange} disabled={isSubmittingInfo} />
+                        </div>
+                        <div className="form-group">
+                            <label htmlFor="infoPhoneNumber">Phone Number</label>
+                            {/* Apply phone-input-group and country-code-select classes */}
+                            <div className="phone-input-group">
+                                <select
+                                    name="countryCode"
+                                    value={countryCode}
+                                    onChange={(e) => setCountryCode(e.target.value)}
+                                    className="country-code-select"
+                                    disabled={isSubmittingInfo}
+                                    aria-label="Country Code"
+                                >
+                                    {countryOptions.map(option => (
+                                    <option key={option.value} value={option.value}>{option.label}</option>
+                                    ))}
+                                </select>
+                                <input id="infoPhoneNumber" type="tel" name="phoneNumber" placeholder="Enter phone number" value={infoFormData.phoneNumber} onChange={handleInfoChange} disabled={isSubmittingInfo} />
+                            </div>
+                        </div>
+                        {user.role === 'employer' && (
+                        <div className="form-group">
+                            <label htmlFor="infoCompanyName">Company Name</label>
+                            <input id="infoCompanyName" type="text" name="companyName" placeholder="Your Company Name" value={infoFormData.companyName} onChange={handleInfoChange} disabled={isSubmittingInfo} />
+                        </div>
+                        )}
+                        {/* Apply form-footer class */}
                         <div className="form-footer">
                             <button type="button" className="btn btn-secondary" onClick={handleInfoEditToggle} disabled={isSubmittingInfo}>
                                 <FontAwesomeIcon icon={faTimes} /> Cancel
@@ -299,55 +395,75 @@ const SettingsPage = () => {
                 )}
             </div>
 
-            {/* Change Password Section - Only show if NOT editing info */}
+            {/* Change Password Section */}
             {!isEditingInfo && (
+            // Apply settings-section and form-container classes
             <div className="settings-section form-container">
                 <h3>Change Password</h3>
+                {/* Apply employee-form class */}
                 <form onSubmit={handlePasswordSubmit} className="employee-form" noValidate>
-                    {/* Display local validation error or Redux API error */}
                     {(passwordError || authError) && (
+                        // Apply form-error-message class
                         <div className='form-error-message'>
                             <FontAwesomeIcon icon={faExclamationCircle} /> {passwordError || authError}
                         </div>
                     )}
+                    {/* Apply form-group class */}
                     <div className="form-group">
                         <label htmlFor="currentPassword">Current Password*</label>
-                        <input
-                            id="currentPassword"
-                            type="password"
-                            name="currentPassword"
-                            value={passwordData.currentPassword}
-                            onChange={handlePasswordChange}
-                            required
-                            disabled={isSubmittingPassword}
-                        />
+                        {/* Apply styles_PasswordInputContainer and styles_PasswordToggleBtn classes */}
+                        <div className="styles_PasswordInputContainer">
+                            <input
+                                id="currentPassword"
+                                type={showCurrentPassword ? "text" : "password"}
+                                name="currentPassword"
+                                value={passwordData.currentPassword}
+                                onChange={handlePasswordChange}
+                                required
+                                disabled={isSubmittingPassword}
+                            />
+                            <button type="button" onClick={() => setShowCurrentPassword(!showCurrentPassword)} className="styles_PasswordToggleBtn" disabled={isSubmittingPassword}>
+                                <FontAwesomeIcon icon={showCurrentPassword ? faEyeSlash : faEye} />
+                            </button>
+                        </div>
                     </div>
                     <div className="form-group">
                         <label htmlFor="newPassword">New Password*</label>
-                        <input
-                            id="newPassword"
-                            type="password"
-                            name="newPassword"
-                            value={passwordData.newPassword}
-                            onChange={handlePasswordChange}
-                            required
-                            minLength="6"
-                            disabled={isSubmittingPassword}
-                        />
+                        <div className="styles_PasswordInputContainer">
+                            <input
+                                id="newPassword"
+                                type={showNewPassword ? "text" : "password"}
+                                name="newPassword"
+                                value={passwordData.newPassword}
+                                onChange={handlePasswordChange}
+                                required
+                                minLength="6"
+                                disabled={isSubmittingPassword}
+                            />
+                            <button type="button" onClick={() => setShowNewPassword(!showNewPassword)} className="styles_PasswordToggleBtn" disabled={isSubmittingPassword}>
+                                <FontAwesomeIcon icon={showNewPassword ? faEyeSlash : faEye} />
+                            </button>
+                        </div>
                     </div>
                     <div className="form-group">
                         <label htmlFor="confirmPassword">Confirm New Password*</label>
-                        <input
-                            id="confirmPassword"
-                            type="password"
-                            name="confirmPassword"
-                            value={passwordData.confirmPassword}
-                            onChange={handlePasswordChange}
-                            required
-                            minLength="6"
-                            disabled={isSubmittingPassword}
-                        />
+                        <div className="styles_PasswordInputContainer">
+                            <input
+                                id="confirmPassword"
+                                type={showConfirmPassword ? "text" : "password"}
+                                name="confirmPassword"
+                                value={passwordData.confirmPassword}
+                                onChange={handlePasswordChange}
+                                required
+                                minLength="6"
+                                disabled={isSubmittingPassword}
+                            />
+                            <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="styles_PasswordToggleBtn" disabled={isSubmittingPassword}>
+                                <FontAwesomeIcon icon={showConfirmPassword ? faEyeSlash : faEye} />
+                            </button>
+                        </div>
                     </div>
+                    {/* Apply form-footer class */}
                     <div className="form-footer">
                         <button type="submit" className="btn btn-success" disabled={isSubmittingPassword}>
                             {isSubmittingPassword ? (
@@ -363,8 +479,9 @@ const SettingsPage = () => {
 
             {/* Delete Confirmation Dialog */}
             {showDeleteConfirm && (
-                <div className="logout-confirm-overlay"> {/* Re-use logout overlay style */}
-                  <div className="logout-confirm-dialog"> {/* Re-use logout dialog style */}
+                // Apply logout-confirm-overlay, logout-confirm-dialog, logout-confirm-actions classes
+                <div className="logout-confirm-overlay">
+                  <div className="logout-confirm-dialog">
                     <h4>Confirm Account Deletion</h4>
                     <p>Are you sure you want to permanently delete your account? This action cannot be undone.</p>
                     <div className="logout-confirm-actions">

@@ -2,9 +2,10 @@
 import React, { useEffect, useState, useRef, useMemo } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { fetchEmployees, selectAllEmployees, selectEmployeeStatus, selectEmployeeError } from "../../redux/slices/employeeSlice";
+import { useNavigate } from "react-router-dom";
 import { fetchTimesheets, selectAllTimesheets, selectTimesheetStatus, selectTimesheetError, clearTimesheetError } from "../../redux/slices/timesheetSlice";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { setAlert } from "../../redux/slices/alertSlice"; // Import setAlert
+import { setAlert } from "../../redux/slices/alertSlice";
 import Select from "react-select";
 import {
   faUsers,
@@ -15,11 +16,12 @@ import {
   faTasks,
   faBriefcase,
   faSpinner,
-  faSignOutAlt, // Added for logout confirmation
-  faExclamationCircle,
+  faSignOutAlt,
 } from "@fortawesome/free-solid-svg-icons";
-import Alert from "../layout/Alert"; // Import the Alert component
+import Alert from "../layout/Alert";
 import Chart from "chart.js/auto";
+
+import ChartDataLabels from 'chartjs-plugin-datalabels';
 import "../../styles/Dashboard.scss";
 import { DateTime } from "luxon";
 
@@ -56,8 +58,8 @@ const getPeriodRange = (view) => {
     startDt = today.minus({ weeks: 1 }).startOf('week');
     endDt = startDt.plus({ days: 13 }).endOf('day');
   } else if (view === "Monthly") {
-    startDt = today.startOf('month').startOf('week');
-    endDt = startDt.plus({ weeks: 4 }).minus({ days: 1 }).endOf('day');
+    endDt = today.endOf('week');
+    startDt = today.minus({ weeks: 3 }).startOf('week');
   } else {
     startDt = today.startOf('week');
     endDt = startDt.endOf('week');
@@ -67,7 +69,7 @@ const getPeriodRange = (view) => {
 
 const getPreviousPeriodRange = (currentRange, view) => {
   const startDt = DateTime.fromJSDate(currentRange.start);
-  let prevStartDt;
+  let prevStartDt, prevEndDt;
   const duration = DateTime.fromJSDate(currentRange.end).diff(startDt, ['days']).days;
 
   if (view === "Weekly") {
@@ -75,11 +77,11 @@ const getPreviousPeriodRange = (currentRange, view) => {
   } else if (view === "Fortnightly") {
     prevStartDt = startDt.minus({ weeks: 2 });
   } else if (view === "Monthly") {
-     prevStartDt = startDt.minus({ days: Math.round(duration) + 1 });
+    prevStartDt = startDt.minus({ weeks: 4 });
   } else {
     prevStartDt = startDt.minus({ weeks: 1 });
   }
-  const prevEndDt = prevStartDt.plus({ days: Math.round(duration) }).endOf('day');
+  prevEndDt = prevStartDt.plus({ days: Math.round(duration) }).endOf('day');
   return { start: prevStartDt.toJSDate(), end: prevEndDt.toJSDate() };
 };
 
@@ -122,9 +124,10 @@ const getWeeklyTotals = (data, periodStart, weeks) => {
   return weeklyTotals;
 };
 
-
+// Main Dashboard Component
 const Dashboard = () => {
   const dispatch = useDispatch();
+  const navigate = useNavigate();
 
   const employees = useSelector(selectAllEmployees);
   const employeeStatus = useSelector(selectEmployeeStatus);
@@ -139,65 +142,40 @@ const Dashboard = () => {
   const [viewType, setViewType] = useState({ value: "Weekly", label: "View by Weekly" });
   const [selectedProjectClient, setSelectedProjectClient] = useState({ value: "All", label: "All Clients" });
 
-  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false); // State for logout confirmation UI
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const chartRef = useRef(null);
   const clientsChartRef = useRef(null);
   const projectsChartRef = useRef(null);
 
-  // Effect for fetching employees
   useEffect(() => {
     if (!isAuthLoading && token && employeeStatus === 'idle') {
-      console.log(`[${new Date().toISOString()}] Dashboard: Dispatching fetchEmployees (token: ${!!token}, isAuthLoading: ${isAuthLoading}, employeeStatus: ${employeeStatus}).`);
       dispatch(fetchEmployees());
     }
   }, [dispatch, token, isAuthLoading, employeeStatus]);
 
-  // Effect for fetching timesheets
   useEffect(() => {
-    // Add logging for dependencies
-    console.log(`[${new Date().toISOString()}] Dashboard: Timesheet fetch effect triggered (token: ${!!token}, isAuthLoading: ${isAuthLoading}, timesheetStatus: ${timesheetStatus}).`);
-
-    if (isAuthLoading) {
-        console.log(`[${new Date().toISOString()}] Dashboard: Timesheet fetch effect waiting for auth.`);
+    if (isAuthLoading || !token) {
         return;
     }
-    if (!token) {
-      console.log(`[${new Date().toISOString()}] Dashboard: Timesheet fetch effect stopped - no token.`);
-      return;
-    }
-
-    // Only fetch if timesheets haven't been fetched yet ('idle')
-    // Or if you want to refetch under certain conditions (e.g., token change, error state)
     if (timesheetStatus === 'idle' || timesheetStatus === 'failed') {
-        console.log(`[${new Date().toISOString()}] Dashboard: Dispatching fetchTimesheets.`);
         dispatch(fetchTimesheets());
     }
-
-    // Cleanup function (AbortController logic is handled internally by createAsyncThunk)
-    return () => {
-      console.log(`[${new Date().toISOString()}] Dashboard: Cleaning up fetch effect for timesheets (token: ${!!token}, isAuthLoading: ${isAuthLoading}).`);
-    };
   }, [token, isAuthLoading, timesheetStatus, dispatch]);
 
-  // --- Logout Logic ---
   const handleLogoutClick = () => {
-    setShowLogoutConfirm(true); 
+    setShowLogoutConfirm(true);
   };
 
   const confirmLogout = () => {
-    console.log("Logout confirmed!");
-    dispatch(logout());
+  
     dispatch(setAlert('Logout successful!', 'success'));
-    navigate("/login");
-    setShowLogoutConfirm(false); // Hide confirmation UI
+    setShowLogoutConfirm(false);
   };
 
   const cancelLogout = () => {
-    setShowLogoutConfirm(false); // Hide confirmation UI
+    setShowLogoutConfirm(false);
   };
-  // --- End Logout Logic ---
 
-  // Effect to Filter Timesheets by Employee
   useEffect(() => {
     if (selectedEmployee.value === "All") {
       setEmployeeTimesheets(allTimesheets);
@@ -208,7 +186,6 @@ const Dashboard = () => {
     }
   }, [selectedEmployee, allTimesheets]);
 
-  // Memoized Data
   const employeeOptions = useMemo(() => [
     { value: "All", label: "All Employees" },
     ...(Array.isArray(employees) ? employees.map((emp) => ({ value: emp._id, label: emp.name })) : []),
@@ -261,27 +238,20 @@ const Dashboard = () => {
     });
   }, [validTimesheets, previousPeriod]);
 
-  // Loading and Error States
   const isEmployeeLoading = employeeStatus === 'loading';
   const isTimesheetLoading = timesheetStatus === 'loading';
   const showLoading = isAuthLoading || isEmployeeLoading || isTimesheetLoading;
   const combinedError = timesheetError || employeesError;
 
-  // Effect to show alert on error
   useEffect(() => {
     if (combinedError) {
-      // Dispatch an alert when an error occurs
-      // You might want to customize the message or type based on the error
-      dispatch(setAlert(combinedError, 'danger')); // Use 'danger' for errors
+      dispatch(setAlert(combinedError, 'danger'));
     }
   }, [combinedError, dispatch]);
 
-  // Summary Calculations (remain the same)
   const totalHoursAllPeriodSummary = useMemo(() => filteredAllCurrentTimesheets.reduce((acc, sheet) => acc + (parseFloat(sheet.totalHours) || 0), 0), [filteredAllCurrentTimesheets]);
   const avgHoursAllPeriodSummary = useMemo(() => {
-       // Calculate the total number of non-leave timesheet entries in the period
        const totalWorkingTimesheets = filteredAllCurrentTimesheets.length;
-       // Calculate average hours per timesheet entry
        return totalWorkingTimesheets > 0 ? (totalHoursAllPeriodSummary / totalWorkingTimesheets) : 0;
    }, [totalHoursAllPeriodSummary, filteredAllCurrentTimesheets]);
 
@@ -303,7 +273,6 @@ const Dashboard = () => {
       const start = DateTime.fromJSDate(currentPeriod.start);
       const end = DateTime.fromJSDate(currentPeriod.end);
       return employeeTimesheets.filter(t => {
-          // Count if leaveType exists and is not 'None'
           if (!t?.date || !t.leaveType || t.leaveType === "None") return false;
           try {
               const d = DateTime.fromISO(t.date);
@@ -321,10 +290,10 @@ const Dashboard = () => {
     } catch { return acc; }
   }, 0), [lunchBreakEntries]);
   const avgLunchBreak = useMemo(() => lunchBreakEntries.length > 0 ? convertDecimalToTime(totalLunchDuration / lunchBreakEntries.length) : "00:00", [totalLunchDuration, lunchBreakEntries]);
+
   const projectsWorked = useMemo(() => new Set(filteredCurrentTimesheets.map((t) => t.projectId?._id || t.projectId).filter(Boolean)).size, [filteredCurrentTimesheets]);
   const clientsWorked = useMemo(() => new Set(filteredCurrentTimesheets.map((t) => t.clientId?._id || t.clientId).filter(Boolean)).size, [filteredCurrentTimesheets]);
 
-  // Project Card Specific Calculations
   const projectCardClientOptions = useMemo(() => {
     if (!filteredCurrentTimesheets.length) return [{ value: "All", label: "All Clients" }];
     const clients = new Map();
@@ -356,33 +325,74 @@ const Dashboard = () => {
     return convertDecimalToTime(total);
   }, [projectCardFilteredTimesheets]);
 
-
-  // Chart Data Generation
-  const { labels, currentData, previousData, thisPeriodLabel, lastPeriodLabel } = useMemo(() => {
+  const { labels, currentData, previousData, thisPeriodLabel, lastPeriodLabel, currentBarSpecificLabels, previousBarSpecificLabels } = useMemo(() => {
     if (showLoading || combinedError) {
-        return { labels: [], currentData: [], previousData: [], thisPeriodLabel: "", lastPeriodLabel: "" };
+        return { labels: [], currentData: [], previousData: [], thisPeriodLabel: "", lastPeriodLabel: "", currentBarSpecificLabels: [], previousBarSpecificLabels: [] };
     }
-    let labels = [], currentData = [], previousData = [], thisPeriodLabel = "", lastPeriodLabel = "", weeks = 1;
+    let labels = [], currentData = [], previousData = [], weeks = 1;
+
     const currentStart = currentPeriod.start;
+    const currentEnd = currentPeriod.end;
     const previousStart = previousPeriod.start;
+    const previousEnd = previousPeriod.end;
+
+    const formatRange = (start, end) => `${DateTime.fromJSDate(start).toFormat('MMM d')} - ${DateTime.fromJSDate(end).toFormat('MMM d, yyyy')}`;
+    const currentRangeStr = formatRange(currentStart, currentEnd);
+    const previousRangeStr = formatRange(previousStart, previousEnd);
+
+      let relativeThisLabel = "";
+      let relativeLastLabel = "";
+
+      let currentBarSpecificLabels = [];
+      let previousBarSpecificLabels = [];
+
+      const calculateSpecificLabels = (start, numItems, view) => {
+        const specificLabels = [];
+        const startDt = DateTime.fromJSDate(start);
+        if (view === "Weekly") {
+          for (let i = 0; i < numItems; i++) {
+            const day = startDt.plus({ days: i });
+            specificLabels.push(day.toFormat('MMM d'));
+          }
+        } else {
+          for (let w = 0; w < numItems; w++) {
+            const weekStart = startDt.plus({ weeks: w });
+            const weekEnd = weekStart.endOf('week');
+            specificLabels.push(`${weekStart.toFormat('MMM d')} - ${weekEnd.toFormat('MMM d')}`);
+          }
+        }
+        return specificLabels;
+      };
 
     if (viewType.value === "Weekly") {
       labels = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
       currentData = getDayTotals(filteredCurrentTimesheets, currentStart);
       previousData = getDayTotals(filteredPreviousTimesheets, previousStart);
-      thisPeriodLabel = "This Week"; lastPeriodLabel = "Last Week";
+      relativeThisLabel = "This Week"; relativeLastLabel = "Last Week";
+      currentBarSpecificLabels = calculateSpecificLabels(currentStart, 7, "Weekly");
+      previousBarSpecificLabels = calculateSpecificLabels(previousStart, 7, "Weekly");
+
     } else if (viewType.value === "Fortnightly") {
       labels = ["Week 1", "Week 2"]; weeks = 2;
       currentData = getWeeklyTotals(filteredCurrentTimesheets, currentStart, weeks);
       previousData = getWeeklyTotals(filteredPreviousTimesheets, previousStart, weeks);
-      thisPeriodLabel = "This Fortnight"; lastPeriodLabel = "Last Fortnight";
+      relativeThisLabel = "This Fortnight"; relativeLastLabel = "Last Fortnight";
+      currentBarSpecificLabels = calculateSpecificLabels(currentStart, weeks, "Fortnightly");
+      previousBarSpecificLabels = calculateSpecificLabels(previousStart, weeks, "Fortnightly");
+
     } else if (viewType.value === "Monthly") {
       labels = ["Week 1", "Week 2", "Week 3", "Week 4"]; weeks = 4;
       currentData = getWeeklyTotals(filteredCurrentTimesheets, currentStart, weeks);
       previousData = getWeeklyTotals(filteredPreviousTimesheets, previousStart, weeks);
-      thisPeriodLabel = "This Month"; lastPeriodLabel = "Last Month";
+      relativeThisLabel = "This Month"; relativeLastLabel = "Last Month";
+      currentBarSpecificLabels = calculateSpecificLabels(currentStart, weeks, "Monthly");
+      previousBarSpecificLabels = calculateSpecificLabels(previousStart, weeks, "Monthly");
     }
-    return { labels, currentData, previousData, thisPeriodLabel, lastPeriodLabel };
+
+     const thisPeriodLabel = relativeThisLabel;
+     const lastPeriodLabel = relativeLastLabel;
+
+    return { labels, currentData, previousData, thisPeriodLabel, lastPeriodLabel, currentBarSpecificLabels, previousBarSpecificLabels };
   }, [viewType.value, filteredCurrentTimesheets, filteredPreviousTimesheets, currentPeriod, previousPeriod, showLoading, combinedError]);
 
   const clientChartData = useMemo(() => {
@@ -401,13 +411,12 @@ const Dashboard = () => {
     return { labels, data };
   }, [projectCardFilteredTimesheets, showLoading, combinedError]);
 
-
-  // Chart Rendering Effects
   useEffect(() => {
     const ctx = document.getElementById("graphCanvas")?.getContext("2d");
     if (!ctx) return;
 
     if (chartRef.current) {
+        Chart.unregister(ChartDataLabels);
         chartRef.current.destroy();
         chartRef.current = null;
     }
@@ -416,14 +425,43 @@ const Dashboard = () => {
         return;
     }
 
-    console.log(`[${new Date().toISOString()}] Dashboard: Rendering Bar Chart.`);
+    Chart.register(ChartDataLabels);
+
     chartRef.current = new Chart(ctx, {
       type: "bar",
       data: { labels, datasets: [ { label: thisPeriodLabel, data: currentData, backgroundColor: "rgba(54, 162, 235, 0.6)", borderColor: "rgba(54, 162, 235, 1)", borderWidth: 1 }, { label: lastPeriodLabel, data: previousData, backgroundColor: "rgba(255, 99, 132, 0.6)", borderColor: "rgba(255, 99, 132, 1)", borderWidth: 1 }, ] },
-      options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, title: { display: true, text: 'Hours Worked' } } }, plugins: { legend: { position: 'top' } } }
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+          y: { beginAtZero: true, title: { display: true, text: 'Hours Worked' } }
+        },
+        plugins: {
+          legend: { position: 'top' },
+          datalabels: {
+            anchor: 'end',
+            align: 'top',
+            formatter: (value, context) => {
+              const labelsArray = context.datasetIndex === 0 ? currentBarSpecificLabels : previousBarSpecificLabels;
+              return value > 0 && labelsArray && labelsArray[context.dataIndex]
+                ? labelsArray[context.dataIndex]
+                : null;
+            },
+            color: '#555',
+            font: { weight: 'normal', size: 10, },
+            offset: -2
+          }
+        }
+      }
     });
-    return () => { if (chartRef.current) { chartRef.current.destroy(); chartRef.current = null; } };
-  }, [labels, currentData, previousData, thisPeriodLabel, lastPeriodLabel, showLoading, combinedError]);
+    return () => {
+        if (chartRef.current) {
+            chartRef.current.destroy();
+            chartRef.current = null;
+        }
+        Chart.unregister(ChartDataLabels);
+    };
+  }, [labels, currentData, previousData, thisPeriodLabel, lastPeriodLabel, currentBarSpecificLabels, previousBarSpecificLabels, showLoading, combinedError]);
 
   useEffect(() => {
     const clientCtx = document.getElementById("clientsGraph")?.getContext("2d");
@@ -431,6 +469,7 @@ const Dashboard = () => {
 
     if (clientsChartRef.current) { clientsChartRef.current.destroy(); clientsChartRef.current = null; }
     clientCtx.clearRect(0, 0, clientCtx.canvas.width, clientCtx.canvas.height);
+    Chart.unregister(ChartDataLabels);
 
     if (showLoading || combinedError) return;
 
@@ -440,11 +479,18 @@ const Dashboard = () => {
         return;
     }
 
-    console.log(`[${new Date().toISOString()}] Dashboard: Rendering Client Pie Chart.`);
+    Chart.register(ChartDataLabels);
     clientsChartRef.current = new Chart(clientCtx, {
       type: "pie",
       data: { labels: clientChartData.labels, datasets: [{ data: clientChartData.data, backgroundColor: ["#7b61ff", "#a6c0fe", "#d782d9", "#4f86f7", "#ffcb8a", "#a1e8cc", "#f17c67", "#b9e8f0"] }], },
-      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: "bottom", labels: { boxWidth: 12 } } } },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { position: "bottom", labels: { boxWidth: 12 } },
+          datalabels: { display: false }
+        }
+      },
     });
      return () => { if (clientsChartRef.current) { clientsChartRef.current.destroy(); clientsChartRef.current = null; } };
   }, [clientChartData, showLoading, combinedError]);
@@ -455,6 +501,7 @@ const Dashboard = () => {
 
     if (projectsChartRef.current) { projectsChartRef.current.destroy(); projectsChartRef.current = null; }
     projectCtx.clearRect(0, 0, projectCtx.canvas.width, projectCtx.canvas.height);
+    Chart.unregister(ChartDataLabels);
 
     if (showLoading || combinedError) return;
 
@@ -464,20 +511,26 @@ const Dashboard = () => {
         return;
     }
 
-    console.log(`[${new Date().toISOString()}] Dashboard: Rendering Project Pie Chart.`);
+    Chart.register(ChartDataLabels);
     projectsChartRef.current = new Chart(projectCtx, {
       type: "pie",
       data: { labels: projectChartData.labels, datasets: [{ data: projectChartData.data, backgroundColor: ["#9b59b6", "#3498db", "#2ecc71", "#e74c3c", "#f39c12", "#1abc9c", "#34495e", "#95a5a6"] }], },
-      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: "bottom", labels: { boxWidth: 12 } } } },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { position: "bottom", labels: { boxWidth: 12 } },
+          datalabels: { display: false }
+        }
+      },
     });
      return () => { if (projectsChartRef.current) { projectsChartRef.current.destroy(); projectsChartRef.current = null; } };
   }, [projectChartData, showLoading, combinedError]);
 
 
-  // JSX Rendering
   return (
     <div className="view-dashboard-page">
-      <Alert /> {/* Render the Alert component here */}
+      <Alert />
       <div className="dashboard-filters-container">
         <div className="greeting">
             <h4>Hello, {user?.name || "User"}!</h4>
@@ -510,22 +563,10 @@ const Dashboard = () => {
             />
           </div>
         </div>
+     
       </div>
 
-      {/* Logout Confirmation Dialog */}
-      {showLogoutConfirm && (
-        <div className="logout-confirm-overlay">
-          <div className="logout-confirm-dialog">
-            <h4>Confirm Logout</h4>
-            <p>Are you sure you want to log out?</p>
-            <div className="logout-confirm-actions">
-              <button className="btn btn-secondary" onClick={cancelLogout}>Cancel</button>
-              <button className="btn btn-danger" onClick={confirmLogout}>Logout</button>
-            </div>
-          </div>
-        </div>
-      )}
-      {/* End Logout Confirmation Dialog */}
+    
 
       {showLoading && (
         <div className='loading-indicator'>
@@ -533,22 +574,6 @@ const Dashboard = () => {
           <p>{isAuthLoading ? 'Authenticating...' : (isEmployeeLoading ? 'Loading employees...' : (isTimesheetLoading ? 'Loading timesheets...' : 'Loading...'))}</p>
         </div>
       )}
-
-      {/* You can keep this inline error message or rely solely on the Alert component */}
-      {/* {combinedError && !showLoading && (
-        <div className='error-message'>
-          <FontAwesomeIcon icon={faExclamationCircle} />
-          <p>{combinedError}</p>
-          {(combinedError.includes('Authentication') || combinedError.includes('token')) ? (
-             <p>Authentication issue. Please try logging in again.</p>
-          ) : (
-             <button className="btn btn-secondary" onClick={() => {
-                 if (timesheetError) dispatch(clearTimesheetError()); // Clear Redux error
-                 dispatch(fetchTimesheets()); // Retry fetching timesheets
-             }}>Retry Fetch</button>
-          )}
-        </div>
-      )} */}
 
       {!showLoading && !combinedError && (
         <>
@@ -638,7 +663,7 @@ const Dashboard = () => {
               <div className="chart-total">
                 Total: <span>{displayTotalHours}</span>
               </div>
-              {/* Add a spacer div to match the height of the project card's select */}
+
               <div className="client-chart-spacer"></div>
               <div className="chart-container pie-chart-container">
                 <canvas id="clientsGraph"></canvas>

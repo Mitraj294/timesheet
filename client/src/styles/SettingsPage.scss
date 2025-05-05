@@ -1,62 +1,230 @@
-// /home/digilab/timesheet/client/src/styles/SettingsPage.scss
+// Removed empty .settings-page ruleset to resolve the compile error.
 
-.settings-page {
-    .settings-section {
-        background-color: #fff;
-        padding: 1.5rem;
-        border-radius: 5px; // Use variable if defined
-        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05); // Use variable
+.settings-section {
+    background-color: #fff;
+    padding: 1.5rem 2rem;
+    border-radius: 8px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+    margin-bottom: 2rem;
+
+    h3 {
+        margin-top: 0;
         margin-bottom: 1.5rem;
-        border: 1px solid #dee2e6; // Use variable
-
-        h3 {
-            margin-top: 0;
-            margin-bottom: 1.5rem;
-            padding-bottom: 1rem;
-            border-bottom: 1px solid #dee2e6; // Use variable
-            font-size: 1.3rem;
-            font-weight: 600;
-        }
+        border-bottom: 1px solid #eee;
+        padding-bottom: 0.75rem;
+        font-size: 1.25rem;
+        color: #333;
     }
+}
 
-    .account-info-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); // Responsive columns
-        gap: 1rem 1.5rem; // Row and column gap
-        margin-bottom: 1.5rem; // Space before edit button
+// Display grid for account info
+.account-info-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); // Responsive columns
+    gap: 1rem 1.5rem; // Row and column gap
+    margin-bottom: 1.5rem; // Space before buttons
 
-        .info-item {
-            font-size: 1rem;
-            line-height: 1.5;
-        }
+    .info-item {
+        text-align: left;
+        font-size: 0.95rem;
+        line-height: 1.5;
 
         .info-label {
             font-weight: 600;
-            color: #555; // Use variable if defined
-            margin-right: 0.5rem;
+            color: #555;
+            margin-right: 8px;
+            display: inline-block; // Or block if needed
+            min-width: 100px; // Adjust for alignment if desired
         }
 
         .info-value {
-            color: #333; // Use variable
+            color: #333;
+        }
+
+        &.full-width {
+            grid-column: 1 / -1; // Make item span full width if needed
+        }
+    }
+}
+
+// Styles specific to forms within the settings page
+// Inherits base styles from Forms.scss, add overrides or specifics here
+// Assuming Forms.scss provides base styles for .employee-form, .form-group, .form-footer, .btn etc.
+/* Removed empty .settings-section ruleset to resolve compile error */
+
+.settings-section .form-container {
+
+    // Increased specificity
+    .phone-input-group {
+        display: flex;
+        align-items: center; // Vertically align select and input
+        gap: 0.5rem; // Space between select and input
+
+        .country-code-select {
+            flex-shrink: 0; // Prevent select from shrinking too much
+            width: auto; // Adjust width as needed, maybe max-width
+            max-width: 130px; // Example max width
+            // Inherit other input styles (border, padding-top/bottom, font-size)
+            padding: 10px 12px; // Match input padding
+            padding-right: 30px; // Add space for default dropdown arrow
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            font-size: 14px;
+            background-color: #fff;
+            cursor: pointer;
+            // Add appearance reset and custom arrow if desired (like the main select)
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%23666' viewBox='0 0 16 16'%3E%3Cpath fill-rule='evenodd' d='M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708z'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 10px center;
+        }
+
+        input[type="tel"] {
+            flex-grow: 1; // Allow phone input to take remaining space
+            // Ensure padding accommodates potential icons if added later,
+            // but reset if no icon is directly inside this input.
+            padding-right: 12px;
+            // Inherit base input styles
+            width: 100%;
+            padding-left: 12px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            font-size: 14px;
+            box-sizing: border-box;
+            height: 38px; // Match other inputs
+            line-height: 1.4; // Match other inputs
+            transition: border-color 0.3s;
+
+            &:focus {
+                border-color: #007bff;
+                outline: none;
+            }
         }
     }
 
-    // Inherit form styles from Forms.scss, add specifics if needed
-    .employee-form {
-        // Re-use existing form styles
-        max-width: 600px; // Limit width for password form
-        margin-left: 0; // Align left within the section
+    // Apply password input styles within the settings form context
+    // Ensure these class names match those used in SettingsPage.js
+    .styles_PasswordInputContainer {
+        position: relative; // Needed for absolute positioning of the button
+        display: flex; // Use flex to manage input and button (though button is absolute)
+        align-items: center;
+        width: 100%;
+
+        // Apply consistent padding and dimensions to the password input itself
+        input[type="password"],
+        input[type="text"] {
+            // Handle when password is shown as text
+            padding-right: 40px; // Reserve space for the button
+            box-sizing: border-box; // Ensure padding/border are included in height/width
+            font-family: inherit; // Ensure font doesn't change
+            height: 38px; // Explicit height (adjust if needed based on padding/font-size)
+            line-height: 1.4; // Explicit line-height (adjust if needed)
+            // Inherit other input styles (width, padding-left, border, etc.) from .form-group input
+            // Ensure width: 100% is inherited or set if needed
+            width: 100%;
+            padding-left: 12px; // Standard left padding
+            border: 1px solid #ccc; // Standard border
+            border-radius: 5px; // Standard radius
+            font-size: 14px; // Standard font size
+            transition: border-color 0.3s; // Standard transition
+
+            &:focus {
+                // Standard focus
+                border-color: #007bff;
+                outline: none;
+            }
+        }
     }
 
+    .styles_PasswordToggleBtn {
+        position: absolute;
+        right: 0; // Position button container at the very right edge
+        top: 0; // Align top
+        bottom: 0; // Align bottom
+        width: 40px; // Define a clickable area matching the padding
+        background: none;
+        border: none;
+        cursor: pointer;
+        padding: 0;
+        color: #666; // Icon color
+        display: flex; // Center the icon within the button area
+        align-items: center;
+        justify-content: center;
+        z-index: 2; // Ensure it's above input focus outline
+
+        &:focus {
+            outline: none;
+        }
+    }
+
+    // Ensure form footer buttons have spacing
     .form-footer {
-        margin-top: 1.5rem; // Consistent spacing
-        padding-top: 1rem;
-        border-top: none; // Remove top border if inheriting from Forms.scss and not needed here
-        justify-content: flex-start; // Align buttons left for account info
+        margin-top: 1.5rem; // Add space above the footer buttons
+        // Add flex styles if needed for button alignment
+        display: flex;
+        justify-content: flex-end; // Example: align buttons right
+        gap: 0.75rem; // Space between buttons
+    }
+}
 
-        // Specific alignment for password submit button if needed
-        form .form-footer {
-            justify-content: flex-end; // Align password button right
-        }
+// Styles for the delete confirmation dialog (re-using logout styles)
+.logout-confirm-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.6);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1100; // High z-index
+}
+
+.logout-confirm-dialog {
+    background: #fff;
+    padding: 2rem;
+    border-radius: 8px;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+    text-align: center;
+    max-width: 400px;
+    width: 90%;
+
+    h4 {
+        margin-top: 0;
+        margin-bottom: 1rem;
+        color: #333;
+    }
+
+    p {
+        margin-bottom: 1.5rem;
+        color: #555;
+        line-height: 1.6;
+    }
+
+    .logout-confirm-actions {
+        display: flex;
+        justify-content: center;
+        gap: 1rem;
+    }
+}
+
+// Link styled like a button (for edit employee details link)
+.link-like-button {
+    display: inline-block;
+    padding: 6px 12px;
+    font-size: 0.9em;
+    color: #007bff;
+    text-decoration: none;
+    border: 1px solid #007bff;
+    border-radius: 4px;
+    transition: background-color 0.2s, color 0.2s;
+
+    &:hover {
+        background-color: #007bff;
+        color: #fff;
+        text-decoration: none;
     }
 }

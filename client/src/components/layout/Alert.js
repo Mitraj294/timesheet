@@ -1,65 +1,61 @@
-// /home/digilab/timesheet/client/src/components/layout/Alert.js
-import React, { useEffect } from 'react'; // Import useEffect
-import { useSelector, useDispatch } from 'react-redux'; // Import useDispatch
-import { removeAlert } from '../../redux/slices/alertSlice'; // Import removeAlert action
-import '../../styles/Alerts.scss'; // Assuming you have styles for positioning
+import React, { useEffect } from 'react';
+import { useSelector, useDispatch } from 'react-redux';
+import { removeAlert } from '../../redux/slices/alertSlice';
+import '../../styles/Alerts.scss';
 
 const Alert = () => {
-  // Select the alerts array from the Redux store
-  const alerts = useSelector(state => state.alerts); // Ensure 'alerts' matches your root reducer key
-  const dispatch = useDispatch(); // Get the dispatch function
+  // Get alerts from Redux store
+  const alerts = useSelector(state => state.alerts);
+  const dispatch = useDispatch();
 
   useEffect(() => {
-    // For each alert currently in the state...
-    alerts.forEach((alert) => {
-      // Basic validation for alert object and timeout
+    // Set a timer to automatically remove each alert after its timeout
+    const timers = alerts.map((alert) => {
+      // Basic validation
       if (!alert || !alert.id || typeof alert.timeout !== 'number' || alert.timeout <= 0) {
         console.warn("Invalid alert object or timeout found:", alert);
-        // Optionally remove invalid alerts immediately
-        // if (alert && alert.id) dispatch(removeAlert(alert.id));
-        return; // Skip setting timeout for invalid alerts
+        return null; // Skip invalid alerts
       }
 
-      // ...set a timer using the timeout value from the alert object.
-      const timer = setTimeout(() => {
-        // After the timeout, dispatch the action to remove this specific alert.
+      return setTimeout(() => {
         dispatch(removeAlert(alert.id));
-      }, alert.timeout); // Use the timeout from the alert payload
+      }, alert.timeout);
+    });
 
       // Cleanup function: If the component unmounts or the alerts array changes
       // before the timer finishes, clear the timer to prevent errors.
-      return () => clearTimeout(timer);
-    });
-    // This effect runs whenever the 'alerts' array in the Redux store changes.
+      return () => {
+        timers.forEach(timerId => timerId && clearTimeout(timerId));
+      };
+    // }); // Removed extra closing parenthesis
   }, [alerts, dispatch]); // Dependencies: alerts array and dispatch function
 
-  // No alerts? Render nothing.
+  // Don't render anything if there are no alerts
   if (!alerts || alerts.length === 0) {
     return null;
   }
 
-  // Render the alerts (usually positioned fixed/absolute at the top)
+  // Render the list of alerts
   return (
-    // Use a container div for positioning via CSS
     <div className="alert-container">
       {alerts.map(alert => {
-        // Gracefully handle potentially invalid alert objects (redundant check, but safe)
+        // Skip rendering invalid alert objects
         if (!alert || !alert.id) {
            console.error("Invalid alert object found during render:", alert);
            return null; // Skip rendering this invalid alert
         }
 
-        // Ensure the message is a string before rendering
+        // Handle non-string messages (e.g., error objects)
         let displayMsg = alert.msg;
         if (typeof displayMsg === 'object' && displayMsg !== null) {
-            // Try to extract a meaningful message, e.g., from a 'message' or 'error' key, or stringify as fallback
+            // Attempt to extract a meaningful message or stringify
             displayMsg = displayMsg.message || displayMsg.error || JSON.stringify(displayMsg);
         }
         // Render the alert
         return (
           <div key={alert.id} className={`alert alert-${alert.alertType || 'info'}`}>
             <span>{displayMsg || 'No message provided'}</span>
-            {/* Optional: Add a manual close button */}
+            {/* Manual close button */}
             <button onClick={() => dispatch(removeAlert(alert.id))} className="alert-close-btn" aria-label="Close">&times;</button>
           </div>
         );

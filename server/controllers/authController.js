@@ -9,10 +9,11 @@ import sendEmail from '../utils/sendEmail.js';
 // Register User
 export const registerUser = async (req, res) => {
   try {
-    const { name, email, password, role } = req.body;
+    // Include new optional fields
+    const { name, email, password, role, country, phoneNumber, companyName } = req.body;
 
     // Basic input validation
-    if (!name || !email || !password || !role) {
+    if (!name || !email || !password || !role ) {
       return res.status(400).json({ message: "Please provide name, email, password, and role" });
     }
     // Add more validation as needed (e.g., password length, email format)
@@ -34,6 +35,9 @@ export const registerUser = async (req, res) => {
       password, // Send plain password if model hook handles hashing
       // password: hashedPassword, // Send hashed password if hashing here
       role,
+      country: country || '', // Save optional fields, default to empty string if not provided
+      phoneNumber: phoneNumber || '',
+      companyName: role === 'employer' ? (companyName || '') : '', // Only save companyName for employers
     });
 
     // Check if user creation was successful
@@ -51,6 +55,9 @@ export const registerUser = async (req, res) => {
         name: user.name,
         email: user.email,
         role: user.role,
+        country: user.country,
+        phoneNumber: user.phoneNumber,
+        companyName: user.companyName,
       },
       // Optionally, generate and return a token immediately if registration implies login
       // token: generateToken(user._id, user.role) // Example call
@@ -93,7 +100,10 @@ export const loginUser = async (req, res) => {
         id: user._id, // Use id or _id consistently
         name: user.name,
         email: user.email,
-        role: user.role
+        role: user.role,
+        country: user.country, // Add optional fields
+        phoneNumber: user.phoneNumber,
+        companyName: user.companyName
       }
     });
 
@@ -264,13 +274,13 @@ export const deleteAccount = async (req, res) => {
         }
 
         // --- Optional: Add password verification step here for extra security ---
-        // const { password } = req.body; // If requiring password confirmation
-        // if (!password || !(await bcrypt.compare(password, user.password))) {
-        //     return res.status(401).json({ message: "Incorrect password. Account deletion failed." });
-        // }
+        const { password } = req.body; // If requiring password confirmation
+        if (!password || !(await user.matchPassword(password))) { // Use the model method
+            return res.status(401).json({ message: "Incorrect password. Account deletion failed." });
+        }
 
         await User.findByIdAndDelete(userId);
-
+        console.log(`User ${userId} deleted successfully.`); // Add logging
         // TODO: Add logic here to delete associated data (e.g., Employee record, Timesheets, Reviews) if necessary
 
         res.json({ message: "Account deleted successfully." });

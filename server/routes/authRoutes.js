@@ -78,3 +78,4 @@ router.delete('/me', protect, deleteAccount); // Add this line
 console.log(`[${new Date().toISOString()}] authRoutes.js file loaded and router configured.`);
 
 export default router;
+

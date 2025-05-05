@@ -7,6 +7,10 @@ const UserSchema = new mongoose.Schema({
   email: { type: String, required: true, unique: true },
   password: { type: String, required: true },
   role: { type: String, enum: ["employee", "employer"], default: "employee" },
+  // Optional fields from registration
+  country: { type: String },
+  phoneNumber: { type: String },
+  companyName: { type: String }, // Primarily for employer role
   createdAt: { type: Date, default: Date.now },
   passwordResetToken: { type: String },
   passwordResetExpires: { type: Date },

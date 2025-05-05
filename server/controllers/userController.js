@@ -3,10 +3,11 @@ import User from "../models/User.js";
 // @desc    Update user profile (name, email)
 // @route   PUT /api/users/profile
 // @access  Private
+// @desc    Update user profile (name, email, country, phone, company)
 export const updateUserProfile = async (req, res) => {
     try {
         const userId = req.user.id; // From protect middleware
-        const { name, email } = req.body;
+        const { name, email, country, phoneNumber, companyName } = req.body;
 
         // Basic validation
         if (!name || !email) {
@@ -31,6 +32,12 @@ export const updateUserProfile = async (req, res) => {
         // Update user fields
         user.name = name;
         user.email = email;
+        // Update optional fields if provided
+        if (country !== undefined) user.country = country; // Allow setting to empty string
+        if (phoneNumber !== undefined) user.phoneNumber = phoneNumber;
+        if (companyName !== undefined && user.role === 'employer') { // Only allow company name update for employers
+            user.companyName = companyName;
+        }
 
         const updatedUser = await user.save(); // pre-save hook in model won't re-hash password unless it's changed
 
@@ -40,6 +47,9 @@ export const updateUserProfile = async (req, res) => {
             name: updatedUser.name,
             email: updatedUser.email,
             role: updatedUser.role,
+            country: updatedUser.country,
+            phoneNumber: updatedUser.phoneNumber,
+            companyName: updatedUser.companyName,
             // Do NOT send back password or token here
         });
     } catch (error) {
