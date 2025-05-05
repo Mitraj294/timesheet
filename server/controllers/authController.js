@@ -166,7 +166,7 @@ export const forgotPassword = async (req, res) => {
             // Important: Don't reveal if the user exists or not for security
             // Send a success-like response even if email not found
             console.log(`Password reset requested for non-existent email: ${email}`);
-            return res.json({ message: "If an account with that email exists, a password reset link has been sent." });
+            return res.json({ message: "If an account with that email exists, a password reset link has been sent." }); // Exit early, no error
         }
 
         // 1. Generate Reset Token
@@ -204,14 +204,14 @@ export const forgotPassword = async (req, res) => {
                 html: message,
             });
             console.log(`[${new Date().toISOString()}] Password reset email successfully sent (or appeared to send) to: ${user.email}`); // Log after sending
+            // Send the same generic message for success or if user wasn't found
             res.json({ message: "If an account with that email exists, a password reset link has been sent." });
         } catch (emailError) {
-            console.error("Error sending password reset email:", emailError); // This line is already present
+            console.error(`[${new Date().toISOString()}] FAILED to send password reset email to ${user.email}. Error Details:`, emailError); // Log the full error object
             // Clear token fields if email fails to prevent unusable token
             user.passwordResetToken = undefined;
             user.passwordResetExpires = undefined;
             await user.save({ validateBeforeSave: false });
-            console.error(`[${new Date().toISOString()}] FAILED to send password reset email to ${email}. Error: ${emailError.message}`); // More explicit log
             return res.status(500).json({ message: "Error sending password reset email. Please try again later." });
         }
 
