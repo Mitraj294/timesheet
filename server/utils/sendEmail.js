@@ -5,6 +5,7 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 const sendEmail = async (options) => {
+    console.log(`[${new Date().toISOString()}] Entered sendEmail utility for: ${options.to}`); // <-- ADD THIS LINE
     // 1. Create a transporter object using SMTP transport
     // Ensure environment variables are set correctly in your .env file
     const transporter = nodemailer.createTransport({

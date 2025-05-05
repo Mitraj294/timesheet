@@ -155,6 +155,7 @@ export const changePassword = async (req, res) => {
 // --- NEW: Forgot Password ---
 export const forgotPassword = async (req, res) => {
     try {
+        console.log(`[${new Date().toISOString()}] Entered forgotPassword controller.`); // <-- ADD THIS LINE
         const { email } = req.body;
         if (!email) {
             return res.status(400).json({ message: "Please provide an email address." });
