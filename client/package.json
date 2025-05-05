@@ -12,6 +12,7 @@
     "ajv-keywords": "^5.1.0",
     "axios": "^1.8.3",
     "chart.js": "^4.4.8",
+    "chartjs-plugin-datalabels": "^2.2.0",
     "date-fns": "^4.1.0",
     "dayjs": "^1.11.13",
     "eslint-plugin-react-hooks": "^4.6.2",
