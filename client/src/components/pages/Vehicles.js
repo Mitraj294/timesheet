@@ -32,10 +32,11 @@ import {
   clearOperationStatus,
   clearReportStatus,
 } from '../../redux/slices/vehicleSlice';
-import { setAlert } from '../../redux/slices/alertSlice'; // Import setAlert
-import Alert from '../layout/Alert'; // Import Alert component
+import { setAlert } from '../../redux/slices/alertSlice';
+import Alert from '../layout/Alert';
 import '../../styles/Vehicles.scss';
 
+// Main Vehicles component
 const Vehicles = () => {
   const [search, setSearch] = useState('');
   const [startDate, setStartDate] = useState(null);
@@ -44,11 +45,11 @@ const Vehicles = () => {
   const [showSendReport, setShowSendReport] = useState(false);
   const [showDateRangePicker, setShowDateRangePicker] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [itemToDelete, setItemToDelete] = useState(null); // { id, name }
-  // Local validation errors are handled by dispatching alerts directly
+  const [itemToDelete, setItemToDelete] = useState(null); // Stores { id, name } for deletion confirmation
 
   const dispatch = useDispatch();
   const navigate = useNavigate();
+  // Redux state selectors
 
   const { user } = useSelector((state) => state.auth || {});
   const vehicles = useSelector(selectAllVehicles);
@@ -59,9 +60,11 @@ const Vehicles = () => {
   const reportStatus = useSelector(selectVehicleReportStatus);
   const reportError = useSelector(selectVehicleReportError);
 
+  // Effects
+  // Fetches vehicles if the list is not already loaded or if an error occurred previously
   useEffect(() => {
     if (loadingStatus === 'idle') {
-      try {
+      try { // Initial fetch
         dispatch(fetchVehicles()).unwrap();
       } catch (error) {
         console.error('Failed to fetch vehicles:', error);
@@ -70,14 +73,14 @@ const Vehicles = () => {
           error?.message?.includes('403') ||
           error?.message?.includes('No authentication token found')
         ) {
-          localStorage.removeItem('token');
+          localStorage.removeItem('token'); // Might be better handled by an interceptor
           navigate('/login');
         }
       }
     }
   }, [loadingStatus, dispatch, navigate]);
 
-  // Effect to show alerts for fetch, operation, or report errors from Redux state
+  // Displays errors from Redux state (fetch, operation, report) as alerts
   useEffect(() => {
     const reduxError = fetchError || operationError || reportError;
     if (reduxError) {
@@ -85,24 +88,32 @@ const Vehicles = () => {
     }
   }, [fetchError, operationError, reportError, dispatch]);
 
+  // Handlers
+  // Handles downloading the report for all vehicles
   const handleDownloadReport = async () => {
-    if (!startDate || !endDate) {
-      dispatch(setAlert('Please select a start and end date.', 'warning'));
-      return;
-    }
     dispatch(clearReportStatus());
+    const reportParams = {};
+    if (startDate) reportParams.startDate = startDate.toISOString();
+    if (endDate) reportParams.endDate = endDate.toISOString();
 
     try {
-      const resultAction = await dispatch(downloadAllVehiclesReport({
-        startDate: startDate.toISOString(),
-        endDate: endDate.toISOString()
-      })).unwrap();
+      const resultAction = await dispatch(downloadAllVehiclesReport(reportParams)).unwrap();
 
-      const { blob, filename } = resultAction;
-      const url = window.URL.createObjectURL(blob);
+      const url = window.URL.createObjectURL(resultAction.blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = filename || `vehicles_report_${startDate.toISOString().split('T')[0]}_to_${endDate.toISOString().split('T')[0]}.xlsx`;
+      let fallbackFilename = 'vehicles_report'; // Construct a fallback filename
+      if (startDate && endDate) {
+        fallbackFilename += `_${startDate.toISOString().split('T')[0]}_to_${endDate.toISOString().split('T')[0]}`;
+      } else if (startDate) {
+        fallbackFilename += `_from_${startDate.toISOString().split('T')[0]}`;
+      } else if (endDate) { // Should ideally not happen if minDate for endDate is startDate and startDate is null
+        fallbackFilename += `_until_${endDate.toISOString().split('T')[0]}`;
+      } else {
+        fallbackFilename += '_all_time';
+      }
+      fallbackFilename += '.xlsx';
+      link.download = resultAction.filename || fallbackFilename;
       document.body.appendChild(link);
       link.click();
       link.remove();
@@ -110,13 +121,12 @@ const Vehicles = () => {
       dispatch(setAlert('Vehicle report downloaded successfully.', 'success'));
     } catch (err) {
       console.error('Download report error:', err);
-      // Error handled by useEffect watching reportError
     }
   };
-
+  // Handles sending the report for all vehicles via email
   const handleSendReport = async () => {
-    if (!startDate || !endDate || !sendEmail) {
-      dispatch(setAlert('Please select a date range and enter an email address.', 'warning'));
+    if (!sendEmail) {
+      dispatch(setAlert('Please enter an email address.', 'warning'));
       return;
     }
     if (!/\S+@\S+\.\S+/.test(sendEmail)) {
@@ -124,26 +134,24 @@ const Vehicles = () => {
       return;
     }
     dispatch(clearReportStatus());
+    const reportData = { email: sendEmail };
+    if (startDate) reportData.startDate = startDate.toISOString();
+    if (endDate) reportData.endDate = endDate.toISOString();
 
     try {
-      await dispatch(sendAllVehiclesReportByEmail({
-        startDate: startDate.toISOString(),
-        endDate: endDate.toISOString(),
-        email: sendEmail,
-      })).unwrap();
+      await dispatch(sendAllVehiclesReportByEmail(reportData)).unwrap();
 
-      setShowSendReport(false);
+      setShowSendReport(false); // Close modal on success
       setSendEmail('');
       setStartDate(null);
       setEndDate(null);
       dispatch(setAlert('Vehicle report sent successfully.', 'success'));
     } catch (err) {
       console.error('Error sending report:', err);
-      // Error handled by useEffect watching reportError
     }
   };
 
-  // --- Refactored Delete Confirmation ---
+  // Initiates the delete process for a vehicle
   const handleDeleteClick = (vehicleId, vehicleName) => {
     setItemToDelete({ id: vehicleId, name: vehicleName });
     setShowDeleteConfirm(true);
@@ -154,6 +162,7 @@ const Vehicles = () => {
     setItemToDelete(null);
   };
 
+  // Confirms and dispatches the delete action for a vehicle
   const confirmDeleteVehicle = async () => {
     if (!itemToDelete) return;
     const { id: vehicleId, name: vehicleName } = itemToDelete;
@@ -162,18 +171,20 @@ const Vehicles = () => {
     try {
       await dispatch(deleteVehicle(vehicleId)).unwrap();
       dispatch(setAlert(`Vehicle "${vehicleName}" deleted successfully.`, 'success'));
-      setShowDeleteConfirm(false); // Close modal on success
+      setShowDeleteConfirm(false);
       setItemToDelete(null);
     } catch (err) {
       console.error('Error deleting vehicle:', err);
-      // Error handled by useEffect watching operationError
     }
   };
 
+  // Memoized data
+  // Filters vehicles based on the search term
   const filteredVehicles = vehicles.filter((v) =>
     v?.name?.toLowerCase().includes(search.toLowerCase())
   );
 
+  // Toggles visibility of the Send Report filter section
   const toggleSendReport = () => {
     const currentlyShowing = showSendReport;
     setShowSendReport(!currentlyShowing);
@@ -185,6 +196,7 @@ const Vehicles = () => {
     }
   };
 
+  // Toggles visibility of the Download Report filter section
   const toggleDownloadReport = () => {
     const currentlyShowing = showDateRangePicker;
     setShowDateRangePicker(!currentlyShowing);
@@ -196,7 +208,9 @@ const Vehicles = () => {
     }
   };
 
-  const isDeleting = operationStatus === 'loading'; // Use Redux status
+  // Derived state for UI
+  const isDeleting = operationStatus === 'loading'; // True if a delete operation is in progress
+  // Render
   return (
     <div className='vehicles-page'>
       <Alert />
@@ -239,7 +253,7 @@ const Vehicles = () => {
       {showSendReport && (
         <div id="send-report-options" className='report-options-container send-report-container'>
           <h4>Send Vehicle Report</h4>
-          {/* Error handled by Alert component */}
+          {/* Errors for send operation are handled by the global Alert component via Redux state */}
           <div className='date-picker-range'>
             <DatePicker
               selected={startDate}
@@ -279,7 +293,7 @@ const Vehicles = () => {
             <button
               className='btn btn-purple'
               onClick={handleSendReport}
-              disabled={reportStatus === 'loading' || !startDate || !endDate || !sendEmail || !/\S+@\S+\.\S+/.test(sendEmail)}
+              disabled={reportStatus === 'loading' || !sendEmail || !/\S+@\S+\.\S+/.test(sendEmail)}
             >
               {reportStatus === 'loading' ? (
                 <><FontAwesomeIcon icon={faSpinner} spin /> Sending...</>
@@ -294,7 +308,7 @@ const Vehicles = () => {
       {showDateRangePicker && (
         <div id="download-report-options" className='report-options-container download-date-range'>
           <h4>Download Vehicle Report</h4>
-          {/* Error handled by Alert component */}
+          {/* Errors for download operation are handled by the global Alert component via Redux state */}
           <div className='date-picker-range'>
             <DatePicker
               selected={startDate}
@@ -325,7 +339,7 @@ const Vehicles = () => {
           <button
             className='btn btn-download-report'
             onClick={handleDownloadReport}
-            disabled={reportStatus === 'loading' || !startDate || !endDate}
+            disabled={reportStatus === 'loading'}
           >
             {reportStatus === 'loading' ? (
               <><FontAwesomeIcon icon={faSpinner} spin /> Downloading...</>
@@ -354,16 +368,7 @@ const Vehicles = () => {
         </div>
       )}
 
-      {/* Error state handled by Alert component */}
-      {/*
-      {(fetchError || operationError) && loadingStatus !== 'loading' && (
-        <div className='error-message'>
-          <FontAwesomeIcon icon={faExclamationCircle} />
-          <p>{fetchError || operationError}</p>
-        </div>
-      )}
-      */}
-
+      {/* Vehicle Grid: displayed when not loading and no fetch error occurred */}
       {loadingStatus === 'succeeded' && !fetchError && (
         <div className='vehicles-grid'>
           <div className='vehicles-row header'>
@@ -409,8 +414,8 @@ const Vehicles = () => {
                   {user?.role === 'employer' && (
                     <button
                       className='btn-icon btn-icon-red'
-                      onClick={() => handleDeleteClick(vehicle._id, vehicle.name)} // Trigger modal
-                      disabled={isDeleting} // Use Redux status
+                      onClick={() => handleDeleteClick(vehicle._id, vehicle.name)}
+                      disabled={isDeleting}
                       title='Delete Vehicle'
                       aria-label={`Delete ${vehicle.name}`}
                     >
@@ -424,9 +429,8 @@ const Vehicles = () => {
         </div>
       )}
 
-      {/* Delete Confirmation Modal */}
       {showDeleteConfirm && itemToDelete && (
-          <div className="logout-confirm-overlay"> {/* Re-use styles */}
+          <div className="logout-confirm-overlay">
             <div className="logout-confirm-dialog">
               <h4>Confirm Vehicle Deletion</h4>
               <p>Are you sure you want to permanently delete vehicle "<strong>{itemToDelete.name}</strong>"? This action cannot be undone.</p>

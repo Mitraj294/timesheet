@@ -48,8 +48,8 @@ import {
     clearTimesheetError, clearDownloadStatus, clearSendStatus 
 } from '../../redux/slices/timesheetSlice';
 import { selectIsAuthenticated, selectAuthUser } from '../../redux/slices/authSlice'; // Assuming you need user info
-import { setAlert } from '../../redux/slices/alertSlice'; // Import setAlert
-import Alert from '../layout/Alert'; // Import Alert component
+import { setAlert } from '../../redux/slices/alertSlice';
+import Alert from '../layout/Alert';
 
 
 import Select from "react-select"; // Assuming react-select is used here too based on filter controls
@@ -405,8 +405,7 @@ const Timesheet = () => {
         .unwrap()
         .then((result) => {
           // Success: Create and trigger download link
-          const blob = new Blob([result.blob], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-          const url = window.URL.createObjectURL(blob);
+          const url = window.URL.createObjectURL(result.blob);
           const link = document.createElement('a');
           link.href = url;
           link.setAttribute('download', result.filename || 'timesheets_report.xlsx');

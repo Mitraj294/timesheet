@@ -1,17 +1,16 @@
 // /home/digilab/timesheet/client/src/components/pages/ViewProject.js
 import React, { useEffect, useState, useCallback, useMemo } from "react";
+// The following imports are from open-source packages and are used under their respective licenses.
 import { Link, useParams, useNavigate } from "react-router-dom";
 import { useSelector, useDispatch } from "react-redux";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-
-// Redux Imports
 import {
   fetchProjectById, deleteProject,
   selectCurrentProject, selectCurrentProjectStatus, selectCurrentProjectError, selectProjectStatus,
   clearCurrentProject, clearProjectError
 } from "../../redux/slices/projectSlice";
 import { setAlert } from "../../redux/slices/alertSlice";
-import Alert from "../layout/Alert"; // Import Alert component
+import Alert from "../layout/Alert";
 
 import {
   faProjectDiagram,
@@ -36,52 +35,49 @@ const ViewProject = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
 
-  // Redux State
+  // Redux state
   const project = useSelector(selectCurrentProject);
   const projectStatus = useSelector(selectCurrentProjectStatus);
   const projectError = useSelector(selectCurrentProjectError);
   const deleteStatus = useSelector(selectProjectStatus); // Use general status for delete
 
-  // Local State
-  // const [error, setError] = useState(null); // Replaced by Alert
+  // Local state
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [itemToDelete, setItemToDelete] = useState(null); // { id, name }
+  const [itemToDelete, setItemToDelete] = useState(null); // Stores { id, name } for deletion confirmation
 
   const { user } = useSelector((state) => state.auth || {});
 
+  // Effects
+  // Fetches project data when the component mounts or when the projectId from the URL changes
   useEffect(() => {
     const fetchProjectData = async () => {
-      // setError(null); // Replaced by Alert
-
       try {
         dispatch(fetchProjectById(projectId));
       } catch (err) {
         console.error("Error fetching project data:", err);
         const errorMessage = err?.message || "Failed to initiate project fetch.";
-        // setError(errorMessage); // Replaced by Alert
         dispatch(setAlert(errorMessage, 'danger'));
       }
     };
 
     fetchProjectData();
 
-    // Cleanup
+    // Cleanup: clear the current project data and any related errors when the component unmounts or projectId changes
     return () => {
         dispatch(clearCurrentProject());
         dispatch(clearProjectError());
     };
   }, [projectId, dispatch]);
 
-  // Effect to show alerts for fetch errors from Redux state
+  // Displays errors from Redux state (e.g., project fetch errors) as global alerts
   useEffect(() => {
     if (projectError) {
       dispatch(setAlert(projectError, 'danger'));
-      // Optionally clear the Redux error after showing the alert
-      // dispatch(clearProjectError());
     }
   }, [projectError, dispatch]);
 
-  // --- Refactored Delete Confirmation ---
+  // Handlers
+  // Sets up the state for the delete confirmation modal
   const handleDeleteClick = (projectId, projectName) => {
     setItemToDelete({ id: projectId, name: projectName });
     setShowDeleteConfirm(true);
@@ -92,6 +88,7 @@ const ViewProject = () => {
     setItemToDelete(null);
   };
 
+  // Handles project change within the embedded ProjectTimesheet component
   const handleProjectChangeInTimesheet = useCallback((newProjectId) => {
     if (newProjectId && newProjectId !== projectId && newProjectId !== ALL_PROJECTS_VALUE) {
       const currentClientId = project?.clientId?._id || clientId || 'unknown';
@@ -100,14 +97,11 @@ const ViewProject = () => {
     }
   }, [navigate, projectId, project, clientId]);
 
-
+  // Actually dispatches the delete action after user confirmation
   const handleDeleteProject = async () => {
-      if (!project || !window.confirm(`Are you sure you want to delete project "${project.name}"? This action cannot be undone.`)) {
-          return;
-      } // This window.confirm should be removed, handled by modal now
       if (!itemToDelete) return; // Ensure itemToDelete is set
       const { id: projectIdToDelete, name: projectNameToDelete } = itemToDelete;
-      dispatch(clearProjectError()); // Clear Redux error
+      dispatch(clearProjectError()); // Clear previous Redux errors
       try {
           await dispatch(deleteProject(projectId)).unwrap();
           dispatch(setAlert(`Project "${project.name}" deleted successfully.`, 'success'));
@@ -119,7 +113,6 @@ const ViewProject = () => {
               navigate('/clients'); // Fallback if client context is lost
           }
       } catch (err) {
-          console.error("Failed to delete project:", err); // Keep console log
           const errorMessage = err?.message || `Failed to delete project "${projectNameToDelete}".`;
           dispatch(setAlert(errorMessage, 'danger'));
       } finally {
@@ -128,12 +121,11 @@ const ViewProject = () => {
       }
   };
 
-  // Combined loading/error states
+  // Derived state for UI
   const isLoading = useMemo(() => projectStatus === 'loading', [projectStatus]);
-  const isDeleting = deleteStatus === 'loading'; // Use Redux status for disabling buttons
-  // const combinedError = useMemo(() => error || projectError, [error, projectError]); // Replaced by useEffect
+  const isDeleting = deleteStatus === 'loading'; // True if a delete operation is in progress
 
-  if (isLoading && !project) { // Show loading only if project data isn't available yet
+  if (isLoading && !project) { // Show a loading indicator if project data isn't available yet
     return (
       <div className="vehicles-page">
         <div className='loading-indicator'>
@@ -144,25 +136,9 @@ const ViewProject = () => {
     );
   }
 
-  // Error state handled by Alert component via useEffect
-  /*
-  if (projectError && !project) {
-    return (
-      <div className="vehicles-page">
-        <div className='error-message'>
-          <FontAwesomeIcon icon={faExclamationCircle} />
-          <p>{projectError}</p>
-          {clientId && clientId !== 'unknown' ? (
-             <Link to={`/clients/view/${clientId}`} className="btn btn-secondary" style={{marginTop: '1rem'}}>Back to Client</Link>
-          ) : (
-             <Link to="/projects" className="btn btn-secondary" style={{marginTop: '1rem'}}>Back to Projects</Link>
-          )}
-        </div>
-      </div>
-    );
-  }
-  */
+  // Render
 
+  // Handles the case where project data is not available after loading attempts
   if (!project) {
      return (
       <div className="vehicles-page">
@@ -183,7 +159,7 @@ const ViewProject = () => {
 
   return (
     <div className="vehicles-page view-project-container">
-      <Alert /> {/* Render Alert component here */}
+      <Alert />
       <div className="vehicles-header">
         <div className="title-breadcrumbs">
           <h2>
@@ -224,22 +200,13 @@ const ViewProject = () => {
                         // setError("Cannot edit project: Client information is missing."); // Replaced by Alert
                     }
                 }}
-                disabled={isDeleting} // Use Redux status
+                disabled={isDeleting}
               >
                 <FontAwesomeIcon icon={faEdit} /> Edit Project
               </button>
-              {/* <button // Original button, replaced by modal trigger
-                onClick={handleDeleteProject}
-                disabled={isDeleting || deleteStatus === 'loading'} // Disable based on Redux status or local delete state
-                className="btn btn-danger"
-              >
-                {isDeleting ? <FontAwesomeIcon icon={faSpinner} spin /> : <FontAwesomeIcon icon={faTrash} />}
-                {isDeleting ? ' Deleting...' : ' Delete Project'}
-              </button>
-              */}
               <button
-                onClick={() => handleDeleteClick(project._id, project.name)} // Trigger modal
-                disabled={isDeleting} // Use Redux status
+                onClick={() => handleDeleteClick(project._id, project.name)}
+                disabled={isDeleting}
                 className="btn btn-danger"
               >
                 <FontAwesomeIcon icon={faTrash} /> Delete Project
@@ -247,7 +214,8 @@ const ViewProject = () => {
             </div>
          )}
       </div>
-
+      
+      {/* Project Summary Section */}
       <div className="client-summary-section project-summary-section">
         <h3 className="section-heading">Project Summary</h3>
         <div className="client-summary-cards project-summary-cards">
@@ -299,6 +267,7 @@ const ViewProject = () => {
         </div>
       </div>
 
+      {/* Embedded ProjectTimesheet component to show timesheets for this project */}
       <div className="projects-section timesheet-details-section">
         <div className="section-header">
             <h3><FontAwesomeIcon icon={faBriefcase} /> Timesheets</h3>
@@ -310,9 +279,8 @@ const ViewProject = () => {
         />
       </div>
 
-      {/* Delete Confirmation Modal */}
       {showDeleteConfirm && itemToDelete && (
-          <div className="logout-confirm-overlay"> {/* Re-use styles */}
+          <div className="logout-confirm-overlay">
             <div className="logout-confirm-dialog">
               <h4>Confirm Project Deletion</h4>
               <p>Are you sure you want to permanently delete project "<strong>{itemToDelete.name}</strong>"? This action cannot be undone.</p>

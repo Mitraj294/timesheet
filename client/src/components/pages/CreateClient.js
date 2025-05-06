@@ -3,15 +3,14 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 
-// Redux Imports
 import {
   fetchClientById, createClient, updateClient,
   selectCurrentClient, selectCurrentClientStatus, selectCurrentClientError,
-  selectClientStatus, selectClientError, // For create/update status
-  clearCurrentClient, clearClientError // Import clear actions
+  selectClientStatus, selectClientError,
+  clearCurrentClient, clearClientError
 } from "../../redux/slices/clientSlice";
 import { setAlert } from "../../redux/slices/alertSlice";
-import Alert from "../layout/Alert"; // Import Alert component
+import Alert from "../layout/Alert";
 
 import {
   faUserTie,
@@ -23,7 +22,7 @@ import {
   faStar,
   faPen,
 } from "@fortawesome/free-solid-svg-icons";
-import "../../styles/Forms.scss";
+import "../../styles/Forms.scss"; 
 import { parsePhoneNumberFromString, isValidPhoneNumber, getCountries, getCountryCallingCode } from 'libphonenumber-js'; // Import validation and country list functions
 
 const CreateClient = () => {
@@ -32,14 +31,14 @@ const CreateClient = () => {
   const dispatch = useDispatch();
   const isEditing = Boolean(id);
 
-  // Redux State
+  // Redux state
   const currentClient = useSelector(selectCurrentClient);
   const currentClientStatus = useSelector(selectCurrentClientStatus);
   const currentClientError = useSelector(selectCurrentClientError);
-  const saveStatus = useSelector(selectClientStatus); // General status for create/update
-  const saveError = useSelector(selectClientError); // General error for create/update
+  const saveStatus = useSelector(selectClientStatus); // Tracks status of create/update operations
+  const saveError = useSelector(selectClientError);   // Tracks errors from create/update operations
 
-  // Define initial state structure
+  // Initial form data structure, memoized for stability
   const initialClientData = useMemo(() => ({
     name: "",
     emailAddress: "",
@@ -47,9 +46,11 @@ const CreateClient = () => {
     address: "",
     notes: "",
     isImportant: false,
-  }), []); // Empty dependency array ensures it's created only once
-  const [countryCode, setCountryCode] = useState('IN'); // Default country code set to India
-  const [clientData, setClientData] = useState({
+  }), []);
+
+  // Local component state
+  const [countryCode, setCountryCode] = useState('IN'); // Default country code for phone validation
+  const [clientData, setClientData] = useState({ // Form data
     name: "",
     emailAddress: "",
     phoneNumber: "",
@@ -58,51 +59,48 @@ const CreateClient = () => {
     isImportant: false,
   });
 
-  // const [isLoading, setIsLoading] = useState(false); // Replaced by Redux status
-  // const [isSubmitting, setIsSubmitting] = useState(false); // Replaced by Redux status
-  const [error, setError] = useState(null);
+  // const [error, setError] = useState(null); // Local form validation errors are now handled via alerts
 
-  // Combined loading state
+  // Derived loading state from Redux statuses
   const isLoading = useMemo(() =>
     currentClientStatus === 'loading' || saveStatus === 'loading',
     [currentClientStatus, saveStatus]
   );
+  
+  // Effects
 
-  // Combined error state
-  const combinedError = useMemo(() =>
-    error || // Local validation errors
-    currentClientError ||
-    saveError, // Include save error
-    [error, currentClientError, saveError]
-  );
-
-  // Effect to show alerts for fetch or save errors from Redux state
+  // Handles fetching existing client data for editing, or initializing form for creation
   useEffect(() => {
-    if (isEditing && currentClientStatus === 'idle') { // Fetch only if editing and not already fetched/loading
-      dispatch(fetchClientById(id)); // Fetch existing client data
-    } else if (!isEditing) { // Explicitly check for create mode
-      dispatch(clearCurrentClient()); // Clear if creating new
-      setClientData(initialClientData); // Reset form to initial structure
+    if (isEditing) {
+      // Fetch if id is present, and either no client is loaded,
+      // or the loaded client is different, and we're not already loading.
+      if (id && (!currentClient || currentClient._id !== id) && currentClientStatus !== 'loading') {
+        dispatch(fetchClientById(id));
+      }
+    } else if (!isEditing) {
+      dispatch(clearCurrentClient());
+      setClientData(initialClientData);
     }
-    // Cleanup on unmount or ID change
+    // Cleanup: clear current client and any save errors when component unmounts or `id` changes
     return () => {
       dispatch(clearCurrentClient());
-      dispatch(clearClientError()); // Clear potential save errors
+      dispatch(clearClientError());
     };
-  }, [id, isEditing, dispatch, initialClientData]); // Removed currentClientStatus from dependencies
-  // Effect to show alerts for fetch or save errors from Redux state
+    // This effect should run when the mode (isEditing) or the ID (id) changes.
+    // Dispatch and initialClientData are stable. currentClient and currentClientStatus are checked internally.
+  }, [id, isEditing, dispatch, initialClientData]); // Removed currentClientStatus from deps
+
+  // Displays errors from Redux state (fetch or save operations) as alerts
   useEffect(() => {
     const reduxError = currentClientError || saveError;
     if (reduxError) {
       dispatch(setAlert(reduxError, 'danger'));
-      // Optionally clear the Redux error after showing the alert
     }
   }, [currentClientError, saveError, dispatch]);
 
-  // Populate form when editing and data is loaded
+  // Populates the form when editing and client data is successfully fetched
   useEffect(() => {
     if (isEditing && currentClientStatus === 'succeeded' && currentClient) {
-      // Create the potential new state based on currentClient
       const newClientDataFromStore = {
         name: currentClient.name || '',
         emailAddress: currentClient.emailAddress || '',
@@ -112,34 +110,31 @@ const CreateClient = () => {
         isImportant: currentClient.isImportant || false,
       };
 
-      // Only update local state if the relevant data has actually changed
-      setClientData(prevData => {
-        if (prevData.name !== newClientDataFromStore.name ||
-            prevData.emailAddress !== newClientDataFromStore.emailAddress ||
-            prevData.phoneNumber !== newClientDataFromStore.phoneNumber ||
-            prevData.address !== newClientDataFromStore.address ||
-            prevData.notes !== newClientDataFromStore.notes ||
-            prevData.isImportant !== newClientDataFromStore.isImportant) {
-          return newClientDataFromStore;
-        }
-        return prevData; // No change needed
-      });
-    } else if (isEditing && currentClientStatus === 'failed') {
-      // Error is handled by the useEffect watching currentClientError
-      // setError(currentClientError);
+      // Directly set form data once, as this effect now depends on specific fields
+      setClientData(newClientDataFromStore);
     }
-  }, [isEditing, currentClientStatus, currentClient, currentClientError]);
+    // This effect depends on the status and the specific fields of the currentClient.
+  }, [
+    isEditing,
+    currentClientStatus,
+    currentClient?._id, // Add _id to ensure it runs if the client entity changes
+    currentClient?.name,
+    currentClient?.emailAddress,
+    currentClient?.phoneNumber,
+    currentClient?.address,
+    currentClient?.notes,
+    currentClient?.isImportant]); // Depend on individual fields
 
+  // Event Handlers
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
     setClientData((prevData) => ({
       ...prevData,
-      // If adding a separate input for country code, handle it here:
       [name]: type === "checkbox" ? checked : value,
     }));
-    // if (error) setError(null); // Less needed
   };
 
+  // Form Validation
   const validateForm = () => {
     if (!clientData.name.trim()) return "Client Name is required.";
     if (!clientData.emailAddress.trim()) return "Email Address is required.";
@@ -147,10 +142,8 @@ const CreateClient = () => {
     if (!emailRegex.test(clientData.emailAddress)) return "Please enter a valid email address.";
     if (!clientData.phoneNumber.trim()) return "Phone Number is required.";
 
-    // --- Use libphonenumber-js for validation ---
-    // Pass the selected country code to the validation function
+    // Validate phone number using libphonenumber-js with the selected country code
     try {
-      // isValidPhoneNumber(number, defaultCountry)
       if (!isValidPhoneNumber(clientData.phoneNumber, countryCode)) {
         return `Please enter a valid phone number for the selected country (${countryCode}).`;
       }
@@ -160,15 +153,14 @@ const CreateClient = () => {
     return null;
   };
 
+  // Form Submission
   const handleSubmit = async (e) => {
     e.preventDefault();
-    // setError(null); // Clear local validation error
-    dispatch(clearClientError()); // Clear Redux save error
+    dispatch(clearClientError()); // Clear previous Redux save/operation errors
 
     const validationError = validateForm();
     if (validationError) {
-      // setError(validationError);
-      dispatch(setAlert(validationError, 'warning')); // Show validation error via Alert
+      dispatch(setAlert(validationError, 'warning'));
       return;
     }
 
@@ -192,22 +184,21 @@ const CreateClient = () => {
       navigate("/clients");
     } catch (err) {
       console.error("Error saving client:", err.response || err);
-      // Error state is handled by the useEffect watching saveError
       const errorMessage = err?.response?.data?.message || err?.message || `Failed to ${isEditing ? 'save' : 'create'} client.`;
       dispatch(setAlert(errorMessage, 'danger'));
     }
   };
 
-  // Generate country code options dynamically
+  // Memoized Data
   const countryOptions = useMemo(() => {
-    const countries = getCountries(); // Gets ['AC', 'AD', 'AE', ...]
+    const countries = getCountries();
     return countries.map(country => ({
       value: country,
       label: `+${getCountryCallingCode(country)} (${country})`
-    })).sort((a, b) => a.label.localeCompare(b.label)); // Sort alphabetically by label
+    })).sort((a, b) => a.label.localeCompare(b.label)); // Sort for better UX
   }, []);
 
-  // Use combined loading state
+  // Render Logic
   if (isLoading) {
     return (
       <div className='vehicles-page'> 
@@ -220,9 +211,9 @@ const CreateClient = () => {
   }
 
   return (
-    <div className="vehicles-page"> {/* Use standard page class */}
-      <Alert /> {/* Render Alert component here */}
-      <div className="vehicles-header"> {/* Use standard header */}
+    <div className="vehicles-page">
+      <Alert />
+      <div className="vehicles-header">
         <div className="title-breadcrumbs">
           <h2>
             <FontAwesomeIcon icon={faUserTie} />
@@ -238,14 +229,8 @@ const CreateClient = () => {
         </div>
       </div>
 
-      <div className="form-container"> {/* Use standard form container */}
-        <form onSubmit={handleSubmit} className="employee-form" noValidate> {/* Use standard form class */}
-          {/* {combinedError && ( // Use combined error state - Removed inline display
-            <div className='form-error-message'>
-              <FontAwesomeIcon icon={faExclamationCircle} /> {combinedError}
-            </div>
-          )} */}
-
+      <div className="form-container">
+        <form onSubmit={handleSubmit} className="employee-form" noValidate>
           <div className="form-group">
             <label htmlFor="clientName">Client Name*</label>
             <div className="input-with-icon">
@@ -274,7 +259,6 @@ const CreateClient = () => {
                 disabled={isLoading}
                 aria-label="Country Code"
               >
-                {/* Dynamically generate options */}
                 {countryOptions.map(option => (
                   <option key={option.value} value={option.value}>{option.label}</option>
                 ))}
@@ -306,7 +290,7 @@ const CreateClient = () => {
             </label>
           </div>
 
-          <div className="form-footer"> {/* Use standard footer */}
+          <div className="form-footer">
             <button type="button" className="btn btn-danger" onClick={() => navigate("/clients")} disabled={isLoading}>
               <FontAwesomeIcon icon={faTimes} /> Cancel
             </button>

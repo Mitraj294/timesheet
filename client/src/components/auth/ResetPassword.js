@@ -4,23 +4,24 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faLock, faSpinner, faSave, faArrowLeft, faExclamationCircle } from '@fortawesome/free-solid-svg-icons';
 
-import { resetPassword, clearAuthError, selectAuthError, selectIsAuthLoading } from '../../redux/slices/authSlice'; // Assuming resetPassword exists
+import { resetPassword, clearAuthError, selectAuthError, selectIsAuthLoading } from '../../redux/slices/authSlice';
 import { setAlert } from '../../redux/slices/alertSlice';
 import Alert from '../layout/Alert';
-import '../../styles/Login.scss'; // Re-use login styles
+import '../../styles/Login.scss';
 
 const ResetPassword = () => {
-    const { token } = useParams(); // Get token from URL
+    const { token } = useParams();
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
     const [localError, setLocalError] = useState(null);
     const dispatch = useDispatch();
     const navigate = useNavigate();
 
+    // State
     const authError = useSelector(selectAuthError);
-    const isLoading = useSelector(selectIsAuthLoading); // Use general loading or create specific one
+    const isLoading = useSelector(selectIsAuthLoading);
 
-    // Clear errors on mount/unmount
+    // Effects
     useEffect(() => {
         dispatch(clearAuthError());
         return () => {
@@ -28,7 +29,6 @@ const ResetPassword = () => {
         };
     }, [dispatch]);
 
-    // Show error alerts (API or local validation)
     useEffect(() => {
         const errorToShow = localError || authError;
         if (errorToShow) {
@@ -36,10 +36,11 @@ const ResetPassword = () => {
         }
     }, [localError, authError, dispatch]);
 
+    // Handlers
     const handleSubmit = async (e) => {
         e.preventDefault();
-        setLocalError(null); // Clear local error
-        dispatch(clearAuthError()); // Clear API error
+        setLocalError(null);
+        dispatch(clearAuthError());
 
         if (!password || !confirmPassword) {
             setLocalError('Both password fields are required.');
@@ -55,16 +56,15 @@ const ResetPassword = () => {
         }
 
         try {
-            // Dispatch the action to reset the password
             await dispatch(resetPassword({ token, newPassword: password })).unwrap();
             dispatch(setAlert('Password has been reset successfully. Please log in.', 'success'));
-            navigate('/login'); // Redirect to login page on success
+            navigate('/login');
         } catch (err) {
-            // Error is handled by the useEffect watching authError
             console.error("Reset password failed:", err);
         }
     };
 
+    // Render
     return (
         <div className="styles_LoginSignupContainer">
             <Alert />
@@ -73,7 +73,6 @@ const ResetPassword = () => {
                     <h3>Reset Your Password</h3>
                 </div>
                 <form onSubmit={handleSubmit} className="styles_LoginForm">
-                    {/* Display local validation error */}
                     {localError && (
                         <div className='form-error-message' style={{textAlign: 'center', marginBottom: '1rem'}}>
                             <FontAwesomeIcon icon={faExclamationCircle} /> {localError}

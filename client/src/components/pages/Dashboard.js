@@ -25,7 +25,7 @@ import ChartDataLabels from 'chartjs-plugin-datalabels';
 import "../../styles/Dashboard.scss";
 import { DateTime } from "luxon";
 
-// Helper Functions
+// Helper to convert decimal hours to HH:MM format
 const convertDecimalToTime = (decimalHours) => {
   if (isNaN(decimalHours) || decimalHours == null) return "00:00";
   const hours = Math.floor(decimalHours);
@@ -33,6 +33,7 @@ const convertDecimalToTime = (decimalHours) => {
   return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
 };
 
+// Helper to group data by a key (e.g., clientId, projectId) and sum totalHours
 const groupBy = (key, data = []) => {
   return data.reduce((acc, entry) => {
     if (!entry || !entry[key]) return acc;
@@ -48,6 +49,7 @@ const groupBy = (key, data = []) => {
   }, {});
 };
 
+// Helper to get date range based on selected view (Weekly, Fortnightly, Monthly)
 const getPeriodRange = (view) => {
   const today = DateTime.local();
   let startDt, endDt;
@@ -67,6 +69,7 @@ const getPeriodRange = (view) => {
   return { start: startDt.toJSDate(), end: endDt.toJSDate() };
 };
 
+// Helper to get the previous period's date range
 const getPreviousPeriodRange = (currentRange, view) => {
   const startDt = DateTime.fromJSDate(currentRange.start);
   let prevStartDt, prevEndDt;
@@ -85,6 +88,7 @@ const getPreviousPeriodRange = (currentRange, view) => {
   return { start: prevStartDt.toJSDate(), end: prevEndDt.toJSDate() };
 };
 
+// Helper to calculate total hours for each day of the week
 const getDayTotals = (data, periodStart) => {
   const dailyTotals = [];
   const startDt = DateTime.fromJSDate(periodStart);
@@ -104,6 +108,7 @@ const getDayTotals = (data, periodStart) => {
   return dailyTotals;
 };
 
+// Helper to calculate total hours for each week in a given period
 const getWeeklyTotals = (data, periodStart, weeks) => {
   const weeklyTotals = [];
   const startDt = DateTime.fromJSDate(periodStart);
@@ -124,7 +129,6 @@ const getWeeklyTotals = (data, periodStart, weeks) => {
   return weeklyTotals;
 };
 
-// Main Dashboard Component
 const Dashboard = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
@@ -137,6 +141,7 @@ const Dashboard = () => {
   const timesheetError = useSelector(selectTimesheetError);
   const { token, isLoading: isAuthLoading, isAuthenticated, user } = useSelector((state) => state.auth || {});
 
+  // Local component state
   const [employeeTimesheets, setEmployeeTimesheets] = useState([]);
   const [selectedEmployee, setSelectedEmployee] = useState({ value: "All", label: "All Employees" });
   const [viewType, setViewType] = useState({ value: "Weekly", label: "View by Weekly" });
@@ -147,12 +152,15 @@ const Dashboard = () => {
   const clientsChartRef = useRef(null);
   const projectsChartRef = useRef(null);
 
+  // Effects
+  // Fetch employees if authenticated and not already fetched
   useEffect(() => {
     if (!isAuthLoading && token && employeeStatus === 'idle') {
       dispatch(fetchEmployees());
     }
   }, [dispatch, token, isAuthLoading, employeeStatus]);
 
+  // Fetch timesheets if authenticated and not already fetched or if fetch failed previously
   useEffect(() => {
     if (isAuthLoading || !token) {
         return;
@@ -162,6 +170,7 @@ const Dashboard = () => {
     }
   }, [token, isAuthLoading, timesheetStatus, dispatch]);
 
+  // Handlers
   const handleLogoutClick = () => {
     setShowLogoutConfirm(true);
   };
@@ -176,6 +185,7 @@ const Dashboard = () => {
     setShowLogoutConfirm(false);
   };
 
+  // Filters timesheets based on the selected employee
   useEffect(() => {
     if (selectedEmployee.value === "All") {
       setEmployeeTimesheets(allTimesheets);
@@ -186,6 +196,7 @@ const Dashboard = () => {
     }
   }, [selectedEmployee, allTimesheets]);
 
+  // Memoized options for employee and view type dropdowns
   const employeeOptions = useMemo(() => [
     { value: "All", label: "All Employees" },
     ...(Array.isArray(employees) ? employees.map((emp) => ({ value: emp._id, label: emp.name })) : []),
@@ -197,9 +208,11 @@ const Dashboard = () => {
     { value: "Monthly", label: "View by Monthly" },
   ], []);
 
+  // Memoized date ranges for current and previous periods
   const currentPeriod = useMemo(() => getPeriodRange(viewType.value), [viewType.value]);
   const previousPeriod = useMemo(() => getPreviousPeriodRange(currentPeriod, viewType.value), [currentPeriod, viewType.value]);
 
+  // Memoized filtered timesheets for the current period (all employees)
   const filteredAllCurrentTimesheets = useMemo(() => {
     const start = DateTime.fromJSDate(currentPeriod.start);
     const end = DateTime.fromJSDate(currentPeriod.end);
@@ -212,8 +225,10 @@ const Dashboard = () => {
     });
   }, [allTimesheets, currentPeriod]);
 
+  // Memoized valid timesheets (excluding leave entries) for the selected employee
   const validTimesheets = useMemo(() => employeeTimesheets.filter((t) => !t.leaveType || t.leaveType === "None"), [employeeTimesheets]);
 
+  // Memoized filtered timesheets for the current period (selected employee)
   const filteredCurrentTimesheets = useMemo(() => {
     const start = DateTime.fromJSDate(currentPeriod.start);
     const end = DateTime.fromJSDate(currentPeriod.end);
@@ -226,6 +241,7 @@ const Dashboard = () => {
     });
   }, [validTimesheets, currentPeriod]);
 
+  // Memoized filtered timesheets for the previous period (selected employee)
   const filteredPreviousTimesheets = useMemo(() => {
     const start = DateTime.fromJSDate(previousPeriod.start);
     const end = DateTime.fromJSDate(previousPeriod.end);
@@ -238,37 +254,44 @@ const Dashboard = () => {
     });
   }, [validTimesheets, previousPeriod]);
 
+  // Derived loading and error states
   const isEmployeeLoading = employeeStatus === 'loading';
   const isTimesheetLoading = timesheetStatus === 'loading';
   const showLoading = isAuthLoading || isEmployeeLoading || isTimesheetLoading;
   const combinedError = timesheetError || employeesError;
 
+  // Effect to display combined errors as alerts
   useEffect(() => {
     if (combinedError) {
       dispatch(setAlert(combinedError, 'danger'));
     }
   }, [combinedError, dispatch]);
 
+  // Memoized summary calculations for "All Employees" view
   const totalHoursAllPeriodSummary = useMemo(() => filteredAllCurrentTimesheets.reduce((acc, sheet) => acc + (parseFloat(sheet.totalHours) || 0), 0), [filteredAllCurrentTimesheets]);
   const avgHoursAllPeriodSummary = useMemo(() => {
        const totalWorkingTimesheets = filteredAllCurrentTimesheets.length;
        return totalWorkingTimesheets > 0 ? (totalHoursAllPeriodSummary / totalWorkingTimesheets) : 0;
    }, [totalHoursAllPeriodSummary, filteredAllCurrentTimesheets]);
 
+  // Memoized summary calculations for selected employee view
   const totalHoursEmployeeSummary = useMemo(() => filteredCurrentTimesheets.reduce((acc, sheet) => acc + (parseFloat(sheet.totalHours) || 0), 0), [filteredCurrentTimesheets]);
   const avgHoursEmployeeSummary = useMemo(() => {
       const uniqueDaysWorked = new Set(filteredCurrentTimesheets.map(t => t.date)).size;
       return uniqueDaysWorked > 0 ? (totalHoursEmployeeSummary / uniqueDaysWorked) : 0;
   }, [totalHoursEmployeeSummary, filteredCurrentTimesheets]);
 
+  // Formatted time strings for display
   const formattedTotalHoursAllPeriod = convertDecimalToTime(totalHoursAllPeriodSummary);
   const formattedAvgHoursAllPeriod = convertDecimalToTime(avgHoursAllPeriodSummary);
   const formattedTotalHoursEmployee = convertDecimalToTime(totalHoursEmployeeSummary);
   const formattedAvgHoursEmployee = convertDecimalToTime(avgHoursEmployeeSummary);
 
+  // Determine which total/avg hours to display based on employee selection
   const displayTotalHours = selectedEmployee.value === "All" ? formattedTotalHoursAllPeriod : formattedTotalHoursEmployee;
   const displayAvgHours = selectedEmployee.value === "All" ? formattedAvgHoursAllPeriod : formattedAvgHoursEmployee;
 
+  // Memoized calculation for total leaves taken by the selected employee in the current period
   const totalLeaves = useMemo(() => {
       const start = DateTime.fromJSDate(currentPeriod.start);
       const end = DateTime.fromJSDate(currentPeriod.end);
@@ -281,6 +304,7 @@ const Dashboard = () => {
       }).length;
   }, [employeeTimesheets, currentPeriod]);
 
+  // Memoized calculations for lunch break statistics
   const lunchBreakEntries = useMemo(() => filteredCurrentTimesheets.filter((t) => t.lunchBreak === "Yes"), [filteredCurrentTimesheets]);
   const totalLunchDuration = useMemo(() => lunchBreakEntries.reduce((acc, t) => {
     if (!t.lunchDuration || !t.lunchDuration.includes(':')) return acc;
@@ -291,9 +315,11 @@ const Dashboard = () => {
   }, 0), [lunchBreakEntries]);
   const avgLunchBreak = useMemo(() => lunchBreakEntries.length > 0 ? convertDecimalToTime(totalLunchDuration / lunchBreakEntries.length) : "00:00", [totalLunchDuration, lunchBreakEntries]);
 
+  // Memoized calculation for number of unique projects/clients worked on
   const projectsWorked = useMemo(() => new Set(filteredCurrentTimesheets.map((t) => t.projectId?._id || t.projectId).filter(Boolean)).size, [filteredCurrentTimesheets]);
   const clientsWorked = useMemo(() => new Set(filteredCurrentTimesheets.map((t) => t.clientId?._id || t.clientId).filter(Boolean)).size, [filteredCurrentTimesheets]);
 
+  // Memoized options for the client filter dropdown in the "Hours by Project" card
   const projectCardClientOptions = useMemo(() => {
     if (!filteredCurrentTimesheets.length) return [{ value: "All", label: "All Clients" }];
     const clients = new Map();
@@ -310,6 +336,7 @@ const Dashboard = () => {
     return Array.from(clients.values());
   }, [filteredCurrentTimesheets]);
 
+  // Memoized timesheets filtered by the selected client for the "Hours by Project" card
   const projectCardFilteredTimesheets = useMemo(() => {
     if (selectedProjectClient.value === "All") {
         return filteredCurrentTimesheets;
@@ -320,11 +347,13 @@ const Dashboard = () => {
     });
   }, [filteredCurrentTimesheets, selectedProjectClient]);
 
+  // Memoized total hours for the "Hours by Project" card based on filtered timesheets
   const projectCardTotalHours = useMemo(() => {
     const total = projectCardFilteredTimesheets.reduce((acc, sheet) => acc + (parseFloat(sheet.totalHours) || 0), 0);
     return convertDecimalToTime(total);
   }, [projectCardFilteredTimesheets]);
 
+  // Memoized data for the main bar chart (hours comparison)
   const { labels, currentData, previousData, thisPeriodLabel, lastPeriodLabel, currentBarSpecificLabels, previousBarSpecificLabels } = useMemo(() => {
     if (showLoading || combinedError) {
         return { labels: [], currentData: [], previousData: [], thisPeriodLabel: "", lastPeriodLabel: "", currentBarSpecificLabels: [], previousBarSpecificLabels: [] };
@@ -395,6 +424,7 @@ const Dashboard = () => {
     return { labels, currentData, previousData, thisPeriodLabel, lastPeriodLabel, currentBarSpecificLabels, previousBarSpecificLabels };
   }, [viewType.value, filteredCurrentTimesheets, filteredPreviousTimesheets, currentPeriod, previousPeriod, showLoading, combinedError]);
 
+  // Memoized data for the "Hours by Client" pie chart
   const clientChartData = useMemo(() => {
     if (showLoading || combinedError || !filteredCurrentTimesheets.length) return { labels: [], data: [] };
     const hoursByClient = groupBy("clientId", filteredCurrentTimesheets);
@@ -403,6 +433,7 @@ const Dashboard = () => {
     return { labels, data };
   }, [filteredCurrentTimesheets, showLoading, combinedError]);
 
+  // Memoized data for the "Hours by Project" pie chart
   const projectChartData = useMemo(() => {
     if (showLoading || combinedError || !projectCardFilteredTimesheets.length) return { labels: [], data: [] };
     const hoursByProject = groupBy("projectId", projectCardFilteredTimesheets);
@@ -411,6 +442,7 @@ const Dashboard = () => {
     return { labels, data };
   }, [projectCardFilteredTimesheets, showLoading, combinedError]);
 
+  // Effect to render/update the main bar chart
   useEffect(() => {
     const ctx = document.getElementById("graphCanvas")?.getContext("2d");
     if (!ctx) return;
@@ -463,6 +495,7 @@ const Dashboard = () => {
     };
   }, [labels, currentData, previousData, thisPeriodLabel, lastPeriodLabel, currentBarSpecificLabels, previousBarSpecificLabels, showLoading, combinedError]);
 
+  // Effect to render/update the "Hours by Client" pie chart
   useEffect(() => {
     const clientCtx = document.getElementById("clientsGraph")?.getContext("2d");
     if (!clientCtx) return;
@@ -495,6 +528,7 @@ const Dashboard = () => {
      return () => { if (clientsChartRef.current) { clientsChartRef.current.destroy(); clientsChartRef.current = null; } };
   }, [clientChartData, showLoading, combinedError]);
 
+  // Effect to render/update the "Hours by Project" pie chart
   useEffect(() => {
     const projectCtx = document.getElementById("projectsGraph")?.getContext("2d");
     if (!projectCtx) return;
@@ -527,7 +561,7 @@ const Dashboard = () => {
      return () => { if (projectsChartRef.current) { projectsChartRef.current.destroy(); projectsChartRef.current = null; } };
   }, [projectChartData, showLoading, combinedError]);
 
-
+  // Render
   return (
     <div className="view-dashboard-page">
       <Alert />

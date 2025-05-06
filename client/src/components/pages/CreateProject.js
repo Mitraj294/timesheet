@@ -3,15 +3,14 @@ import { Link, useParams, useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 
-// Redux Imports
 import {
   fetchProjectById, createProject, updateProject,
   selectCurrentProject, selectCurrentProjectStatus, selectCurrentProjectError,
-  selectProjectStatus, selectProjectError, // For create/update status
-  clearCurrentProject, clearProjectError // Import clear actions
+  selectProjectStatus, selectProjectError,
+  clearCurrentProject, clearProjectError
 } from "../../redux/slices/projectSlice";
-import { setAlert } from "../../redux/slices/alertSlice"; // Import setAlert
-import Alert from "../layout/Alert"; // Import Alert component
+import { setAlert } from "../../redux/slices/alertSlice";
+import Alert from "../layout/Alert";
 
 import {
   faBriefcase,
@@ -21,9 +20,9 @@ import {
   faSpinner,
   faExclamationCircle,
   faStar,
-  faPen, // Added for edit mode
+  faPen,
 } from "@fortawesome/free-solid-svg-icons";
-import "../../styles/Forms.scss"; // *** Use Forms.scss ***
+import "../../styles/Forms.scss"; //  Use Forms.scss for styling
 
 const CreateProject = () => {
   const { clientId, projectId } = useParams();
@@ -31,12 +30,12 @@ const CreateProject = () => {
   const dispatch = useDispatch();
   const isEditing = Boolean(projectId);
 
-  // Redux State
+  // Redux state
   const currentProject = useSelector(selectCurrentProject);
   const currentProjectStatus = useSelector(selectCurrentProjectStatus);
   const currentProjectError = useSelector(selectCurrentProjectError);
-  const saveStatus = useSelector(selectProjectStatus); // General status for create/update
-  const saveError = useSelector(selectProjectError); // General error for create/update
+  const saveStatus = useSelector(selectProjectStatus); // Tracks status of create/update operations
+  const saveError = useSelector(selectProjectError);   // Tracks errors from create/update operations
 
 
   const [formData, setFormData] = useState({
@@ -49,50 +48,48 @@ const CreateProject = () => {
     isImportant: false
   });
 
-  // const [isLoading, setIsLoading] = useState(false); // Replaced by Redux status
-  // const [isSubmitting, setIsSubmitting] = useState(false); // Replaced by Redux status
-  const [error, setError] = useState(null);
+  const [error, setError] = useState(null); // For local form validation errors (though currently handled by alerts)
 
-  // Combined loading state
+  // Derived loading state from Redux statuses
   const isLoading = useMemo(() =>
     currentProjectStatus === 'loading' || saveStatus === 'loading',
     [currentProjectStatus, saveStatus]
   );
 
-  // Combined error state
-  const combinedError = useMemo(() =>
-    error || // Local validation errors
-    currentProjectError ||
-    saveError, // Include save error
-    [error, currentProjectError, saveError]
-  );
+  // Effects for handling Redux state and side effects
 
-  // Effect to show alerts for fetch or save errors from Redux state
+  // Displays errors from Redux state (fetch or save operations) as alerts
   useEffect(() => {
     const reduxError = currentProjectError || saveError;
     if (reduxError) {
       dispatch(setAlert(reduxError, 'danger'));
-      // Optionally clear the Redux error after showing the alert
     }
   }, [currentProjectError, saveError, dispatch]);
 
+  // Handles fetching existing project data for editing, or initializing form for creation
   useEffect(() => {
     if (isEditing) {
-      dispatch(fetchProjectById(projectId));
+      // Fetch if projectId is present, and either no project is loaded,
+      // or the loaded project is different, and we're not already loading.
+      if (projectId && (!currentProject || currentProject._id !== projectId) && currentProjectStatus !== 'loading') {
+        dispatch(fetchProjectById(projectId));
+      }
     } else {
-      dispatch(clearCurrentProject()); // Clear if creating new
-      setFormData({ // Reset form
+      dispatch(clearCurrentProject());
+      setFormData({ // Reset form for new project
         name: "", startDate: "", finishDate: "", address: "", expectedHours: "", notes: "", isImportant: false
       });
     }
-    // Cleanup on unmount or ID change
+    // Cleanup: clear current project and any save errors when component unmounts or `projectId` changes
     return () => {
       dispatch(clearCurrentProject());
-      dispatch(clearProjectError()); // Clear potential save errors
+      dispatch(clearProjectError());
     };
-  }, [projectId, isEditing, dispatch]);
+    // This effect should run when the mode (isEditing) or the ID (projectId) changes.
+    // Dispatch is stable. currentProject and currentProjectStatus are checked internally.
+  }, [projectId, isEditing, dispatch]); // Removed currentProject and currentProjectStatus from deps
 
-  // Populate form when editing and data is loaded
+  // Populates the form when editing and project data is successfully fetched
   useEffect(() => {
     if (isEditing && currentProjectStatus === 'succeeded' && currentProject) {
       setFormData({
@@ -104,12 +101,21 @@ const CreateProject = () => {
         notes: currentProject.notes || "",
         isImportant: currentProject.isImportant || false
       });
-      setError(null); // Clear local error if data loads
-    } else if (isEditing && currentProjectStatus === 'failed') {
-      setError(currentProjectError); // Show fetch error
+      setError(null); // Clear any local validation error if data loads successfully
     }
-  }, [isEditing, currentProjectStatus, currentProject, currentProjectError]);
-
+    // This effect depends on the status and the specific fields of the currentProject.
+  }, [
+    isEditing,
+    currentProjectStatus,
+    currentProject?.name,
+    currentProject?.startDate,
+    currentProject?.finishDate,
+    currentProject?.address,
+    currentProject?.expectedHours,
+    currentProject?.notes,
+    currentProject?.isImportant
+  ]); // Removed currentProject object and currentProjectError from dependencies
+  // Event Handlers for form input changes
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
     setFormData((prevData) => ({
@@ -119,6 +125,7 @@ const CreateProject = () => {
     if (error) setError(null); // Clear local error on change
   };
 
+  // Client-side form validation logic
   const validateForm = () => {
     if (!formData.name.trim()) return "Project Name is required.";
     if (formData.startDate && formData.finishDate && formData.startDate > formData.finishDate) {
@@ -130,15 +137,14 @@ const CreateProject = () => {
     return null;
   };
 
+  // Handles form submission for creating or updating a project
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError(null); // Clear local validation error
-    dispatch(clearProjectError()); // Clear Redux save error
+    dispatch(clearProjectError()); // Clear previous Redux save/operation errors
 
     const validationError = validateForm();
     if (validationError) {
-      setError(validationError);
-      dispatch(setAlert(validationError, 'warning')); // Show validation error via Alert
+      dispatch(setAlert(validationError, 'warning'));
       return;
     }
 
@@ -146,7 +152,7 @@ const CreateProject = () => {
       ...formData,
       expectedHours: formData.expectedHours ? parseFloat(formData.expectedHours) : null,
       clientId: isEditing ? undefined : clientId
-    };
+    }; // `clientId` is only sent for new projects; backend handles association for updates
     if (isEditing) {
         delete payload.clientId;
     }
@@ -156,22 +162,21 @@ const CreateProject = () => {
         await dispatch(updateProject({ projectId, projectData: payload })).unwrap();
         dispatch(setAlert('Project updated successfully!', 'success'));
       } else {
-        // Pass clientId and projectData for creation
         await dispatch(createProject({ clientId, projectData: payload })).unwrap();
         dispatch(setAlert('Project created successfully!', 'success'));
       }
       navigate(`/clients/view/${clientId}`);
     } catch (err) {
       console.error("Error saving project:", err.response || err);
-      // Error state is handled by combinedError via Redux state
       const errorMessage = err?.response?.data?.message || err?.message || `Failed to ${isEditing ? 'update' : 'create'} project.`;
       dispatch(setAlert(errorMessage, 'danger'));
     }
   };
 
+  // Render logic for the component
   if (isLoading) {
     return (
-      <div className='vehicles-page'> {/* Use standard page class */}
+      <div className='vehicles-page'>
         <div className='loading-indicator'>
           <FontAwesomeIcon icon={faSpinner} spin size='2x' />
           <p>Loading project data...</p>
@@ -181,9 +186,9 @@ const CreateProject = () => {
   }
 
   return (
-    <div className="vehicles-page"> {/* Use standard page class */}
-       <Alert /> {/* Render Alert component here */}
-       <div className="vehicles-header"> {/* Use standard header */}
+    <div className="vehicles-page">
+       <Alert />
+       <div className="vehicles-header">
         <div className="title-breadcrumbs">
           <h2>
             <FontAwesomeIcon icon={faBriefcase} />
@@ -201,14 +206,8 @@ const CreateProject = () => {
         </div>
       </div>
 
-      <div className="form-container"> {/* Use standard form container */}
-        <form onSubmit={handleSubmit} className="employee-form" noValidate> {/* Use standard form class */}
-           {/* {combinedError && ( // Handled by Alert component
-            <div className='form-error-message'>
-              <FontAwesomeIcon icon={faExclamationCircle} /> {combinedError}
-            </div>
-          )} */}
-
+      <div className="form-container">
+        <form onSubmit={handleSubmit} className="employee-form" noValidate>
           <div className="form-group">
             <label htmlFor="projectName">Project Name*</label>
             <div className="input-with-icon">
@@ -320,11 +319,11 @@ const CreateProject = () => {
             </label>
           </div>
 
-          <div className="form-footer"> {/* Use standard footer */}
+          <div className="form-footer">
             <button
               type="button"
               className="btn btn-danger"
-              onClick={() => navigate(`/clients/view/${clientId}`)} // Ensure clientId is available
+              onClick={() => navigate(`/clients/view/${clientId}`)}
               disabled={isLoading}
             >
               <FontAwesomeIcon icon={faTimes} /> Cancel

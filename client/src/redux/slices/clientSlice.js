@@ -2,23 +2,21 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import axios from 'axios';
 
-// Define the API URL (consistent with your action file)
 const API_URL = process.env.REACT_APP_API_URL || 'https://timesheet-c4mj.onrender.com/api';
 
-// Helper to get auth headers
+// Helper to get authorization headers if a token is present.
 const getAuthHeaders = (token) => {
   return token
     ? { headers: { Authorization: `Bearer ${token}` } }
     : {};
 };
 
-// Helper function to extract error messages
+// Helper function to extract a user-friendly error message from various error structures.
 const getErrorMessage = (error) => {
     return error.response?.data?.message || error.response?.data || error.message || 'An unexpected error occurred';
 }
 
-// 1. Create the Async Thunk for fetching clients
-// This replaces the getClients action creator
+// Async Thunk for fetching all clients.
 export const fetchClients = createAsyncThunk(
   'clients/fetchClients', // Action type prefix (e.g., 'clients/fetchClients/pending')
   async (_, { getState, rejectWithValue }) => { // Use rejectWithValue for standardized error handling
@@ -26,17 +24,15 @@ export const fetchClients = createAsyncThunk(
       // Make the API call
       const response = await axios.get(`${API_URL}/clients`);
       // Return the data on success (this becomes action.payload in the fulfilled case)
-      return response.data || []; // Ensure we return an array
+      return response.data || []; // Ensure we always return an array, even if API returns null for no clients.
     } catch (error) {
-      // Log the detailed error for debugging
       console.error("Error fetching clients:", error);
-      // Return the error message using rejectWithValue (becomes action.payload in the rejected case)
       return rejectWithValue(getErrorMessage(error));
     }
   }
 );
 
-// Async Thunk for fetching a single client by ID
+// Async Thunk for fetching a single client by its ID.
 export const fetchClientById = createAsyncThunk(
   'clients/fetchClientById',
   async (clientId, { getState, rejectWithValue }) => {
@@ -53,7 +49,7 @@ export const fetchClientById = createAsyncThunk(
   }
 );
 
-// Async Thunk for creating a new client
+// Async Thunk for creating a new client. Requires authentication.
 export const createClient = createAsyncThunk(
   'clients/createClient',
   async (clientData, { getState, rejectWithValue }) => {
@@ -69,7 +65,7 @@ export const createClient = createAsyncThunk(
   }
 );
 
-// Async Thunk for updating a client
+// Async Thunk for updating an existing client. Requires authentication.
 export const updateClient = createAsyncThunk(
   'clients/updateClient',
   async ({ id, clientData }, { getState, rejectWithValue }) => {
@@ -85,7 +81,7 @@ export const updateClient = createAsyncThunk(
   }
 );
 
-// Async Thunk for deleting a client
+// Async Thunk for deleting a client. Requires employer role and authentication.
 export const deleteClient = createAsyncThunk(
   'clients/deleteClient',
   async (clientId, { getState, rejectWithValue }) => {
@@ -103,13 +99,12 @@ export const deleteClient = createAsyncThunk(
   }
 );
 
-// Async Thunk for downloading clients report
+// Async Thunk for downloading a report of all clients (Excel format).
 export const downloadClients = createAsyncThunk(
   'clients/downloadClients',
   async (_, { getState, rejectWithValue }) => {
     try {
       const { token } = getState().auth;
-      // No token check here, assuming endpoint might be public or handles auth internally
       const config = token ? { headers: { Authorization: `Bearer ${token}` }, responseType: "blob" } : { responseType: "blob" };
 
       const response = await axios.get(`${API_URL}/clients/download`, config);
@@ -138,57 +133,48 @@ export const downloadClients = createAsyncThunk(
   }
 );
 
-// 2. Define the initial state for the slice
-// Similar to your old reducer's initial state, but often uses a status string
+// Defines the initial state for the clients slice.
 const initialState = {
-  clients: [],
-  status: 'idle', // 'idle' | 'loading' | 'succeeded' | 'failed'
-  error: null,
-  // Add status/error for specific actions if needed for finer UI control
-  deleteStatus: 'idle',
-  downloadStatus: 'idle',
-  // State for the currently viewed/edited client
-  currentClient: null,
-  currentClientStatus: 'idle',
-  currentClientError: null,
-  downloadError: null,
+  clients: [], // Holds the list of all clients.
+  status: 'idle', // General status for fetching the list of clients ('idle' | 'loading' | 'succeeded' | 'failed').
+  error: null, // Error message related to fetching the list of clients.
+  deleteStatus: 'idle', // Status for delete operations.
+  downloadStatus: 'idle', // Status for download operations.
+  downloadError: null, // Error specific to download operations.
+  currentClient: null, // Holds the data for a single client when viewed or edited.
+  currentClientStatus: 'idle', // Status for fetching a single client.
+  currentClientError: null, // Error related to fetching a single client.
 };
 
-// 3. Create the Slice
-// This combines the reducer logic and action generation
+// Creates the client slice with reducers and extraReducers for async thunks.
 const clientSlice = createSlice({
   name: 'clients', // This name is used in action type generation
   initialState,
   reducers: {
-    // You can add synchronous reducers here if needed later.
-    // For example, to manually clear the error:
+    // Synchronous action to clear the general client error and reset status.
     clearClientError: (state) => {
         state.error = null;
-        // Optionally reset status if error occurred
         if (state.status === 'failed') {
             state.status = 'idle';
         }
     },
+    // Synchronous action to clear download status and error.
     clearDownloadStatus: (state) => {
         state.downloadStatus = 'idle';
         state.downloadError = null;
     },
-    // Optional: Clear delete status if needed
-    // clearDeleteStatus: (state) => {
-    //     state.deleteStatus = 'idle';
-    // }
+    // Synchronous action to clear the currently selected/viewed client data and its status/error.
     clearCurrentClient: (state) => {
         state.currentClient = null;
         state.currentClientStatus = 'idle';
         state.currentClientError = null;
     }
-    // RTK automatically creates an action creator called `clearClientError` for this.
   },
-  // Handle actions defined outside the slice, like our async thunk
+  // Handles actions dispatched by async thunks.
   extraReducers: (builder) => {
     builder
+      // Cases for fetching all clients
       .addCase(fetchClients.pending, (state) => {
-        // When the API call starts
         state.status = 'loading';
         state.error = null; // Clear previous errors
       })
@@ -199,11 +185,10 @@ const clientSlice = createSlice({
         state.clients = action.payload;
       })
       .addCase(fetchClients.rejected, (state, action) => {
-        // When the API call fails
         state.status = 'failed';
         state.error = action.payload; // Payload comes from rejectWithValue
       })
-      // --- fetchClientById ---
+      // Cases for fetching a single client by ID
       .addCase(fetchClientById.pending, (state) => {
         state.currentClientStatus = 'loading';
         state.currentClientError = null;
@@ -217,14 +202,15 @@ const clientSlice = createSlice({
         state.currentClientStatus = 'failed';
         state.currentClientError = action.payload;
       })
-      // --- createClient / updateClient (using general status/error for simplicity) ---
+      // Cases for creating a client
       .addCase(createClient.pending, (state) => { state.status = 'loading'; state.error = null; })
       .addCase(createClient.fulfilled, (state, action) => { state.status = 'succeeded'; state.clients.push(action.payload); }) // Add to list
       .addCase(createClient.rejected, (state, action) => { state.status = 'failed'; state.error = action.payload; })
+      // Cases for updating a client
       .addCase(updateClient.pending, (state) => { state.status = 'loading'; state.error = null; })
       .addCase(updateClient.fulfilled, (state, action) => { state.status = 'succeeded'; const index = state.clients.findIndex(c => c._id === action.payload._id); if (index !== -1) state.clients[index] = action.payload; }) // Update in list
       .addCase(updateClient.rejected, (state, action) => { state.status = 'failed'; state.error = action.payload; })
-      // --- deleteClient ---
+      // Cases for deleting a client
       .addCase(deleteClient.pending, (state) => {
         state.deleteStatus = 'loading';
         state.error = null; // Clear general error on new action
@@ -237,14 +223,13 @@ const clientSlice = createSlice({
         state.deleteStatus = 'failed';
         state.error = action.payload; // Set general error
       })
-      // --- downloadClients ---
+      // Cases for downloading the clients report
       .addCase(downloadClients.pending, (state) => {
         state.downloadStatus = 'loading';
         state.downloadError = null;
       })
       .addCase(downloadClients.fulfilled, (state) => {
         state.downloadStatus = 'succeeded';
-        // Blob handled in component
       })
       .addCase(downloadClients.rejected, (state, action) => {
         state.downloadStatus = 'failed';
@@ -253,15 +238,16 @@ const clientSlice = createSlice({
   },
 });
 
-// 4. Export the parts you'll need elsewhere
+// Export synchronous actions.
 export const { clearClientError, clearDownloadStatus, clearCurrentClient } = clientSlice.actions; // Export synchronous actions
-export default clientSlice.reducer; // Export the reducer for the store
+// Export the reducer to be included in the Redux store.
+export default clientSlice.reducer;
 
-// Optional: Export selectors for cleaner component access
+// Selectors to access parts of the client state from components.
 export const selectAllClients = (state) => state.clients.clients;
 export const selectClientStatus = (state) => state.clients.status;
 export const selectClientError = (state) => state.clients.error;
-export const selectClientDeleteStatus = (state) => state.clients.deleteStatus; // Optional
+export const selectClientDeleteStatus = (state) => state.clients.deleteStatus;
 export const selectClientDownloadStatus = (state) => state.clients.downloadStatus;
 export const selectClientDownloadError = (state) => state.clients.downloadError;
 export const selectCurrentClient = (state) => state.clients.currentClient;

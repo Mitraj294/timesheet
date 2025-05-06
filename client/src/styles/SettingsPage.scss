@@ -1,9 +1,38 @@
-// Removed empty .settings-page ruleset to resolve the compile error.
+// /home/digilab/timesheet/client/src/styles/SettingsPage.scss
 
+// Variables (optional, but good for consistency)
+$primary-color: #007bff;
+$secondary-color: #6c757d;
+$success-color: #28a745;
+$danger-color: #dc3545;
+$warning-color: #ffc107;
+$light-gray: #f8f9fa;
+$medium-gray: #ccc;
+$dark-gray: #343a40;
+$text-color: #333;
+$label-color: #555;
+$input-border-color: #ccc;
+$input-focus-border-color: $primary-color;
+$border-radius: 5px;
+$base-font-size: 1rem; // 16px
+$input-font-size: 14px;
+$input-padding: 10px 12px;
+$input-height: 38px; // Consistent height for inputs
+
+// --- General Page Layout (assuming some styles from vehicles-page are inherited) ---
+.settings-page {
+    display: block;
+}
+
+// --- Header (styles from vehicles-header are likely reused) ---
+// If specific overrides are needed for settings page header:
+// .settings-page .vehicles-header { ... }
+
+// --- Section Styling ---
 .settings-section {
     background-color: #fff;
     padding: 1.5rem 2rem;
-    border-radius: 8px;
+    border-radius: $border-radius;
     box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
     margin-bottom: 2rem;
 
@@ -13,16 +42,186 @@
         border-bottom: 1px solid #eee;
         padding-bottom: 0.75rem;
         font-size: 1.25rem;
-        color: #333;
+        color: $text-color;
     }
 }
 
-// Display grid for account info
+// --- Base Form Styles (to replace Forms.scss for this page) ---
+.form-container {
+
+    // Used within .settings-section
+    .employee-form {
+        // General class for forms on this page
+        display: flex;
+        flex-direction: column;
+        gap: 1rem; // Space between form groups
+    }
+
+    .form-group {
+        display: flex;
+        flex-direction: column;
+        margin-bottom: 0; // Using gap from .employee-form
+
+        label {
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+            color: $label-color;
+            font-size: 0.9rem;
+        }
+
+        input[type="text"],
+        input[type="email"],
+        input[type="password"],
+        // Will be further styled by .styles_PasswordInputContainer
+        input[type="tel"],
+        select {
+            width: 100%;
+            padding: $input-padding;
+            border: 1px solid $input-border-color;
+            border-radius: $border-radius;
+            font-size: $input-font-size;
+            line-height: 1.4;
+            box-sizing: border-box;
+            height: $input-height;
+            transition: border-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+
+            &:focus {
+                outline: none;
+                border-color: $input-focus-border-color;
+                box-shadow: 0 0 0 0.2rem rgba($primary-color, 0.25);
+            }
+
+            &:disabled {
+                background-color: $light-gray;
+                cursor: not-allowed;
+            }
+        }
+
+        // Specific select styling for custom arrow (if desired)
+        select {
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%23666' viewBox='0 0 16 16'%3E%3Cpath fill-rule='evenodd' d='M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708z'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 10px center;
+            padding-right: 30px; // Make space for the arrow
+        }
+    }
+
+    .form-footer {
+        margin-top: 1.5rem;
+        display: flex;
+        justify-content: flex-end;
+        gap: 0.75rem;
+    }
+
+    .form-error-message {
+        color: $danger-color;
+        background-color: lighten($danger-color, 35%);
+        border: 1px solid lighten($danger-color, 20%);
+        padding: 0.75rem 1rem;
+        border-radius: $border-radius;
+        margin-bottom: 1rem;
+        font-size: 0.9rem;
+        display: flex;
+        align-items: center;
+
+        svg {
+            margin-right: 0.5rem;
+        }
+    }
+}
+
+// --- Base Button Styles ---
+.btn {
+    display: inline-block;
+    font-weight: 600;
+    text-align: center;
+    vertical-align: middle;
+    cursor: pointer;
+    user-select: none;
+    background-color: transparent;
+    border: 1px solid transparent;
+    padding: 0.5rem 1rem;
+    font-size: $base-font-size * 0.9; // Slightly smaller buttons
+    line-height: 1.5;
+    border-radius: $border-radius;
+    transition: color 0.15s ease-in-out, background-color 0.15s ease-in-out, border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+
+    svg {
+        margin-right: 0.35rem;
+    }
+
+    &:disabled {
+        opacity: 0.65;
+        cursor: not-allowed;
+    }
+
+    // Variants
+    &.btn-primary {
+        color: #fff;
+        background-color: $primary-color;
+        border-color: $primary-color;
+
+        &:hover {
+            background-color: darken($primary-color, 10%);
+            border-color: darken($primary-color, 10%);
+        }
+    }
+
+    &.btn-secondary {
+        color: #fff;
+        background-color: $secondary-color;
+        border-color: $secondary-color;
+
+        &:hover {
+            background-color: darken($secondary-color, 10%);
+            border-color: darken($secondary-color, 10%);
+        }
+    }
+
+    &.btn-success {
+        color: #fff;
+        background-color: $success-color;
+        border-color: $success-color;
+
+        &:hover {
+            background-color: darken($success-color, 10%);
+            border-color: darken($success-color, 10%);
+        }
+    }
+
+    &.btn-danger {
+        color: #fff;
+        background-color: $danger-color;
+        border-color: $danger-color;
+
+        &:hover {
+            background-color: darken($danger-color, 10%);
+            border-color: darken($danger-color, 10%);
+        }
+    }
+
+    &.btn-warning {
+        color: $dark-gray;
+        background-color: $warning-color;
+        border-color: $warning-color;
+
+        &:hover {
+            background-color: darken($warning-color, 10%);
+            border-color: darken($warning-color, 10%);
+        }
+    }
+}
+
+
+// --- Account Information Display ---
 .account-info-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); // Responsive columns
-    gap: 1rem 1.5rem; // Row and column gap
-    margin-bottom: 1.5rem; // Space before buttons
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 1rem 1.5rem;
+    margin-bottom: 1.5rem;
 
     .info-item {
         text-align: left;
@@ -31,145 +230,126 @@
 
         .info-label {
             font-weight: 600;
-            color: #555;
+            color: $label-color;
             margin-right: 8px;
-            display: inline-block; // Or block if needed
-            min-width: 100px; // Adjust for alignment if desired
+            display: inline-block;
+            min-width: 100px;
         }
 
         .info-value {
-            color: #333;
+            color: $text-color;
         }
 
         &.full-width {
-            grid-column: 1 / -1; // Make item span full width if needed
+            grid-column: 1 / -1;
         }
     }
 }
 
-// Styles specific to forms within the settings page
-// Inherits base styles from Forms.scss, add overrides or specifics here
-// Assuming Forms.scss provides base styles for .employee-form, .form-group, .form-footer, .btn etc.
-/* Removed empty .settings-section ruleset to resolve compile error */
-
-.settings-section .form-container {
-
+// --- Phone Input Specific Styles ---
+.form-container .phone-input-group {
     // Increased specificity
-    .phone-input-group {
-        display: flex;
-        align-items: center; // Vertically align select and input
-        gap: 0.5rem; // Space between select and input
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
 
-        .country-code-select {
-            flex-shrink: 0; // Prevent select from shrinking too much
-            width: auto; // Adjust width as needed, maybe max-width
-            max-width: 130px; // Example max width
-            // Inherit other input styles (border, padding-top/bottom, font-size)
-            padding: 10px 12px; // Match input padding
-            padding-right: 30px; // Add space for default dropdown arrow
-            border: 1px solid #ccc;
-            border-radius: 5px;
-            font-size: 14px;
-            background-color: #fff;
-            cursor: pointer;
-            // Add appearance reset and custom arrow if desired (like the main select)
-            -webkit-appearance: none;
-            -moz-appearance: none;
-            appearance: none;
-            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%23666' viewBox='0 0 16 16'%3E%3Cpath fill-rule='evenodd' d='M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708z'/%3E%3C/svg%3E");
-            background-repeat: no-repeat;
-            background-position: right 10px center;
-        }
-
-        input[type="tel"] {
-            flex-grow: 1; // Allow phone input to take remaining space
-            // Ensure padding accommodates potential icons if added later,
-            // but reset if no icon is directly inside this input.
-            padding-right: 12px;
-            // Inherit base input styles
-            width: 100%;
-            padding-left: 12px;
-            border: 1px solid #ccc;
-            border-radius: 5px;
-            font-size: 14px;
-            box-sizing: border-box;
-            height: 38px; // Match other inputs
-            line-height: 1.4; // Match other inputs
-            transition: border-color 0.3s;
-
-            &:focus {
-                border-color: #007bff;
-                outline: none;
-            }
-        }
-    }
-
-    // Apply password input styles within the settings form context
-    // Ensure these class names match those used in SettingsPage.js
-    .styles_PasswordInputContainer {
-        position: relative; // Needed for absolute positioning of the button
-        display: flex; // Use flex to manage input and button (though button is absolute)
-        align-items: center;
-        width: 100%;
-
-        // Apply consistent padding and dimensions to the password input itself
-        input[type="password"],
-        input[type="text"] {
-            // Handle when password is shown as text
-            padding-right: 40px; // Reserve space for the button
-            box-sizing: border-box; // Ensure padding/border are included in height/width
-            font-family: inherit; // Ensure font doesn't change
-            height: 38px; // Explicit height (adjust if needed based on padding/font-size)
-            line-height: 1.4; // Explicit line-height (adjust if needed)
-            // Inherit other input styles (width, padding-left, border, etc.) from .form-group input
-            // Ensure width: 100% is inherited or set if needed
-            width: 100%;
-            padding-left: 12px; // Standard left padding
-            border: 1px solid #ccc; // Standard border
-            border-radius: 5px; // Standard radius
-            font-size: 14px; // Standard font size
-            transition: border-color 0.3s; // Standard transition
-
-            &:focus {
-                // Standard focus
-                border-color: #007bff;
-                outline: none;
-            }
-        }
-    }
-
-    .styles_PasswordToggleBtn {
-        position: absolute;
-        right: 0; // Position button container at the very right edge
-        top: 0; // Align top
-        bottom: 0; // Align bottom
-        width: 40px; // Define a clickable area matching the padding
-        background: none;
-        border: none;
+    .country-code-select {
+        flex-shrink: 0;
+        width: auto;
+        max-width: 130px;
+        // Inherit other input styles
+        padding: $input-padding;
+        padding-right: 30px; // Space for custom arrow
+        border: 1px solid $input-border-color;
+        border-radius: $border-radius;
+        font-size: $input-font-size;
+        background-color: #fff;
         cursor: pointer;
-        padding: 0;
-        color: #666; // Icon color
-        display: flex; // Center the icon within the button area
-        align-items: center;
-        justify-content: center;
-        z-index: 2; // Ensure it's above input focus outline
+        height: $input-height;
+        line-height: 1.4; // Match other inputs
+        // Custom arrow
+        -webkit-appearance: none;
+        -moz-appearance: none;
+        appearance: none;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%23666' viewBox='0 0 16 16'%3E%3Cpath fill-rule='evenodd' d='M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708z'/%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: right 10px center;
+        transition: border-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+
 
         &:focus {
             outline: none;
+            border-color: $input-focus-border-color;
+            box-shadow: 0 0 0 0.2rem rgba($primary-color, 0.25);
         }
     }
 
-    // Ensure form footer buttons have spacing
-    .form-footer {
-        margin-top: 1.5rem; // Add space above the footer buttons
-        // Add flex styles if needed for button alignment
-        display: flex;
-        justify-content: flex-end; // Example: align buttons right
-        gap: 0.75rem; // Space between buttons
+    input[type="tel"] {
+        flex-grow: 1;
+        // Inherit base input styles (already covered by general input styles)
+        // No specific padding-right needed unless an icon is inside this input
     }
 }
 
-// Styles for the delete confirmation dialog (re-using logout styles)
+// --- Password Input Specific Styles ---
+.form-container .styles_PasswordInputContainer {
+    position: relative;
+    display: flex;
+    align-items: center;
+    width: 100%;
+
+    input[type="password"],
+    input[type="text"].password-input-field {
+        // Added class for when type is text
+        // Inherit general input styles for consistency
+        // General styles are applied above, these are overrides/additions
+        flex-grow: 1; // Ensure input takes available space
+        padding-right: 45px !important; // Crucial: space for the button, !important to override general padding if needed
+        // Height, font-size, border, etc., should be inherited from general input styles
+        // If not, explicitly set them:
+        // height: $input-height;
+        // font-size: $input-font-size;
+        // line-height: 1.4;
+        // border: 1px solid $input-border-color;
+        // border-radius: $border-radius;
+        // padding-left: $input-padding; // From general input
+        // box-sizing: border-box;
+    }
+}
+
+.form-container .styles_PasswordToggleBtn {
+    position: absolute;
+    right: 8px; // Provides a small space from the input field's right edge
+    top: 50%; // Position the top of the button at the container's midpoint
+    transform: translateY(-50%); // Shift the button up by half its own height to truly center it
+    width: 30px; // Define a specific width for the button
+    height: 30px; // Define a specific height, making it a squarish clickable area
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: $label-color; // Icon color
+    z-index: 2; // Above input focus outline
+
+    svg {
+        font-size: 1rem; // **Normal and consistent eye icon size**
+        // Adjust if 1rem is not the desired "normal" size, e.g., 1.1rem
+    }
+
+    &:hover {
+        color: $dark-gray;
+    }
+
+    &:focus {
+        outline: none; // Remove default focus outline for the button itself
+    }
+}
+
+
+// --- Delete Confirmation Dialog ---
 .logout-confirm-overlay {
     position: fixed;
     top: 0;
@@ -180,13 +360,13 @@
     display: flex;
     justify-content: center;
     align-items: center;
-    z-index: 1100; // High z-index
+    z-index: 1100;
 }
 
 .logout-confirm-dialog {
     background: #fff;
     padding: 2rem;
-    border-radius: 8px;
+    border-radius: $border-radius;
     box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
     text-align: center;
     max-width: 400px;
@@ -195,12 +375,12 @@
     h4 {
         margin-top: 0;
         margin-bottom: 1rem;
-        color: #333;
+        color: $text-color;
     }
 
     p {
         margin-bottom: 1.5rem;
-        color: #555;
+        color: $label-color;
         line-height: 1.6;
     }
 
@@ -211,19 +391,19 @@
     }
 }
 
-// Link styled like a button (for edit employee details link)
+// --- Link Styled Like Button ---
 .link-like-button {
     display: inline-block;
     padding: 6px 12px;
     font-size: 0.9em;
-    color: #007bff;
+    color: $primary-color;
     text-decoration: none;
-    border: 1px solid #007bff;
-    border-radius: 4px;
+    border: 1px solid $primary-color;
+    border-radius: $border-radius;
     transition: background-color 0.2s, color 0.2s;
 
     &:hover {
-        background-color: #007bff;
+        background-color: $primary-color;
         color: #fff;
         text-decoration: none;
     }

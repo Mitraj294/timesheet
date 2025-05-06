@@ -4,7 +4,6 @@ import { Link, useNavigate } from "react-router-dom";
 import { useSelector, useDispatch } from "react-redux";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 
-// Redux Imports
 import {
   fetchClients,
   deleteClient,
@@ -15,11 +14,11 @@ import {
   selectClientDeleteStatus,
   selectClientDownloadStatus,
   selectClientDownloadError,
-  clearClientError, // Import clear error action
-  clearDownloadStatus // Import clear download status action
+  clearClientError,
+  clearDownloadStatus
 } from "../../redux/slices/clientSlice";
-import { setAlert } from "../../redux/slices/alertSlice"; // Import alert action
-import Alert from "../layout/Alert"; // Import the Alert component
+import { setAlert } from "../../redux/slices/alertSlice";
+import Alert from "../layout/Alert";
 
 import {
   faUsers,
@@ -33,7 +32,7 @@ import {
   faExclamationCircle,
 } from "@fortawesome/free-solid-svg-icons";
 
-import "../../styles/Vehicles.scss"; // Assuming shared styles
+import "../../styles/Vehicles.scss"; // Reusing vehicle styles for consistency
 
 const Clients = () => {
   const dispatch = useDispatch();
@@ -43,48 +42,46 @@ const Clients = () => {
   const clients = useSelector(selectAllClients);
   const clientStatus = useSelector(selectClientStatus);
   const clientError = useSelector(selectClientError);
-  const deleteStatus = useSelector(selectClientDeleteStatus); // Optional: for delete loading state
+  const deleteStatus = useSelector(selectClientDeleteStatus); // For delete button loading state
   const downloadStatus = useSelector(selectClientDownloadStatus);
   const downloadError = useSelector(selectClientDownloadError);
   const { user } = useSelector((state) => state.auth || {});
 
-  // Local UI State
+  // Local component state
   const [searchTerm, setSearchTerm] = useState("");
-  const [localDownloadError, setLocalDownloadError] = useState(null); // Local state for download error display
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [itemToDelete, setItemToDelete] = useState(null); // Stores { id, name } for deletion confirmation
 
-  // Derived State
+  // Derived state for loading indicators
   const isLoading = useMemo(() => clientStatus === 'loading', [clientStatus]);
   const isDownloading = useMemo(() => downloadStatus === 'loading', [downloadStatus]);
-  const isDeleting = useMemo(() => deleteStatus === 'loading', [deleteStatus]); // Optional
+  const isDeleting = useMemo(() => deleteStatus === 'loading', [deleteStatus]);
 
+  // Effects
   useEffect(() => {
-    // Fetch clients if status is idle
+    // Fetch clients on initial load if not already fetched
     if (clientStatus === 'idle') {
       dispatch(fetchClients());
     }
   }, [dispatch, clientStatus]);
 
-  // Effect to handle general client fetch/delete errors
+  // Effect to display general client operation errors
   useEffect(() => {
     if (clientError) {
       dispatch(setAlert(clientError, 'danger'));
-      // Optional: Clear the error in the slice after showing the alert
-      // dispatch(clearClientError());
+      // Consider dispatch(clearClientError()) here if errors should not persist after being shown
     }
   }, [clientError, dispatch]);
   
-  // Effect to handle download status/errors
+  // Effect to display download-specific errors
   useEffect(() => {
     if (downloadStatus === 'failed' && downloadError) {
-      dispatch(setAlert(downloadError, 'danger')); // Show download error via Alert component
-      dispatch(clearDownloadStatus()); // Reset Redux state after handling
-    } // Success alert for download is handled in handleDownloadClients
+      dispatch(setAlert(downloadError, 'danger'));
+      dispatch(clearDownloadStatus()); // Reset Redux download status after handling
+    }
   }, [downloadStatus, downloadError, dispatch]);
 
-  // --- Refactored Delete Confirmation ---
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [itemToDelete, setItemToDelete] = useState(null); // { id, name }
-
+  // Handlers
   const handleDeleteClick = (clientId, clientName) => {
     setItemToDelete({ id: clientId, name: clientName });
     setShowDeleteConfirm(true);
@@ -103,10 +100,9 @@ const Clients = () => {
       .unwrap()
       .then(() => dispatch(setAlert(`Client "${clientName}" deleted successfully.`, 'success')))
       .catch((err) => {
-        const errorMessage = err?.message || `Failed to delete client "${clientName}".`; // Extract message
+        const errorMessage = err?.message || `Failed to delete client "${clientName}".`;
         dispatch(setAlert(errorMessage, 'danger'));
       });
-    // Close modal after dispatching
     setShowDeleteConfirm(false);
     setItemToDelete(null);
   };
@@ -118,13 +114,11 @@ const Clients = () => {
   );
 
   const handleDownloadClients = async () => {
-    setLocalDownloadError(null); // Clear local error on new attempt
-    dispatch(clearDownloadStatus()); // Clear Redux status
+    dispatch(clearDownloadStatus()); // Clear previous Redux download status
 
     dispatch(downloadClients())
       .unwrap()
       .then((result) => {
-        // Success: Create and trigger download link
         const blob = new Blob([result.blob], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
         const url = window.URL.createObjectURL(blob);
         const link = document.createElement('a');
@@ -136,20 +130,18 @@ const Clients = () => {
         window.URL.revokeObjectURL(url);
         dispatch(setAlert('Client report downloaded.', 'success'));
       })
-      .catch((error) => { // Error is now handled by the useEffect watching downloadStatus/downloadError
-        // Error is handled by the useEffect watching downloadError
+      .catch((error) => {
+        // Error is handled by the useEffect watching downloadStatus/downloadError
         console.error('Download dispatch failed:', error);
       });
   };
 
-
   const gridColumns = '1.5fr 1.5fr 1fr 2fr 1.5fr auto';
-
+  
+  // Render
   return (
-
     <div className="vehicles-page">
-      <Alert /> {/* Render Alert component here */}
-
+      <Alert />
       <div className="vehicles-header">
         <div className="title-breadcrumbs">
           <h2>
@@ -166,7 +158,7 @@ const Clients = () => {
           <button
             className="btn btn-danger"
             onClick={handleDownloadClients}
-            disabled={isDownloading} // Use Redux state
+            disabled={isDownloading}
           >
             {isDownloading ? (
                 <> <FontAwesomeIcon icon={faSpinner} spin /> Downloading... </>
@@ -183,9 +175,7 @@ const Clients = () => {
             </button>
           )}
         </div>
-
       </div>
-
 
       <div className="vehicles-search">
         <input
@@ -198,19 +188,15 @@ const Clients = () => {
         <FontAwesomeIcon icon={faSearch} className="search-icon" />
       </div>
 
-
-      {isLoading && ( // Use Redux loading state
+      {isLoading && (
         <div className='loading-indicator'>
           <FontAwesomeIcon icon={faSpinner} spin size='2x' />
           <p>Loading clients...</p>
         </div>
       )}
 
-      {/* Error State Handled by Alert component */}
-
-      {!isLoading && !clientError && ( // Use Redux states
+      {!isLoading && !clientError && (
         <div className="vehicles-grid">
-
           <div className="vehicles-row header" style={{ gridTemplateColumns: gridColumns }}>
             <div>Client Name</div>
             <div>Email Address</div>
@@ -220,8 +206,6 @@ const Clients = () => {
             {/* Always show Actions header */}
             <div>Actions</div>
           </div>
-
-
           {filteredClients.length === 0 ? (
             <div className="vehicles-row no-results">
               {searchTerm ? 'No clients match your search.' : 'No clients found.'}
@@ -229,7 +213,7 @@ const Clients = () => {
           ) : (
             filteredClients.map((client) => (
               <div
-                key={client._id}//
+                key={client._id}
                 className="vehicles-row vehicle-card"
                 style={{ gridTemplateColumns: gridColumns }}
               >
@@ -240,20 +224,18 @@ const Clients = () => {
                 <div data-label="Notes" className="notes-cell">{client.notes || '--'}</div>
                 {/* Always render the Actions cell */}
                 <div data-label="Actions" className="actions">
-                  {/* Always show View button */}
                   <button
-                    className="btn-icon btn-icon-blue" // View button
+                    className="btn-icon btn-icon-blue"
                     onClick={() => navigate(`/clients/view/${client._id}`)}
                     title={`View ${client.name}`}
                     aria-label={`View ${client.name}`}
                   >
                     <FontAwesomeIcon icon={faEye} />
                   </button>
-                  {/* Only show Edit and Delete for employers */}
                   {user?.role === 'employer' && (
                     <>
                       <button
-                        className="btn-icon btn-icon-yellow" // Edit button
+                        className="btn-icon btn-icon-yellow"
                         onClick={() => navigate(`/clients/update/${client._id}`)}
                         title={`Edit ${client.name}`}
                         aria-label={`Edit ${client.name}`}
@@ -261,11 +243,11 @@ const Clients = () => {
                         <FontAwesomeIcon icon={faPen} />
                       </button>
                       <button
-                        className="btn-icon btn-icon-red" // Delete button
-                        onClick={() => handleDeleteClick(client._id, client.name)} // Trigger modal
+                        className="btn-icon btn-icon-red"
+                        onClick={() => handleDeleteClick(client._id, client.name)}
                         title={`Delete ${client.name}`}
                         aria-label={`Delete ${client.name}`}
-                        disabled={isDeleting} // Optional: Disable while deleting
+                        disabled={isDeleting}
                       >
                         <FontAwesomeIcon icon={faTrash} />
                       </button>
@@ -278,9 +260,8 @@ const Clients = () => {
         </div>
       )}
 
-      {/* Delete Confirmation Modal */}
       {showDeleteConfirm && itemToDelete && (
-          <div className="logout-confirm-overlay"> {/* Re-use styles */}
+          <div className="logout-confirm-overlay">
             <div className="logout-confirm-dialog">
               <h4>Confirm Client Deletion</h4>
               <p>Are you sure you want to permanently delete client "<strong>{itemToDelete.name}</strong>"? This action cannot be undone.</p>
@@ -293,7 +274,6 @@ const Clients = () => {
             </div>
           </div>
       )}
-
     </div>
   );
 };

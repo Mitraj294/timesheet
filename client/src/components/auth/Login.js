@@ -3,7 +3,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { useNavigate, useLocation, Link } from "react-router-dom";
 import { login, clearAuthError } from "../../redux/slices/authSlice";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faEye, faEyeSlash, faEnvelope, faSignInAlt, faUserPlus } from "@fortawesome/free-solid-svg-icons"; // Removed faLock
+import { faEye, faEyeSlash, faEnvelope, faSignInAlt, faUserPlus } from "@fortawesome/free-solid-svg-icons";
 import { setAlert } from "../../redux/slices/alertSlice";
 import "../../styles/Login.scss";
 import Alert from "../layout/Alert";
@@ -20,6 +20,7 @@ const Login = () => {
   });
   const [showPassword, setShowPassword] = useState(false);
 
+  // Effects
   useEffect(() => {
     dispatch(clearAuthError());
     return () => {
@@ -42,6 +43,7 @@ const Login = () => {
     }
   }, [error, location.state, dispatch, navigate, location.pathname]);
 
+  // Handlers
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
@@ -53,11 +55,11 @@ const Login = () => {
       await dispatch(login(formData)).unwrap();
       dispatch(setAlert('Login successful!', 'success'));
     } catch (loginError) {
-      console.error("Login failed:", loginError);
-      // Error alert handled by useEffect
+      console.error("Login failed:", loginError); // Error alert handled by useEffect
     }
   };
 
+  // Render
   return (
     <div className="styles_LoginSignupContainer">
       <Alert />
@@ -71,7 +73,7 @@ const Login = () => {
         <form onSubmit={handleSubmit} className="styles_LoginForm">
           <div className="styles_InputGroup">
             <label htmlFor="email">Email</label>
-            <div className="styles_InputWithIcon"> {/* Email input with icon on the right */}
+            <div className="styles_InputWithIcon">
               <input
                 id="email"
                 type="email"
@@ -82,13 +84,12 @@ const Login = () => {
                 required
                 disabled={loading}
               />
-              <FontAwesomeIcon icon={faEnvelope} className="styles_InputIcon styles_InputIconRight" /> {/* Icon moved after input */}
+              <FontAwesomeIcon icon={faEnvelope} className="styles_InputIcon styles_InputIconRight" />
             </div>
           </div>
           <div className="styles_InputGroup">
             <label htmlFor="password">Password</label>
-            <div className="styles_PasswordInputContainer"> {/* Password input with only eye toggle */}
-              {/* Lock icon removed */}
+            <div className="styles_PasswordInputContainer">
               <input
                 id="password"
                 type={showPassword ? "text" : "password"}

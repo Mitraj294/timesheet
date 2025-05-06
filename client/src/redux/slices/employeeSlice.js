@@ -2,16 +2,16 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import axios from 'axios';
 
-// Define the API URL
 const API_URL = process.env.REACT_APP_API_URL || 'https://timesheet-c4mj.onrender.com/api';
 
-// Helper to get auth headers (consider moving to a shared utility/service)
+// Helper to get auth headers.
+// Might move this to a shared utility later if used in many places.
 const getAuthHeaders = (token) => {
   return token
     ? {
         headers: {
           Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
+          'Content-Type': 'application/json', // Ensuring content type is set for POST/PUT
         },
       }
     : {};
@@ -19,44 +19,40 @@ const getAuthHeaders = (token) => {
 
 // Helper function to extract error messages
 const getErrorMessage = (error) => {
-    return error.response?.data?.message || error.response?.data || error.message || 'An unexpected error occurred';
+    return error.response?.data?.message || error.response?.data?.error || error.message || 'An unexpected error occurred';
 }
 
-// --- Async Thunks ---
-
-// Fetch all employees
+// Async Thunk for fetching all employees.
 export const fetchEmployees = createAsyncThunk(
     'employees/fetchEmployees',
     async (_, { getState, rejectWithValue }) => {
       try {
-        const { token } = getState().auth; // <<< Trying to get token here
+        const { token } = getState().auth; // Getting the token from the auth state.
 
-        if (!token) { // <<< This check is failing
+        if (!token) { // This check is important for protected routes.
           console.error("fetchEmployees: No token found in Redux state (getState().auth.token)");
-          return rejectWithValue('Not authorized, no token provided'); // <<< Error originates here
+          return rejectWithValue('Not authorized, no token provided'); // If no token, reject the promise.
         }
 
-        // Token exists, proceed with API call
+        // Token exists, so we can proceed with the API call.
         console.log("fetchEmployees: Token found, making API call."); // Added log
         const response = await axios.get(`${API_URL}/employees`, getAuthHeaders(token));
-        return response.data || [];
+        return response.data || []; // Return the employee data, or an empty array if none.
 
       } catch (error) {
-        // --- FIX: Added rejectWithValue in catch block ---
         console.error("Error fetching employees:", error);
         return rejectWithValue(getErrorMessage(error));
-        // --- END FIX ---
       }
     }
 );
 
-// Add a new employee
+// Async Thunk for adding a new employee. Requires employer role.
 export const addEmployee = createAsyncThunk(
   'employees/addEmployee',
   async (employeeData, { getState, rejectWithValue }) => {
     try {
-      const { user, token } = getState().auth; // Get user and token
-      if (!token) { // Added token check
+      const { user, token } = getState().auth;
+      if (!token) {
         console.error("addEmployee: No token found.");
         return rejectWithValue('Not authorized, no token provided');
       }
@@ -64,7 +60,7 @@ export const addEmployee = createAsyncThunk(
       if (user?.role !== 'employer') {
         return rejectWithValue('Access Denied: Only employers can add employees.');
       }
-      const response = await axios.post(`${API_URL}/employees`, employeeData, getAuthHeaders(token)); // employeeData should include userId now
+      const response = await axios.post(`${API_URL}/employees`, employeeData, getAuthHeaders(token));
       return response.data;
     } catch (error) {
       console.error("Error adding employee:", error);
@@ -73,13 +69,13 @@ export const addEmployee = createAsyncThunk(
   }
 );
 
-// Update an existing employee
+// Async Thunk for updating an existing employee. Requires employer role.
 export const updateEmployee = createAsyncThunk(
   'employees/updateEmployee',
-  async ({ id, employeeData }, { getState, rejectWithValue }) => { // Pass id and data together
+  async ({ id, employeeData }, { getState, rejectWithValue }) => {
     try {
       const { user, token } = getState().auth;
-      if (!token) { // Added token check
+      if (!token) {
         console.error("updateEmployee: No token found.");
         return rejectWithValue('Not authorized, no token provided');
       }
@@ -87,7 +83,7 @@ export const updateEmployee = createAsyncThunk(
         return rejectWithValue('Access Denied: Only employers can update employees.');
       }
       const response = await axios.put(`${API_URL}/employees/${id}`, employeeData, getAuthHeaders(token));
-      return response.data; // Return the updated employee data
+      return response.data;
     } catch (error) {
       console.error("Error updating employee:", error);
       return rejectWithValue(getErrorMessage(error));
@@ -95,13 +91,13 @@ export const updateEmployee = createAsyncThunk(
   }
 );
 
-// Delete an employee
+// Async Thunk for deleting an employee. Requires employer role.
 export const deleteEmployee = createAsyncThunk(
   'employees/deleteEmployee',
-  async (employeeId, { getState, rejectWithValue }) => { // Pass only the ID
+  async (employeeId, { getState, rejectWithValue }) => {
     try {
       const { user, token } = getState().auth;
-      if (!token) { // Added token check
+      if (!token) {
         console.error("deleteEmployee: No token found.");
         return rejectWithValue('Not authorized, no token provided');
       }
@@ -109,7 +105,7 @@ export const deleteEmployee = createAsyncThunk(
         return rejectWithValue('Access Denied: Only employers can delete employees.');
       }
       await axios.delete(`${API_URL}/employees/${employeeId}`, getAuthHeaders(token));
-      return employeeId; // Return the ID of the deleted employee for reducer logic
+      return employeeId; // Return the ID for the reducer to remove it from the state.
     } catch (error) {
       console.error("Error deleting employee:", error);
       return rejectWithValue(getErrorMessage(error));
@@ -117,31 +113,32 @@ export const deleteEmployee = createAsyncThunk(
   }
 );
 
-// --- Slice Definition ---
-
+// Defines the initial state for the employees slice.
 const initialState = {
-  employees: [],
-  status: 'idle', // 'idle' | 'loading' | 'succeeded' | 'failed'
-  error: null,
+  employees: [], // Holds the list of all employees.
+  status: 'idle', // General status for async operations ('idle' | 'loading' | 'succeeded' | 'failed').
+  error: null, // Stores any error message related to employee operations.
 };
 
+// Creates the employee slice with reducers and extraReducers for async thunks.
 const employeeSlice = createSlice({
   name: 'employees',
   initialState,
   reducers: {
-    // Synchronous action to clear errors
+    // Synchronous action to clear the employee error and reset status.
     clearEmployeeError: (state) => {
       state.error = null;
-      // Optionally reset status if needed
+      // Optionally reset status if the last operation failed.
       if (state.status === 'failed') {
           state.status = 'idle';
       }
     },
-    // resetEmployees: () => initialState, // Example reset action
+    // resetEmployees: () => initialState, // Could add a reset action if needed.
   },
+  // Handles actions dispatched by async thunks.
   extraReducers: (builder) => {
     builder
-      // --- fetchEmployees ---
+      // Cases for fetching all employees
       .addCase(fetchEmployees.pending, (state) => {
         state.status = 'loading';
         state.error = null;
@@ -152,64 +149,63 @@ const employeeSlice = createSlice({
       })
       .addCase(fetchEmployees.rejected, (state, action) => {
         state.status = 'failed';
-        state.error = action.payload; // Error message from rejectWithValue
+        state.error = action.payload;
       })
-      // --- addEmployee ---
+      // Cases for adding an employee
       .addCase(addEmployee.pending, (state) => {
-        state.status = 'loading'; // Consider a specific addStatus if needed
+        state.status = 'loading'; // Using general status, could add specific addStatus if complex UI needed.
         state.error = null;
       })
       .addCase(addEmployee.fulfilled, (state, action) => {
-        state.status = 'succeeded'; // Reset general status or use addStatus
+        state.status = 'succeeded';
         state.employees.push(action.payload);
       })
       .addCase(addEmployee.rejected, (state, action) => {
-        state.status = 'failed'; // Reset general status or use addStatus
+        state.status = 'failed';
         state.error = action.payload;
       })
-      // --- updateEmployee ---
+      // Cases for updating an employee
       .addCase(updateEmployee.pending, (state) => {
-        state.status = 'loading'; // Consider a specific updateStatus
+        state.status = 'loading';
         state.error = null;
       })
       .addCase(updateEmployee.fulfilled, (state, action) => {
-        state.status = 'succeeded'; // Reset general status or use updateStatus
         const index = state.employees.findIndex(emp => emp._id === action.payload._id);
         if (index !== -1) {
           state.employees[index] = action.payload;
         }
       })
       .addCase(updateEmployee.rejected, (state, action) => {
-        state.status = 'failed'; // Reset general status or use updateStatus
+        state.status = 'failed';
         state.error = action.payload;
       })
-      // --- deleteEmployee ---
+      // Cases for deleting an employee
       .addCase(deleteEmployee.pending, (state) => {
-        state.status = 'loading'; // Consider a specific deleteStatus
+        state.status = 'loading';
         state.error = null;
       })
       .addCase(deleteEmployee.fulfilled, (state, action) => {
-        state.status = 'succeeded'; // Reset general status or use deleteStatus
+        state.status = 'succeeded';
         state.employees = state.employees.filter(emp => emp._id !== action.payload);
       })
       .addCase(deleteEmployee.rejected, (state, action) => {
-        state.status = 'failed'; // Reset general status or use deleteStatus
+        state.status = 'failed';
         state.error = action.payload;
       });
   },
 });
 
-// --- Exports ---
-export const { clearEmployeeError } = employeeSlice.actions; // Export synchronous actions
+// Export synchronous actions.
+export const { clearEmployeeError } = employeeSlice.actions;
 
-export default employeeSlice.reducer; // Export the reducer
+// Export the reducer to be included in the Redux store.
+export default employeeSlice.reducer;
 
-// Optional: Selectors for cleaner component access
+// Selectors to access parts of the employee state from components.
 export const selectAllEmployees = (state) => state.employees.employees;
 export const selectEmployeeStatus = (state) => state.employees.status;
 export const selectEmployeeError = (state) => state.employees.error;
 export const selectEmployeeById = (state, employeeId) =>
-  // Ensure state.employees.employees is an array before finding
   Array.isArray(state?.employees?.employees)
     ? state.employees.employees.find(emp => emp._id === employeeId)
     : undefined;

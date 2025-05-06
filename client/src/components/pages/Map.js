@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { useDispatch } from 'react-redux'; // Import useDispatch
-import {
+import { // Import FontAwesome icons
   faMap,
   faArrowLeft,
   faArrowRight,
@@ -10,50 +10,51 @@ import {
 } from '@fortawesome/free-solid-svg-icons';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import { ZoomControl } from 'react-leaflet'; // Import ZoomControl
-import { setAlert } from '../../redux/slices/alertSlice'; // Import setAlert
-import Alert from '../layout/Alert'; // Import Alert component
+import { setAlert } from '../../redux/slices/alertSlice';
+import Alert from '../layout/Alert';
 import L from 'leaflet';
 
-// Leaflet CSS and Icon Fix
 import 'leaflet/dist/leaflet.css';
 import '../../styles/Map.scss'; // Import your custom SCSS styles
 import iconRetinaUrl from 'leaflet/dist/images/marker-icon-2x.png';
 import iconUrl from 'leaflet/dist/images/marker-icon.png';
 import shadowUrl from 'leaflet/dist/images/marker-shadow.png';
 
+// Fix for default Leaflet icon paths when using bundlers like Webpack
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: iconRetinaUrl,
   iconUrl: iconUrl,
   shadowUrl: shadowUrl,
 });
-// --- End of Icon Fix ---
 
 const API_URL = process.env.REACT_APP_API_URL || 'https://timesheet-slpc.onrender.com/api';
 
-// Default center (e.g., company HQ or a general area)
+// Default map center, e.g., company HQ or a general area
 const DEFAULT_MAP_CENTER = { lat: 37.7749, lng: -122.4194 };
 
 const Map = () => {
-  const dispatch = useDispatch(); // Initialize dispatch
+  const dispatch = useDispatch();
+
+  // Local component state
   const [viewType, setViewType] = useState('Daily');
   const [selectedEmployee, setSelectedEmployee] = useState('All');
   const [employees, setEmployees] = useState([]);
   const [dateRange, setDateRange] = useState('');
   const [currentDate, setCurrentDate] = useState(new Date());
   const [mapCenter, setMapCenter] = useState(DEFAULT_MAP_CENTER);
-  const [isLocating, setIsLocating] = useState(false);
-  const [showStartLocation, setShowStartLocation] = useState(true); // State for checkboxes
-  const [showEndLocation, setShowEndLocation] = useState(true);   // State for checkboxes
+  const [isLocating, setIsLocating] = useState(false); // Tracks if geolocation is active
+  const [showStartLocation, setShowStartLocation] = useState(true); // Checkbox for start location markers
+  const [showEndLocation, setShowEndLocation] = useState(true);   // Checkbox for end location markers
 
-  // Effect to fetch employees and update date range
+  // Effects
   useEffect(() => {
     const fetchEmployees = async () => {
       try {
         const token = localStorage.getItem('token');
         if (!token) {
             console.error('No token found');
-            dispatch(setAlert('Authentication error. Please log in.', 'danger')); // Alert for no token
+            dispatch(setAlert('Authentication error. Please log in.', 'danger'));
             return;
         }
         const response = await fetch(`${API_URL}/employees`, {
@@ -63,27 +64,23 @@ const Map = () => {
           },
         });
         if (!response.ok) {
-            // Handle specific errors like 401 Unauthorized
             if (response.status === 401) {
                 console.error('Unauthorized: Invalid or expired token.');
-                dispatch(setAlert('Session expired. Please log in again.', 'danger')); // Alert for 401
-              
+                dispatch(setAlert('Session expired. Please log in again.', 'danger'));
             }
             throw new Error(`HTTP error! status: ${response.status}`);
         }
         const data = await response.json();
         if (Array.isArray(data)) {
-          // Optional: Alert on successful fetch? Usually not needed unless it's a manual action.
           setEmployees(data);
         } else {
           console.error('Expected an array of employees, but got:', data);
           setEmployees([]);
         }
-     
       } catch (error) {
         console.error('Error fetching employees:', error);
-        setEmployees([]); // Set empty array on error
-        dispatch(setAlert(`Error fetching employees: ${error.message}`, 'danger')); // Alert for fetch error
+        setEmployees([]);
+        dispatch(setAlert(`Error fetching employees: ${error.message}`, 'danger'));
       }
     };
 
@@ -92,7 +89,7 @@ const Map = () => {
     const updateDateRange = () => {
         let startDateStr, endDateStr;
         const baseDate = new Date(currentDate); // Use a copy
-
+        // Determine date range string based on viewType
         if (viewType === 'Daily') {
             startDateStr = baseDate.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
             setDateRange(startDateStr);
@@ -103,7 +100,6 @@ const Map = () => {
 
             if (viewType === 'Weekly') {
                 const dayOfWeek = startDate.getDay(); // 0 (Sun) - 6 (Sat)
-                // Adjust to start the week on Monday (or Sunday, depending on preference)
                 const diff = startDate.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1); // Monday start
                 startDate.setDate(diff);
                 endDate.setDate(startDate.getDate() + 6);
@@ -111,8 +107,6 @@ const Map = () => {
                 const dayOfWeek = startDate.getDay();
                 const diff = startDate.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1); // Monday start
                 startDate.setDate(diff);
-                // Check if it's the first or second week of the fortnight based on date? More complex logic might be needed for true fortnights.
-                // This implementation shows 14 days starting from the week's start.
                 endDate.setDate(startDate.getDate() + 13);
             } else if (viewType === 'Monthly') {
                 startDate = new Date(baseDate.getFullYear(), baseDate.getMonth(), 1);
@@ -125,9 +119,9 @@ const Map = () => {
         }
     };
     updateDateRange();
-  }, [viewType, currentDate, dispatch]); // Added dispatch to dependencies
+  }, [viewType, currentDate, dispatch]);
 
-  // Function to handle geolocation request
+  // Handlers
   const handleLocateMe = useCallback(() => {
     if (navigator.geolocation) {
       setIsLocating(true);
@@ -136,48 +130,43 @@ const Map = () => {
           const { latitude, longitude } = position.coords;
           setMapCenter({ lat: latitude, lng: longitude });
           setIsLocating(false);
-          dispatch(setAlert('Location found!', 'success')); // Success alert
+          dispatch(setAlert('Location found!', 'success'));
           console.log("Geolocation successful:", { latitude, longitude });
         },
         (error) => {
           console.error('Error fetching user location:', error);
-          // Use Alert component instead of browser alert
-          dispatch(setAlert(`Error getting location: ${error.message}`, 'danger')); // Error alert
+          dispatch(setAlert(`Error getting location: ${error.message}`, 'danger'));
           setIsLocating(false);
         },
         { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
       );
     } else {
       console.error('Geolocation not supported by this browser.');
-      dispatch(setAlert('Geolocation is not supported by your browser.', 'warning')); // Warning alert
+      dispatch(setAlert('Geolocation is not supported by your browser.', 'warning'));
     }
-  }, [dispatch]); // Add dispatch to dependency array
+  }, [dispatch]);
 
-  // Date Navigation Logic
   const adjustDate = useCallback((amount, unit) => {
     const newDate = new Date(currentDate);
     switch (unit) {
         case 'day': newDate.setDate(newDate.getDate() + amount); break;
         case 'week': newDate.setDate(newDate.getDate() + amount * 7); break;
         case 'fortnight': newDate.setDate(newDate.getDate() + amount * 14); break;
-        case 'month':
-            // Adjust month carefully to handle month ends
-            newDate.setMonth(newDate.getMonth() + amount, 1); // Set day to 1 to avoid skipping months
-            break;
+        case 'month': newDate.setMonth(newDate.getMonth() + amount, 1); break; // Set day to 1 to avoid month-end issues
         default: break;
     }
     setCurrentDate(newDate);
-  }, [currentDate]); // Add currentDate as dependency
+  }, [currentDate]);
 
   const handlePrevClick = useCallback(() => {
     const unitMap = { Daily: 'day', Weekly: 'week', Fortnightly: 'fortnight', Monthly: 'month' };
     adjustDate(-1, unitMap[viewType]);
-  }, [adjustDate, viewType]); // Add dependencies
+  }, [adjustDate, viewType]);
 
   const handleNextClick = useCallback(() => {
     const unitMap = { Daily: 'day', Weekly: 'week', Fortnightly: 'fortnight', Monthly: 'month' };
     adjustDate(1, unitMap[viewType]);
-  }, [adjustDate, viewType]); // Add dependencies
+  }, [adjustDate, viewType]);
 
   // Component to change map center smoothly
   const ChangeMapCenter = ({ center }) => {
@@ -185,13 +174,12 @@ const Map = () => {
     useEffect(() => {
       if (center && typeof center.lat === 'number' && typeof center.lng === 'number') {
          // Fly to the new center, keeping the current zoom level
-         map.flyTo([center.lat, center.lng], map.getZoom());
+         map.flyTo([center.lat, center.lng], map.getZoom()); // map.getZoom() ensures zoom level is maintained
       }
-    }, [center, map]); // map is a dependency
+    }, [center, map]);
     return null;
   };
 
-  // --- TODO: Fetch and filter location data based on state ---
   // Placeholder for where you would fetch/filter actual location points
   // const [locationData, setLocationData] = useState([]);
   // useEffect(() => {
@@ -202,32 +190,27 @@ const Map = () => {
   //        // setLocationData(data);
   //    }
   //    fetchLocationData();
-  // }, [selectedEmployee, currentDate, viewType]); // Add dependencies
+  // }, [selectedEmployee, currentDate, viewType]);
 
-
+  // Render
   return (
     <div className='map-container'>
-      <Alert /> {/* Render Alert component */}
-      {/* Header Section */}
+      <Alert />
       <div className='employees-header'>
         <h1>
           <FontAwesomeIcon icon={faMap} /> Map
         </h1>
       </div>
 
-      {/* Breadcrumb Navigation */}
       <div className='breadcrumb'>
         <Link to='/dashboard' className='breadcrumb-link'>Dashboard</Link>
         <span> / </span>
         <span>Map</span>
       </div>
 
-      {/* Date Range Display */}
       <div className='date-range'>
         <h3>{dateRange}</h3>
       </div>
-
-      {/* Navigation Controls */}
       <div className='map-navigation'>
         <button className='nav-button' onClick={handlePrevClick} aria-label={`Previous ${viewType}`}>
           <FontAwesomeIcon icon={faArrowLeft} /> Prev
@@ -246,10 +229,7 @@ const Map = () => {
         </button>
       </div>
 
-      {/* Filters & Employee Selection */}
-      {/* *** UPDATED className here *** */}
       <div className='map-filters-toolbar'>
-        {/* Marker Filters */}
         <div className='marker-filters'>
           <h3>Marker Filters:</h3>
           <div className='check-box'>
@@ -271,8 +251,6 @@ const Map = () => {
             </label>
           </div>
         </div>
-
-        {/* Employee Selection */}
         <div className='employee-filter'>
           <h4>Select Employee:</h4>
           <div className='select-container'>
@@ -284,7 +262,6 @@ const Map = () => {
               aria-label="Select employee to view"
             >
               <option value='All'>All Employees</option>
-              {/* Ensure employees is an array before mapping */}
               {Array.isArray(employees) && employees.map((employee) => (
                   <option key={employee._id || employee.id} value={employee.name}>
                     {employee.name}
@@ -293,8 +270,6 @@ const Map = () => {
             </select>
           </div>
         </div>
-
-        {/* Locate Me Button */}
         <div className="locate-me-container">
            <button
               className="nav-button locate-button"
@@ -306,8 +281,6 @@ const Map = () => {
             </button>
         </div>
       </div>
-
-      {/* Map Container */}
       <MapContainer
         center={[mapCenter.lat, mapCenter.lng]}
         zoom={12}
@@ -315,19 +288,17 @@ const Map = () => {
         zoomControl={false} // Disable the default zoom control
         className="leaflet-map-container"
       >
-        <ZoomControl position="topright" /> {/* Add custom zoom control */}
+        <ZoomControl position="topright" />
         <TileLayer
           attribution='&copy; <a href="https://openstreetmap.org/copyright">OpenStreetMap</a> contributors'
           url='https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'
         />
-
-        {/* Marker for the current map center */}
         <Marker position={[mapCenter.lat, mapCenter.lng]}>
           <Popup>Current Map Center</Popup>
         </Marker>
 
-        {/* --- TODO: Render actual location markers --- */}
-        {/* {locationData
+        {/* Placeholder for rendering actual location markers based on fetched data */}
+        {/* Example: {locationData
             .filter(loc => {
                 // Filter based on showStartLocation / showEndLocation checkboxes
                 if (!showStartLocation && loc.type === 'start') return false;
@@ -342,8 +313,6 @@ const Map = () => {
                   </Popup>
               </Marker>
           ))} */}
-
-        {/* Component to handle map center changes */}
         <ChangeMapCenter center={mapCenter} />
       </MapContainer>
     </div>

@@ -11,13 +11,12 @@ import {
   parseISO, 
 } from 'date-fns';
 
-// Redux Imports
 import { fetchEmployees, selectAllEmployees, selectEmployeeStatus, selectEmployeeError } from '../../redux/slices/employeeSlice';
 import { fetchRoles, deleteRole, deleteRoleScheduleEntry, updateRole, selectAllRoles, selectRoleStatus, selectRoleError, clearRoleError } from '../../redux/slices/roleSlice'; // Added updateRole
 import { fetchSchedules, bulkCreateSchedules, deleteSchedule, deleteSchedulesByDateRange, selectAllSchedules, selectScheduleStatus, selectScheduleError, clearScheduleError } from '../../redux/slices/scheduleSlice';
 import { selectAuthUser } from '../../redux/slices/authSlice';
-import { setAlert } from '../../redux/slices/alertSlice'; 
-import Alert from '../layout/Alert'; 
+import { setAlert } from '../../redux/slices/alertSlice';
+import Alert from '../layout/Alert';
 
 // Styles and Icons
 import '../../styles/Forms.scss';
@@ -38,7 +37,7 @@ import {
   faExclamationCircle, // Added for error states
 } from '@fortawesome/free-solid-svg-icons';
 
-// Helper Components (ShiftCard, RoleCard - kept as is from your code)
+// ShiftCard: Displays individual employee shifts
 const ShiftCard = ({ schedule, formatTime, userRole, onDelete }) => (
     <div key={schedule._id} className='shift-card'>
         <p className='shift-time'>
@@ -50,7 +49,6 @@ const ShiftCard = ({ schedule, formatTime, userRole, onDelete }) => (
         )}
         {userRole === 'employer' && (
             <div className='shift-actions'>
-                {/* <FontAwesomeIcon icon={faEye} className="action-icon view" title="View Details (Not Implemented)" /> */}
                 <FontAwesomeIcon
                     icon={faTrash}
                     onClick={() => onDelete(schedule._id)}
@@ -62,6 +60,7 @@ const ShiftCard = ({ schedule, formatTime, userRole, onDelete }) => (
     </div>
 );
 
+// RoleCard: Displays role-based schedule entries
 const RoleCard = ({ role, scheduleEntry, formatTime, assignedEmployeeNames, userRole, onDelete }) => (
     <div
         key={role._id + (scheduleEntry ? scheduleEntry._id : '')} // Use scheduleEntry._id for uniqueness
@@ -78,7 +77,6 @@ const RoleCard = ({ role, scheduleEntry, formatTime, assignedEmployeeNames, user
         </p>
         {userRole === 'employer' && scheduleEntry && (
             <div className='role-actions'>
-                 {/* <FontAwesomeIcon icon={faEye} className="action-icon view" title="View Details (Not Implemented)" /> */}
                  <FontAwesomeIcon
                     icon={faTrash}
                     onClick={() => onDelete(role._id, scheduleEntry._id)}
@@ -90,13 +88,12 @@ const RoleCard = ({ role, scheduleEntry, formatTime, assignedEmployeeNames, user
     </div>
 );
 
-
-// Main Component
+// Main RosterPage component
 const RosterPage = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
 
-  // Redux State
+  // Redux state selectors
   const user = useSelector(selectAuthUser);
   const employees = useSelector(selectAllEmployees);
   const employeeStatus = useSelector(selectEmployeeStatus);
@@ -108,12 +105,11 @@ const RosterPage = () => {
   const scheduleStatus = useSelector(selectScheduleStatus);
   const scheduleError = useSelector(selectScheduleError);
 
-  // Local State
+  // Local component state
   const [currentWeekStart, setCurrentWeekStart] = useState(
     startOfWeek(new Date(), { weekStartsOn: 1 })
   );
-  const [isLoading, setIsLoading] = useState(true); // Start loading initially
-  // const [error, setError] = useState(null); // Replaced by Redux alerts
+  const [isLoading, setIsLoading] = useState(true); // Local loading state, primarily for rollout
 
   const [showModal, setShowModal] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState(null);
@@ -121,7 +117,7 @@ const RosterPage = () => {
   const [startTime, setStartTime] = useState({});
   const [endTime, setEndTime] = useState({});
 
-  // State for Confirmation Modal
+  // State for the confirmation modal (used for delete/rollout actions)
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [confirmAction, setConfirmAction] = useState(null); // Function to run on confirm
   const [confirmTitle, setConfirmTitle] = useState('Confirm Action');
@@ -129,7 +125,7 @@ const RosterPage = () => {
   const [confirmButtonText, setConfirmButtonText] = useState('Confirm');
   const [confirmButtonClass, setConfirmButtonClass] = useState('btn-danger');
 
-  // Combined Loading and Error States from Redux
+  // Derived loading state from Redux statuses for initial data fetch
   const isDataLoading = useMemo(() =>
     employeeStatus === 'loading' || roleStatus === 'loading' || scheduleStatus === 'loading',
     [employeeStatus, roleStatus, scheduleStatus]
@@ -140,26 +136,25 @@ const RosterPage = () => {
     [employeeError, roleError, scheduleError]
   );
 
-  // Update local loading/error based on Redux state
+  // Effects
+  // Updates local loading state and displays Redux errors as alerts
   useEffect(() => {
     setIsLoading(isDataLoading);
-    // Show alerts for fetch errors
     if (combinedError) {
       dispatch(setAlert(combinedError, 'danger'));
-      // Optionally clear the specific error after showing
-      // if (employeeError) dispatch(clearEmployeeError()); etc.
     }
   }, [isDataLoading, combinedError, dispatch]);
 
-  // Define weekDays based on currentWeekStart
+  // Memoized array of date objects for the current week view
   const weekDays = useMemo(() => Array.from({ length: 7 }, (_, i) => addDays(currentWeekStart, i)), [currentWeekStart]);
 
+  // Defines the furthest week into the future a user can navigate
   const maxAllowedWeek = addWeeks(
     startOfWeek(new Date(), { weekStartsOn: 1 }),
     1
   );
 
-  // Time Formatting Functions
+  // Formats UTC time string to local time string (e.g., "09:00 AM")
   const formatTimeUTCtoLocal = (timeStr, dateStr) => {
     if (!timeStr || typeof timeStr !== 'string' || !timeStr.includes(':') || !dateStr) return '--:--';
     try {
@@ -172,6 +167,7 @@ const RosterPage = () => {
     }
   };
 
+  // Converts local time string to UTC time string (e.g., "09:00" -> "21:00" if local is +12 UTC)
   const convertLocalTimeToUTC = (localTimeStr, dateStr) => {
     if (!localTimeStr || !dateStr) return '00:00';
     try {
@@ -184,28 +180,27 @@ const RosterPage = () => {
     }
   };
 
-  // Data Fetching Effect using Redux
+  // Fetches necessary data (employees, roles, schedules) when the component mounts or currentWeekStart changes
   useEffect(() => {
-    // Fetch employees only if needed
     if (employeeStatus === 'idle') {
       dispatch(fetchEmployees());
     }
-    // Fetch roles and schedules for the current week
     dispatch(fetchRoles());
     dispatch(fetchSchedules({ weekStart: format(currentWeekStart, 'yyyy-MM-dd') }));
 
-    // Clear errors on week change
+    // Cleanup: clear role and schedule errors when dependencies change
     return () => {
         dispatch(clearRoleError());
         dispatch(clearScheduleError());
         };
-    // Removed fetchAllData() call here
-  }, [currentWeekStart, dispatch, employeeStatus]); // Updated dependencies
+  }, [currentWeekStart, dispatch, employeeStatus]);
 
   // Event Handlers
+  // Navigates to the previous week
   const handlePrevWeek = () =>
     setCurrentWeekStart((prev) => addWeeks(prev, -1));
 
+  // Navigates to the next week, respecting maxAllowedWeek
   const handleNextWeek = () => {
     const nextWeek = addWeeks(currentWeekStart, 1);
     if (!isEqual(currentWeekStart, maxAllowedWeek)) {
@@ -213,6 +208,7 @@ const RosterPage = () => {
     }
   };
 
+  // Filters schedules for a specific day
   const getSchedulesForDay = (day) => {
     const dayStr = format(day, 'yyyy-MM-dd');
     return schedules.filter(
@@ -220,6 +216,7 @@ const RosterPage = () => {
     );
   };
 
+  // Filters roles that have scheduled entries for a specific day
   const getRolesForDay = (day) => {
     const dayStr = format(day, 'yyyy-MM-dd');
     return roles.filter(
@@ -236,7 +233,7 @@ const RosterPage = () => {
     );
   };
 
-  // --- Confirmation Modal Logic ---
+  // Confirmation Modal Logic
   const handleConfirmAction = useCallback(() => {
     if (typeof confirmAction === 'function') {
       confirmAction();
@@ -249,8 +246,8 @@ const RosterPage = () => {
     setShowConfirmModal(false);
     setConfirmAction(null);
   };
-  // --- End Confirmation Modal Logic ---
 
+  // Initiates deletion of a specific schedule entry from a role
   const handleDeleteScheduleFromRoleClick = (roleId, scheduleEntryId, roleName, day) => {
     if (!scheduleEntryId) {
         console.error("Cannot delete role schedule entry without an ID.");
@@ -260,13 +257,13 @@ const RosterPage = () => {
     setConfirmMessage(`Are you sure you want to remove the schedule entry for role "${roleName}" on ${format(parseISO(day), 'EEE, MMM d')}?`);
     setConfirmButtonText('Remove Entry');
     setConfirmButtonClass('btn-danger');
-    setConfirmAction(() => () => executeDeleteScheduleFromRole(roleId, scheduleEntryId)); // Wrap execute logic
+    setConfirmAction(() => () => executeDeleteScheduleFromRole(roleId, scheduleEntryId));
     setShowConfirmModal(true);
   };
 
+  // Executes the deletion of a role's schedule entry
   const executeDeleteScheduleFromRole = (roleId, scheduleEntryId) => {
-    dispatch(clearRoleError()); // Clear previous Redux errors
-
+    dispatch(clearRoleError());
     dispatch(deleteRoleScheduleEntry({ roleId, scheduleEntryId }))
       .unwrap()
       .then(() => {
@@ -278,6 +275,7 @@ const RosterPage = () => {
       });
   };
 
+  // Initiates deletion of an entire role
   const handleDeleteRoleClick = (roleId, roleName) => {
     setConfirmTitle('Confirm Role Deletion');
     setConfirmMessage(`Are you sure you want to delete the role "${roleName}" and ALL its associated schedule entries? This action cannot be undone.`);
@@ -287,10 +285,9 @@ const RosterPage = () => {
     setShowConfirmModal(true);
   };
 
+  // Executes the deletion of a role
   const executeDeleteRole = (roleId, roleName) => {
     dispatch(clearRoleError());
-    // Actual deletion logic moved here
-
     dispatch(deleteRole(roleId))
       .unwrap()
       .then(() => {
@@ -298,10 +295,11 @@ const RosterPage = () => {
       })
       .catch((error) => {
         dispatch(setAlert(`Failed to delete role: ${error}`, 'danger'));
-        console.error('Failed to delete role:', error.response?.data?.message || error.message); // Keep inside catch
+        console.error('Failed to delete role:', error.response?.data?.message || error.message);
       });
   };
 
+  // Initiates the schedule rollout process (copying current week to next week)
   const handleRolloutClick = () => {
     setConfirmTitle('Confirm Schedule Rollout');
     setConfirmMessage(`This will DELETE all schedules in the next week (${format(addWeeks(currentWeekStart, 1), 'MMM d')} onwards) and copy the current week's schedule. Are you sure?`);
@@ -311,9 +309,9 @@ const RosterPage = () => {
     setShowConfirmModal(true);
   };
 
+  // Executes the schedule rollout
   const executeRollout = async () => {
-    setIsLoading(true); // Indicate loading during rollout
-    // Actual rollout logic moved here
+    setIsLoading(true);
     dispatch(clearScheduleError());
     dispatch(clearRoleError());
 
@@ -323,16 +321,16 @@ const RosterPage = () => {
       const nextWeekEnd = endOfWeek(nextWeekStart, { weekStartsOn: 1 });
       const nextWeekEndStr = format(nextWeekEnd, 'yyyy-MM-dd');
 
-      // 1. Delete existing schedules in the *next* week range
+      // Delete existing employee schedules in the next week range
       await dispatch(deleteSchedulesByDateRange({ startDate: nextWeekStartStr, endDate: nextWeekEndStr })).unwrap();
 
-       // 2. Clean role schedule entries *only within the next week*
+       // Clean role schedule entries only within the next week to avoid duplication
        await Promise.all(
          roles.map(async (role) => {
            const currentEntries = role.schedule?.filter(entry =>
                 entry.day < nextWeekStartStr || entry.day > nextWeekEndStr
              ) || [];
-            // Dispatch updateRole with only the schedule field
+            // Update role with schedule entries outside the next week
             await dispatch(updateRole({ id: role._id, roleData: { schedule: currentEntries } })).unwrap();
          })
        );
@@ -360,7 +358,7 @@ const RosterPage = () => {
         await dispatch(bulkCreateSchedules(newEmployeeSchedules)).unwrap();
       }
 
-      // 4. Clone role schedule entries to the next week
+      // Clone role schedule entries from current week to the next week
       await Promise.all(
         roles.map(async (role) => {
           const currentWeekEntries = role.schedule?.filter(entry =>
@@ -380,16 +378,15 @@ const RosterPage = () => {
             };
           });
 
-          // Get existing schedule from current Redux state
+          // Combine existing schedule (outside next week) with cloned entries for next week
           const existingSchedule = roles.find(r => r._id === role._id)?.schedule || [];
           const updatedSchedule = [...existingSchedule, ...clonedEntries];
 
-          // Dispatch updateRole with the combined schedule
           await dispatch(updateRole({ id: role._id, roleData: { schedule: updatedSchedule } })).unwrap();
         })
       );
 
-      // 5. Navigate to the next week view after successful rollout
+      // Navigate to the next week view and show success message
       setCurrentWeekStart(nextWeekStart);
       dispatch(setAlert("Schedule successfully rolled out to the next week!", 'success'));
 
@@ -397,10 +394,11 @@ const RosterPage = () => {
       console.error('Error during rollout:', err.response?.data || err.message, err);
       dispatch(setAlert(`Error during rollout: ${err}`, 'danger'));
     } finally {
-        setIsLoading(false); // Stop loading indicator
+        setIsLoading(false);
     }
   };
 
+  // Opens the modal to assign a shift to an employee
   const handleEmployeeClick = (emp) => {
     setSelectedEmployee(emp);
     setSelectedDays([]);
@@ -409,6 +407,7 @@ const RosterPage = () => {
     setShowModal(true);
   };
 
+  // Handles submission of the assign shift modal
   const handleAssignShift = async () => {
     if (selectedDays.length === 0) {
         dispatch(setAlert("Please select at least one day.", 'warning'));
@@ -426,7 +425,7 @@ const RosterPage = () => {
              return;
          }
     }
-    dispatch(clearScheduleError()); // Clear previous Redux errors
+    dispatch(clearScheduleError());
     try {
       const dayOrder = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
@@ -453,23 +452,21 @@ const RosterPage = () => {
       setEndTime({});
       dispatch(setAlert('Shift(s) assigned successfully.', 'success'));
 
-      // Trigger refetch after successful assignment
       dispatch(fetchSchedules({ weekStart: format(currentWeekStart, 'yyyy-MM-dd') }));
-
 
     } catch (err) {
       console.error('Error assigning/updating shift:', err.response?.data?.message || err.message);
-       // setError(`Error assigning shift: ${err.response?.data?.message || err.message}`); // Handled by Alert
        dispatch(setAlert(`Error assigning shift: ${err.response?.data?.message || err.message}`, 'danger'));
     }
   };
 
+  // Initiates deletion of an employee's shift
   const handleDeleteShiftClick = (scheduleId, employeeName) => {
     setConfirmTitle('Confirm Shift Deletion');
     setConfirmMessage(`Are you sure you want to delete this shift for ${employeeName || 'this employee'}?`);
     setConfirmButtonText('Delete Shift');
     setConfirmButtonClass('btn-danger');
-    setConfirmAction(() => () => executeDeleteSchedule(scheduleId)); // Wrap execute logic
+    setConfirmAction(() => () => executeDeleteSchedule(scheduleId));
     setShowConfirmModal(true);
   };
 
@@ -479,10 +476,7 @@ const RosterPage = () => {
     try {
       await dispatch(deleteSchedule(scheduleId)).unwrap();
       dispatch(setAlert('Shift deleted successfully.', 'success'));
-      // State updates automatically via reducer
-
-      // Optional: Explicitly refetch if optimistic update isn't sufficient
-      // dispatch(fetchSchedules({ weekStart: format(currentWeekStart, 'yyyy-MM-dd') }));
+      // Consider if explicit refetch is needed or if Redux update is sufficient
 
     } catch (err) {
       console.error('Error deleting schedule:', err.response?.data?.message || err.message);
@@ -490,6 +484,7 @@ const RosterPage = () => {
     }
   };
 
+  // Gets a comma-separated string of names for employees assigned to a role
   const getAssignedEmployeeNames = (role) => {
      if (!role.assignedEmployees || role.assignedEmployees.length === 0) return 'None';
      return role.assignedEmployees
@@ -498,17 +493,19 @@ const RosterPage = () => {
        .join(', ') || 'None';
    };
 
-  // Render Logic
+  // --- Render Logic ---
+  // Determines if sidebars (Roles, Assign Shifts) should be visible
   const canShowSidebars = isEqual(currentWeekStart, startOfWeek(new Date(), { weekStartsOn: 1 })) ||
                           isEqual(currentWeekStart, addWeeks(startOfWeek(new Date(), { weekStartsOn: 1 }), 1));
 
+  // Determines if the "Rollout to Next Week" button should be enabled
   const canRollout = (isEqual(currentWeekStart, startOfWeek(new Date(), { weekStartsOn: 1 })) ||
                      isEqual(currentWeekStart, addWeeks(startOfWeek(new Date(), { weekStartsOn: 1 }), -1))) &&
                      user?.role === 'employer';
 
   return (
     <div className='roster-page'>
-      <Alert /> {/* Render Alert component here */}
+      <Alert />
       <header className='roster-header'>
         <div className='title'>
           <h2><FontAwesomeIcon icon={faCalendar} /> Rosters</h2>
@@ -520,7 +517,7 @@ const RosterPage = () => {
             <button
               className='btn btn-green'
               onClick={handleRolloutClick} // Updated onClick
-              title={`Copy schedule from ${format(currentWeekStart, 'MMM d')} week to ${format(addWeeks(currentWeekStart, 1), 'MMM d')} week`}
+              title={`Copy this week's schedule (${format(currentWeekStart, 'MMM d')}) to next week (${format(addWeeks(currentWeekStart, 1), 'MMM d')})`}
               disabled={isLoading} // Disable during loading/rollout
             >
               <FontAwesomeIcon icon={isLoading ? faSpinner : faSyncAlt} spin={isLoading} className='icon-left' />
@@ -529,7 +526,6 @@ const RosterPage = () => {
           )}
       </header>
 
-      {/* Week Navigation */}
       <div className='week-nav'>
         <button className='btn btn-blue' onClick={handlePrevWeek} disabled={isLoading}>
           <FontAwesomeIcon icon={faArrowLeft} /> Prev Week
@@ -547,18 +543,8 @@ const RosterPage = () => {
           </button>
       </div>
 
-       {/* Display Global Errors */}
-       {/* {error && ( // Handled by Alert component via useEffect
-         <div className='error-message page-error' style={{ marginTop: '1rem', marginBottom: '1rem' }}>
-            <FontAwesomeIcon icon={faExclamationCircle} />
-            <p>{error}</p>
-         </div>
-       )} */}
-       
-      {/* Roster Body */}
-      {/* Add conditional class for centering */}
+      {/* Main roster content area */}
       <div className={`roster-body ${!canShowSidebars ? 'roster-body--center-content' : ''}`}>
-        {/* Roles Sidebar */}
         {canShowSidebars && (
           <aside className='roles-sidebar'>
             <div className='sidebar-header'>
@@ -594,7 +580,7 @@ const RosterPage = () => {
           </aside>
         )}
 
-        {/* Schedule Grid */}
+        {/* Main schedule grid displaying shifts and roles */}
         <div className="schedule-wrapper">
             {isLoading ? (
                  <div className='loading-indicator'>
@@ -663,7 +649,7 @@ const RosterPage = () => {
             )}
         </div>
 
-        {/* Employees Sidebar */}
+        {/* Sidebar for assigning shifts to employees */}
          {canShowSidebars && (
             <aside className='employees-sidebar'>
             <div className='sidebar-header'>
@@ -686,14 +672,12 @@ const RosterPage = () => {
         )}
       </div>
 
-      {/* Assign Shift Modal */}
+      {/* Modal for assigning a new shift to an employee */}
       {showModal && selectedEmployee && (
-        // Keep modal-specific overlay and content classes
         <div className='modal-overlay' onClick={() => setShowModal(false)}>
           <div className='modal-content' onClick={e => e.stopPropagation()}>
             <h5>
               Assign Shift for {selectedEmployee.name}
-              {/* Use a button with standard styling potentially, or keep simple close */}
               <button
                   id='closeModal'
                   className="modal-close-btn" // Added a class for potential styling
@@ -705,7 +689,6 @@ const RosterPage = () => {
               </button>
             </h5>
             <p>Select day(s) and enter times:</p>
-            {/* Keep specific layout classes for day buttons */}
             <div className='schedule-buttons'>
               {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((day) => (
                 <button
@@ -724,7 +707,6 @@ const RosterPage = () => {
               ))}
             </div>
             {selectedDays.length > 0 && (
-                // Keep specific layout classes for time inputs
                 <div className='day-wise-times'>
                 {selectedDays.map((day) => (
                     <div key={day} className='time-row'>
@@ -735,9 +717,7 @@ const RosterPage = () => {
                         value={startTime[day] || ''}
                         onChange={(e) => setStartTime((prev) => ({ ...prev, [day]: e.target.value }))}
                         required
-                        // Input styling will come from Forms.scss
                     />
-                    {/* Removed inline style, use CSS for spacing */}
                     <span className="time-separator">to</span>
                     <input
                          id={`end-time-${day}`}
@@ -745,26 +725,21 @@ const RosterPage = () => {
                         value={endTime[day] || ''}
                         onChange={(e) => setEndTime((prev) => ({ ...prev, [day]: e.target.value }))}
                          required
-                         // Input styling will come from Forms.scss
                     />
                     </div>
                 ))}
                 </div>
             )}
-            {/* Use standard button classes from Forms.scss */}
             <div className='modal-footer'>
-              {/* Removed inline style, use CSS for spacing */}
               <button type="button" className='btn btn-danger' onClick={() => setShowModal(false)}>
-                {/* Added Icon for consistency */}
                 <FontAwesomeIcon icon={faTimes} /> Cancel
               </button>
               <button
-                type="button"
-                className='btn btn-success' // Changed from btn-green
+                type="button" // Ensure this is type="button" if not submitting a form
+                className='btn btn-success'
                 disabled={selectedDays.length === 0 || selectedDays.some(day => !startTime[day] || !endTime[day])}
                 onClick={handleAssignShift}
               >
-                {/* Added Icon for consistency */}
                 <FontAwesomeIcon icon={faSave} /> Confirm Shift
               </button>
             </div>
@@ -772,9 +747,9 @@ const RosterPage = () => {
         </div>
       )}
 
-      {/* Confirmation Modal */}
+      {/* General confirmation modal for delete/rollout actions */}
       {showConfirmModal && (
-          <div className="logout-confirm-overlay"> {/* Re-use styles */}
+          <div className="logout-confirm-overlay">
             <div className="logout-confirm-dialog">
               <h4>{confirmTitle}</h4>
               <p>{confirmMessage}</p>
@@ -793,4 +768,3 @@ const RosterPage = () => {
 };
 
 export default RosterPage;
-

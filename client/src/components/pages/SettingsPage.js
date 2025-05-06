@@ -12,7 +12,7 @@ import { selectAuthUser, changePassword, deleteAccount, logout, updateUserProfil
 import { selectEmployeeByUserId, fetchEmployees, selectEmployeeStatus } from '../../redux/slices/employeeSlice';
 import { setAlert } from '../../redux/slices/alertSlice';
 import Alert from '../layout/Alert';
-import '../../styles/Forms.scss'; // Re-use forms styling
+// import '../../styles/Forms.scss'; // No longer importing global Forms.scss
 import '../../styles/SettingsPage.scss'; // Add specific styles
 import { parsePhoneNumberFromString, isValidPhoneNumber, getCountries, getCountryCallingCode } from 'libphonenumber-js'; // Import validation and country list functions
 
@@ -20,14 +20,14 @@ const SettingsPage = () => {
     const dispatch = useDispatch();
     const navigate = useNavigate();
 
-    // --- Redux State ---
+    // Redux state
     const user = useSelector(selectAuthUser);
     const authError = useSelector(selectAuthError);
     const authLoading = useSelector(selectIsAuthLoading);
     const employee = useSelector((state) => user ? selectEmployeeByUserId(state, user.id || user._id) : null);
     const employeeStatus = useSelector(selectEmployeeStatus);
 
-    // --- Local State ---
+    // Local state for password change form
     const [passwordData, setPasswordData] = useState({
         currentPassword: '',
         newPassword: '',
@@ -35,15 +35,15 @@ const SettingsPage = () => {
     });
     const [isSubmittingPassword, setIsSubmittingPassword] = useState(false);
     const [passwordError, setPasswordError] = useState(null);
-    // Password visibility states
     const [showCurrentPassword, setShowCurrentPassword] = useState(false);
     const [showNewPassword, setShowNewPassword] = useState(false);
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
+    // Local state for account deletion confirmation
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [isDeletingAccount, setIsDeletingAccount] = useState(false);
 
-    // --- State for Editing Info ---
+    // Local state for editing account information
     const [isEditingInfo, setIsEditingInfo] = useState(false);
     const [infoFormData, setInfoFormData] = useState({
         name: '',
@@ -55,15 +55,16 @@ const SettingsPage = () => {
     const [isSubmittingInfo, setIsSubmittingInfo] = useState(false);
     const [countryCode, setCountryCode] = useState('IN'); // Default country code set to India
 
+    // Effects
 
-    // Fetch employees if needed
+    // Fetches employee details if the logged-in user is an employee and details aren't loaded
     useEffect(() => {
         if (user?.role === 'employee' && !employee && employeeStatus === 'idle') {
             dispatch(fetchEmployees());
         }
     }, [dispatch, user, employee, employeeStatus]);
 
-    // Clear auth error on mount/unmount
+    // Clears any existing authentication errors when the component mounts or unmounts
     useEffect(() => {
         dispatch(clearAuthError());
         return () => { dispatch(clearAuthError()); };
@@ -71,7 +72,7 @@ const SettingsPage = () => {
 
 
     // Pre-fill info form data when user loads and auth is not loading
-    useEffect(() => {
+    useEffect(() => { // Populates the account info form with user data once loaded
         if (user && !authLoading) {
             const validCountries = getCountries();
             const initialCountryCode = user.country && validCountries.includes(user.country.toUpperCase())
@@ -88,8 +89,8 @@ const SettingsPage = () => {
         }
     }, [user, authLoading]); // Add authLoading dependency
 
-
-    // --- Handlers ---
+    // Handlers
+    // Handles changes in the password form fields
     const handlePasswordChange = (e) => {
         setPasswordData({ ...passwordData, [e.target.name]: e.target.value });
         if (passwordError) setPasswordError(null);
@@ -134,10 +135,11 @@ const SettingsPage = () => {
         }
     };
 
+    // Toggles the edit mode for account information
     const handleInfoEditToggle = () => {
         if (!isEditingInfo && user) {
-            // Pre-fill form when opening
-            setInfoFormData({
+            // When entering edit mode, pre-fill the form with current user data
+            setInfoFormData({ 
                 name: user.name || '',
                 email: user.email || '',
                 country: user.country || '',
@@ -155,11 +157,13 @@ const SettingsPage = () => {
         setIsEditingInfo(!isEditingInfo);
     };
 
+    // Handles changes in the account information form fields
     const handleInfoChange = (e) => {
         setInfoFormData({ ...infoFormData, [e.target.name]: e.target.value });
         if (infoError) setInfoError(null);
     };
 
+    // Handles submission of the account information form
     const handleInfoSubmit = async (e) => {
         e.preventDefault();
         setInfoError(null);
@@ -192,8 +196,7 @@ const SettingsPage = () => {
         setIsSubmittingInfo(true);
         const dataToSubmit = { ...infoFormData };
         if (user?.role !== 'employer') delete dataToSubmit.companyName;
-
-        // Format phone number before sending
+        // Format phone number to E.164 standard before submitting
         let formattedPhoneNumber = dataToSubmit.phoneNumber;
         if (dataToSubmit.phoneNumber) {
             try {
@@ -214,14 +217,17 @@ const SettingsPage = () => {
         }
     };
 
+    // Shows the account deletion confirmation modal
     const handleDeleteClick = () => {
         setShowDeleteConfirm(true);
     };
 
+    // Hides the account deletion confirmation modal
     const cancelDelete = () => {
         setShowDeleteConfirm(false);
     };
 
+    // Confirms and executes account deletion
     const confirmDelete = async () => {
         setIsDeletingAccount(true);
         dispatch(clearAuthError());
@@ -238,7 +244,8 @@ const SettingsPage = () => {
         }
     };
 
-    // --- Derived Data ---
+    // Derived data
+    // Memoized list of country options for the phone number input
     const countryOptions = useMemo(() => {
         const countries = getCountries();
         return countries.map(country => ({
@@ -247,12 +254,10 @@ const SettingsPage = () => {
         })).sort((a, b) => a.label.localeCompare(b.label));
     }, []);
     const isLoading = authLoading || isSubmittingInfo || isSubmittingPassword || (employeeStatus === 'loading' && !employee);
-
-    // --- Render --- //
-    // Updated loading check
-    if (isLoading || (user && typeof user.country === 'undefined')) {
-        return (
-            <div className='vehicles-page'>
+    // Render
+    // Main loading state for the page
+    if (isLoading) { // Check only against the combined isLoading variable
+        return (            <div className='vehicles-page'>
                 <div className='loading-indicator'>
                     <FontAwesomeIcon icon={faSpinner} spin size='2x' />
                     <p>Loading Settings...</p>
@@ -261,6 +266,7 @@ const SettingsPage = () => {
         );
     }
 
+    // Handles case where user data is not available
     if (!user) {
         return (
             <div className='vehicles-page'>
@@ -275,10 +281,8 @@ const SettingsPage = () => {
     }
 
     return (
-        // Use standard page class + specific settings class
         <div className="vehicles-page settings-page">
             <Alert />
-            {/* Use standard header structure if applicable */}
             <div className="vehicles-header">
                 <div className="title-breadcrumbs">
                     <h2><FontAwesomeIcon icon={faUserCog} /> Settings</h2>
@@ -291,32 +295,32 @@ const SettingsPage = () => {
             </div>
 
             {/* Account Information Section */}
-            {/* Apply settings-section and form-container classes */}
             <div className="settings-section form-container">
                 <h3>Account Information</h3>
                 {!isEditingInfo ? (
                     <>
-                        {/* Apply account-info-grid and related classes */}
                         <div className="account-info-grid">
                             <div className="info-item"><span className="info-label">Name:</span> <span className="info-value">{user.name}</span></div>
                             <div className="info-item"><span className="info-label">Email:</span> <span className="info-value">{user.email}</span></div>
                             <div className="info-item"><span className="info-label">Role:</span> <span className="info-value">{user.role}</span></div>
-                            <div className="info-item"><span className="info-label">Country:</span> <span className="info-value">{user.country || 'N/A'}</span></div>
-                            <div className="info-item"><span className="info-label">Phone:</span> <span className="info-value">{user.phoneNumber || 'N/A'}</span></div>
-                            {user.role === 'employer' && <div className="info-item"><span className="info-label">Company:</span> <span className="info-value">{user.companyName || 'N/A'}</span></div>}
-                            {employee && (
+                            {user.role === 'employer' && ( // Fields specific to employer role
                                 <>
+                                    <div className="info-item"><span className="info-label">Country:</span> <span className="info-value">{user.country || 'N/A'}</span></div>
+                                    <div className="info-item"><span className="info-label">Phone:</span> <span className="info-value">{user.phoneNumber || 'N/A'}</span></div>
+                                    <div className="info-item"><span className="info-label">Company:</span> <span className="info-value">{user.companyName || 'N/A'}</span></div>
+                                </>
+                            )}
+                            {employee && (
+                                <> {/* Fields specific to employee role, if employee details are loaded */}
                                     <div className="info-item"><span className="info-label">Employee Code:</span> <span className="info-value">{employee.employeeCode || 'N/A'}</span></div>
                                     <div className="info-item"><span className="info-label">Wage:</span> <span className="info-value">{employee.wage ? `$${employee.wage.toFixed(2)}/hr` : 'N/A'}</span></div>
                                     <div className="info-item"><span className="info-label">Expected Hours:</span> <span className="info-value">{employee.expectedHours || 'N/A'} hrs/week</span></div>
                                     <div className="info-item full-width">
-                                        {/* Apply link-like-button class */}
                                         <Link to={`/employees/edit/${employee._id}`} className="link-like-button">Edit Employee Details (Wage, Code, etc.)</Link>
                                     </div>
                                 </>
                             )}
                         </div>
-                        {/* Apply form-footer class */}
                         <div className="form-footer">
                             <button
                                 className="btn btn-warning"
@@ -335,16 +339,13 @@ const SettingsPage = () => {
                         </div>
                     </>
                 ) : (
-                    // --- Inline Edit Form ---
-                    // Apply employee-form class (assuming it's in Forms.scss)
+                    // Inline Edit Form for Account Information
                     <form onSubmit={handleInfoSubmit} className="employee-form" noValidate>
                         {(infoError || authError) && (
-                            // Apply form-error-message class
                             <div className='form-error-message'>
                                 <FontAwesomeIcon icon={faExclamationCircle} /> {infoError || authError}
                             </div>
                         )}
-                        {/* Apply form-group class */}
                         <div className="form-group">
                             <label htmlFor="infoName">Name*</label>
                             <input id="infoName" type="text" name="name" value={infoFormData.name} onChange={handleInfoChange} required disabled={isSubmittingInfo} />
@@ -353,36 +354,36 @@ const SettingsPage = () => {
                             <label htmlFor="infoEmail">Email*</label>
                             <input id="infoEmail" type="email" name="email" value={infoFormData.email} onChange={handleInfoChange} required disabled={isSubmittingInfo} />
                         </div>
-                        <div className="form-group">
-                            <label htmlFor="infoCountry">Country</label>
-                            <input id="infoCountry" type="text" name="country" placeholder="Your Country" value={infoFormData.country} onChange={handleInfoChange} disabled={isSubmittingInfo} />
-                        </div>
-                        <div className="form-group">
-                            <label htmlFor="infoPhoneNumber">Phone Number</label>
-                            {/* Apply phone-input-group and country-code-select classes */}
-                            <div className="phone-input-group">
-                                <select
-                                    name="countryCode"
-                                    value={countryCode}
-                                    onChange={(e) => setCountryCode(e.target.value)}
-                                    className="country-code-select"
-                                    disabled={isSubmittingInfo}
-                                    aria-label="Country Code"
-                                >
-                                    {countryOptions.map(option => (
-                                    <option key={option.value} value={option.value}>{option.label}</option>
-                                    ))}
-                                </select>
-                                <input id="infoPhoneNumber" type="tel" name="phoneNumber" placeholder="Enter phone number" value={infoFormData.phoneNumber} onChange={handleInfoChange} disabled={isSubmittingInfo} />
-                            </div>
-                        </div>
                         {user.role === 'employer' && (
-                        <div className="form-group">
-                            <label htmlFor="infoCompanyName">Company Name</label>
-                            <input id="infoCompanyName" type="text" name="companyName" placeholder="Your Company Name" value={infoFormData.companyName} onChange={handleInfoChange} disabled={isSubmittingInfo} />
-                        </div>
+                            <>
+                                <div className="form-group">
+                                    <label htmlFor="infoCountry">Country</label>
+                                    <input id="infoCountry" type="text" name="country" placeholder="Your Country" value={infoFormData.country} onChange={handleInfoChange} disabled={isSubmittingInfo} />
+                                </div>
+                                <div className="form-group">
+                                    <label htmlFor="infoPhoneNumber">Phone Number</label>
+                                    <div className="phone-input-group">
+                                        <select
+                                            name="countryCode"
+                                            value={countryCode}
+                                            onChange={(e) => setCountryCode(e.target.value)}
+                                            className="country-code-select"
+                                            disabled={isSubmittingInfo}
+                                            aria-label="Country Code"
+                                        >
+                                            {countryOptions.map(option => (
+                                            <option key={option.value} value={option.value}>{option.label}</option>
+                                            ))}
+                                        </select>
+                                        <input id="infoPhoneNumber" type="tel" name="phoneNumber" placeholder="Enter phone number" value={infoFormData.phoneNumber} onChange={handleInfoChange} disabled={isSubmittingInfo} />
+                                    </div>
+                                </div>
+                                <div className="form-group">
+                                    <label htmlFor="infoCompanyName">Company Name</label>
+                                    <input id="infoCompanyName" type="text" name="companyName" placeholder="Your Company Name" value={infoFormData.companyName} onChange={handleInfoChange} disabled={isSubmittingInfo} />
+                                </div>
+                            </>
                         )}
-                        {/* Apply form-footer class */}
                         <div className="form-footer">
                             <button type="button" className="btn btn-secondary" onClick={handleInfoEditToggle} disabled={isSubmittingInfo}>
                                 <FontAwesomeIcon icon={faTimes} /> Cancel
@@ -397,21 +398,16 @@ const SettingsPage = () => {
 
             {/* Change Password Section */}
             {!isEditingInfo && (
-            // Apply settings-section and form-container classes
             <div className="settings-section form-container">
                 <h3>Change Password</h3>
-                {/* Apply employee-form class */}
                 <form onSubmit={handlePasswordSubmit} className="employee-form" noValidate>
                     {(passwordError || authError) && (
-                        // Apply form-error-message class
                         <div className='form-error-message'>
                             <FontAwesomeIcon icon={faExclamationCircle} /> {passwordError || authError}
                         </div>
                     )}
-                    {/* Apply form-group class */}
                     <div className="form-group">
                         <label htmlFor="currentPassword">Current Password*</label>
-                        {/* Apply styles_PasswordInputContainer and styles_PasswordToggleBtn classes */}
                         <div className="styles_PasswordInputContainer">
                             <input
                                 id="currentPassword"
@@ -463,7 +459,6 @@ const SettingsPage = () => {
                             </button>
                         </div>
                     </div>
-                    {/* Apply form-footer class */}
                     <div className="form-footer">
                         <button type="submit" className="btn btn-success" disabled={isSubmittingPassword}>
                             {isSubmittingPassword ? (
@@ -477,9 +472,8 @@ const SettingsPage = () => {
             </div>
             )}
 
-            {/* Delete Confirmation Dialog */}
+            {/* Delete Account Confirmation Dialog */}
             {showDeleteConfirm && (
-                // Apply logout-confirm-overlay, logout-confirm-dialog, logout-confirm-actions classes
                 <div className="logout-confirm-overlay">
                   <div className="logout-confirm-dialog">
                     <h4>Confirm Account Deletion</h4>
@@ -498,4 +492,3 @@ const SettingsPage = () => {
 };
 
 export default SettingsPage;
-

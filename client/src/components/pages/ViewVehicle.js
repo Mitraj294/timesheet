@@ -42,20 +42,20 @@ import {
   clearReviewOperationStatus,
   resetReviewState,
 } from '../../redux/slices/vehicleReviewSlice';
-import { setAlert } from '../../redux/slices/alertSlice'; // Import setAlert
-import Alert from '../layout/Alert'; // Import Alert component
+import { setAlert } from '../../redux/slices/alertSlice';
+import Alert from '../layout/Alert';
 import '../../styles/ViewVehicle.scss';
 
 const ViewVehicle = () => {
   const { vehicleId } = useParams();
   const navigate = useNavigate();
   const [search, setSearch] = useState('');
+  // State for report filter modals
   const [showDateRangePicker, setShowDateRangePicker] = useState(false);
   const [startDate, setStartDate] = useState(null);
   const [endDate, setEndDate] = useState(null);
   const [showSendReport, setShowSendReport] = useState(false);
   const [sendEmail, setSendEmail] = useState('');
-  // Local validation errors handled by dispatching alerts
 
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [itemToDelete, setItemToDelete] = useState(null); // { id, name }
@@ -63,6 +63,7 @@ const ViewVehicle = () => {
 
   const { user } = useSelector((state) => state.auth || {});
   const vehicle = useSelector(selectVehicleByIdState);
+  // Vehicle specific fetch status/error
   const vehicleFetchStatus = useSelector(selectCurrentVehicleStatus);
   const vehicleFetchError = useSelector(selectCurrentVehicleError);
   const vehicleHistory = useSelector(selectAllReviewsForVehicle);
@@ -70,26 +71,28 @@ const ViewVehicle = () => {
   const reviewFetchError = useSelector((state) => state.vehicleReviews.error);
   const reviewOperationStatus = useSelector(selectReviewOperationStatus);
   const reviewOperationError = useSelector(selectReviewOperationError);
+  // Report specific status/error
   const reportStatus = useSelector(selectVehicleReportStatus);
   const reportError = useSelector(selectVehicleReportError);
 
+  // Combined loading state for initial page data
   const isLoading = vehicleFetchStatus === 'loading' || reviewFetchStatus === 'loading';
   const fetchError = vehicleFetchError || reviewFetchError;
 
+  // Effects
+  // Fetches vehicle details and its review history
   useEffect(() => {
     dispatch(fetchVehicleById(vehicleId));
     dispatch(fetchReviewsByVehicleId(vehicleId));
+    // Cleanup on unmount or when vehicleId changes
     return () => {
-      // Don't reset currentVehicle here, Create/Update might need it immediately.
-      // dispatch(resetCurrentVehicle());
       dispatch(resetReviewState());
-      // Reset statuses specific to this page's operations
       dispatch(clearReportStatus());
       dispatch(clearReviewOperationStatus());
     };
   }, [vehicleId, dispatch]);
 
-  // Effect to show alerts for fetch, operation, or report errors from Redux state
+  // Displays errors from Redux state (fetch, operation, report) as alerts
   useEffect(() => {
     const reduxError = fetchError || reviewOperationError || reportError;
     if (reduxError) {
@@ -97,7 +100,8 @@ const ViewVehicle = () => {
     }
   }, [fetchError, reviewOperationError, reportError, dispatch]);
 
-  // --- Refactored Delete Confirmation ---
+  // Handlers
+  // Sets up state for the delete confirmation modal (for reviews)
   const handleDeleteClick = (reviewId, employeeName) => {
     setItemToDelete({ id: reviewId, name: employeeName || 'this employee' });
     setShowDeleteConfirm(true);
@@ -112,6 +116,7 @@ const ViewVehicle = () => {
     navigate(`/vehicles/${vehicleId}/review`);
   };
 
+  // Confirms and dispatches the delete action for a vehicle review
   const confirmDeleteReview = async () => {
     if (!itemToDelete) return;
     const { id: reviewId, name: employeeName } = itemToDelete;
@@ -120,11 +125,10 @@ const ViewVehicle = () => {
     try {
       await dispatch(deleteVehicleReview(reviewId)).unwrap();
       dispatch(setAlert(`Review by ${employeeName || 'employee'} deleted successfully.`, 'success'));
-      setShowDeleteConfirm(false); // Close modal on success
+      setShowDeleteConfirm(false);
       setItemToDelete(null);
     } catch (err) {
       console.error('Error deleting review:', err);
-      // Error handled by useEffect watching reviewOperationError
     }
   };
 
@@ -132,28 +136,35 @@ const ViewVehicle = () => {
     navigate(`/vehicles/reviews/${item._id}/view`);
   };
 
+  // Handles downloading the vehicle report (Excel)
   const handleDownloadExcelReport = async () => {
-    if (!startDate || !endDate) {
-      dispatch(setAlert('Please select a start and end date.', 'warning'));
-      return;
-    }
     dispatch(clearReportStatus());
 
+    const reportParams = { vehicleId };
+    if (startDate) reportParams.startDate = startDate.toISOString();
+    if (endDate) reportParams.endDate = endDate.toISOString();
+
     try {
-      const resultAction = await dispatch(downloadVehicleReport({
-        vehicleId,
-        startDate: startDate.toISOString(),
-        endDate: endDate.toISOString(),
-      })).unwrap();
+      const resultAction = await dispatch(downloadVehicleReport(reportParams)).unwrap();
 
       const { blob, filename } = resultAction;
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
+
       const safeVehicleName = vehicle?.name?.replace(/\s+/g, '_') || 'vehicle';
-      const formattedStartDate = startDate.toISOString().split('T')[0];
-      const formattedEndDate = endDate.toISOString().split('T')[0];
-      link.download = filename || `${safeVehicleName}_report_${formattedStartDate}_to_${formattedEndDate}.xlsx`;
+      let fallbackFilename = `${safeVehicleName}_report`;
+      if (startDate && endDate) {
+        fallbackFilename += `_${startDate.toISOString().split('T')[0]}_to_${endDate.toISOString().split('T')[0]}`;
+      } else if (startDate) {
+        fallbackFilename += `_from_${startDate.toISOString().split('T')[0]}`;
+      } else if (endDate) {
+        fallbackFilename += `_until_${endDate.toISOString().split('T')[0]}`;
+      } else {
+        fallbackFilename += '_all_time';
+      }
+      fallbackFilename += '.xlsx';
+      link.download = filename || fallbackFilename;
       document.body.appendChild(link);
       link.click();
       link.remove();
@@ -162,13 +173,13 @@ const ViewVehicle = () => {
       dispatch(setAlert('Vehicle report downloaded successfully.', 'success'));
     } catch (err) {
       console.error('Error downloading Excel report:', err);
-      // Error handled by useEffect watching reportError
     }
   };
 
+  // Handles sending the vehicle report via email
   const handleSendVehicleReport = async () => {
-    if (!startDate || !endDate || !sendEmail) {
-      dispatch(setAlert('Please select a date range and enter an email address.', 'warning'));
+    if (!sendEmail) {
+      dispatch(setAlert('Please enter an email address.', 'warning'));
       return;
     }
     if (!/\S+@\S+\.\S+/.test(sendEmail)) {
@@ -177,13 +188,12 @@ const ViewVehicle = () => {
     }
     dispatch(clearReportStatus());
 
+    const reportData = { vehicleId, email: sendEmail };
+    if (startDate) reportData.startDate = startDate.toISOString();
+    if (endDate) reportData.endDate = endDate.toISOString();
+
     try {
-      await dispatch(sendVehicleReportByEmail({
-        vehicleId,
-        startDate: startDate.toISOString(),
-        endDate: endDate.toISOString(),
-        email: sendEmail,
-      })).unwrap();
+      await dispatch(sendVehicleReportByEmail(reportData)).unwrap();
 
       setShowSendReport(false);
       setSendEmail('');
@@ -192,10 +202,10 @@ const ViewVehicle = () => {
       dispatch(setAlert('Vehicle report sent successfully.', 'success'));
     } catch (err) {
       console.error('Error sending report:', err);
-      // Error handled by useEffect watching reportError
     }
   };
 
+  // Toggles visibility of the Send Report filter section
   const toggleSendReport = () => {
     const currentlyShowing = showSendReport;
     setShowSendReport(!currentlyShowing);
@@ -207,6 +217,7 @@ const ViewVehicle = () => {
     }
   };
 
+  // Toggles visibility of the Download Report filter section
   const toggleDownloadReport = () => {
     const currentlyShowing = showDateRangePicker;
     setShowDateRangePicker(!currentlyShowing);
@@ -218,13 +229,15 @@ const ViewVehicle = () => {
     }
   };
 
+  // Filters the review history based on the search term (employee name)
   const filteredHistory = vehicleHistory.filter((entry) => {
     const employeeName = entry.employeeId?.name?.toLowerCase() || '';
     return employeeName.includes(search.toLowerCase());
   });
 
+  // Defines the CSS grid column layout for the reviews table
   const gridColumns = '1fr 1.5fr 1.5fr 0.8fr 0.8fr 0.8fr 0.8fr 1.2fr';
-  const isDeleting = reviewOperationStatus === 'loading'; // Use Redux status
+  const isDeletingReview = reviewOperationStatus === 'loading'; // True if a review delete operation is in progress
 
   if (isLoading && !vehicle) {
     return (
@@ -235,20 +248,8 @@ const ViewVehicle = () => {
     );
   }
 
-  // Error state handled by Alert component
-  /*
-  if (fetchError && !isLoading && !vehicle) {
-    return (
-      <div className='error-message page-error'>
-        <FontAwesomeIcon icon={faExclamationCircle} /> {fetchError}
-        <Link to='/vehicles' className='btn btn-secondary'>
-          Back to Vehicles
-        </Link>
-      </div>
-    );
-  }
-  */
-
+  // Render
+  // Handles case where vehicle data is not available after loading attempts
   return (
     <div className='vehicles-page'>
       <Alert />
@@ -293,7 +294,7 @@ const ViewVehicle = () => {
       {showSendReport && (
         <div id="send-report-options-view" className='report-options-container send-report-container'>
           <h4>Send Report for {vehicle?.name}</h4>
-          {/* Error handled by Alert component */}
+          {/* Errors for send operation are handled by the global Alert component via Redux state */}
           <div className='date-picker-range'>
             <DatePicker
               selected={startDate}
@@ -333,7 +334,7 @@ const ViewVehicle = () => {
             <button
               className='btn btn-purple'
               onClick={handleSendVehicleReport}
-              disabled={reportStatus === 'loading' || !startDate || !endDate || !sendEmail || !/\S+@\S+\.\S+/.test(sendEmail)}
+              disabled={reportStatus === 'loading' || !sendEmail || !/\S+@\S+\.\S+/.test(sendEmail)}
             >
               {reportStatus === 'loading' ? (
                 <><FontAwesomeIcon icon={faSpinner} spin /> Sending...</>
@@ -348,7 +349,7 @@ const ViewVehicle = () => {
       {showDateRangePicker && (
         <div id="download-report-options-view" className='report-options-container download-date-range'>
           <h4>Download Report for {vehicle?.name}</h4>
-          {/* Error handled by Alert component */}
+          {/* Errors for download operation are handled by the global Alert component via Redux state */}
           <div className='date-picker-range'>
             <DatePicker
               selected={startDate}
@@ -379,7 +380,7 @@ const ViewVehicle = () => {
           <button
             className='btn btn-danger'
             onClick={handleDownloadExcelReport}
-            disabled={reportStatus === 'loading' || !startDate || !endDate}
+            disabled={reportStatus === 'loading'}
           >
             {reportStatus === 'loading' ? (
               <><FontAwesomeIcon icon={faSpinner} spin /> Downloading...</>
@@ -390,15 +391,7 @@ const ViewVehicle = () => {
         </div>
       )}
 
-      {/* Error state handled by Alert component */}
-      {/*
-      {(fetchError || reviewOperationError || reportError) && !isLoading && (
-        <div className='error-message' style={{ marginBottom: '1.5rem' }}>
-          <FontAwesomeIcon icon={faExclamationCircle} />
-          <p>{fetchError || reviewOperationError || reportError}</p>
-        </div>
-      )}
-      */}
+      {/* Search bar for filtering reviews */}
 
       <div className='vehicles-search'>
         <input
@@ -411,6 +404,7 @@ const ViewVehicle = () => {
         <FontAwesomeIcon icon={faSearch} className='search-icon' />
       </div>
 
+      {/* Vehicle Review History Grid */}
       <div className='vehicles-grid'>
         <div className='vehicles-row header' style={{ gridTemplateColumns: gridColumns }}>
           <div>Date</div>
@@ -473,8 +467,8 @@ const ViewVehicle = () => {
                 )}
                 {(user?.role === 'employer' || user?.name === item.employeeId?.name) && (
                   <button
-                    onClick={() => handleDeleteClick(item._id, item.employeeId?.name)} // Trigger modal
-                    disabled={isDeleting} // Use Redux status
+                    onClick={() => handleDeleteClick(item._id, item.employeeId?.name)}
+                    disabled={isDeletingReview}
                     className='btn-icon btn-icon-red'
                     title='Delete Review'
                     aria-label={`Delete review by ${item.employeeId?.name || 'employee'}`}
@@ -488,16 +482,15 @@ const ViewVehicle = () => {
         )}
       </div>
 
-      {/* Delete Confirmation Modal */}
       {showDeleteConfirm && itemToDelete && (
-          <div className="logout-confirm-overlay"> {/* Re-use styles */}
+          <div className="logout-confirm-overlay">
             <div className="logout-confirm-dialog">
               <h4>Confirm Review Deletion</h4>
               <p>Are you sure you want to permanently delete the review by <strong>{itemToDelete.name}</strong>? This action cannot be undone.</p>
               <div className="logout-confirm-actions">
-                <button className="btn btn-secondary" onClick={cancelDelete} disabled={isDeleting}>Cancel</button>
-                <button className="btn btn-danger" onClick={confirmDeleteReview} disabled={isDeleting}>
-                  {isDeleting ? <><FontAwesomeIcon icon={faSpinner} spin /> Deleting...</> : 'Delete Review'}
+                <button className="btn btn-secondary" onClick={cancelDelete} disabled={isDeletingReview}>Cancel</button>
+                <button className="btn btn-danger" onClick={confirmDeleteReview} disabled={isDeletingReview}>
+                  {isDeletingReview ? <><FontAwesomeIcon icon={faSpinner} spin /> Deleting...</> : 'Delete Review'}
                 </button>
               </div>
             </div>

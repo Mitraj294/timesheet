@@ -43,6 +43,7 @@ const CreateOrUpdateVehicleReview = () => {
   const navigate = useNavigate();
   const isEditMode = Boolean(reviewId);
 
+  // Local form state
   const [formData, setFormData] = useState({
     dateReviewed: new Date().toISOString().split('T')[0],
     employeeId: '',
@@ -57,7 +58,7 @@ const CreateOrUpdateVehicleReview = () => {
 
   const dispatch = useDispatch();
 
-  // Select state from Redux
+  // Redux state selectors
   const vehicle = useSelector(selectVehicleByIdState);
   const vehicleFetchStatus = useSelector(selectVehicleFetchStatus);
   const vehicleFetchError = useSelector(selectVehicleFetchError);
@@ -73,30 +74,28 @@ const CreateOrUpdateVehicleReview = () => {
   const operationStatus = useSelector(selectReviewOperationStatus);
   const operationError = useSelector(selectReviewOperationError);
 
-  // Combined fetching status - ONLY for initial data loading
+  // Derived state: True if any initial essential data is being fetched
   const isFetchingInitialData = useMemo(() =>
-    vehicleFetchStatus === 'loading' || // Is vehicle being fetched?
-    employeeFetchStatus === 'loading' || // Are employees being fetched?
-    (isEditMode && reviewFetchStatus === 'loading') || // Is review being fetched (edit mode)?
-    // ADDED: Consider it loading if vehicle is needed but not yet fetched/succeeded and not failed
+    vehicleFetchStatus === 'loading' ||
+    employeeFetchStatus === 'loading' ||
+    (isEditMode && reviewFetchStatus === 'loading') ||
     (vehicleId && !vehicle && vehicleFetchStatus !== 'failed') ||
-    // ADDED: Consider it loading if employees are needed but not yet fetched/succeeded and not failed
     (employeeFetchStatus === 'idle' || (employeeFetchStatus !== 'succeeded' && employeeFetchStatus !== 'failed')) ||
-    // ADDED: Consider it loading if review is needed (edit mode) but not yet fetched/succeeded and not failed
     (isEditMode && reviewId && !currentReview && reviewFetchStatus !== 'failed'),
     [vehicleFetchStatus, employeeFetchStatus, reviewFetchStatus, isEditMode, vehicleId, reviewId, vehicle, currentReview]
   );
 
-  // Saving status
+  // Derived state: True if a create/update operation is in progress
   const isSaving = useMemo(() => operationStatus === 'loading', [operationStatus]);
 
-  // Combined fetch error
+  // Derived state: Combines all potential fetch errors for initial data
   const fetchError = useMemo(() =>
     vehicleFetchError || employeeFetchError || (isEditMode && reviewFetchError),
     [vehicleFetchError, employeeFetchError, isEditMode, reviewFetchError]
   );
 
-  // Effect to show alerts for fetch or save errors from Redux state
+  // Effects
+  // Displays errors from Redux state (fetch or save operations) as alerts
   useEffect(() => {
     const reduxError = fetchError || operationError;
     if (reduxError) {
@@ -104,18 +103,15 @@ const CreateOrUpdateVehicleReview = () => {
     }
   }, [fetchError, operationError, dispatch]);
 
-  // Effect to fetch necessary data - Dependencies ONLY trigger on ID/mode change
+  // Fetches essential data (vehicle, employees, and review if editing)
   useEffect(() => {
-    // Fetch vehicle if ID exists and it's not loaded or doesn't match the current ID
     if (vehicleId && (!vehicle || vehicle._id !== vehicleId)) {
       dispatch(fetchVehicleById(vehicleId));
     }
-    // Fetch employees if they haven't been loaded yet
-    // (Consider adding a check if employee list might become stale, but 'idle' or empty is usually sufficient)
     if (employeeFetchStatus === 'idle' || !employees || employees.length === 0) {
       dispatch(fetchEmployees());
     }
-    // Fetch review if editing, ID exists, and it's not loaded or doesn't match the current ID
+    // Fetch review data if in edit mode and it's not already loaded or is incorrect
     if (isEditMode && reviewId) {
       if (!currentReview || currentReview._id !== reviewId) {
          dispatch(fetchReviewById(reviewId));
@@ -134,31 +130,25 @@ const CreateOrUpdateVehicleReview = () => {
       dispatch(resetCurrentReviewState()); // Safe to reset review state when creating
     }
 
-    // Cleanup on unmount - Only clear operation status to prevent loops
+    // Cleanup when component unmounts or dependencies change
     return () => {
-      // Clear any pending save/update status when leaving the form
       dispatch(clearReviewOperationStatus());
-      // Avoid resetting fetched data (vehicle, employees, currentReview) here,
-      // let the next component decide if it needs fresh data.
     };
   }, [vehicleId, reviewId, isEditMode, dispatch]);
 
-  // Effect to set default hours from vehicle *after* vehicle is fetched (for create mode)
+  // Sets default hours from the vehicle data when creating a new review
   useEffect(() => {
-    // Only set default if creating, vehicle loaded, vehicle has hours, and form hours haven't been manually set yet
     if (!isEditMode && vehicleFetchStatus === 'succeeded' && vehicle?.hours != null && formData.hours === '') {
         setFormData(prev => ({ ...prev, hours: vehicle.hours.toString() }));
     }
-    // This effect depends on vehicle data loading successfully
   }, [isEditMode, vehicleFetchStatus, vehicle, formData.hours]);
 
-  // Effect to populate form *after* review data is fetched for edit mode
+  // Populates the form with fetched review data when in edit mode
   useEffect(() => {
-    // Only populate if editing, fetch succeeded, and the correct review is loaded
     if (isEditMode && reviewFetchStatus === 'succeeded' && currentReview?._id === reviewId) {
       const newReviewData = {
         dateReviewed: currentReview.dateReviewed?.split('T')[0] || '',
-        employeeId: currentReview.employeeId?._id || currentReview.employeeId || '',
+        employeeId: currentReview.employeeId?._id || currentReview.employeeId || '', // Handles populated or direct ID
         oilChecked: currentReview.oilChecked || false,
         vehicleChecked: currentReview.vehicleChecked || false,
         vehicleBroken: currentReview.vehicleBroken || false,
@@ -167,16 +157,15 @@ const CreateOrUpdateVehicleReview = () => {
       };
       // Update local state only if necessary to prevent loops
       setFormData(prevData => {
-          // Simple stringify comparison is usually sufficient here
           if (JSON.stringify(prevData) !== JSON.stringify(newReviewData)) {
               return newReviewData;
           }
           return prevData;
       });
     }
-    // This effect depends on the review data loading successfully
   }, [isEditMode, reviewFetchStatus, currentReview, reviewId]);
 
+  // Handlers
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
     setFormData((prev) => ({
@@ -231,9 +220,7 @@ const CreateOrUpdateVehicleReview = () => {
     }
   };
 
-  // --- Rendering Logic ---
-
-  // 1. Show Global Loading Indicator if fetching initial essential data
+  // Render logic
   if (isFetchingInitialData) {
     return (
       <div className='vehicles-page'>
@@ -244,14 +231,12 @@ const CreateOrUpdateVehicleReview = () => {
               <FontAwesomeIcon icon={faClipboardList} />{' '}
               {isEditMode ? 'Edit Vehicle Review' : 'Create Vehicle Review'}
             </h2>
-            {/* Simplified breadcrumbs during load */}
             <div className='breadcrumbs'>
               <Link to='/dashboard' className='breadcrumb-link'> Dashboard </Link>
               <span className='breadcrumb-separator'> / </span>
               <Link to='/vehicles' className='breadcrumb-link'> Vehicles </Link>
               {vehicleId && <>
                 <span className='breadcrumb-separator'> / </span>
-                {/* Link might not have vehicle name yet, keep it simple */}
                 <Link to={`/vehicles/view/${vehicleId}`} className='breadcrumb-link'> View Vehicle </Link>
               </>}
               <span className='breadcrumb-separator'> / </span>
@@ -261,7 +246,7 @@ const CreateOrUpdateVehicleReview = () => {
             </div>
           </div>
         </div>
-        <div className='loading-indicator page-loading'> {/* Centered loading */}
+        <div className='loading-indicator page-loading'>
           <FontAwesomeIcon icon={faSpinner} spin size='2x' />
           <p>Loading data...</p>
         </div>
@@ -269,13 +254,12 @@ const CreateOrUpdateVehicleReview = () => {
     );
   }
 
-  // 2. Show Error if fetching failed and essential data (vehicle) is missing
-  //    (Check fetchError *after* checking loading state)
-  if (!vehicle && fetchError) { // Check specifically for vehicle missing + any fetch error
+  // Handles error state if essential data (like vehicle) failed to load
+  if (!vehicle && fetchError) {
      return (
        <div className='vehicles-page'>
          <Alert />
-         <div className='vehicles-header'> {/* Basic header structure */}
+         <div className='vehicles-header'>
            <div className='title-breadcrumbs'>
              <h2>
                <FontAwesomeIcon icon={faClipboardList} />{' '}
@@ -299,7 +283,6 @@ const CreateOrUpdateVehicleReview = () => {
          </div>
          <div className='error-message page-error'>
             <FontAwesomeIcon icon={faExclamationCircle} />
-            {/* Display the actual error */}
             <p>Could not load required data: {fetchError}. Please try again later.</p>
             <Link to="/vehicles" className="btn btn-secondary">Back to Vehicles</Link>
          </div>
@@ -307,14 +290,12 @@ const CreateOrUpdateVehicleReview = () => {
      );
   }
 
-  // 3. Show Form only if NOT fetching initial data AND vehicle data IS available
-  //    (This condition should now be met correctly after loading finishes)
+  // Renders the form if initial data is loaded and vehicle data is available
   if (!isFetchingInitialData && vehicle) {
     return (
       <div className='vehicles-page'>
         <Alert />
         <div className='vehicles-header'>
-          {/* Full header with potentially loaded vehicle name */}
            <div className='title-breadcrumbs'>
             <h2>
               <FontAwesomeIcon icon={faClipboardList} />{' '}
@@ -326,7 +307,6 @@ const CreateOrUpdateVehicleReview = () => {
               <Link to='/vehicles' className='breadcrumb-link'> Vehicles </Link>
               <span className='breadcrumb-separator'> / </span>
               <Link to={`/vehicles/view/${vehicleId}`} className='breadcrumb-link'>
-                {/* Now safe to use vehicle.name */}
                 {vehicle?.name ?? 'View Vehicle'}
               </Link>
               <span className='breadcrumb-separator'> / </span>
@@ -350,7 +330,7 @@ const CreateOrUpdateVehicleReview = () => {
             className='employee-form'
             noValidate
           >
-            {/* Local validation errors */}
+            {/* Display local form validation errors */}
             {formError && (
               <div className='form-error-message'>
                 <FontAwesomeIcon icon={faExclamationCircle} /> {formError}
@@ -366,7 +346,7 @@ const CreateOrUpdateVehicleReview = () => {
                 name='dateReviewed'
                 value={formData.dateReviewed}
                 onChange={handleChange}
-                disabled={isSaving} // Disable only when saving
+                disabled={isSaving}
               />
             </div>
 
@@ -378,17 +358,15 @@ const CreateOrUpdateVehicleReview = () => {
                 required
                 value={formData.employeeId}
                 onChange={handleChange}
-                disabled={isSaving || employeeFetchStatus === 'loading'} // Disable if saving or employees loading
+                disabled={isSaving || employeeFetchStatus === 'loading'}
               >
                 <option value=''>-- Select Employee --</option>
-                {/* Ensure employees is an array before mapping */}
                 {Array.isArray(employees) && employees.map((employee) => (
                   <option key={employee._id} value={employee._id}>
                     {employee.name}
                   </option>
                 ))}
               </select>
-              {/* Optional: Show loading indicator specifically for employees if needed */}
               {employeeFetchStatus === 'loading' && <FontAwesomeIcon icon={faSpinner} spin style={{ marginLeft: '10px' }}/>}
             </div>
 
@@ -403,7 +381,7 @@ const CreateOrUpdateVehicleReview = () => {
                 value={formData.hours}
                 onChange={handleChange}
                 required
-                disabled={isSaving} // Disable only when saving
+                disabled={isSaving}
                 placeholder='Hours'
               />
             </div>
@@ -415,7 +393,7 @@ const CreateOrUpdateVehicleReview = () => {
                 name='oilChecked'
                 checked={formData.oilChecked}
                 onChange={handleChange}
-                disabled={isSaving} // Disable only when saving
+                disabled={isSaving}
               />
               <label htmlFor='oilChecked'>Oil Checked</label>
             </div>
@@ -427,7 +405,7 @@ const CreateOrUpdateVehicleReview = () => {
                 name='vehicleChecked'
                 checked={formData.vehicleChecked}
                 onChange={handleChange}
-                disabled={isSaving} // Disable only when saving
+                disabled={isSaving}
               />
               <label htmlFor='vehicleChecked'>Vehicle Checked</label>
             </div>
@@ -439,7 +417,7 @@ const CreateOrUpdateVehicleReview = () => {
                 name='vehicleBroken'
                 checked={formData.vehicleBroken}
                 onChange={handleChange}
-                disabled={isSaving} // Disable only when saving
+                disabled={isSaving}
               />
               <label htmlFor='vehicleBroken'>Vehicle Broken/Issues?</label>
             </div>
@@ -452,7 +430,7 @@ const CreateOrUpdateVehicleReview = () => {
                 value={formData.notes}
                 onChange={handleChange}
                 rows='4'
-                disabled={isSaving} // Disable only when saving
+                disabled={isSaving}
                 placeholder='Add any relevant notes about the vehicle check...'
               ></textarea>
             </div>
@@ -462,15 +440,14 @@ const CreateOrUpdateVehicleReview = () => {
                 type='button'
                 className='btn btn-danger'
                 onClick={() => navigate(`/vehicles/view/${vehicleId}`)}
-                disabled={isSaving} // Disable only when saving
+                disabled={isSaving}
               >
                 <FontAwesomeIcon icon={faTimes} /> Cancel
               </button>
               <button
                 type='submit'
                 className='btn btn-success'
-                // Add basic client-side disabling for required fields
-                disabled={isSaving || !formData.employeeId || !formData.dateReviewed || formData.hours === ''}
+                disabled={isSaving || !formData.employeeId || !formData.dateReviewed || formData.hours === ''} // Basic client-side validation for button state
               >
                 {isSaving ? ( // Use isSaving for button state
                   <> <FontAwesomeIcon icon={faSpinner} spin /> Saving... </>
@@ -488,19 +465,17 @@ const CreateOrUpdateVehicleReview = () => {
     );
   }
 
-  // 4. Fallback (Should ideally not be reached if logic above is correct)
-  //    This might happen if loading finished, vehicle is null, but there was no fetchError reported.
+  // Fallback render if none of the above conditions are met (e.g., unexpected state)
   return (
        <div className='vehicles-page'>
          <Alert />
-         <div className='vehicles-header'> {/* Basic header structure */}
+         <div className='vehicles-header'>
            <div className='title-breadcrumbs'>
              <h2>
                <FontAwesomeIcon icon={faClipboardList} />{' '}
                {isEditMode ? 'Edit Vehicle Review' : 'Create Vehicle Review'}
              </h2>
              <div className='breadcrumbs'>
-               {/* Consistent basic breadcrumbs */}
             <Link to='/dashboard' className='breadcrumb-link'> Dashboard </Link>
             <span className='breadcrumb-separator'> / </span>
             <Link to='/vehicles' className='breadcrumb-link'> Vehicles </Link>

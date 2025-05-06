@@ -5,14 +5,14 @@ import { useDispatch, useSelector } from 'react-redux';
 import {
   addEmployee,
   updateEmployee,
-  fetchEmployees, // Renamed from getEmployees
+  fetchEmployees,
   selectAllEmployees,
   selectEmployeeStatus,
   selectEmployeeError
 } from '../../redux/slices/employeeSlice';
-import { setAlert } from '../../redux/slices/alertSlice'; // Import setAlert
-import { register } from '../../redux/slices/authSlice'; // Import register action if needed, or use fetch directly
-import Alert from '../layout/Alert'; // Import Alert component
+import { setAlert } from '../../redux/slices/alertSlice';
+import { register } from '../../redux/slices/authSlice'; // Used for creating a user account for the employee
+import Alert from '../layout/Alert';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
   faUserPlus,
@@ -32,6 +32,7 @@ const EmployeeForm = () => {
   const dispatch = useDispatch();
   const isEditMode = Boolean(id);
 
+  // Redux state selectors
   const employees = useSelector(selectAllEmployees);
   const employeeStatus = useSelector(selectEmployeeStatus);
   const employeesError = useSelector(selectEmployeeError);
@@ -48,25 +49,26 @@ const EmployeeForm = () => {
     userId: null,
   };
 
+  // Local component state
   const [formData, setFormData] = useState(initialFormState);
-  // const [isSubmitting, setIsSubmitting] = useState(false); // Replaced by Redux status
   const [error, setError] = useState(null); // Local error for form validation
 
+  // Effects
+  // Fetches employees if the list is not already loaded
   useEffect(() => {
     if (employeeStatus === 'idle') {
       dispatch(fetchEmployees());
     }
   }, [dispatch, employeeStatus]);
 
-  // Effect to show alerts for fetch errors from Redux state
+  // Displays errors from Redux state (e.g., employee fetch errors) as alerts
   useEffect(() => {
-    // Show fetch error only if not editing or if the specific employee wasn't found after fetch
     if (employeesError && (!isEditMode || (isEditMode && employeeStatus === 'failed'))) {
       dispatch(setAlert(employeesError, 'danger'));
-      // Optionally clear the Redux error after showing the alert
     }
   }, [employeesError, isEditMode, employeeStatus, dispatch]);
 
+  // Populates the form with employee data when in edit mode and data is available
   useEffect(() => {
     if (id && employees.length > 0) {
       const emp = employees.find((e) => e._id === id);
@@ -85,14 +87,14 @@ const EmployeeForm = () => {
       } else {
         console.warn(`Employee with ID ${id} not found.`);
         if (employeeStatus === 'succeeded') {
-            setError(`Employee with ID ${id} not found.`);
+            dispatch(setAlert(`Employee with ID ${id} not found.`, 'warning'));
         }
       }
     } else if (!id) {
-      setFormData(initialFormState);
+      setFormData(initialFormState); // Reset form if creating a new employee
     }
   }, [id, employees, employeeStatus]);
-
+  // Handlers
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
     setFormData((prevState) => ({
@@ -100,12 +102,13 @@ const EmployeeForm = () => {
       [name]: type === 'checkbox' ? (checked ? 'Yes' : 'No') : value, // Handle checkbox correctly
     }));
      // Clear local error on change
-    if (error) setError(null);
+    if (error) setError(null); // Clear local validation error when user types
   };
 
-  // Use Redux status for disabling form during add/update
+  // Derived state: True if an add/update operation is in progress
   const isSaving = employeeStatus === 'loading';
 
+  // Form validation logic
   const validateForm = () => {
     if (!formData.name.trim()) return 'Name is required.';
     if (!formData.employeeCode.trim()) return 'Employee Code is required.';
@@ -116,19 +119,17 @@ const EmployeeForm = () => {
     return null;
   };
 
-
+  // Handles form submission for creating or updating an employee
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError(null); // Clear local error
+    setError(null); // Clear previous local validation errors
 
     const validationError = validateForm();
     if (validationError) {
-      dispatch(setAlert(validationError, 'warning')); // Show validation error via Alert
+      dispatch(setAlert(validationError, 'warning'));
       setError(validationError);
       return;
     }
-
-    // setIsSubmitting(true); // Redux status will handle this for add/update
 
     let userCheckData = { exists: false }; // Declare userCheckData outside the if block
     let employeeData = {
@@ -141,9 +142,8 @@ const EmployeeForm = () => {
     };
 
     try {
-      // --- Consider refactoring this user check/registration part ---
+      // If creating a new employee, first check if a user account with this email exists
       if (!isEditMode) {
-        // --- Register User Logic ---
         const userCheckResponse = await fetch(`${API_URL}/auth/check-user`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -157,8 +157,9 @@ const EmployeeForm = () => {
         userCheckData = await userCheckResponse.json(); // Assign value here
 
         if (!userCheckData.exists) {
-          const tempPassword = '123456'; // Preset password
-          const registerResponse = await fetch(`${API_URL}/auth/register`, {
+          // If user doesn't exist, create a new user account for them
+          const tempPassword = '123456'; // Default temporary password
+          const registerResponse = await fetch(`${API_URL}/auth/register`, { // Consider using dispatch(register(...))
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -178,30 +179,23 @@ const EmployeeForm = () => {
           }
           employeeData.userId = registeredUser.user._id;
         }
-        // --- End Register User Logic ---
-        // --- End of section to consider refactoring ---
       }
 
       if (isEditMode) {
-        await dispatch(updateEmployee({ id, employeeData })).unwrap(); // Use unwrap to catch errors
-        dispatch(setAlert('Employee updated successfully!', 'success')); // Success alert
+        await dispatch(updateEmployee({ id, employeeData })).unwrap();
+        dispatch(setAlert('Employee updated successfully!', 'success'));
       } else {
-        // Ensure userId is in employeeData before adding
         if (!employeeData.userId && userCheckData.exists) {
-           // Handle case where user exists but wasn't linked (maybe fetch user ID based on email?)
-           console.warn("User exists but wasn't linked during creation."); // Or fetch user ID
+           console.warn("User exists but wasn't linked during creation. Manual linking might be needed or fetch user ID.");
         }
-        await dispatch(addEmployee(employeeData)).unwrap(); // Use unwrap to catch errors
-        dispatch(setAlert(`Employee added & User account created!  Temporary password is '123456' and advise to change it upon first login.`, 'success', 10000)); // Updated alert message
+        await dispatch(addEmployee(employeeData)).unwrap();
+        dispatch(setAlert(`Employee added & User account created! Temporary password is '123456'. Advise user to change it.`, 'success', 10000));
       }
 
       navigate('/employees');
 
     } catch (rejectedValueOrSerializedError) {
-      // Error from fetch, register, addEmployee, or updateEmployee
-      // unwrap throws the error payload or a SerializedError
       console.error(`Error ${isEditMode ? 'updating' : 'adding'} employee:`, rejectedValueOrSerializedError);
-      // Error message might be directly in rejectedValueOrSerializedError or in .message
       const message = typeof rejectedValueOrSerializedError === 'string'
           ? rejectedValueOrSerializedError
           : rejectedValueOrSerializedError?.message || `Failed to ${isEditMode ? 'update' : 'add'} employee.`;
@@ -209,8 +203,8 @@ const EmployeeForm = () => {
       dispatch(setAlert(message, 'danger')); // Show submission error via Alert
     } // No finally block needed if using Redux status
   };
-
-  // Use Redux status for initial loading
+  
+  // Render
   const isLoadingInitialData = employeeStatus === 'loading' && !employees.length;
 
   if (isLoadingInitialData) {
@@ -224,23 +218,9 @@ const EmployeeForm = () => {
       );
   }
 
-  // Show Redux error if initial fetch failed
-  /* if (employeesError && !employees.length && employeeStatus === 'failed') { // Handled by Alert component via useEffect
-     return (
-        <div className='vehicles-page'>
-            <div className='error-message'>
-              <FontAwesomeIcon icon={faExclamationCircle} />
-              <p>Error loading employee data: {employeesError}</p>
-               <button className="btn btn-secondary" onClick={() => dispatch(fetchEmployees())}>Retry</button>
-            </div>
-        </div> // Handled by Alert component via useEffect
-      );
-  } */
-
-
   return (
     <div className='vehicles-page'>
-      <Alert /> {/* Render Alert component here */}
+      <Alert />
       <div className='vehicles-header'>
         <div className='title-breadcrumbs'>
           <h2>
@@ -265,12 +245,7 @@ const EmployeeForm = () => {
 
       <div className='form-container'>
         <form onSubmit={handleSubmit} className='employee-form' noValidate>
-          {/* {error && ( // Handled by Alert component
-            <div className='form-error-message'>
-              <FontAwesomeIcon icon={faExclamationCircle} /> {error}
-            </div>
-          )} */}
-
+          {/* Local validation errors are now shown via the Alert component */}
           <div className='form-group'>
             <label htmlFor='name'>Name*</label>
             <input
@@ -285,7 +260,7 @@ const EmployeeForm = () => {
             <input
               id='employeeCode' type='text' name='employeeCode' placeholder='Unique Employee Code'
               value={formData.employeeCode} onChange={handleChange} required
-              disabled={isSaving} // Use Redux status
+              disabled={isSaving}
             />
           </div>
 
@@ -294,7 +269,7 @@ const EmployeeForm = () => {
             <input
               id='email' type='email' name='email' placeholder='employee@example.com'
               value={formData.email} onChange={handleChange} required
-              disabled={isSaving || isEditMode} // Use Redux status
+              disabled={isSaving || isEditMode} // Email cannot be changed in edit mode
             />
              {isEditMode && <small>Email cannot be changed after creation.</small>}
           </div>
@@ -305,7 +280,7 @@ const EmployeeForm = () => {
               id='wage' type='number' name='wage' placeholder='e.g., 25.50'
               value={formData.wage} onChange={handleChange} required
               min='0' step='0.01'
-              disabled={isSaving} // Use Redux status
+              disabled={isSaving}
             />
           </div>
 
@@ -315,7 +290,7 @@ const EmployeeForm = () => {
               id='expectedHours' type='number' name='expectedHours' placeholder='e.g., 40'
               value={formData.expectedHours} onChange={handleChange} required
               min='0' step='1'
-              disabled={isSaving} // Use Redux status
+              disabled={isSaving}
             />
           </div>
 
@@ -325,7 +300,7 @@ const EmployeeForm = () => {
               id='holidayMultiplier' type='number' name='holidayMultiplier' placeholder='e.g., 1.5'
               value={formData.holidayMultiplier} onChange={handleChange} required
               min='0' step='0.1'
-              disabled={isSaving} // Use Redux status
+              disabled={isSaving}
             />
           </div>
 
@@ -333,7 +308,7 @@ const EmployeeForm = () => {
             <label htmlFor='isAdmin'>Admin Role*</label>
             <select
               id='isAdmin' name='isAdmin' value={formData.isAdmin} onChange={handleChange} required
-              disabled={isSaving} // Use Redux status
+              disabled={isSaving}
             >
               <option value='No'>No</option>
               <option value='Yes'>Yes</option>
@@ -344,7 +319,7 @@ const EmployeeForm = () => {
             <label htmlFor='overtime'>Overtime Allowed*</label>
             <select
               id='overtime' name='overtime' value={formData.overtime} onChange={handleChange} required
-              disabled={isSaving} // Use Redux status
+              disabled={isSaving}
             >
               <option value='No'>No</option>
               <option value='Yes'>Yes</option>
@@ -355,15 +330,14 @@ const EmployeeForm = () => {
             <button
               type='button' className='btn btn-danger'
               onClick={() => navigate('/employees')}
-              disabled={isSaving} // Use Redux status
+              disabled={isSaving}
             >
                <FontAwesomeIcon icon={faTimes} /> Cancel
             </button>
             <button
               type='submit' className='btn btn-success'
-              disabled={isSaving} // Use Redux status
+              disabled={isSaving}
             >
-              {/* Show spinner based on Redux status */}
               {isSaving ? (
                 <>
                   <FontAwesomeIcon icon={faSpinner} spin /> Saving...

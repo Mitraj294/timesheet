@@ -3,16 +3,15 @@ import React, { useEffect, useState, useCallback } from 'react'; // Added useCal
 import { Link, useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 // --- UPDATED IMPORTS ---
-// Import from employeeSlice instead of employeeActions
 import {
-  fetchEmployees, // Renamed from getEmployees
+  fetchEmployees,
   deleteEmployee,
   selectAllEmployees,
   selectEmployeeStatus,
   selectEmployeeError
 } from '../../redux/slices/employeeSlice';
-import { setAlert } from '../../redux/slices/alertSlice'; // Import setAlert
-import Alert from '../layout/Alert'; // Import Alert component
+import { setAlert } from '../../redux/slices/alertSlice';
+import Alert from '../layout/Alert';
 // --- END UPDATED IMPORTS ---
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
@@ -25,59 +24,52 @@ import {
   faSearch,
 } from '@fortawesome/free-solid-svg-icons';
 import '../../styles/Vehicles.scss'; // Assuming this stylesheet is correct
-
 const Employees = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
-  const [search, setSearch] = useState('');
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false); // State for modal visibility
-  const [itemToDelete, setItemToDelete] = useState(null); // State for employee to delete { id, name }
 
-  // --- Selectors with defensive checks ---
+  // Local component state
+  const [search, setSearch] = useState('');
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [itemToDelete, setItemToDelete] = useState(null); // Stores { id, name } for deletion confirmation
+
+  // Redux state selectors
   const employees = useSelector(state => {
-    // console.log('Employees - Running selectAllEmployees:', typeof selectAllEmployees);
     if (typeof selectAllEmployees !== 'function') {
         console.error('Employees - selectAllEmployees is not a function!');
-        return []; // Return default value
+        return [];
     }
     return selectAllEmployees(state);
   });
   const employeeStatus = useSelector(state => {
-    // console.log('Employees - Running selectEmployeeStatus:', typeof selectEmployeeStatus);
      if (typeof selectEmployeeStatus !== 'function') {
         console.error('Employees - selectEmployeeStatus is not a function!');
-        return 'idle'; // Return default value
+        return 'idle';
     }
     return selectEmployeeStatus(state);
   });
   const error = useSelector(state => {
-    // console.log('Employees - Running selectEmployeeError:', typeof selectEmployeeError);
      if (typeof selectEmployeeError !== 'function') {
         console.error('Employees - selectEmployeeError is not a function!');
-        return null; // Return default value
+        return null;
     }
     return selectEmployeeError(state);
   });
-  const loading = employeeStatus === 'loading'; // Derive boolean loading from status
 
-  // Select token and auth loading status for conditional fetching
   const { token, isLoading: isAuthLoading, isAuthenticated } = useSelector((state) => state.auth || {});
-  const { user } = useSelector((state) => state.auth || {}); // Keep user selector if needed elsewhere
+  const { user } = useSelector((state) => state.auth || {}); // For role-based UI rendering
 
+  // Effects
+  // Fetches employees if authenticated, token is present, and data hasn't been loaded
   useEffect(() => {
-    // Don't attempt fetch if auth is still loading OR if there's no token
     if (isAuthLoading) {
-      console.log(`Employees - Skipping fetchEmployees: Auth is loading.`);
-      return; // Exit early if auth state is not ready
+      return; // Wait for authentication to resolve
     }
     if (!token) {
       console.warn(`Employees - Skipping fetchEmployees: No token present.`);
-      // Optionally redirect or show login prompt if not authenticated
-      // if (!isAuthenticated) navigate('/login');
-      return; // Exit early if no token
+      return;
     }
 
-    // Only fetch if authenticated, token is present, and data is needed
     if (employeeStatus === 'idle') {
       console.log("Employees - Dispatching fetchEmployees (Token present, status idle)");
       dispatch(fetchEmployees());
@@ -85,18 +77,16 @@ const Employees = () => {
       console.log("Employees - Skipping fetchEmployees, status:", employeeStatus);
     }
 
-  }, [dispatch, employeeStatus, token, isAuthLoading, isAuthenticated, navigate]); // Added dependencies
+  }, [dispatch, employeeStatus, token, isAuthLoading, isAuthenticated, navigate]);
 
-  // Effect to show alerts for fetch errors from Redux state
+  // Displays errors from Redux state (e.g., employee fetch errors) as alerts
   useEffect(() => {
     if (error) {
       dispatch(setAlert(error, 'danger'));
-      // Optionally clear the Redux error after showing the alert
-      // dispatch(clearEmployeeError()); // You'd need to create this action
     }
   }, [error, dispatch]);
 
-  // --- Refactored Delete Confirmation ---
+  // Handlers
   const handleDeleteClick = (id, name) => {
     setItemToDelete({ id, name });
     setShowDeleteConfirm(true);
@@ -119,11 +109,11 @@ const Employees = () => {
       .catch((err) => {
         dispatch(setAlert(err?.message || `Failed to delete employee "${name}".`, 'danger'));
       });
-    setShowDeleteConfirm(false); // Close modal after dispatch
+    setShowDeleteConfirm(false);
     setItemToDelete(null);
-  }, [itemToDelete, dispatch]); // Added dependencies
+  }, [itemToDelete, dispatch]);
 
-   // Ensure employees is an array before filtering
+   // Filters employees based on search term
    const filteredEmployees = Array.isArray(employees) ? employees.filter(
     (emp) =>
       emp?.name?.toLowerCase().includes(search.toLowerCase()) ||
@@ -132,13 +122,12 @@ const Employees = () => {
   ) : [];
 
   const gridColumns = '1.5fr 1fr 1.5fr 0.7fr 0.7fr 1fr 1fr 1fr auto';
+  const showLoading = isAuthLoading || employeeStatus === 'loading'; // Combined loading state
 
-  // Display loading indicator if auth is loading OR employees are loading
-  const showLoading = isAuthLoading || loading;
-
+  // Render
   return (
-    <div className='vehicles-page'> {/* Consider renaming class if not specific to vehicles */}
-      <Alert /> {/* Render Alert component here */}
+    <div className='vehicles-page'>
+      <Alert />
       <div className='vehicles-header'>
         <div className='title-breadcrumbs'>
           <h2>
@@ -155,7 +144,7 @@ const Employees = () => {
             <button
               className='btn btn-success'
               onClick={() => navigate('/employees/add')}
-              disabled={showLoading} // Disable button while loading anything
+              disabled={showLoading}
             >
               <FontAwesomeIcon icon={faPlus} /> Add Employee
             </button>
@@ -170,34 +159,19 @@ const Employees = () => {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           aria-label='Search Employees'
-          disabled={showLoading} // Disable search while loading
+          disabled={showLoading}
         />
         <FontAwesomeIcon icon={faSearch} className='search-icon' />
       </div>
 
-      {/* Use combined loading state */}
       {showLoading && (
         <div className='loading-indicator'>
           <FontAwesomeIcon icon={faSpinner} spin size='2x' />
           <p>{isAuthLoading ? 'Authenticating...' : 'Loading employees...'}</p>
         </div>
       )}
-
-      {/* Use Redux error state - show only if not loading */}
-      {/* {error && !showLoading && ( // Handled by Alert component via useEffect
-        <div className='error-message'>
-          <FontAwesomeIcon icon={faExclamationCircle} />
-          <p>Error loading employees: {error}</p>
-          {/* Provide retry only if the error is specifically 'Not authorized...' * /}
-          {error === 'Not authorized, no token provided' ? (
-             <p>Please try logging in again.</p>
-          ) : (
-             <button className="btn btn-secondary" onClick={() => dispatch(fetchEmployees())}>Retry</button>
-          )}
-        </div>
-      )} */}
-
-      {/* Employee Grid - Show only if not loading and no error */}
+      
+      {/* Employee grid: displayed when not loading and no error occurred */}
       {!showLoading && !error && (
         <div className='vehicles-grid'>
           <div
@@ -223,7 +197,7 @@ const Employees = () => {
             filteredEmployees.map((emp) => (
               <div
                 key={emp._id}
-                className='vehicles-row vehicle-card' // Consider renaming class
+                className='vehicles-row vehicle-card'
                 style={{ gridTemplateColumns: gridColumns }}
               >
                 <div data-label='Name'>{emp.name || '--'}</div>
@@ -246,7 +220,7 @@ const Employees = () => {
                     </button>
                     <button
                       className='btn-icon btn-icon-red'
-                      onClick={() => handleDeleteClick(emp._id, emp.name)} // Updated to call handleDeleteClick
+                      onClick={() => handleDeleteClick(emp._id, emp.name)}
                       aria-label={`Delete ${emp.name}`}
                       title={`Delete ${emp.name}`}
                     >
@@ -260,16 +234,15 @@ const Employees = () => {
         </div>
       )}
 
-      {/* Delete Confirmation Modal */}
       {showDeleteConfirm && itemToDelete && (
-          <div className="logout-confirm-overlay"> {/* Re-use styles */}
+          <div className="logout-confirm-overlay">
             <div className="logout-confirm-dialog">
               <h4>Confirm Employee Deletion</h4>
               <p>Are you sure you want to permanently delete employee "<strong>{itemToDelete.name}</strong>"? This action cannot be undone.</p>
               <div className="logout-confirm-actions">
-                <button className="btn btn-secondary" onClick={cancelDelete} disabled={loading}>Cancel</button>
-                <button className="btn btn-danger" onClick={confirmDeleteEmployee} disabled={loading}>
-                  {loading ? <><FontAwesomeIcon icon={faSpinner} spin /> Deleting...</> : 'Delete Employee'}
+                <button className="btn btn-secondary" onClick={cancelDelete} disabled={employeeStatus === 'loading'}>Cancel</button>
+                <button className="btn btn-danger" onClick={confirmDeleteEmployee} disabled={employeeStatus === 'loading'}>
+                  {employeeStatus === 'loading' ? <><FontAwesomeIcon icon={faSpinner} spin /> Deleting...</> : 'Delete Employee'}
                 </button>
               </div>
             </div>

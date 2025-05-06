@@ -7,46 +7,43 @@ import { faHome, faMap, faIdCard, faUsers, faPen, faCalendar, faCar, faTabletAlt
 import "../../styles/Sidebar.scss";
 
 const Sidebar = () => {
-  // Get sidebar state and toggle function from context
   const { isOpen, toggleSidebar } = useSidebar();
   const location = useLocation();
   const sidebarRef = useRef(null);
 
+  // Effect for closing sidebar on outside click
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (sidebarRef.current && !sidebarRef.current.contains(event.target)) {
-        // Close sidebar if click is outside and sidebar is open
         toggleSidebar();
       }
     };
 
     if (isOpen) {
-      // Add listener only when sidebar is open
       document.addEventListener("mousedown", handleClickOutside);
     }
-
-    // Cleanup listener on component unmount or when sidebar closes
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
     };
   }, [isOpen, toggleSidebar]);
 
+  // Handler for menu item click
   const handleMenuItemClick = () => {
-    toggleSidebar();
-  // Close sidebar when a menu item is clicked
+    toggleSidebar(); // Close sidebar when a menu item is clicked
   };
 
   const menuItems = [
-    // Define sidebar menu items
     { path: "/dashboard", icon: faHome, label: "Dashboard" },
     { path: "/map", icon: faMap, label: "Map" },
     { path: "/timesheet", icon: faPen, label: "Timesheets" },
     { path: "/rosterpage", icon: faCalendar, label: "Rosters" },
     { path: "/clients", icon: faUsers, label: "Clients" },
     { path: "/employees", icon: faIdCard, label: "Employees" },
+    { path: "/vehicles", icon: faCar, label: "Vehicles" },
    // { path: "/tabletview", icon: faTabletAlt, label: "Tablet View" },
   ];
 
+  // Render
   return (
     <aside ref={sidebarRef} className={`sidebar ${isOpen ? "open" : ""}`}>
       <ul className="sidebar-menu">

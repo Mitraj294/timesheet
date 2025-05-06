@@ -1,5 +1,5 @@
-import React, { useEffect, useState, useCallback, useMemo } from 'react'; // Added useMemo
-import { useNavigate, Link, useLocation } from 'react-router-dom';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
+import { useNavigate, Link, useLocation, useParams } from 'react-router-dom'; // Added useParams
 import { useSelector, useDispatch } from 'react-redux';
 import { fetchClients, selectAllClients } from '../../redux/slices/clientSlice';
 import { fetchEmployees, selectAllEmployees } from '../../redux/slices/employeeSlice';
@@ -9,11 +9,12 @@ import {
   selectProjectStatus,
   selectProjectError,
   selectProjectItems,
-} from '../../redux/slices/projectSlice'; 
+} from '../../redux/slices/projectSlice';
 import {
     checkTimesheetExists,
     createTimesheet,
     updateTimesheet,
+    fetchTimesheetById, // Added for fetching timesheet to edit
     selectTimesheetCheckStatus,
     selectTimesheetCheckResult,
     selectTimesheetCheckError,
@@ -21,8 +22,10 @@ import {
     selectTimesheetCreateError,
     selectTimesheetUpdateStatus,
     selectTimesheetUpdateError,
-    clearCheckStatus, clearCreateStatus, clearUpdateStatus // Import clear actions
-} from '../../redux/slices/timesheetSlice'; // Import timesheet actions/selectors
+    selectCurrentTimesheet, // Added for editing
+    selectCurrentTimesheetStatus, // Added for editing
+    clearCheckStatus, clearCreateStatus, clearUpdateStatus
+} from '../../redux/slices/timesheetSlice';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
   faPen,
@@ -34,14 +37,11 @@ import {
   faBuilding, faUserTie, faProjectDiagram, faCalendarAlt, faSignOutAlt, faStickyNote, faDollarSign, faInfoCircle
 } from '@fortawesome/free-solid-svg-icons';
 import '../../styles/Forms.scss';
-import { setAlert } from '../../redux/slices/alertSlice'; // Import setAlert
-import Alert from '../layout/Alert'; // Import Alert component
+import { setAlert } from '../../redux/slices/alertSlice';
+import Alert from '../layout/Alert';
 import { DateTime } from 'luxon';
 
-const API_URL = process.env.REACT_APP_API_URL || 'https://timesheet-slpc.onrender.com/api';
-
-// Constants for default values
-const DEFAULT_LUNCH_DURATION = '00:30';
+// Default values for the form
 const DEFAULT_FORM_DATA = {
   employeeId: '',
   clientId: '',
@@ -50,7 +50,7 @@ const DEFAULT_FORM_DATA = {
   startTime: '',
   endTime: '',
   lunchBreak: 'No',
-  lunchDuration: DEFAULT_LUNCH_DURATION,
+  lunchDuration: '00:30', // Default lunch duration
   leaveType: 'None',
   description: '',
   hourlyWage: '',
@@ -63,114 +63,123 @@ const CreateTimesheet = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const dispatch = useDispatch();
+  const { clientId: clientIdFromUrl, projectId: projectIdFromUrl, timesheetId: timesheetIdForEdit } = useParams();
 
-  // Check for state passed from navigation (e.g., from ProjectTimesheet)
-  const navigationState = location.state || {};
+  // Determine if we are editing an existing timesheet or creating a new one
+  const isEditing = Boolean(timesheetIdForEdit);
+  const navigationState = location.state || {}; // Data passed via navigate state (e.g., from ProjectTimesheet page)
   const { clientId: preselectedClientId, projectId: preselectedProjectId, source } = navigationState;
 
-  const timesheetToEdit = location && location.state && location.state.timesheet;
-  const isEditing = Boolean(timesheetToEdit && timesheetToEdit._id);
-
-  const [formData, setFormData] = useState({...DEFAULT_FORM_DATA, clientId: preselectedClientId || '', projectId: preselectedProjectId || ''});
-  // const [isLoading, setIsLoading] = useState(false); // Replaced by Redux status
-  const [error, setError] = useState(null);
+  // Local component state
+  const [formData, setFormData] = useState({
+    ...DEFAULT_FORM_DATA,
+    clientId: clientIdFromUrl || preselectedClientId || '', // Prioritize URL param, then navigation state
+    projectId: projectIdFromUrl || preselectedProjectId || ''
+  });
+  const [error, setError] = useState(null); // For local form validation or calculation errors
   const [filteredProjects, setFilteredProjects] = useState([]);
 
+  // Redux state selectors
   const employees = useSelector(selectAllEmployees);
   const clients = useSelector(selectAllClients);
   const allProjects = useSelector(selectProjectItems);
-  const projectStatus = useSelector(selectProjectStatus);
-  const projectError = useSelector(selectProjectError);
+  const projectStatus = useSelector(selectProjectStatus); // Status for fetching projects
+  const projectError = useSelector(selectProjectError);   // Error from fetching projects
 
-  // Timesheet action statuses from Redux
-  const checkStatus = useSelector(selectTimesheetCheckStatus);
-  const checkResult = useSelector(selectTimesheetCheckResult);
-  const checkError = useSelector(selectTimesheetCheckError);
-  const createStatus = useSelector(selectTimesheetCreateStatus);
-  const createError = useSelector(selectTimesheetCreateError);
-  const updateStatus = useSelector(selectTimesheetUpdateStatus);
-  const updateError = useSelector(selectTimesheetUpdateError);
+  const checkStatus = useSelector(selectTimesheetCheckStatus);     // Status for checking if timesheet exists
+  const checkError = useSelector(selectTimesheetCheckError);       // Error from checking timesheet
+  const createStatus = useSelector(selectTimesheetCreateStatus);   // Status for creating timesheet
+  const createError = useSelector(selectTimesheetCreateError);     // Error from creating timesheet
+  const updateStatus = useSelector(selectTimesheetUpdateStatus);   // Status for updating timesheet
+  const updateError = useSelector(selectTimesheetUpdateError);     // Error from updating timesheet
+  const timesheetToEdit = useSelector(selectCurrentTimesheet);     // Data of the timesheet being edited
+  const currentTimesheetStatus = useSelector(selectCurrentTimesheetStatus); // Fetch status for timesheetToEdit
 
   const isLeaveSelected = formData.leaveType !== 'None';
 
-  // Refactored: calculateHours is now a pure function, returns hours or throws error
+  // Pure function to calculate total hours, memoized for performance
   const calculateHoursPure = useCallback((currentFormData) => {
     const { startTime, endTime, lunchBreak, lunchDuration, leaveType } = currentFormData;
     const isLeave = leaveType !== 'None';
-
     const timeFormatRegex = /^\d{2}:\d{2}$/;
+
     if (isLeave || !startTime || !endTime || !timeFormatRegex.test(startTime) || !timeFormatRegex.test(endTime)) {
-      // Return 0 if not applicable or inputs missing/invalid format
-      return 0;
+      return 0; // Not applicable or invalid time format
     }
 
     try {
-      const baseDate = '1970-01-01';
+      const baseDate = '1970-01-01'; // Use a fixed date for time calculations
       const startDateTime = DateTime.fromISO(`${baseDate}T${startTime}`, { zone: 'local' });
       const endDateTime = DateTime.fromISO(`${baseDate}T${endTime}`, { zone: 'local' });
 
       if (!startDateTime.isValid || !endDateTime.isValid || endDateTime <= startDateTime) {
-        // Return 0 if times are invalid or end is not after start
-        return 0;
+        return 0; // Invalid times or end time is not after start time
       }
 
-      const diffInMinutes = endDateTime.diff(startDateTime, 'minutes').minutes;
-      let totalMinutes = diffInMinutes;
+      let totalMinutes = endDateTime.diff(startDateTime, 'minutes').minutes;
 
-      if (lunchBreak === 'Yes' && lunchDuration) {
-        if (timeFormatRegex.test(lunchDuration)) {
-            const [lunchHours, lunchMinutes] = lunchDuration.split(':').map(Number);
-            const lunchDurationInMinutes = (lunchHours * 60) + lunchMinutes;
-            totalMinutes -= lunchDurationInMinutes;
-        } else {
-            // Throw error for invalid lunch duration format
-            throw new Error("Invalid Lunch Duration format. Please use HH:MM.");
-        }
+      if (lunchBreak === 'Yes' && lunchDuration && timeFormatRegex.test(lunchDuration)) {
+        const [lunchHours, lunchMinutes] = lunchDuration.split(':').map(Number);
+        const lunchDurationInMinutes = (lunchHours * 60) + lunchMinutes;
+        totalMinutes -= lunchDurationInMinutes;
+      } else if (lunchBreak === 'Yes' && (!lunchDuration || !timeFormatRegex.test(lunchDuration))) {
+        throw new Error("Invalid Lunch Duration format. Please use HH:MM.");
       }
 
       const totalHoursCalculated = totalMinutes > 0 ? totalMinutes / 60 : 0;
-      const roundedTotalHours = parseFloat(totalHoursCalculated.toFixed(2));
-
-      return roundedTotalHours;
-
+      return parseFloat(totalHoursCalculated.toFixed(2)); // Round to 2 decimal places
     } catch (e) {
-      throw new Error(`Calculation Error: ${e.message}`); // Propagate calculation errors
+      throw new Error(`Calculation Error: ${e.message}`);
     }
-  }, []); // No external dependencies needed for pure calculation
+  }, []);
 
-  // Combined loading state
+  // Derived loading state for UI feedback
   const isLoading = useMemo(() =>
     checkStatus === 'loading' ||
     createStatus === 'loading' ||
-    updateStatus === 'loading',
-    [checkStatus, createStatus, updateStatus]
+    updateStatus === 'loading' ||
+    (isEditing && currentTimesheetStatus === 'loading'), // Also consider loading if fetching the timesheet to edit
+    [checkStatus, createStatus, updateStatus, isEditing, currentTimesheetStatus]
   );
 
-  // Effect to show alerts for fetch or save errors from Redux state
+  // Effects
+
+  // Displays errors from Redux state as alerts
   useEffect(() => {
     const reduxError = projectError || checkError || createError || updateError;
     if (reduxError) {
       dispatch(setAlert(reduxError, 'danger'));
-      // Optionally clear the Redux error after showing the alert
     }
   }, [projectError, checkError, createError, updateError, dispatch]);
 
+  // Fetches initial data: employees, clients, and the specific timesheet if in edit mode
   useEffect(() => {
-    if (employees.length === 0) dispatch(fetchEmployees()); // Fetch only if needed
-    dispatch(fetchClients());
-  }, [dispatch]);
+    if (employees.length === 0) dispatch(fetchEmployees());
+    if (clients.length === 0) dispatch(fetchClients()); // Fetch clients if not already loaded
 
+    if (isEditing && timesheetIdForEdit) {
+      // Fetch the specific timesheet to edit only if it's not already loaded or is different
+      if (currentTimesheetStatus === 'idle' || timesheetToEdit?._id !== timesheetIdForEdit) {
+         dispatch(fetchTimesheetById(timesheetIdForEdit));
+      }
+    }
+  }, [dispatch, isEditing, timesheetIdForEdit, employees.length, clients.length, currentTimesheetStatus, timesheetToEdit]);
+
+  // Fetches projects when client selection changes (and not a leave entry)
   useEffect(() => {
     if (formData.clientId && !isLeaveSelected) {
       dispatch(fetchProjects(formData.clientId));
-    } else {
-      // Don't clear projects if preselected, otherwise clear
-      if (!preselectedProjectId) dispatch(clearProjects());
+    } else if (!isLeaveSelected) { // If not a leave entry and no client selected, clear projects
+      dispatch(clearProjects());
+      setFilteredProjects([]); // Also clear local filtered projects
     }
-    // Only reset projectId if clientId changes *and* it wasn't preselected
-    if (!preselectedProjectId) setFormData(prev => ({ ...prev, projectId: '' }));
-  }, [formData.clientId, isLeaveSelected, dispatch, preselectedProjectId]);
+    // If client changes and it wasn't a preselection from URL/navigation, reset project
+    if (formData.clientId !== (clientIdFromUrl || preselectedClientId)) {
+        setFormData(prev => ({ ...prev, projectId: '' }));
+    }
+  }, [formData.clientId, isLeaveSelected, dispatch, clientIdFromUrl, preselectedClientId]);
 
+  // Filters projects based on the selected client
   useEffect(() => {
     if (formData.clientId && allProjects && allProjects.length > 0) {
       const clientProjects = allProjects.filter(p => (p.clientId?._id || p.clientId) === formData.clientId);
@@ -180,51 +189,42 @@ const CreateTimesheet = () => {
     }
   }, [allProjects, formData.clientId]);
 
-
-  // Effect to populate form data when editing or creating with context
+  // Populates form data when editing an existing timesheet
   useEffect(() => {
-    if (timesheetToEdit) {
-      const entryTimezone = timesheetToEdit?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
-
+    if (isEditing && currentTimesheetStatus === 'succeeded' && timesheetToEdit && timesheetToEdit._id === timesheetIdForEdit) {
+      const entryTimezone = timesheetToEdit.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
       const utcToLocalTimeInput = (isoStr) => {
         if (!isoStr) return '';
-        try {
-          return DateTime.fromISO(isoStr, { zone: 'utc' })
-                         .setZone(entryTimezone)
-                         .toFormat('HH:mm');
-        } catch (err) { return ''; }
+        try { return DateTime.fromISO(isoStr, { zone: 'utc' }).setZone(entryTimezone).toFormat('HH:mm'); }
+        catch (err) { console.error("Error converting UTC to local time input:", err); return ''; }
       };
 
-      // Ensure date is in yyyy-MM-dd format
       let formattedDate = timesheetToEdit.date;
       if (formattedDate && !/^\d{4}-\d{2}-\d{2}$/.test(formattedDate)) {
-          try {
-              formattedDate = DateTime.fromISO(formattedDate).toFormat('yyyy-MM-dd');
-          } catch {
-              formattedDate = DateTime.now().toFormat('yyyy-MM-dd'); // Fallback
-          }
+          try { formattedDate = DateTime.fromISO(formattedDate).toFormat('yyyy-MM-dd'); }
+          catch { formattedDate = DateTime.now().toFormat('yyyy-MM-dd'); }
       }
+
+      const employeeForWage = employees.find(emp => emp._id === (timesheetToEdit.employeeId?._id || timesheetToEdit.employeeId));
 
       const initialFormData = {
         timezone: entryTimezone,
-        employeeId: timesheetToEdit.employeeId?._id || timesheetToEdit.employeeId || '', // Handle both object and string ID
-        clientId: preselectedClientId || timesheetToEdit.clientId?._id || timesheetToEdit.clientId || '', // Prioritize preselected
-        projectId: preselectedProjectId || timesheetToEdit.projectId?._id || timesheetToEdit.projectId || '', // Handle object or string ID, prioritize preselected
-        date: formattedDate, // Use formatted date
+        employeeId: timesheetToEdit.employeeId?._id || timesheetToEdit.employeeId || '',
+        clientId: timesheetToEdit.clientId?._id || timesheetToEdit.clientId || '', // Use client from timesheet
+        projectId: timesheetToEdit.projectId?._id || timesheetToEdit.projectId || '', // Use project from timesheet
+        date: formattedDate,
         startTime: utcToLocalTimeInput(timesheetToEdit.startTime),
         endTime: utcToLocalTimeInput(timesheetToEdit.endTime),
         lunchBreak: timesheetToEdit.lunchBreak || 'No',
         lunchDuration: /^\d{2}:\d{2}$/.test(timesheetToEdit.lunchDuration) ? timesheetToEdit.lunchDuration : '00:30',
         leaveType: timesheetToEdit.leaveType || 'None',
-        description: timesheetToEdit.description || '', // Corrected field name if needed
-        hourlyWage: timesheetToEdit.employeeId?.wage || timesheetToEdit.hourlyWage || '',
+        description: timesheetToEdit.description || '',
+        hourlyWage: employeeForWage?.wage || timesheetToEdit.hourlyWage || '', // Prioritize current employee wage
         totalHours: timesheetToEdit.totalHours || 0,
         notes: timesheetToEdit.notes || '',
       };
-
       setFormData(initialFormData);
-
-      // Calculate initial hours without causing re-renders via state update in calculation
+      // Initial calculation after form is populated
       try {
           const initialHours = calculateHoursPure(initialFormData);
           setFormData(prev => ({ ...prev, totalHours: initialHours }));
@@ -232,21 +232,42 @@ const CreateTimesheet = () => {
           dispatch(setAlert(`Error calculating initial hours: ${calcError.message}`, 'warning'));
           setError(`Error calculating initial hours: ${calcError.message}`);
       }
-    } else { setFormData(DEFAULT_FORM_DATA); } // Reset form if not editing
-    // Reset form if creating and context is provided
-    if (!isEditing && (preselectedClientId || preselectedProjectId)) {
-        setFormData(prev => ({ ...prev, clientId: preselectedClientId || '', projectId: preselectedProjectId || '' }));
+    } else if (!isEditing) {
+        // For create mode, ensure preselected IDs from URL or navigation state are used
+        setFormData(prev => ({
+            ...DEFAULT_FORM_DATA, // Start with defaults
+            clientId: clientIdFromUrl || preselectedClientId || '',
+            projectId: projectIdFromUrl || preselectedProjectId || '',
+            timezone: Intl.DateTimeFormat().resolvedOptions().timeZone, // Ensure timezone is set
+        }));
     }
-  }, [timesheetToEdit, calculateHoursPure, isEditing, preselectedClientId, preselectedProjectId]); // Removed dispatch
+  }, [
+      isEditing, currentTimesheetStatus, timesheetToEdit, timesheetIdForEdit, // For edit mode
+      clientIdFromUrl, preselectedClientId, projectIdFromUrl, preselectedProjectId, // For create mode with preselection
+      calculateHoursPure, dispatch, employees // General dependencies
+    ]);
 
-  // Effect to fetch projects when clientId is set in formData (either initially or by user)
-  // This runs *after* formData.clientId is potentially set by the effect above.
+  // Recalculates total hours whenever relevant time inputs or leave status change
   useEffect(() => {
-      if (formData.clientId && !isLeaveSelected) {
-          dispatch(fetchProjects(formData.clientId));
+      let calculatedHoursValue = 0;
+      try {
+          calculatedHoursValue = calculateHoursPure(formData);
+          setFormData(prev => {
+              const roundedPrev = parseFloat(prev.totalHours || 0).toFixed(2);
+              const roundedCurrent = calculatedHoursValue.toFixed(2);
+              if (roundedPrev !== roundedCurrent) {
+                  return { ...prev, totalHours: calculatedHoursValue };
+              }
+              return prev;
+          });
+          if (error && error.startsWith("Calculation Error:")) setError(null); // Clear only calculation errors
+      } catch (calcError) {
+          console.error("Calculation Error in useEffect:", calcError.message);
+          // Avoid setting error state here if it's already being handled by validateForm or handleSubmit
       }
-  }, [formData.clientId, isLeaveSelected, dispatch]); // Fetch projects when clientId changes
+  }, [formData.startTime, formData.endTime, formData.lunchBreak, formData.lunchDuration, formData.leaveType, calculateHoursPure, error]); // Added error to deps
 
+  // Handlers
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => {
@@ -256,48 +277,37 @@ const CreateTimesheet = () => {
             updated.hourlyWage = selectedEmployee ? selectedEmployee.wage || '' : '';
         } else if (name === 'leaveType') {
             const isNowLeave = value !== 'None';
-            const wasLeave = prev.leaveType !== 'None';
-            if (isNowLeave && !wasLeave) {
+            const wasLeave = prev.leaveType !== 'None'; // Check previous leave state
+            if (isNowLeave && !wasLeave) { // If changing to a leave type
                 updated = {
-                    ...updated, startTime: '', endTime: '', lunchBreak: 'No',
-                    lunchDuration: DEFAULT_LUNCH_DURATION, clientId: '', projectId: '', notes: '', totalHours: 0,
+                    ...updated,
+                    startTime: '', endTime: '', lunchBreak: 'No',
+                    lunchDuration: '00:30',
+                    // Keep clientId and projectId if they were preselected from URL/navigation
+                    clientId: clientIdFromUrl || preselectedClientId || '',
+                    projectId: projectIdFromUrl || preselectedProjectId || '',
+                    notes: '', totalHours: 0,
                 };
-            } else if (!isNowLeave && wasLeave) {
-                updated.description = '';
-            } // Corrected field name if needed
+            } else if (!isNowLeave && wasLeave) { // If changing from leave to work entry
+                updated.description = ''; // Clear leave description
+                // Potentially reset client/project if they were cleared for leave
+                updated.clientId = clientIdFromUrl || preselectedClientId || '';
+                updated.projectId = projectIdFromUrl || preselectedProjectId || '';
+            }
         } else if (name === 'lunchBreak' && value === 'No') {
             updated.lunchDuration = '00:30';
+        } else if (name === 'clientId') { // If client changes, reset project
+            updated.projectId = '';
         }
         return updated;
     });
-    if (error) setError(null);
+    if (error) setError(null); // Clear local error on input change
   };
 
-  // Effect to calculate hours
-  useEffect(() => {
-      // Recalculate hours whenever relevant fields change
-      let calculatedHoursValue = 0;
-      try {
-          calculatedHoursValue = calculateHoursPure(formData);
-          // Only update if the calculated value is different from the current state value (rounded comparison)
-          setFormData(prev => {
-              const roundedPrev = parseFloat(prev.totalHours || 0).toFixed(2);
-              const roundedCurrent = calculatedHoursValue.toFixed(2);
-              if (roundedPrev !== roundedCurrent) {
-                  return { ...prev, totalHours: calculatedHoursValue };
-              }
-              return prev; // No change needed
-          });
-          if (error) setError(null); // Clear local error only if it was previously set
-      } catch (calcError) {
-          // Avoid setting state directly within the catch of the effect that might cause the error
-          console.error("Calculation Error:", calcError.message); // Log error, alert will be shown by handleSubmit/validateForm if needed
-      }
-  }, [formData.startTime, formData.endTime, formData.lunchBreak, formData.lunchDuration, formData.leaveType, calculateHoursPure, dispatch]); // Removed error from dependencies
-
+  // Form validation logic
   const validateForm = () => {
     if (!formData.employeeId) return 'Employee is required.';
-    if (!formData.date || !/^\d{4}-\d{2}-\d{2}$/.test(formData.date)) return 'Date is required in YYYY-MM-DD format.';
+    if (!formData.date || !/^\d{4}-\d{2}-\d{2}$/.test(formData.date)) return 'Date is required (YYYY-MM-DD).';
 
     if (isLeaveSelected) {
       if (!formData.description.trim()) return 'Leave Description is required.';
@@ -326,84 +336,81 @@ const CreateTimesheet = () => {
       if (parseFloat(formData.totalHours) > 16) {
         return 'Total hours seem high (> 16). Please verify.';
       }
+      if (parseFloat(formData.totalHours) <= 0 && formData.startTime && formData.endTime) {
+        return 'Total hours cannot be zero or less for a work entry. Check times/lunch.';
+      }
     }
     return null;
   };
 
+  // Handles form submission for creating or updating a timesheet
   const handleSubmit = async (e) => {
     e.preventDefault();
-    // Clear previous local and Redux errors before submitting
     dispatch(clearCheckStatus());
     dispatch(clearCreateStatus());
     dispatch(clearUpdateStatus());
     setError(null);
 
-    // Re-validate calculated hours before submission
+    // Final calculation before validation
     let calculatedHoursValue = 0;
     try {
         calculatedHoursValue = calculateHoursPure(formData);
-        if (!isLeaveSelected && calculatedHoursValue <= 0 && formData.startTime && formData.endTime) {
-            throw new Error('Total Hours calculation resulted in zero or less. Check times/lunch.');
-        }
+        // Update formData immediately with the final calculation for validation
+        setFormData(prev => ({...prev, totalHours: calculatedHoursValue}));
     } catch (calcError) {
-        setError(calcError.message); return;
-        dispatch(setAlert(calcError.message, 'danger')); // Show calculation error via Alert
+        setError(calcError.message);
+        dispatch(setAlert(calcError.message, 'danger'));
+        return;
     }
 
-    const validationError = validateForm();
+    // Validate with the potentially updated formData (from setFormData above)
+    // Need to pass the updated formData to validateForm or re-fetch from state if validateForm uses it directly
+    const currentFormDataForValidation = {...formData, totalHours: calculatedHoursValue};
+    const validationError = validateForm(currentFormDataForValidation); // Pass current data
+
     if (validationError) {
       setError(validationError);
-      dispatch(setAlert(validationError, 'warning')); // <-- Add this line
+      dispatch(setAlert(validationError, 'warning'));
       return;
     }
 
     try {
-      // Step 1: Check for existing timesheet only if creating a new one
       if (!isEditing) {
         const checkAction = await dispatch(checkTimesheetExists({
           employee: formData.employeeId,
           date: formData.date
-        })).unwrap(); // unwrap to catch potential rejections here
+        })).unwrap();
 
         if (checkAction.exists) {
           dispatch(setAlert('A timesheet for this employee on this date already exists.', 'warning'));
           setError('A timesheet for this employee on this date already exists.');
-          return; // Stop submission
+          return;
         }
-        // If checkAction is rejected, the catch block below will handle it
       }
 
-      // Step 2: Prepare data for saving (convert times to UTC)
+      // Prepare data for saving (convert times to UTC)
       const localTimeToUtcISO = (timeStr) => {
-        // Refactored slightly for clarity, added error throwing
-        if (!timeStr || !/^\d{2}:\d{2}$/.test(timeStr)) return null;
-        if (!formData.date || !/^\d{4}-\d{2}-\d{2}$/.test(formData.date)) return null;
-
+        if (!timeStr || !/^\d{2}:\d{2}$/.test(timeStr) || !formData.date || !/^\d{4}-\d{2}-\d{2}$/.test(formData.date)) return null;
         let conversionTimezone = formData.timezone;
+        // Validate timezone before using
         if (!conversionTimezone || !DateTime.local().setZone(conversionTimezone).isValid) {
-            console.warn(`Invalid timezone '${conversionTimezone}' detected, falling back to UTC for conversion.`);
-            conversionTimezone = 'UTC';
+            console.warn(`Invalid timezone '${conversionTimezone}' detected, falling back to system default for conversion.`);
+            conversionTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone; // Fallback to system default
         }
-
         try {
           const localDT = DateTime.fromISO(`${formData.date}T${timeStr}`, { zone: conversionTimezone });
-          if (!localDT.isValid) {
-              // Throw error instead of console.error
-              throw new Error(`Failed to parse local time: ${formData.date}T${timeStr} in zone ${conversionTimezone}`);
-          }
+          if (!localDT.isValid) throw new Error(`Invalid local time parse: ${formData.date}T${timeStr}`);
           return localDT.toUTC().toISO();
-        } catch (err) {
-            throw new Error(`Error converting local time to UTC ISO: ${err.message}`);
-            return null;
-        }
+        } catch (err) { throw new Error(`UTC Conversion Error: ${err.message}`); }
       };
 
       const startTimeUTC = !isLeaveSelected ? localTimeToUtcISO(formData.startTime) : null;
       const endTimeUTC = !isLeaveSelected ? localTimeToUtcISO(formData.endTime) : null;
 
-      if (!isLeaveSelected && (!startTimeUTC || !endTimeUTC)) {
-          // Error thrown by localTimeToUtcISO will be caught below
-          // setError("Failed to convert start or end time for saving. Check date/time inputs.");
+      if (!isLeaveSelected && (formData.startTime && !startTimeUTC || formData.endTime && !endTimeUTC)) {
+          // This means time conversion failed, error would have been thrown by localTimeToUtcISO
+          setError("Failed to convert start or end time for saving. Check date/time inputs and timezone.");
+          dispatch(setAlert("Failed to convert start or end time. Check inputs.", "danger"));
           return;
       }
 
@@ -415,107 +422,96 @@ const CreateTimesheet = () => {
         employeeId: formData.employeeId,
         clientId: !isLeaveSelected ? formData.clientId : null,
         projectId: !isLeaveSelected ? formData.projectId : null,
-        date: formData.date, // Send YYYY-MM-DD string
-        startTime: startTimeUTC, // Send UTC ISO string
-        endTime: endTimeUTC, // Send UTC ISO string
+        date: formData.date,
+        startTime: startTimeUTC,
+        endTime: endTimeUTC,
         lunchBreak: !isLeaveSelected ? formData.lunchBreak : 'No',
-        lunchDuration: !isLeaveSelected && formData.lunchBreak === 'Yes' ? formData.lunchDuration : DEFAULT_LUNCH_DURATION, // Send HH:MM string
+        lunchDuration: !isLeaveSelected && formData.lunchBreak === 'Yes' ? formData.lunchDuration : '00:30',
         leaveType: formData.leaveType,
         description: isLeaveSelected ? formData.description : "",
         notes: !isLeaveSelected ? formData.notes : "",
         hourlyWage: parseFloat(formData.hourlyWage) || 0,
+        totalHours: calculatedHoursValue, // Use the re-calculated value
         timezone: timezoneToSend,
       };
 
-      // Step 3: Dispatch create or update action
       if (isEditing) {
-        await dispatch(updateTimesheet({ id: timesheetToEdit._id, timesheetData: requestData })).unwrap();
+        await dispatch(updateTimesheet({ id: timesheetIdForEdit, timesheetData: requestData })).unwrap();
         dispatch(setAlert('Timesheet updated successfully!', 'success'));
       } else {
         await dispatch(createTimesheet(requestData)).unwrap();
         dispatch(setAlert('Timesheet created successfully!', 'success'));
       }
 
-      // Step 4: Navigate on success - Check the source and determine correct IDs
-      if (source === 'projectTimesheet') {
-        // Helper to get ID robustly
-        const getClientId = () => {
-            if (preselectedClientId) return preselectedClientId;
-            if (timesheetToEdit?.clientId?._id) return timesheetToEdit.clientId._id;
-            if (typeof timesheetToEdit?.clientId === 'string') return timesheetToEdit.clientId;
-            return null;
-        };
-        const getProjectId = () => {
-            if (preselectedProjectId) return preselectedProjectId;
-            if (timesheetToEdit?.projectId?._id) return timesheetToEdit.projectId._id;
-            if (typeof timesheetToEdit?.projectId === 'string') return timesheetToEdit.projectId;
-            return null;
-        };
+      // Navigate on success, considering the source of navigation
+      const finalClientId = clientIdFromUrl || preselectedClientId || timesheetToEdit?.clientId?._id || timesheetToEdit?.clientId;
+      const finalProjectId = projectIdFromUrl || preselectedProjectId || timesheetToEdit?.projectId?._id || timesheetToEdit?.projectId;
 
-        const clientIdNav = getClientId();
-        const projectIdNav = getProjectId();
-
-        // console.log("Navigating back to project - Source:", source, "Client ID:", clientIdNav, "Project ID:", projectIdNav); // Debug log
-
-        if (clientIdNav && projectIdNav) {
-          navigate(`/clients/view/${clientIdNav}/project/${projectIdNav}`); // Navigate back to the specific project
-          return; // Stop further execution
-        }
+      if (source === 'projectTimesheet' && finalClientId && finalProjectId) {
+          navigate(`/clients/view/${finalClientId}/project/${finalProjectId}`);
+      } else {
+          navigate('/timesheet');
       }
-      // Default navigation if not from projectTimesheet or if IDs were missing
-      navigate('/timesheet');
 
     } catch (apiError) {
-      // Error from check, create, update, or time conversion will be caught here
       const errorMessage = typeof apiError === 'string' ? apiError : (apiError?.message || `Failed to ${isEditing ? 'update' : 'create'} timesheet.`);
-      setError(errorMessage); // Set local error for display
-      dispatch(setAlert(errorMessage, 'danger')); // Also show alert
-      // No need to check for 401 specifically, Redux middleware/interceptors should handle redirects
+      setError(errorMessage);
+      dispatch(setAlert(errorMessage, 'danger'));
     }
   };
 
-  // Handle Cancel button click
   const handleCancel = () => {
-    // Check the source and determine correct IDs
-    if (source === 'projectTimesheet') {
-      const getClientId = () => {
-          if (preselectedClientId) return preselectedClientId;
-          if (timesheetToEdit?.clientId?._id) return timesheetToEdit.clientId._id;
-          if (typeof timesheetToEdit?.clientId === 'string') return timesheetToEdit.clientId;
-          return null;
-      };
-      const getProjectId = () => {
-          if (preselectedProjectId) return preselectedProjectId;
-          if (timesheetToEdit?.projectId?._id) return timesheetToEdit.projectId._id;
-          if (typeof timesheetToEdit?.projectId === 'string') return timesheetToEdit.projectId;
-          return null;
-      };
-      const clientIdNav = getClientId();
-      const projectIdNav = getProjectId();
-      // console.log("Canceling back to project - Source:", source, "Client ID:", clientIdNav, "Project ID:", projectIdNav); // Debug log
-      if (clientIdNav && projectIdNav) {
-        navigate(`/clients/view/${clientIdNav}/project/${projectIdNav}`);
-        return;
-      }
+    const finalClientId = clientIdFromUrl || preselectedClientId || timesheetToEdit?.clientId?._id || timesheetToEdit?.clientId;
+    const finalProjectId = projectIdFromUrl || preselectedProjectId || timesheetToEdit?.projectId?._id || timesheetToEdit?.projectId;
+
+    if (source === 'projectTimesheet' && finalClientId && finalProjectId) {
+        navigate(`/clients/view/${finalClientId}/project/${finalProjectId}`);
+    } else {
+        navigate('/timesheet');
     }
-    // Default cancel navigation
-    navigate('/timesheet');
   };
 
   const isProjectLoading = projectStatus === 'loading';
 
+  // Memoized client and project names for display
+  const clientName = useMemo(() => {
+    const targetClientId = clientIdFromUrl || preselectedClientId;
+    return clients.find(c => c._id === targetClientId)?.name || (targetClientId ? 'Loading Client...' : 'N/A');
+  }, [clients, clientIdFromUrl, preselectedClientId]);
+
+  const projectName = useMemo(() => {
+    const targetProjectId = projectIdFromUrl || preselectedProjectId;
+    // Search in allProjects as filteredProjects might not be up-to-date if client changes
+    return allProjects.find(p => p._id === targetProjectId)?.name || (targetProjectId ? 'Loading Project...' : 'N/A');
+  }, [allProjects, projectIdFromUrl, preselectedProjectId]);
+
+
+  // Render
   return (
     <div className='vehicles-page'>
-      <Alert /> {/* Render Alert component here */}
+      <Alert />
       <div className='vehicles-header'>
         <div className='title-breadcrumbs'>
           <h2>
-            {isEditing ? 'Edit' : 'Create'} Timesheet
+            {isEditing ? 'Edit' : 'Create'} {source === 'projectTimesheet' ? 'Project ' : ''}Timesheet
           </h2>
           <div className='breadcrumbs'>
             <Link to='/dashboard' className='breadcrumb-link'>Dashboard</Link>
-            <span className='breadcrumb-separator'> / </span>
-            <Link to='/timesheet' className='breadcrumb-link'>Timesheet</Link>
+            {source === 'projectTimesheet' && clientIdFromUrl && projectIdFromUrl ? (
+              <>
+                <span className='breadcrumb-separator'> / </span>
+                <Link to='/clients' className='breadcrumb-link'>Clients</Link>
+                <span className='breadcrumb-separator'> / </span>
+                <Link to={`/clients/view/${clientIdFromUrl}`} className='breadcrumb-link'>{clientName}</Link>
+                <span className='breadcrumb-separator'> / </span>
+                <Link to={`/clients/view/${clientIdFromUrl}/project/${projectIdFromUrl}`} className='breadcrumb-link'>{projectName}</Link>
+              </>
+            ) : (
+              <>
+                <span className='breadcrumb-separator'> / </span>
+                <Link to='/timesheet' className='breadcrumb-link'>Timesheet</Link>
+              </>
+            )}
             <span className='breadcrumb-separator'> / </span>
             <span className='breadcrumb-current'>{isEditing ? 'Edit Timesheet' : 'Create Timesheet'}</span>
           </div>
@@ -524,11 +520,19 @@ const CreateTimesheet = () => {
 
       <div className='form-container'>
         <form onSubmit={handleSubmit} className='employee-form' noValidate>
-          {/* {(error || projectError || checkError || createError || updateError) && ( // Handled by Alert component
-            <div className='form-error-message'>
-              <FontAwesomeIcon icon={faExclamationCircle} /> {error || projectError || checkError || createError || updateError}
-            </div>
-          )} */}
+          {/* Display Client and Project Info (Readonly if from projectTimesheet source) */}
+          {source === 'projectTimesheet' && (
+            <>
+              <div className='form-group readonly-info'>
+                  <label><FontAwesomeIcon icon={faBuilding} /> Client</label>
+                  <input type="text" value={clientName} readOnly disabled />
+              </div>
+              <div className='form-group readonly-info'>
+                  <label><FontAwesomeIcon icon={faProjectDiagram} /> Project</label>
+                  <input type="text" value={projectName} readOnly disabled />
+              </div>
+            </>
+          )}
 
           <div className='form-group'>
             <label htmlFor='employeeId'><FontAwesomeIcon icon={faUserTie} /> Employee*</label>
@@ -564,23 +568,29 @@ const CreateTimesheet = () => {
 
           {!isLeaveSelected && (
             <>
-              <div className='form-group'>
-                <label htmlFor='clientId'><FontAwesomeIcon icon={faBuilding} /> Client*</label>
-                <select id='clientId' name='clientId' value={formData.clientId || ''} onChange={handleChange} required={!isLeaveSelected} disabled={isLoading}>
-                  <option value=''>-- Select Client --</option>
-                  {clients.map((c) => (<option key={c._id} value={c._id}>{c.name}</option>))}
-                </select>
-              </div>
+             {/* Client and Project dropdowns only if not from projectTimesheet source */}
+              {source !== 'projectTimesheet' && (
+                <>
+                  <div className='form-group'>
+                    <label htmlFor='clientId'><FontAwesomeIcon icon={faBuilding} /> Client*</label>
+                    <select id='clientId' name='clientId' value={formData.clientId || ''} onChange={handleChange} required={!isLeaveSelected} disabled={isLoading}>
+                      <option value=''>-- Select Client --</option>
+                      {clients.map((c) => (<option key={c._id} value={c._id}>{c.name}</option>))}
+                    </select>
+                  </div>
 
-              <div className='form-group'>
-                <label htmlFor='projectId'><FontAwesomeIcon icon={faProjectDiagram} /> Project*</label>
-                <select id='projectId' name='projectId' value={formData.projectId || ''} onChange={handleChange} required={!isLeaveSelected} disabled={isLoading || isProjectLoading || !formData.clientId}>
-                  <option value=''>{isProjectLoading ? 'Loading projects...' : (!formData.clientId ? 'Select Client First' : '-- Select Project --')}</option>
-                  {filteredProjects.map((p) => (<option key={p._id} value={p._id}>{p.name}</option>))}
-                </select>
-                 {!formData.clientId && !isProjectLoading && <small>Please select a client first.</small>}
-                 {formData.clientId && !isProjectLoading && filteredProjects.length === 0 && <small>No projects found for this client.</small>}
-              </div>
+                  <div className='form-group'>
+                    <label htmlFor='projectId'><FontAwesomeIcon icon={faProjectDiagram} /> Project*</label>
+                    <select id='projectId' name='projectId' value={formData.projectId || ''} onChange={handleChange} required={!isLeaveSelected} disabled={isLoading || isProjectLoading || !formData.clientId}>
+                      <option value=''>{isProjectLoading ? 'Loading projects...' : (!formData.clientId ? 'Select Client First' : '-- Select Project --')}</option>
+                      {filteredProjects.map((p) => (<option key={p._id} value={p._id}>{p.name}</option>))}
+                    </select>
+                    {!formData.clientId && !isProjectLoading && <small>Please select a client first.</small>}
+                    {formData.clientId && !isProjectLoading && filteredProjects.length === 0 && <small>No projects found for this client.</small>}
+                  </div>
+                </>
+              )}
+
 
               <div className='form-group'>
                 <label htmlFor='startTime'><FontAwesomeIcon icon={faClock} /> Start Time*</label>

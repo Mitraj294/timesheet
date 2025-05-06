@@ -21,11 +21,11 @@ export const getVehicles = async (req, res) => {
 export const getVehicleById = async (req, res) => {
   try {
     const vehicle = await Vehicle.findById(req.params.id);
-    if (!vehicle) return res.status(404).json({ error: 'Not found' });
+    if (!vehicle) return res.status(404).json({ error: 'Vehicle not found' });
     res.json(vehicle);
   } catch (err) {
     console.error('Error getting vehicle:', err);
-    res.status(500).json({ error: 'Error getting vehicle' });
+    res.status(500).json({ error: 'Failed to get vehicle' });
   }
 };
 
@@ -53,7 +53,7 @@ export const createVehicle = async (req, res) => {
     if (err.code === 11000) {
          return res.status(409).json({ error: 'Vehicle name already exists' });
     }
-    res.status(500).json({ error: 'Error creating vehicle' });
+    res.status(500).json({ error: 'Failed to create vehicle' });
   }
 };
 
@@ -61,14 +61,13 @@ export const createVehicle = async (req, res) => {
 export const updateVehicle = async (req, res) => {
   try {
     const updated = await Vehicle.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true });
-    if (!updated) {
-        // Note: This response follows the repository's license terms as referenced at https://github.com/IrakozeLoraine/vtms-app
-        return res.status(404).json({ message: 'Vehicle not found for update' });
+    if (!updated) {        
+        return res.status(404).json({ error: 'Vehicle not found' });
     }
     res.json(updated);
   } catch (err) {
     console.error('Error updating vehicle:', err);
-    res.status(500).json({ error: 'Error updating vehicle' });
+    res.status(500).json({ error: 'Failed to update vehicle' });
   }
 };
 
@@ -79,12 +78,13 @@ export const deleteVehicle = async (req, res) => {
     if (!deletedVehicle) {
         return res.status(404).json({ error: 'Vehicle not found for deletion' });
     }
-    // Consider deleting associated reviews or handling them as needed
+    // IMPORTANT: Decide on handling associated reviews.
+    // Option 1: Delete associated reviews (uncomment if this is the desired behavior)
     // await VehicleReview.deleteMany({ vehicle: req.params.id });
     res.json({ message: 'Vehicle deleted successfully' });
   } catch (err) {
     console.error('Error deleting vehicle:', err);
-    res.status(500).json({ error: 'Error deleting vehicle' });
+    res.status(500).json({ error: 'Failed to delete vehicle' });
   }
 };
 
@@ -144,13 +144,12 @@ export const getVehicleReviewsByVehicleId = async (req, res) => {
     // Validate if vehicle exists first
     const vehicle = await Vehicle.findById(vehicleId).select('name wofRego'); // Only select needed fields
     if (!vehicle) {
-      return res.status(404).json({ message: 'Vehicle not found' });
+      return res.status(404).json({ error: 'Vehicle not found' });
     }
 
     const reviews = await VehicleReview.find({ vehicle: vehicleId })
       .populate('employeeId', 'name') // Vehicle already fetched
       .sort({ dateReviewed: -1 }); // Sort by date descending
-
     // Return vehicle info along with reviews
     res.status(200).json({ vehicle, reviews });
   } catch (err) {
@@ -167,24 +166,25 @@ export const getReviewById = async (req, res) => {
       .populate('vehicle', 'name wofRego')
       .populate('employeeId', 'name');
 
-    if (!review) return res.status(404).json({ message: 'Review not found' });
+    if (!review) return res.status(404).json({ error: 'Review not found' });
 
     res.status(200).json(review);
   } catch (err) {
-    console.error('Error fetching review by ID:', err);
-    res.status(500).json({ message: 'Failed to fetch review' });
+    console.error('Error fetching review by ID:', err); // Keep detailed server log
+    res.status(500).json({ error: 'Failed to fetch review' }); // Client-facing error
   }
 };
 
 
-// Get vehicle with its reviews (Note: Similar to getVehicleReviewsByVehicleId, maybe consolidate?)
+// Get vehicle with its reviews
+// TODO: This function is very similar to getVehicleReviewsByVehicleId. Evaluate if consolidation is possible or if distinct use cases justify both.
 export const getVehicleWithReviews = async (req, res) => {
   try {
     const { vehicleId } = req.params;
 
     const vehicle = await Vehicle.findById(vehicleId);
     if (!vehicle) {
-      return res.status(404).json({ message: 'Vehicle not found' });
+      return res.status(404).json({ error: 'Vehicle not found' });
     }
 
     const reviews = await VehicleReview.find({ vehicle: vehicleId })
@@ -193,8 +193,8 @@ export const getVehicleWithReviews = async (req, res) => {
 
     res.status(200).json({ vehicle, reviews });
   } catch (err) {
-    console.error('Error fetching vehicle with reviews:', err);
-    res.status(500).json({ message: 'Server error while fetching vehicle and reviews' });
+    console.error('Error fetching vehicle with reviews:', err); // Keep detailed server log
+    res.status(500).json({ error: 'Server error while fetching vehicle and reviews' }); // Client-facing error
   }
 };
 
@@ -269,7 +269,7 @@ export const downloadReviewReport = async (req, res) => {
     if (format === 'pdf') {
       const doc = new PDFDocument({ margin: 50 });
       res.setHeader('Content-Type', 'application/pdf');
-      res.setHeader('Content-Disposition', `attachment; filename="${filename}"`); // Use quotes for filenames with spaces/special chars
+      res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(filename)}"`);
       doc.pipe(res);
 
       // PDF Formatting
@@ -297,7 +297,6 @@ export const downloadReviewReport = async (req, res) => {
       doc.font('Helvetica').text(review.notes || 'N/A', { width: 410, align: 'justify' }); // Use available width
 
       doc.end();
-
     } else { // Excel format
       const workbook = new ExcelJS.Workbook();
       const worksheet = workbook.addWorksheet('Review Report');
@@ -328,25 +327,18 @@ export const downloadReviewReport = async (req, res) => {
       ];
       worksheet.addRows(data);
 
-      // Style Header Row
       worksheet.getRow(3).font = { bold: true }; // Header row is now row 3
       worksheet.getRow(3).alignment = { vertical: 'middle' };
-
-      // Style Data Rows (optional: add borders, etc.)
       worksheet.eachRow({ includeEmpty: false }, function(row, rowNumber) {
         if (rowNumber > 3) { // Start after header row
-          row.getCell('B').alignment = { wrapText: true, vertical: 'top' }; // Wrap text in value column
-        }
-        if (rowNumber === data.length + 3) { // Last data row (Notes)
-            row.height = 40; // Increase height for notes if needed
+          row.getCell('B').alignment = { wrapText: true, vertical: 'top' };
         }
       });
 
       res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-      res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
-
-      await workbook.xlsx.write(res);
-      res.end();
+      res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(filename)}"`);
+      const buffer = await workbook.xlsx.writeBuffer();
+      res.send(buffer);
     }
   } catch (error) {
     console.error('Error generating single review report:', error);
@@ -363,14 +355,15 @@ export const downloadReviewReport = async (req, res) => {
 // Send a single review report via email
 export const sendReviewReportByClient = async (req, res) => {
   const { reviewId } = req.params;
-  const { email, format = 'pdf' } = req.body; // Default to pdf
+  let { email, format = 'pdf' } = req.body; // Default to pdf
 
   if (!email) {
-    return res.status(400).json({ message: 'Email address is required.' });
+    return res.status(400).json({ error: 'Email address is required.' });
   }
-  if (!['pdf', 'excel'].includes(format)) {
-    return res.status(400).json({ message: 'Invalid format. Use "pdf" or "excel".' });
+  if (format === 'excel') {
+    return res.status(400).json({ error: 'Excel format is temporarily unavailable for sending single reviews. Please use PDF format for now.' });
   }
+  format = 'pdf'; // Ensure only PDF is processed
 
   try {
     // Load the review, vehicle and employee data
@@ -378,15 +371,17 @@ export const sendReviewReportByClient = async (req, res) => {
       .populate('vehicle', 'name wofRego')
       .populate('employeeId', 'name');
     if (!review) {
-      return res.status(404).json({ message: 'Review not found.' });
+      return res.status(404).json({ error: 'Review not found.' });
     }
 
     let buffer;
-    let filename = generateReviewFilename(review, format === 'pdf' ? 'pdf' : 'xlsx');
+    let filename = generateReviewFilename(review, 'pdf'); // Always PDF
     let contentType;
     const subject = `Vehicle Review Report: ${review.vehicle?.name || 'N/A'} (${new Date(review.dateReviewed).toLocaleDateString()})`;
     const textBody = `Please find attached the ${format.toUpperCase()} review report for vehicle "${review.vehicle?.name || 'N/A'}" reviewed by ${review.employeeId?.name || 'N/A'} on ${new Date(review.dateReviewed).toLocaleDateString()}.`;
 
+    // TODO: REFACTOR_PDF_SINGLE_REVIEW - Refactor PDF generation into a reusable helper function:
+    // e.g., const pdfBuffer = await generateSingleReviewPdfBuffer(review);
 
     if (format === 'pdf') {
       contentType = 'application/pdf';
@@ -422,52 +417,11 @@ export const sendReviewReportByClient = async (req, res) => {
 
         doc.end();
       });
-
-    } else { // Excel format
-      contentType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
-      const workbook = new ExcelJS.Workbook();
-      const worksheet = workbook.addWorksheet('Review Report');
-
-      // Excel content (same as download function)
-      worksheet.mergeCells('A1:B1');
-      worksheet.getCell('A1').value = 'Vehicle Review Report';
-      worksheet.getCell('A1').font = { bold: true, size: 16 };
-      worksheet.getCell('A1').alignment = { horizontal: 'center' };
-      worksheet.addRow([]);
-
-      worksheet.columns = [
-        { header: 'Field', key: 'field', width: 25 },
-        { header: 'Value', key: 'value', width: 50 },
-      ];
-      const data = [
-        { field: 'Vehicle', value: review.vehicle?.name || 'N/A' },
-        { field: 'WOF/Rego', value: review.vehicle?.wofRego || 'N/A' },
-        { field: 'Date Reviewed', value: review.dateReviewed ? new Date(review.dateReviewed).toLocaleDateString() : 'N/A' },
-        { field: 'Employee', value: review.employeeId?.name || 'N/A' },
-        { field: 'Hours Used', value: review.hours ?? 'N/A' },
-        { field: 'Oil Checked', value: review.oilChecked ? 'Yes' : 'No' },
-        { field: 'Vehicle Checked', value: review.vehicleChecked ? 'Yes' : 'No' },
-        { field: 'Vehicle Broken', value: review.vehicleBroken ? 'Yes' : 'No' },
-        { field: 'Notes', value: review.notes || 'N/A' },
-      ];
-      worksheet.addRows(data);
-      worksheet.getRow(3).font = { bold: true };
-      worksheet.getRow(3).alignment = { vertical: 'middle' };
-      worksheet.eachRow({ includeEmpty: false }, function(row, rowNumber) {
-        if (rowNumber > 3) {
-          row.getCell('B').alignment = { wrapText: true, vertical: 'top' };
-        }
-         if (rowNumber === data.length + 3) {
-            row.height = 40;
-        }
-      });
-
-      buffer = await workbook.xlsx.writeBuffer();
-    }
+    } // Excel logic is effectively removed by the check above
 
     // Send email with attachment
     const transporter = nodemailer.createTransport({
-      service: 'gmail', // Consider making this configurable
+      service: 'gmail', // TODO: Make email service configurable via environment variables
       auth: {
         user: process.env.EMAIL_USER, // Ensure these are set in your environment
         pass: process.env.EMAIL_PASS,
@@ -491,7 +445,7 @@ export const sendReviewReportByClient = async (req, res) => {
     res.status(200).json({ message: 'Review report sent successfully via email.' });
   } catch (error) {
     console.error('Error sending review report by email:', error);
-    res.status(500).json({ message: 'Failed to send review report via email.' });
+    res.status(500).json({ error: 'Failed to send review report via email.' });
   }
 };
 
@@ -503,17 +457,17 @@ export const downloadVehicleReport = async (req, res) => {
 
     // Validate inputs
     if (!vehicleId) {
-        return res.status(400).json({ message: 'Vehicle ID is required.' });
+        return res.status(400).json({ error: 'Vehicle ID is required.' });
     }
     // Basic date validation (more robust validation might be needed)
     const start = startDate ? new Date(startDate) : null;
     const end = endDate ? new Date(endDate) : null;
 
     if (start && isNaN(start.getTime())) {
-        return res.status(400).json({ message: 'Invalid start date format.' });
+        return res.status(400).json({ error: 'Invalid start date format.' });
     }
     if (end && isNaN(end.getTime())) {
-        return res.status(400).json({ message: 'Invalid end date format.' });
+        return res.status(400).json({ error: 'Invalid end date format.' });
     }
     // Set end date to end of day
     if (end) {
@@ -521,7 +475,7 @@ export const downloadVehicleReport = async (req, res) => {
     }
 
     const vehicle = await Vehicle.findById(vehicleId);
-    if (!vehicle) return res.status(404).json({ message: 'Vehicle not found' });
+    if (!vehicle) return res.status(404).json({ error: 'Vehicle not found' });
 
     // Build query for reviews
     const reviewQuery = {
@@ -536,6 +490,9 @@ export const downloadVehicleReport = async (req, res) => {
     const reviews = await VehicleReview.find(reviewQuery)
                                         .populate('employeeId', 'name') // Only need employee name
                                         .sort({ dateReviewed: -1 }); // Sort by date
+
+    // TODO: REFACTOR_EXCEL_VEHICLE_HISTORY - Refactor Excel generation into a reusable helper:
+    // e.g., const workbook = generateVehicleHistoryExcelWorkbook(vehicle, reviews);
 
     const workbook = new ExcelJS.Workbook();
     workbook.creator = 'Vehicle Management System'; // Optional metadata
@@ -624,7 +581,7 @@ export const downloadVehicleReport = async (req, res) => {
   } catch (err) {
     console.error('Error generating vehicle Excel report:', err);
      if (!res.headersSent) {
-        res.status(500).json({ message: 'Error generating vehicle Excel report' });
+        res.status(500).json({ error: 'Error generating vehicle Excel report' });
     } else {
         console.error("Headers already sent, could not send error JSON response.");
         res.end();
@@ -640,23 +597,23 @@ export const sendVehicleReportByEmail = async (req, res) => {
 
     // Validate inputs
     if (!vehicleId || !email) {
-      return res.status(400).json({ message: "Vehicle ID and Email are required." });
+      return res.status(400).json({ error: "Vehicle ID and Email are required." });
     }
     const start = startDate ? new Date(startDate) : null;
     const end = endDate ? new Date(endDate) : null;
-    if (start && isNaN(start.getTime())) return res.status(400).json({ message: 'Invalid start date format.' });
-    if (end && isNaN(end.getTime())) return res.status(400).json({ message: 'Invalid end date format.' });
+    if (start && isNaN(start.getTime())) return res.status(400).json({ error: 'Invalid start date format.' });
+    if (end && isNaN(end.getTime())) return res.status(400).json({ error: 'Invalid end date format.' });
     if (end) end.setHours(23, 59, 59, 999);
 
     const vehicle = await Vehicle.findById(vehicleId);
-    if (!vehicle) return res.status(404).json({ message: 'Vehicle not found' });
+    if (!vehicle) return res.status(404).json({ error: 'Vehicle not found' });
 
     // Build query
     const reviewQuery = { vehicle: vehicleId };
     if (start || end) {
         reviewQuery.dateReviewed = {};
         if (start) reviewQuery.dateReviewed.$gte = start;
-        if (end) reviewQuery.dateReviewed.$lte = end;
+        if (end) reviewQuery.dateReviewed.$lte = end; // Corrected: was $lte = start
     }
 
     const reviews = await VehicleReview.find(reviewQuery)
@@ -665,10 +622,13 @@ export const sendVehicleReportByEmail = async (req, res) => {
 
     // Don't send email if no reviews, inform user
     if (reviews.length === 0) {
-      return res.status(404).json({ message: 'No reviews found for this vehicle in the selected date range. Email not sent.' });
+      return res.status(404).json({ error: 'No reviews found for this vehicle in the selected date range. Email not sent.' });
     }
 
     // --- Generate Excel Workbook (Similar to downloadVehicleReport) ---
+    // TODO: REFACTOR_EXCEL_VEHICLE_HISTORY - Use the same refactored helper as downloadVehicleReport:
+    // e.g., const workbook = generateVehicleHistoryExcelWorkbook(vehicle, reviews);
+
     const workbook = new ExcelJS.Workbook();
     workbook.creator = 'Vehicle Management System';
     workbook.created = new Date();
@@ -733,7 +693,7 @@ export const sendVehicleReportByEmail = async (req, res) => {
     const filename = `${vehicle.name.replace(/\s+/g, '_')}_Report_${formattedStart}_to_${formattedEnd}.xlsx`;
 
     const transporter = nodemailer.createTransport({
-      service: 'gmail',
+      service: 'gmail', // TODO: Make email service configurable
       auth: {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASS,
@@ -759,7 +719,7 @@ export const sendVehicleReportByEmail = async (req, res) => {
 
   } catch (error) {
     console.error('Error sending vehicle report email:', error);
-    res.status(500).json({ message: 'Failed to send vehicle report email.' });
+    res.status(500).json({ error: 'Failed to send vehicle report email.' });
   }
 };
 
@@ -772,15 +732,39 @@ export const downloadAllVehiclesReport = async (req, res) => {
 
     const start = startDate ? new Date(startDate) : null;
     const end = endDate ? new Date(endDate) : null;
-    if (start && isNaN(start.getTime())) return res.status(400).json({ message: 'Invalid start date format.' });
-    if (end && isNaN(end.getTime())) return res.status(400).json({ message: 'Invalid end date format.' });
+    if (start && isNaN(start.getTime())) return res.status(400).json({ error: 'Invalid start date format.' });
+    if (end && isNaN(end.getTime())) return res.status(400).json({ error: 'Invalid end date format.' });
     if (end) end.setHours(23, 59, 59, 999);
 
     // Fetch all vehicles efficiently
-    const vehicles = await Vehicle.find().lean(); // Use lean for performance if not modifying
+    const vehicles = await Vehicle.find().lean();
     if (!vehicles || vehicles.length === 0) {
-      return res.status(404).json({ message: 'No vehicles found in the system.' });
+      return res.status(404).json({ error: 'No vehicles found in the system.' });
     }
+
+    const vehicleIds = vehicles.map(v => v._id);
+
+    // Build review query
+    const reviewQueryBase = { vehicle: { $in: vehicleIds } };
+    if (start || end) {
+        reviewQueryBase.dateReviewed = {};
+        if (start) reviewQueryBase.dateReviewed.$gte = start;
+        if (end) reviewQueryBase.dateReviewed.$lte = end;
+    }
+
+    // Fetch all relevant reviews in one go
+    const allReviews = await VehicleReview.find(reviewQueryBase)
+        .sort({ vehicle: 1, dateReviewed: -1 }) // Sort by vehicle for easier grouping if needed, then by date
+        .populate('employeeId', 'name')
+        .lean();
+
+    // Group reviews by vehicleId for easier access
+    const reviewsByVehicleId = allReviews.reduce((acc, review) => {
+        const vehicleIdString = review.vehicle.toString();
+        if (!acc[vehicleIdString]) acc[vehicleIdString] = [];
+        acc[vehicleIdString].push(review);
+        return acc;
+    }, {});
 
     const workbook = new ExcelJS.Workbook();
     workbook.creator = 'Vehicle Management System';
@@ -805,23 +789,16 @@ export const downloadAllVehiclesReport = async (req, res) => {
 
     let hasReviews = false; // Flag to check if any reviews were found
 
-    // Loop through vehicles and fetch/add reviews
+    // Loop through vehicles and use pre-fetched reviews
     for (const vehicle of vehicles) {
-      const reviewQuery = { vehicle: vehicle._id };
-      if (start || end) {
-          reviewQuery.dateReviewed = {};
-          if (start) reviewQuery.dateReviewed.$gte = start;
-          if (end) reviewQuery.dateReviewed.$lte = end;
-      }
+      const reviewsForThisVehicle = reviewsByVehicleId[vehicle._id.toString()] || [];
 
-      const reviews = await VehicleReview.find(reviewQuery)
-        .sort({ dateReviewed: -1 })
-        .populate('employeeId', 'name')
-        .lean(); // Use lean here too
-
-      if (reviews.length > 0) {
+      if (reviewsForThisVehicle.length > 0) {
           hasReviews = true;
-          reviews.forEach((review) => {
+          // Sort reviews for this specific vehicle by date again if needed, though already sorted globally
+          reviewsForThisVehicle.sort((a, b) => new Date(b.dateReviewed) - new Date(a.dateReviewed));
+
+          reviewsForThisVehicle.forEach((review) => {
             mainSheet.addRow({
               vehicleName: vehicle.name || 'N/A',
               date: review.dateReviewed ? new Date(review.dateReviewed).toLocaleDateString() : 'N/A',
@@ -836,6 +813,9 @@ export const downloadAllVehiclesReport = async (req, res) => {
           });
       }
     }
+    // TODO: REFACTOR_EXCEL_ALL_VEHICLES - Consider refactoring the workbook generation into a helper function:
+    // e.g., const workbook = generateAllVehiclesExcelWorkbook(vehicles, reviewsByVehicleId);
+    // This helper would return an ExcelJS.Workbook instance.
 
     // Handle case where no reviews were found for any vehicle in the range
     if (!hasReviews) {
@@ -863,7 +843,7 @@ export const downloadAllVehiclesReport = async (req, res) => {
   } catch (error) {
     console.error('Error downloading all vehicles report:', error);
      if (!res.headersSent) {
-        res.status(500).json({ message: 'Internal server error generating all vehicles report' });
+        res.status(500).json({ error: 'Internal server error generating all vehicles report' });
     } else {
         console.error("Headers already sent, could not send error JSON response.");
         res.end();
@@ -877,13 +857,13 @@ export const sendAllVehiclesReportByEmail = async (req, res) => {
     const { startDate, endDate, email } = req.body;
 
     if (!email) {
-      return res.status(400).json({ message: 'Recipient email address is required' });
+      return res.status(400).json({ error: 'Recipient email address is required' });
     }
 
     const start = startDate ? new Date(startDate) : null;
     const end = endDate ? new Date(endDate) : null;
-    if (start && isNaN(start.getTime())) return res.status(400).json({ message: 'Invalid start date format.' });
-    if (end && isNaN(end.getTime())) return res.status(400).json({ message: 'Invalid end date format.' });
+    if (start && isNaN(start.getTime())) return res.status(400).json({ error: 'Invalid start date format.' });
+    if (end && isNaN(end.getTime())) return res.status(400).json({ error: 'Invalid end date format.' });
     if (end) end.setHours(23, 59, 59, 999);
 
     const formattedStart = start ? start.toLocaleDateString() : 'Start';
@@ -892,15 +872,35 @@ export const sendAllVehiclesReportByEmail = async (req, res) => {
     // Fetch all vehicles
     const vehicles = await Vehicle.find().lean();
     if (!vehicles || vehicles.length === 0) {
-      return res.status(404).json({ message: 'No vehicles found. Email not sent.' });
+      return res.status(404).json({ error: 'No vehicles found. Email not sent.' });
     }
 
-    // --- Generate Excel Workbook (Similar to downloadAllVehiclesReport) ---
-    const workbook = new ExcelJS.Workbook();
-    workbook.creator = 'Vehicle Management System';
-    workbook.created = new Date();
-    const mainSheet = workbook.addWorksheet('All Vehicles Report');
+    const vehicleIds = vehicles.map(v => v._id);
 
+    // Build review query
+    const reviewQueryBase = { vehicle: { $in: vehicleIds } };
+    if (start || end) {
+        reviewQueryBase.dateReviewed = {};
+        if (start) reviewQueryBase.dateReviewed.$gte = start;
+        if (end) reviewQueryBase.dateReviewed.$lte = end;
+    }
+
+    // Fetch all relevant reviews
+    const allReviews = await VehicleReview.find(reviewQueryBase)
+        .sort({ vehicle: 1, dateReviewed: -1 })
+        .populate('employeeId', 'name')
+        .lean();
+
+    const reviewsByVehicleId = allReviews.reduce((acc, review) => {
+        const vehicleIdString = review.vehicle.toString();
+        if (!acc[vehicleIdString]) acc[vehicleIdString] = [];
+        acc[vehicleIdString].push(review);
+        return acc;
+    }, {});
+
+    // --- Generate Excel Workbook (Similar to downloadAllVehiclesReport) ---
+    // TODO: REFACTOR_EXCEL_ALL_VEHICLES - Use the same refactored helper as downloadAllVehiclesReport:
+    // e.g., const workbook = generateAllVehiclesExcelWorkbook(vehicles, reviewsByVehicleId);
     const columns = [
         { header: 'Vehicle Name', key: 'vehicleName', width: 25 },
         { header: 'Date Reviewed', key: 'date', width: 15 },
@@ -912,6 +912,10 @@ export const sendAllVehiclesReportByEmail = async (req, res) => {
         { header: 'Notes', key: 'notes', width: 40 },
         { header: 'Vehicle WOF/Rego', key: 'wofRego', width: 15 },
     ];
+    const workbook = new ExcelJS.Workbook();
+    workbook.creator = 'Vehicle Management System';
+    workbook.created = new Date();
+    const mainSheet = workbook.addWorksheet('All Vehicles Report');
     mainSheet.columns = columns;
     mainSheet.getRow(1).font = { bold: true, name: 'Calibri' };
     mainSheet.getRow(1).alignment = { vertical: 'middle' };
@@ -919,16 +923,10 @@ export const sendAllVehiclesReportByEmail = async (req, res) => {
     let hasReviews = false;
 
     for (const vehicle of vehicles) {
-      const reviewQuery = { vehicle: vehicle._id };
-      if (start || end) {
-          reviewQuery.dateReviewed = {};
-          if (start) reviewQuery.dateReviewed.$gte = start;
-          if (end) reviewQuery.dateReviewed.$lte = end;
-      }
-      const reviews = await VehicleReview.find(reviewQuery)
-        .sort({ dateReviewed: -1 })
-        .populate('employeeId', 'name')
-        .lean();
+      const reviews = reviewsByVehicleId[vehicle._id.toString()] || [];
+      // Ensure reviews are sorted by date for this vehicle if the global sort wasn't sufficient for per-vehicle ordering
+      reviews.sort((a, b) => new Date(b.dateReviewed) - new Date(a.dateReviewed));
+
 
       if (reviews.length > 0) {
           hasReviews = true;
@@ -949,7 +947,7 @@ export const sendAllVehiclesReportByEmail = async (req, res) => {
     }
 
     if (!hasReviews) {
-      return res.status(404).json({ message: 'No reviews found for any vehicle in the specified date range. Email not sent.' });
+      return res.status(404).json({ error: 'No reviews found for any vehicle in the specified date range. Email not sent.' });
     }
 
     mainSheet.getColumn('notes').alignment = { wrapText: true, vertical: 'top' };
@@ -959,7 +957,7 @@ export const sendAllVehiclesReportByEmail = async (req, res) => {
     const filename = `All_Vehicles_Report_${formattedStart}_to_${formattedEnd}.xlsx`;
 
     const transporter = nodemailer.createTransport({
-      service: 'gmail',
+      service: 'gmail', // TODO: Make email service configurable
       auth: {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASS,
@@ -983,6 +981,6 @@ export const sendAllVehiclesReportByEmail = async (req, res) => {
     res.status(200).json({ message: 'All vehicles report sent successfully via email!' });
   } catch (error) {
     console.error('Error sending all vehicles report email:', error);
-    res.status(500).json({ message: 'Failed to send all vehicles report email.', error: error.message });
+    res.status(500).json({ error: `Failed to send all vehicles report email. ${error.message}` });
   }
 };

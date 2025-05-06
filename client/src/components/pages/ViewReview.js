@@ -33,28 +33,30 @@ import {
   resetCurrentReview,
   clearReviewReportStatus,
 } from '../../redux/slices/vehicleReviewSlice';
-import { setAlert } from '../../redux/slices/alertSlice'; // Import setAlert
-import Alert from '../layout/Alert'; // Import Alert component
+import { setAlert } from '../../redux/slices/alertSlice';
+import Alert from '../layout/Alert';
 import '../../styles/ViewReview.scss';
 
 const ViewReview = () => {
   const { reviewId } = useParams();
   const navigate = useNavigate();
 
+  // Local component state
   const [showDownloadPrompt, setShowDownloadPrompt] = useState(false);
   const [showEmailPrompt, setShowEmailPrompt] = useState(false);
   const [email, setEmail] = useState('');
-  // const [emailFormat, setEmailFormat] = useState('pdf'); // Removed, only PDF will be used
-  // Local validation errors handled by dispatching alerts
 
   const dispatch = useDispatch();
 
+  // Redux state selectors
   const reviewData = useSelector(selectCurrentReviewData);
   const fetchStatus = useSelector(selectCurrentReviewStatus);
   const fetchError = useSelector(selectCurrentReviewError);
   const reportStatus = useSelector(selectReviewReportStatus);
   const reportError = useSelector(selectReviewReportError);
 
+  // Effects
+  // Fetches the specific review data when the component mounts or reviewId changes
   useEffect(() => {
     dispatch(fetchReviewById(reviewId))
       .unwrap()
@@ -63,23 +65,22 @@ const ViewReview = () => {
         if (err?.message?.includes('401') || err?.message?.includes('403')) {
           navigate('/login');
         }
-        // Error handled by useEffect below
       });
 
+    // Cleanup when component unmounts or reviewId changes
     return () => {
       dispatch(resetCurrentReview());
       dispatch(clearReviewReportStatus());
     };
   }, [reviewId, navigate, dispatch]);
 
-  // Effect to show alerts for fetch or report errors from Redux state
+  // Displays errors from Redux state (fetch or report generation) as alerts
   useEffect(() => {
     const reduxError = fetchError || reportError;
     if (reduxError) {
       dispatch(setAlert(reduxError, 'danger'));
     }
   }, [fetchError, reportError, dispatch]);
-
   const formattedDate = reviewData?.dateReviewed
     ? new Date(reviewData.dateReviewed).toLocaleDateString('en-GB', {
         day: '2-digit',
@@ -88,6 +89,8 @@ const ViewReview = () => {
       })
     : '--';
 
+    // Handlers
+    // Handles downloading the review report (PDF or Excel)
     const handleDownload = async (format) => {
       dispatch(clearReviewReportStatus());
 
@@ -111,19 +114,19 @@ const ViewReview = () => {
         }
       } catch (error) {
         console.error('Error downloading report:', error);
-        // Error handled by useEffect watching reportError
       }
     };
 
+  // Handles sending the review report via email
   const handleSendEmail = async () => {
-    if (!email || !/\S+@\S+\.\S+/.test(email)) {
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       dispatch(setAlert('Please enter a valid email address.', 'warning'));
       return;
     }
     dispatch(clearReviewReportStatus());
 
     try {
-      // Always send PDF format
+      // Backend currently only supports PDF for single review email
       await dispatch(sendReviewReportByClient({ reviewId, email, format: 'pdf' })).unwrap();
       setShowEmailPrompt(false);
       setEmail('');
@@ -134,6 +137,7 @@ const ViewReview = () => {
     }
   };
 
+  // Render logic
   if (fetchStatus === 'loading') {
     return (
       <div className='loading-indicator page-loading'>
@@ -143,24 +147,7 @@ const ViewReview = () => {
     );
   }
 
-  // Error state handled by Alert component
-  /*
-  if (fetchStatus === 'failed' && !reviewData) {
-    return (
-      <div className='error-message page-error'>
-        <FontAwesomeIcon icon={faExclamationCircle} />
-        <p>{fetchError}</p>
-        <Link
-          to={reviewData?.vehicle?._id ? `/vehicles/view/${reviewData.vehicle._id}` : '/vehicles'}
-          className='btn btn-secondary'
-        >
-          Back
-        </Link>
-      </div>
-    );
-  }
-  */
-
+  // Handles case where review data is not available after loading attempts
   if (fetchStatus === 'succeeded' && !reviewData) {
     return (
       <div className='vehicles-page'>
@@ -180,7 +167,7 @@ const ViewReview = () => {
 
   return (
     <div className='vehicles-page'>
-      <Alert />
+      <Alert /> {/* Global alert display */}
       <div className='vehicles-header'>
         <div className='title-breadcrumbs'>
           <h2>
@@ -226,21 +213,13 @@ const ViewReview = () => {
         <div className='prompt-overlay'>
           <div id="download-prompt-view-review" className='prompt-container'>
             <h4 className='prompt-title'>Download Report</h4>
-            {/* Error handled by Alert component */}
             <div className='prompt-actions'>
               <button
-                className='btn btn-primary'
+                className='btn btn-danger'
                 onClick={() => handleDownload('pdf')}
                 disabled={reportStatus === 'loading'}
               >
-                {reportStatus === 'loading' ? <FontAwesomeIcon icon={faSpinner} spin /> : 'PDF'}
-              </button>
-              <button
-                className='btn btn-success'
-                onClick={() => handleDownload('excel')}
-                disabled={reportStatus === 'loading'}
-              >
-                {reportStatus === 'loading' ? <FontAwesomeIcon icon={faSpinner} spin /> : 'Excel'}
+                {reportStatus === 'loading' ? <FontAwesomeIcon icon={faSpinner} spin /> : 'Download'}
               </button>
               <button
                 className='btn btn-secondary'
@@ -258,7 +237,6 @@ const ViewReview = () => {
         <div className='prompt-overlay'>
           <div id="email-prompt-view-review" className='prompt-container'>
             <h4 className='prompt-title'>Send Report via Email</h4>
-            {/* Error handled by Alert component */}
             <input
               type='email'
               placeholder='Enter recipient email'
@@ -268,28 +246,6 @@ const ViewReview = () => {
               aria-label='Recipient Email'
               required
             />
-            {/* Removed Format Options */}
-            {/* <div className='format-options'>
-              <label>
-                <input
-                  type='radio'
-                  name='format'
-                  value='pdf'
-                  checked={emailFormat === 'pdf'}
-                  onChange={() => setEmailFormat('pdf')}
-                /> PDF
-              </label>
-              <label>
-                <input
-                  type='radio'
-                  name='format'
-                  value='excel'
-                  checked={emailFormat === 'excel'}
-                  onChange={() => setEmailFormat('excel')}
-                /> Excel
-              </label>
-            </div>
-            */}
             <div className='prompt-actions'>
               <button
                 className='btn btn-purple'
@@ -314,16 +270,7 @@ const ViewReview = () => {
         </div>
       )}
 
-      {/* Error state handled by Alert component */}
-      {/*
-       {fetchError && fetchStatus !== 'loading' && (
-        <div className='error-message' style={{ marginBottom: '1.5rem' }}>
-          <FontAwesomeIcon icon={faExclamationCircle} />
-          <p>{fetchError}</p>
-        </div>
-      )}
-      */}
-
+      {/* Display review details if data is available */}
       {reviewData && (
         <>
           <div className='view-review-top-info'>

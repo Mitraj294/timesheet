@@ -11,11 +11,11 @@ import {
   selectProjectItems
 } from '../../redux/slices/projectSlice';
 import {
-    // Removed checkTimesheetExists as it might not be needed if editing is handled differently or not allowed here
+   
     createTimesheet,
-    fetchTimesheetById, // <-- Add this import (needs to be created in slice)
-    updateTimesheet, // Keep update if editing project timesheets is allowed via this route
-    // Removed check status/error/result selectors
+    fetchTimesheetById,
+    updateTimesheet, 
+ 
     selectTimesheetCreateStatus,
     selectTimesheetCreateError,
     selectTimesheetUpdateStatus,
@@ -40,7 +40,6 @@ import Alert from '../layout/Alert';
 import { DateTime } from 'luxon';
 
 // Constants for default values
-const DEFAULT_LUNCH_DURATION = '00:30';
 const DEFAULT_FORM_DATA = {
   employeeId: '',
   clientId: '', // Will be set from URL param
@@ -49,8 +48,8 @@ const DEFAULT_FORM_DATA = {
   startTime: '',
   endTime: '',
   lunchBreak: 'No',
-  lunchDuration: DEFAULT_LUNCH_DURATION,
-  leaveType: 'None', // Leave type might be less relevant in project context? Decide based on requirements.
+  lunchDuration: '00:30', // Default lunch duration
+  leaveType: 'None',
   description: '',
   hourlyWage: '',
   totalHours: 0,
@@ -65,20 +64,19 @@ const CreateProjectTimesheet = () => {
   const { clientId: clientIdFromUrl, projectId: projectIdFromUrl, timesheetId: timesheetIdForEdit } = useParams();
   const isEditing = Boolean(timesheetIdForEdit); // Determine edit mode based on timesheetId param
 
-  // --- State ---
+  // Local component state
   const [formData, setFormData] = useState({
       ...DEFAULT_FORM_DATA,
       clientId: clientIdFromUrl || '',
       projectId: projectIdFromUrl || ''
   });
   const [error, setError] = useState(null);
-  const [filteredProjects, setFilteredProjects] = useState([]); // Still needed if client can change? Or disable client field.
-  // Local state for timesheetToEdit removed, use Redux state below
+  const [filteredProjects, setFilteredProjects] = useState([]); // For project dropdown if client selection is enabled
 
-  // --- Redux Selectors ---
+  // Redux state selectors
   const employees = useSelector(selectAllEmployees);
-  const clients = useSelector(selectAllClients); // Keep clients if needed for display/validation
-  const allProjects = useSelector(selectProjectItems);
+  const clients = useSelector(selectAllClients); // Used for displaying client name
+  const allProjects = useSelector(selectProjectItems); // Used for displaying project name and filtering
   const projectStatus = useSelector(selectProjectStatus);
   const projectError = useSelector(selectProjectError);
   const createStatus = useSelector(selectTimesheetCreateStatus);
@@ -86,12 +84,12 @@ const CreateProjectTimesheet = () => {
   const updateStatus = useSelector(selectTimesheetUpdateStatus);
   const updateError = useSelector(selectTimesheetUpdateError);
   // Use selectors for fetching single timesheet if editing
-  const timesheetToEdit = useSelector(selectCurrentTimesheet); // Get the timesheet being edited from Redux
-  const currentTimesheetStatus = useSelector(selectCurrentTimesheetStatus); // Get its fetch status
+  const timesheetToEdit = useSelector(selectCurrentTimesheet);
+  const currentTimesheetStatus = useSelector(selectCurrentTimesheetStatus);
 
   const isLeaveSelected = formData.leaveType !== 'None';
 
-  // --- Pure Calculation Function ---
+  // Pure function to calculate total hours, memoized for performance
   const calculateHoursPure = useCallback((currentFormData) => {
     const { startTime, endTime, lunchBreak, lunchDuration, leaveType } = currentFormData;
     const isLeave = leaveType !== 'None';
@@ -112,27 +110,24 @@ const CreateProjectTimesheet = () => {
     } catch (e) { throw new Error(`Calculation Error: ${e.message}`); }
   }, []);
 
-  // --- Loading State ---
+  // Derived loading state
   const isLoading = useMemo(() =>
     createStatus === 'loading' ||
     updateStatus === 'loading' ||
-    (isEditing && currentTimesheetStatus === 'loading'), // Check loading status for the specific timesheet
-    [createStatus, updateStatus, isEditing, currentTimesheetStatus] // Add currentTimesheetStatus
+    (isEditing && currentTimesheetStatus === 'loading'),
+    [createStatus, updateStatus, isEditing, currentTimesheetStatus]
   );
 
-  // --- Effects ---
-  // Show Alerts for Errors
+  // Effects
+  // Displays errors from Redux state (project fetch, timesheet create/update) as alerts
   useEffect(() => {
     const reduxError = projectError || createError || updateError;
     if (reduxError) dispatch(setAlert(reduxError, 'danger'));
   }, [projectError, createError, updateError, dispatch]);
 
-  // Fetch Initial Data (Employees, Specific Client/Project if needed)
+  // Fetches initial data: employees, and the specific timesheet if in edit mode
   useEffect(() => {
     if (employees.length === 0) dispatch(fetchEmployees());
-    // Fetch specific client/project details if needed for display, or rely on IDs
-    // dispatch(fetchClientById(clientIdFromUrl)); // Example
-    // dispatch(fetchProjectById(projectIdFromUrl)); // Example
     // Fetch timesheet data if editing
     if (isEditing && timesheetIdForEdit) {
         // Fetch the specific timesheet to edit
@@ -143,9 +138,8 @@ const CreateProjectTimesheet = () => {
     }
   }, [dispatch, clientIdFromUrl, projectIdFromUrl, isEditing, timesheetIdForEdit, employees.length]);
 
-  // Fetch projects for the specific client (if client dropdown is enabled)
-  // If client/project are fixed, this might not be needed or simplified.
-  useEffect(() => {
+  // Fetches projects for the current client if client selection is dynamic and not a leave entry
+  useEffect(() => { // This effect might be simplified if client/project are always fixed from URL
       if (formData.clientId && !isLeaveSelected) {
           dispatch(fetchProjects(formData.clientId));
       } else {
@@ -153,15 +147,13 @@ const CreateProjectTimesheet = () => {
       }
   }, [formData.clientId, isLeaveSelected, dispatch]);
 
-  // Filter projects (if client dropdown enabled)
+  // Filters projects based on the selected client (if client selection is dynamic)
   useEffect(() => {
     if (formData.clientId && allProjects && allProjects.length > 0) {
       const clientProjects = allProjects.filter(p => (p.clientId?._id || p.clientId) === formData.clientId);
       setFilteredProjects(clientProjects);
-      // Ensure the projectId from URL is still selected if client changes back
       if (!clientProjects.some(p => p._id === formData.projectId)) {
-          // If the preselected project doesn't belong to the selected client, maybe clear it?
-          // setFormData(prev => ({ ...prev, projectId: '' })); // Decide on this behavior
+          // If preselected project isn't for this client, consider clearing formData.projectId
       }
     } else {
       setFilteredProjects([]);
@@ -169,7 +161,7 @@ const CreateProjectTimesheet = () => {
   }, [allProjects, formData.clientId, formData.projectId]);
 
   // Populate form for editing (requires timesheetToEdit state to be populated)
-  useEffect(() => {
+  useEffect(() => { // Populates form fields when editing an existing timesheet
     // Populate form when editing and the correct timesheet has loaded successfully
     if (isEditing && currentTimesheetStatus === 'succeeded' && timesheetToEdit && timesheetToEdit._id === timesheetIdForEdit) {
       const entryTimezone = timesheetToEdit.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
@@ -184,14 +176,12 @@ const CreateProjectTimesheet = () => {
           catch { formattedDate = DateTime.now().toFormat('yyyy-MM-dd'); }
       }
       const initialFormData = {
-        // ... other fields ...
         timezone: entryTimezone,
         employeeId: timesheetToEdit.employeeId?._id || timesheetToEdit.employeeId || '',
         clientId: clientIdFromUrl, // Keep from URL param
         projectId: projectIdFromUrl, // Keep from URL param
         date: formattedDate,
         startTime: utcToLocalTimeInput(timesheetToEdit.startTime),
-        // Find employee wage from the main employee list for reliability
         hourlyWage: employees.find(emp => emp._id === (timesheetToEdit.employeeId?._id || timesheetToEdit.employeeId))?.wage || '',
         endTime: utcToLocalTimeInput(timesheetToEdit.endTime),
         lunchBreak: timesheetToEdit.lunchBreak || 'No',
@@ -216,7 +206,7 @@ const CreateProjectTimesheet = () => {
     }
   }, [timesheetToEdit, currentTimesheetStatus, timesheetIdForEdit, calculateHoursPure, isEditing, clientIdFromUrl, projectIdFromUrl, dispatch, employees]); // Added employees dependency
 
-  // Calculate hours effect
+  // Recalculates total hours whenever relevant time inputs or leave status change
   useEffect(() => {
       let calculatedHoursValue = 0;
       try {
@@ -233,7 +223,7 @@ const CreateProjectTimesheet = () => {
       }
   }, [formData.startTime, formData.endTime, formData.lunchBreak, formData.lunchDuration, formData.leaveType, calculateHoursPure, dispatch, error]);
 
-  // --- Handlers ---
+  // Handlers
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => {
@@ -244,13 +234,11 @@ const CreateProjectTimesheet = () => {
         } else if (name === 'leaveType') {
             const isNowLeave = value !== 'None';
             if (isNowLeave) {
-                updated = { ...updated, startTime: '', endTime: '', lunchBreak: 'No', lunchDuration: DEFAULT_LUNCH_DURATION, notes: '', totalHours: 0 };
+                updated = { ...updated, startTime: '', endTime: '', lunchBreak: 'No', lunchDuration: '00:30', notes: '', totalHours: 0 };
             } else { updated.description = ''; }
         } else if (name === 'lunchBreak' && value === 'No') {
             updated.lunchDuration = '00:30';
         }
-        // If client changes, reset project? Or disable client dropdown?
-        // if (name === 'clientId') updated.projectId = ''; // Example: Reset project if client changes
         return updated;
     });
     if (error) setError(null);
@@ -333,7 +321,7 @@ const CreateProjectTimesheet = () => {
         endTime: endTimeUTC,
         lunchBreak: !isLeaveSelected ? formData.lunchBreak : 'No',
         lunchDuration: !isLeaveSelected && formData.lunchBreak === 'Yes' ? formData.lunchDuration : DEFAULT_LUNCH_DURATION,
-        leaveType: formData.leaveType,
+        leaveType: formData.leaveType, // This was '00:30' before, corrected to formData.leaveType
         description: isLeaveSelected ? formData.description : "",
         notes: !isLeaveSelected ? formData.notes : "",
         hourlyWage: parseFloat(formData.hourlyWage) || 0,
@@ -365,10 +353,11 @@ const CreateProjectTimesheet = () => {
 
   const isProjectLoading = projectStatus === 'loading';
 
-  // Find client and project names for display
+  // Memoized client and project names for display in header/breadcrumbs
   const clientName = useMemo(() => clients.find(c => c._id === clientIdFromUrl)?.name || 'Loading Client...', [clients, clientIdFromUrl]);
   const projectName = useMemo(() => allProjects.find(p => p._id === projectIdFromUrl)?.name || 'Loading Project...', [allProjects, projectIdFromUrl]);
 
+  // Render
   return (
     <div className='vehicles-page'>
       <Alert />
@@ -382,7 +371,7 @@ const CreateProjectTimesheet = () => {
             <span className='breadcrumb-separator'> / </span>
             <Link to='/clients' className='breadcrumb-link'>Clients</Link>
             <span className='breadcrumb-separator'> / </span>
-            <Link to={`/clients/view/${clientIdFromUrl}`} className='breadcrumb-link'>{clientName}</Link>
+            <Link to={`/clients/view/${clientIdFromUrl}`} className='breadcrumb-link'>{clientName || 'View Client'}</Link>
             <span className='breadcrumb-separator'> / </span>
             <Link to={`/clients/view/${clientIdFromUrl}/project/${projectIdFromUrl}`} className='breadcrumb-link'>{projectName}</Link> {/* Ensure this link is correct */}
             <span className='breadcrumb-separator'> / </span>
@@ -393,8 +382,7 @@ const CreateProjectTimesheet = () => {
 
       <div className='form-container'>
         <form onSubmit={handleSubmit} className='employee-form' noValidate>
-
-          {/* Display Client and Project Info (Readonly) */}
+          {/* Display Client and Project Info (Readonly as they are from URL params) */}
           <div className='form-group readonly-info'>
               <label><FontAwesomeIcon icon={faBuilding} /> Client</label>
               <input type="text" value={clientName} readOnly disabled />
@@ -438,8 +426,6 @@ const CreateProjectTimesheet = () => {
 
           {!isLeaveSelected && (
             <>
-              {/* Client and Project dropdowns removed/disabled as they come from context */}
-
               <div className='form-group'>
                 <label htmlFor='startTime'><FontAwesomeIcon icon={faClock} /> Start Time*</label>
                 <input id='startTime' type='time' name='startTime' value={formData.startTime} onChange={handleChange} step='60' required={!isLeaveSelected} disabled={isLoading} />

@@ -4,32 +4,31 @@ import { useDispatch, useSelector } from 'react-redux';
 import { startOfWeek, addDays, format, parseISO } from 'date-fns';
 import { DateTime } from 'luxon';
 
-// Redux Imports
 import { fetchEmployees, selectAllEmployees, selectEmployeeStatus, selectEmployeeError } from '../../redux/slices/employeeSlice';
 import {
     fetchRoleById, createRole, updateRole,
     selectCurrentRole, selectCurrentRoleStatus, selectCurrentRoleError,
-    selectRoleStatus, selectRoleError, // For create/update status
-    clearCurrentRole, clearRoleError // Import clear actions
+    selectRoleStatus, selectRoleError,
+    clearCurrentRole, clearRoleError
 } from '../../redux/slices/roleSlice';
-import { setAlert } from '../../redux/slices/alertSlice'; // Import setAlert
-import Alert from '../layout/Alert'; // Import Alert component
+import { setAlert } from '../../redux/slices/alertSlice';
+import Alert from '../layout/Alert';
 
 import '../../styles/Forms.scss'; // *** Use Forms.scss ***
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
-    faUserTag, // Changed icon for Role
+    faUserTag, 
     faTimes,
     faPalette,
     faCalendar,
     faXmark,
     faSpinner,
     faExclamationCircle,
-    faSave, // Added Save icon
-    faPen, // Added Edit icon
-} from '@fortawesome/free-solid-svg-icons';
+    faSave, 
+    faPen,
+} from '@fortawesome/free-solid-svg-icons'; // Added Edit icon
 
-const COLORS = ['Blue', 'Red', 'Green', 'Yellow', 'Default'];
+const COLORS = ['Default', 'Red', 'Green', 'Yellow', 'Blue'];
 
 // Helper function for UTC conversion (similar to RosterPage)
 const convertLocalTimeToUTC = (localTimeStr, dateStr) => {
@@ -64,33 +63,30 @@ const CreateRole = () => {
     const dispatch = useDispatch();
     const isEditing = Boolean(roleId);
 
-    // Redux State
+    // Redux state
     const allEmployees = useSelector(selectAllEmployees);
     const employeeStatus = useSelector(selectEmployeeStatus);
     const employeeError = useSelector(selectEmployeeError);
     const currentRole = useSelector(selectCurrentRole);
     const currentRoleStatus = useSelector(selectCurrentRoleStatus);
     const currentRoleError = useSelector(selectCurrentRoleError);
-    const saveStatus = useSelector(selectRoleStatus); // General status for create/update
-    const saveError = useSelector(selectRoleError); // General error for create/update
+    const saveStatus = useSelector(selectRoleStatus); // Tracks status of create/update operations
+    const saveError = useSelector(selectRoleError);   // Tracks errors from create/update operations
 
-    // Local UI State
+    // Local component state
     const [roleName, setRoleName] = useState('');
     const [roleDescription, setRoleDescription] = useState('');
     const [color, setColor] = useState(COLORS[0]);
-    // const [allEmployees, setAllEmployees] = useState([]); // Replaced by Redux
     const [selectedEmployees, setSelectedEmployees] = useState([]);
     const [schedule, setSchedule] = useState({});
-    // const [isLoading, setIsLoading] = useState(false); // Replaced by Redux status
-    const [error, setError] = useState(null);
+    const [error, setError] = useState(null); // For local form validation errors (though currently handled by alerts)
 
-    // Derived State/Constants
-    // Memoize weekStart to prevent it from changing on every render
+    // Memoized week start date to prevent re-calculation on every render
     const weekStart = useMemo(() => startOfWeek(new Date(), { weekStartsOn: 1 }), []);
     const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
 
-    // Fetch initial data
-    // Fetch employees and the specific role if editing
+    // Effects
+    // Fetches initial data: employees, and the specific role if in edit mode
     useEffect(() => {
         // Fetch employees if not already loaded
         if (employeeStatus === 'idle') {
@@ -100,7 +96,6 @@ const CreateRole = () => {
         if (isEditing && roleId) {
             dispatch(fetchRoleById(roleId));
         } else {
-            // Clear any previously loaded role if creating new
             dispatch(clearCurrentRole());
             // Reset local form state for creation mode
             setRoleName('');
@@ -110,14 +105,14 @@ const CreateRole = () => {
             setSchedule({});
         }
 
-        // Cleanup on unmount or if roleId changes
+        // Cleanup: clear current role and any save errors when component unmounts or `roleId` changes
         return () => {
             dispatch(clearCurrentRole());
-            dispatch(clearRoleError()); // Clear potential save errors
+            dispatch(clearRoleError());
         };
     }, [roleId, isEditing, dispatch, employeeStatus]);
 
-    // Populate form when editing and currentRole data is loaded
+    // Populates the form with fetched role data when in edit mode
     useEffect(() => {
       if (isEditing && currentRoleStatus === 'succeeded' && currentRole) {
           const data = currentRole;
@@ -126,6 +121,7 @@ const CreateRole = () => {
           const newColor = data.color || COLORS[0];
           const newSelectedEmployees = (data.assignedEmployees || []).map(emp => typeof emp === 'object' ? emp._id : emp);
 
+          // Format schedule from UTC (stored) to local time for display
           const newFormattedSchedule = {};
           (data.schedule || []).forEach((entry) => {
               const dayStr = entry.day;
@@ -147,40 +143,37 @@ const CreateRole = () => {
               }
           });
 
-          // Only update state if values have actually changed
+          // Update local form state only if fetched data differs, to prevent unnecessary re-renders
           setRoleName(prev => prev !== newRoleName ? newRoleName : prev);
           setRoleDescription(prev => prev !== newRoleDescription ? newRoleDescription : prev);
           setColor(prev => prev !== newColor ? newColor : prev);
-          // Simple comparison for arrays (might need deep comparison if order matters and changes)
           setSelectedEmployees(prev => JSON.stringify(prev) !== JSON.stringify(newSelectedEmployees) ? newSelectedEmployees : prev);
           setSchedule(prev => JSON.stringify(prev) !== JSON.stringify(newFormattedSchedule) ? newFormattedSchedule : prev);
 
-          if (error) setError(null); // Clear local error if data loads successfully
+          if (error) setError(null); // Clear any local validation error if data loads
       } else if (isEditing && currentRoleStatus === 'failed') {
-          if (error !== currentRoleError) { // Avoid setting error if it's already the same
-              setError(currentRoleError); // Show fetch error
-                    }
+          // Error is displayed by the alert effect below
       }
   }, [isEditing, currentRoleStatus, currentRole, currentRoleError, weekStart, error]); // Added error dependency
 
-    // Combined loading state
+    // Derived loading state from Redux statuses
     const isLoading = useMemo(() =>
         employeeStatus === 'loading' ||
         currentRoleStatus === 'loading' ||
-        saveStatus === 'loading', // Include save status
+        saveStatus === 'loading',
         [employeeStatus, currentRoleStatus, saveStatus]
     );
 
-    // Combined error state
-    const combinedError = useMemo(() =>
-        error || // Local validation/calculation errors
-        employeeError ||
-        currentRoleError ||
-        saveError, // Include save error
-        [error, employeeError, currentRoleError, saveError]
-    );
+    // This combinedError was for inline display, but alerts are now preferred.
+    // const combinedError = useMemo(() =>
+    //     error ||
+    //     employeeError ||
+    //     currentRoleError ||
+    //     saveError,
+    //     [error, employeeError, currentRoleError, saveError]
+    // );
 
-    // Effect to show alerts for fetch or save errors from Redux state
+    // Displays errors from Redux state (fetch or save operations) as alerts
     useEffect(() => {
         const reduxError = employeeError || currentRoleError || saveError;
         if (reduxError) {
@@ -189,13 +182,13 @@ const CreateRole = () => {
         }
     }, [employeeError, currentRoleError, saveError, dispatch]);
 
-    // Handlers
+    // Event Handlers
     const handleAddEmployee = useCallback((e) => {
         const empId = e.target.value;
         if (empId && !selectedEmployees.includes(empId)) {
             setSelectedEmployees((prev) => [...prev, empId]);
         }
-        e.target.value = ""; // Clear the select dropdown
+        e.target.value = ""; // Reset select dropdown after adding
     }, [selectedEmployees]);
 
     const removeEmployee = useCallback((empIdToRemove) => {
@@ -213,10 +206,10 @@ const CreateRole = () => {
                 },
             };
         });
-        if (error) setError(null); // Clear local error on interaction
+        if (error) setError(null); // Clear local validation error on time change
     }, [error]); // Added error dependency
 
-    // Submission Logic
+    // Form Validation
     const validateInputs = () => {
         if (!roleName.trim()) return 'Role Name is required.';
         if (!roleDescription.trim()) return 'Role Description is required.';
@@ -229,6 +222,7 @@ const CreateRole = () => {
         return null;
     };
 
+    // Prepares data for submission (e.g., converting schedule times to UTC)
     const prepareSubmitData = () => {
         const scheduleArray = weekDays
             .map((day) => {
@@ -243,7 +237,7 @@ const CreateRole = () => {
                 const endTime = localEnd ? convertLocalTimeToUTC(localEnd, dayStr) : '';
 
                  if ((localStart && !startTime) || (localEnd && !endTime)) {
-                     console.warn(`Time conversion issue for ${dayStr}`);
+                     console.warn(`Time conversion issue for ${dayStr}, localStart: ${localStart}, localEnd: ${localEnd}`);
                  }
 
                 return { day: dayStr, startTime: startTime || '', endTime: endTime || '' };
@@ -259,15 +253,15 @@ const CreateRole = () => {
         };
     };
 
+    // Form Submission
     const handleSubmit = async (e) => {
         e.preventDefault();
-        setError(null); // Clear local error
-        dispatch(clearRoleError()); // Clear Redux save error
+        setError(null); // Clear previous local validation errors
+        dispatch(clearRoleError()); // Clear previous Redux save/operation errors
 
         const validationError = validateInputs();
         if (validationError) {
-            setError(validationError);
-            dispatch(setAlert(validationError, 'warning')); // Show validation error via Alert
+            dispatch(setAlert(validationError, 'warning'));
             return;
         }
 
@@ -284,20 +278,17 @@ const CreateRole = () => {
             navigate('/rosterpage');
 
         } catch (err) {
-            // Error from unwrap() or validation will be caught here
             console.error('Error submitting role:', err.response?.data || err.message);
-            // Error state is handled by combinedError via Redux state
-            // Optionally set local error too if needed: setError(err);
             dispatch(setAlert(err || `Failed to ${isEditing ? 'update' : 'create'} role.`, 'danger'));
         }
     };
 
-    // Render
+    // --- Render Logic ---
     const availableEmployees = allEmployees.filter(
         (emp) => !selectedEmployees.includes(emp._id)
     );
 
-    // Show loading indicator based on combined state
+    // Display loading indicator if fetching initial data or saving
     if (isLoading) {
         return (
             <div className="vehicles-page">
@@ -309,11 +300,10 @@ const CreateRole = () => {
         );
     }
 
-
     return (
-        <div className="vehicles-page"> {/* Use standard page class */}
-            <Alert /> {/* Render Alert component here */}
-            <div className="vehicles-header"> {/* Use standard header */}
+        <div className="vehicles-page">
+            <Alert />
+            <div className="vehicles-header">
                 <div className="title-breadcrumbs">
                     <h2>
                         <FontAwesomeIcon icon={faUserTag} /> {isEditing ? 'Edit Role' : 'Create New Role'}
@@ -326,17 +316,10 @@ const CreateRole = () => {
                         <span className="breadcrumb-current">{isEditing ? 'Edit Role' : 'Create Role'}</span>
                     </div>
                 </div>
-                {/* No header actions needed */}
             </div>
 
-            <div className="form-container"> {/* Use standard form container */}
-                <form onSubmit={handleSubmit} className="employee-form" noValidate> {/* Use standard form class */}
-                    {/* {combinedError && ( // Handled by Alert component
-                        <div className="form-error-message">
-                            <FontAwesomeIcon icon={faExclamationCircle} /> {combinedError}
-                        </div>
-                    )} */}
-
+            <div className="form-container">
+                <form onSubmit={handleSubmit} className="employee-form" noValidate>
                     <div className="form-group">
                         <label htmlFor="roleName">Role Name*</label>
                         <input
@@ -381,11 +364,8 @@ const CreateRole = () => {
                         </select>
                     </div>
 
-                    {/* Employee Multi-Select - Adapted for standard form */}
                     <div className="form-group">
                         <label htmlFor="employeeSelect">Assign Employees</label>
-                        {/* Display selected employees */}
-                        {/* Apply classes instead of inline styles */}
                         <div className="selected-employees-tags">
                             {selectedEmployees.length === 0 && <span className="no-selection-text">No employees assigned</span>}
                             {selectedEmployees.map((empId) => {
@@ -399,7 +379,6 @@ const CreateRole = () => {
                                             onClick={() => removeEmployee(empId)}
                                             aria-label={`Remove ${emp.name}`}
                                             disabled={isLoading}
-                                            // Use a class for the remove button styling
                                             className="remove-tag-btn"
                                         >
                                             <FontAwesomeIcon icon={faXmark} size="sm" />
@@ -408,7 +387,6 @@ const CreateRole = () => {
                                 ) : null;
                             })}
                         </div>
-                        {/* Dropdown to add employees */}
                         <select
                             id="employeeSelect"
                             onChange={handleAddEmployee}
@@ -426,19 +404,16 @@ const CreateRole = () => {
                         </select>
                     </div>
 
-                    {/* Schedule Section - Adapted for standard form */}
                     <div className="form-group">
                         <label>
                             <FontAwesomeIcon icon={faCalendar} /> Weekly Schedule (Current Week)
                         </label>
-                        {/* Removed inline styles from schedule grid/rows */}
                         <div className="schedule-grid">
                             {weekDays.map((day) => {
                                 const dayStr = format(day, 'yyyy-MM-dd');
                                 const dayLabel = format(day, 'EEE');
                                 return (
                                     <div key={dayStr} className="schedule-day-row">
-                                        {/* Removed inline style from label */}
                                         <label htmlFor={`from-${dayStr}`} className="schedule-day-label">{dayLabel}</label>
                                         <input
                                             id={`from-${dayStr}`}
@@ -447,7 +422,6 @@ const CreateRole = () => {
                                             onChange={(e) => handleTimeChange(dayStr, 'from', e.target.value)}
                                             disabled={isLoading}
                                         />
-                                        {/* Removed inline style from span */}
                                         <span className="schedule-time-separator">to</span>
                                         <input
                                             id={`to-${dayStr}`}
@@ -462,11 +436,10 @@ const CreateRole = () => {
                         </div>
                     </div>
 
-                    {/* Footer/Submit Button */}
                     <div className="form-footer">
                         <button
                             type="button"
-                            className="btn btn-danger" // Changed to danger for cancel
+                            className="btn btn-danger"
                             onClick={() => navigate('/rosterpage')}
                             disabled={isLoading}
                         >
@@ -474,7 +447,7 @@ const CreateRole = () => {
                         </button>
                         <button
                             type="submit"
-                            className="btn btn-success" // Changed to success for save/update
+                            className="btn btn-success"
                             disabled={isLoading}
                         >
                             {isLoading ? (

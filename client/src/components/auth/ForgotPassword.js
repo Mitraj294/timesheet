@@ -4,10 +4,10 @@ import { Link, useNavigate } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faEnvelope, faSpinner, faPaperPlane, faArrowLeft } from '@fortawesome/free-solid-svg-icons';
 
-import { forgotPassword, clearAuthError, selectAuthError, selectIsAuthLoading } from '../../redux/slices/authSlice'; // Assuming forgotPassword exists
+import { forgotPassword, clearAuthError, selectAuthError, selectIsAuthLoading } from '../../redux/slices/authSlice';
 import { setAlert } from '../../redux/slices/alertSlice';
 import Alert from '../layout/Alert';
-import '../../styles/Login.scss'; // Re-use login styles
+import '../../styles/Login.scss';
 
 const ForgotPassword = () => {
     const [email, setEmail] = useState('');
@@ -15,9 +15,9 @@ const ForgotPassword = () => {
     const navigate = useNavigate();
 
     const authError = useSelector(selectAuthError);
-    const isLoading = useSelector(selectIsAuthLoading); // Use general loading or create specific one
+    const isLoading = useSelector(selectIsAuthLoading);
 
-    // Clear errors on mount/unmount
+    // Effects
     useEffect(() => {
         dispatch(clearAuthError());
         return () => {
@@ -25,13 +25,13 @@ const ForgotPassword = () => {
         };
     }, [dispatch]);
 
-    // Show error alerts
     useEffect(() => {
         if (authError) {
             dispatch(setAlert(authError, 'danger'));
         }
     }, [authError, dispatch]);
 
+    // Handlers
     const handleSubmit = async (e) => {
         e.preventDefault();
         if (!email || !/\S+@\S+\.\S+/.test(email)) {
@@ -39,20 +39,16 @@ const ForgotPassword = () => {
             return;
         }
         dispatch(clearAuthError()); // Clear previous errors
-
         try {
-            // Dispatch the action to request password reset
             await dispatch(forgotPassword({ email })).unwrap();
             dispatch(setAlert('Password reset email sent. Please check your inbox (and spam folder).', 'success'));
-            // Optionally navigate back to login or show success message on the same page
-            // navigate('/login');
             setEmail(''); // Clear email field on success
         } catch (err) {
-            // Error is handled by the useEffect watching authError
             console.error("Forgot password request failed:", err);
         }
     };
 
+    // Render
     return (
         <div className="styles_LoginSignupContainer">
             <Alert />

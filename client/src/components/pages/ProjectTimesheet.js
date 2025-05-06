@@ -47,11 +47,10 @@ import {
     selectTimesheetProjectSendError, // Use project send error
     clearTimesheetError, clearProjectDownloadStatus, clearProjectSendStatus // Import clear actions
 } from '../../redux/slices/timesheetSlice';
-import { setAlert } from '../../redux/slices/alertSlice'; // Import setAlert
-import Alert from '../layout/Alert'; // Import Alert component
+import { setAlert } from '../../redux/slices/alertSlice';
+import Alert from '../layout/Alert';
 
 const ALL_PROJECTS_VALUE = 'ALL_PROJECTS';
-
 const formatDateString = (dateString, format = 'yyyy-MM-dd') => {
     if (!dateString || !/^\d{4}-\d{2}-\d{2}$/.test(dateString)) return 'Invalid Date';
     try {
@@ -62,6 +61,7 @@ const formatDateString = (dateString, format = 'yyyy-MM-dd') => {
     }
 };
 
+// Helper to format ISO time string to local time based on a timezone
 const formatTimeFromISO = (isoString, timezoneIdentifier, format = 'HH:mm') => {
     if (!isoString) return 'N/A';
     const tz = timezoneIdentifier && DateTime.local().setZone(timezoneIdentifier).isValid
@@ -77,6 +77,7 @@ const formatTimeFromISO = (isoString, timezoneIdentifier, format = 'HH:mm') => {
     }
 };
 
+// Helper to format decimal hours into a more readable "Xh XXm" or "XXm" string
 const formatHoursMinutes = (hoursDecimal) => {
     if (hoursDecimal == null || isNaN(hoursDecimal) || hoursDecimal <= 0) {
         return '00:00';
@@ -93,6 +94,7 @@ const formatHoursMinutes = (hoursDecimal) => {
     }
 };
 
+// Helper to format lunch duration string, ensuring it's valid or 'N/A'
 const formatLunchDuration = (lunchDuration) => {
     if (!lunchDuration || typeof lunchDuration !== 'string' || !/^\d{2}:\d{2}$/.test(lunchDuration)) {
         return 'N/A';
@@ -100,6 +102,7 @@ const formatLunchDuration = (lunchDuration) => {
     return lunchDuration;
 };
 
+// Calculates the start and end dates for a given period type (Daily, Weekly, etc.)
 const calculateDateRange = (baseDate, type) => {
     let startDt = DateTime.fromJSDate(baseDate);
     let endDt;
@@ -121,6 +124,7 @@ const calculateDateRange = (baseDate, type) => {
     return { start: startDt.toJSDate(), end: endDt.toJSDate() };
 };
 
+// Generates an array of date objects for the columns in the timesheet view
 const generateDateColumns = (currentDate, viewType) => {
     const { start, end } = calculateDateRange(currentDate, viewType);
     const startDt = DateTime.fromJSDate(start);
@@ -140,6 +144,7 @@ const generateDateColumns = (currentDate, viewType) => {
     });
 };
 
+// Groups date columns by week number for Monthly and Fortnightly views
 const groupDatesByWeek = (dateColumns) => {
     if (!dateColumns || dateColumns.length === 0) return [];
 
@@ -167,7 +172,7 @@ const groupDatesByWeek = (dateColumns) => {
         return a.weekNumber - b.weekNumber;
     });
 };
-
+// Helper to get a display label for the current period type
 const getPeriodLabel = (viewType) => {
     switch (viewType) {
         case 'Daily': return 'Day';
@@ -183,7 +188,7 @@ const ProjectTimesheet = ({ initialProjectId = '', onProjectChange, showProjectS
   const dispatch = useDispatch();
   const navigate = useNavigate();
 
-  // --- Redux State ---
+  // Redux state selectors
   const employees = useSelector(selectAllEmployees);
   const employeeStatus = useSelector(selectEmployeeStatus);
   const employeeError = useSelector(selectEmployeeError);
@@ -197,17 +202,12 @@ const ProjectTimesheet = ({ initialProjectId = '', onProjectChange, showProjectS
   const timesheetStatus = useSelector(selectTimesheetStatus);
   const timesheetError = useSelector(selectTimesheetError);
   const downloadStatus = useSelector(selectTimesheetProjectDownloadStatus); // Use project download status
-  // Corrected variable names for Redux state
   const downloadErrorRedux = useSelector(selectTimesheetProjectDownloadError); // Use project download error
   const sendStatus = useSelector(selectTimesheetProjectSendStatus); // Use project send status
   const sendErrorRedux = useSelector(selectTimesheetProjectSendError); // Use project send error
 
-  // --- Local UI State ---
+  // Local component state
   const [viewType, setViewType] = useState('Weekly');
-  // const [timesheets, setTimesheets] = useState([]); // Replaced by Redux
-  // const [employees, setEmployees] = useState([]); // Replaced by Redux
-  // const [clients, setClients] = useState([]); // Replaced by Redux
-  // const [projects, setProjects] = useState([]); // Replaced by Redux
   const [selectedProjectId, setSelectedProjectId] = useState(initialProjectId || '');
   const [expandedRows, setExpandedRows] = useState({});
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -217,15 +217,13 @@ const ProjectTimesheet = ({ initialProjectId = '', onProjectChange, showProjectS
   const [endDate, setEndDate] = useState(null);
   const [showDownloadFilters, setShowDownloadFilters] = useState(false);
   const [showSendFilters, setShowSendFilters] = useState(false);
-  const [error, setError] = useState(null);
+  const [error, setError] = useState(null); // For local validation/calculation errors
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [itemToDelete, setItemToDelete] = useState(null); // { id }
-  // const [downloadError, setDownloadError] = useState(null); // Replaced by Redux alert
-  // const [sendError, setSendError] = useState(null); // Replaced by Redux alert
 
   const browserTimezone = useMemo(() => DateTime.local().zoneName, []); // Keep this
 
-  // --- Combined Loading and Error States ---
+  // Derived loading state for UI feedback
   const isLoading = useMemo(() =>
     employeeStatus === 'loading' ||
     clientStatus === 'loading' ||
@@ -236,33 +234,25 @@ const ProjectTimesheet = ({ initialProjectId = '', onProjectChange, showProjectS
   const isDownloading = useMemo(() => downloadStatus === 'loading', [downloadStatus]);
   const isSending = useMemo(() => sendStatus === 'loading', [sendStatus]);
 
-  // Effect to show alerts for fetch/operation errors from Redux state
+  // Effects
+  // Displays errors from Redux state as alerts
   useEffect(() => {
-    // Combine all relevant Redux errors
     const reduxError = employeeError || clientError || projectError || timesheetError || downloadErrorRedux || sendErrorRedux;
     if (reduxError) {
       dispatch(setAlert(reduxError, 'danger'));
-      // Optionally clear the specific Redux error after showing the alert
-      // if (downloadErrorRedux) dispatch(clearProjectDownloadStatus());
-      // if (sendErrorRedux) dispatch(clearProjectSendStatus());
-      // if (timesheetError) dispatch(clearTimesheetError());
-      // etc.
     }
   }, [employeeError, clientError, projectError, timesheetError, downloadErrorRedux, sendErrorRedux, dispatch]);
 
-
-  // Fetch initial data (employees, clients, all projects)
+  // Fetches initial data: employees, clients, and all projects for the dropdown
   useEffect(() => {
     if (employeeStatus === 'idle') dispatch(fetchEmployees());
     if (clientStatus === 'idle') dispatch(fetchClients());
     if (projectStatus === 'idle') dispatch(fetchProjects()); // Fetch all projects for the dropdown
   }, [dispatch, employeeStatus, clientStatus, projectStatus]);
 
-  // Fetch timesheets when project, date, or view type changes
+  // Fetches timesheets when selected project, date, or view type changes
   useEffect(() => {
     if (!selectedProjectId) {
-        // Optionally clear timesheets if no project is selected
-        // dispatch(clearTimesheets()); // Or handle this based on desired UX
         return;
     }
 
@@ -283,18 +273,18 @@ const ProjectTimesheet = ({ initialProjectId = '', onProjectChange, showProjectS
     } catch (error) {
       console.error('ProjectTimesheet: Error fetching timesheets:', error.response?.data || error.message);
       if (!error.message?.includes('token')) {
-          // setError(error.response?.data?.message || 'Failed to fetch project timesheets.'); // Handled by Alert
           dispatch(setAlert(error.response?.data?.message || 'Failed to fetch project timesheets.', 'danger'));
       }
-      // setTimesheets([]); // Data comes from Redux now
     }
-    // No finally block needed as loading is handled by Redux status
   }, [selectedProjectId, currentDate, viewType, dispatch]);
 
+  // Updates selectedProjectId if initialProjectId prop changes
   useEffect(() => {
     setSelectedProjectId(initialProjectId || '');
   }, [initialProjectId]);
 
+  // Handlers
+  // Handles project selection change from the dropdown
   const handleProjectSelectChange = (option) => {
       const newProjectId = option?.value || '';
       setSelectedProjectId(newProjectId);
@@ -302,12 +292,12 @@ const ProjectTimesheet = ({ initialProjectId = '', onProjectChange, showProjectS
           onProjectChange(newProjectId);
       }
   };
-
+  // Toggles the expanded state for an employee row
   const toggleExpand = (id) => {
     setExpandedRows((prev) => ({ ...prev, [id]: !prev[id] }));
    };
 
-  // --- Refactored Delete Confirmation ---
+  // Initiates the delete process for a timesheet entry
   const handleDeleteClick = (timesheetId) => {
     setItemToDelete({ id: timesheetId });
     setShowDeleteConfirm(true);
@@ -318,13 +308,14 @@ const ProjectTimesheet = ({ initialProjectId = '', onProjectChange, showProjectS
     setItemToDelete(null);
   };
 
+  // Navigates to the edit page for a specific timesheet entry
   const handleUpdate = (timesheet) => {
-    // Navigate to the project-specific edit route
     const clientId = timesheet.clientId?._id || timesheet.clientId;
     const projectId = timesheet.projectId?._id || timesheet.projectId;
     navigate(`/timesheet/project/edit/${clientId}/${projectId}/${timesheet._id}`);
    };
 
+  // Confirms and dispatches the delete action for a timesheet entry
   const confirmDeleteTimesheet = useCallback(async () => {
     if (!itemToDelete) return;
     const { id } = itemToDelete;
@@ -338,11 +329,11 @@ const ProjectTimesheet = ({ initialProjectId = '', onProjectChange, showProjectS
       
       dispatch(setAlert(errorMessage, 'danger'));
     } finally {
-      setShowDeleteConfirm(false); // Close modal regardless of outcome
+      setShowDeleteConfirm(false);
       setItemToDelete(null);
     }
-   }, [itemToDelete, dispatch]); // Corrected dependencies
-
+   }, [itemToDelete, dispatch]);
+  // Navigates to the previous period based on the current view type
   const handlePrev = () => {
     setCurrentDate(prevDate => {
         let dt = DateTime.fromJSDate(prevDate);
@@ -357,7 +348,7 @@ const ProjectTimesheet = ({ initialProjectId = '', onProjectChange, showProjectS
         return newDt.toJSDate();
     });
    };
-
+  // Navigates to the next period based on the current view type
   const handleNext = () => {
      setCurrentDate(prevDate => {
         let dt = DateTime.fromJSDate(prevDate);
@@ -373,21 +364,17 @@ const ProjectTimesheet = ({ initialProjectId = '', onProjectChange, showProjectS
     });
    };
 
+   // Handles sending the project timesheet report via email
    const handleSendEmail = useCallback(async () => {
     const isAllProjects = selectedProjectId === ALL_PROJECTS_VALUE;
-    // const endpoint = isAllProjects ? `${API_URL}/timesheets/send` : `${API_URL}/timesheets/send-email/project`; // Endpoint handled in thunk
     
-    // Validation
     if (!isAllProjects && !selectedProjectId) {
         dispatch(setAlert('No project selected.', 'warning')); return;
     }
     if (!email || !/\S+@\S+\.\S+/.test(email)) {
         dispatch(setAlert('Please enter a valid recipient email address.', 'warning')); return;
     }
-
-    // --- Removed local error state handling, Redux handles it ---
-    // setSendError(null); // Removed local error state
-    dispatch(clearProjectSendStatus()); // Clear Redux status/error
+    dispatch(clearProjectSendStatus());
 
     try {
         const params = {
@@ -399,28 +386,23 @@ const ProjectTimesheet = ({ initialProjectId = '', onProjectChange, showProjectS
             timezone: browserTimezone,
         };
 
-        // Dispatch the project-specific send thunk
         await dispatch(sendProjectTimesheet(params)).unwrap();
 
         setShowSendFilters(false); setEmail(''); setSelectedEmployee(''); setStartDate(null); setEndDate(null);
         dispatch(setAlert(`Project timesheet report sent successfully to ${email}`, 'success'));
 
     } catch (error) {
-        // Error handled by useEffect watching sendErrorRedux and dispatching setAlert
         console.error(`Error sending project timesheet email:`, error);
     }
-    // No finally block needed, loading state handled by Redux
 }, [selectedProjectId, email, selectedEmployee, startDate, endDate, navigate, browserTimezone, dispatch]);
 
+// Handles downloading the project timesheet report
 const handleDownload = useCallback(async () => {
     const isAllProjects = selectedProjectId === ALL_PROJECTS_VALUE;
-    // const endpoint = isAllProjects ? `${API_URL}/timesheets/download` : `${API_URL}/timesheets/download/project`; // Endpoint handled in thunk
     if (!isAllProjects && !selectedProjectId) {
         dispatch(setAlert('No project selected.', 'warning')); return;
     }
-    // --- Removed local error state handling, Redux handles it ---
-    // setDownloadError(null); // Removed local error state
-    dispatch(clearProjectDownloadStatus()); // Clear Redux status/error
+    dispatch(clearProjectDownloadStatus());
 
     try {
         const params = {
@@ -431,7 +413,6 @@ const handleDownload = useCallback(async () => {
             timezone: browserTimezone, // Ensure this is passed
         };
 
-        // Dispatch the project-specific download thunk
         const result = await dispatch(downloadProjectTimesheet(params)).unwrap();
 
         const blob = new Blob([result.blob], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
@@ -439,7 +420,7 @@ const handleDownload = useCallback(async () => {
         const link = document.createElement('a');
         link.href = url;
         let filename = isAllProjects ? `Timesheet_Report.xlsx` : `Project_Timesheet_Report.xlsx`;
-        if (result.filename) { // Use filename from thunk result
+        if (result.filename) {
             filename = result.filename;
         }
         link.setAttribute('download', filename);
@@ -447,15 +428,14 @@ const handleDownload = useCallback(async () => {
         link.click();
         link.remove();
         window.URL.revokeObjectURL(url);
-        dispatch(setAlert('Project timesheet report downloaded successfully.', 'success')); // Success alert
+        dispatch(setAlert('Project timesheet report downloaded successfully.', 'success'));
         setShowDownloadFilters(false); setSelectedEmployee(''); setStartDate(null); setEndDate(null);
     } catch (error) {
-        // Error handled by useEffect watching downloadErrorRedux and dispatching setAlert
         console.error(`Project Download failed:`, error);
     }
-    // No finally block needed, loading state handled by Redux
 }, [selectedProjectId, selectedEmployee, startDate, endDate, navigate, browserTimezone, dispatch]);
 
+  // Memoized data for display
   const dateColumns = useMemo(() => generateDateColumns(currentDate, viewType), [currentDate, viewType]);
 
   const groupTimesheetsByEmployee = useMemo(() => {
@@ -509,6 +489,7 @@ const handleDownload = useCallback(async () => {
 
     }, [timesheets, employees, clients, dateColumns]);
 
+  // Generates the display text for the current period (e.g., "Jan 01 - Jan 07, 2024")
   const periodDisplayText = useMemo(() => {
     if (!dateColumns || dateColumns.length === 0) return 'Loading...';
     const firstDay = DateTime.fromJSDate(dateColumns[0].date);
@@ -522,10 +503,11 @@ const handleDownload = useCallback(async () => {
     }
   }, [dateColumns, viewType]);
 
+  // Options for the project selector dropdown
   const projectOptions = useMemo(() => {
       const options = projects.map(p => ({ value: p._id, label: p.name }));
       if (showProjectSelector) {
-          options.unshift({ value: ALL_PROJECTS_VALUE, label: 'All Projects (Timesheets)' }); // Clarify label
+          options.unshift({ value: ALL_PROJECTS_VALUE, label: 'All Projects (Timesheets)' });
       }
       return options;
   }, [projects, showProjectSelector]);
@@ -534,8 +516,10 @@ const handleDownload = useCallback(async () => {
       return projectOptions.find(opt => opt.value === selectedProjectId) || null;
   }, [projectOptions, selectedProjectId]);
 
+  // Display label for the current period type (e.g., "Week", "Month")
   const periodLabel = useMemo(() => getPeriodLabel(viewType), [viewType]);
 
+  // Renders table headers based on the view type
   const renderTableHeaders = () => {
     if (viewType === 'Daily') return null;
 
@@ -558,6 +542,7 @@ const handleDownload = useCallback(async () => {
     return headers;
    };
 
+  // Renders a card for a single timesheet entry in the Daily view
   const renderDailyEntryCard = (entry, employeeName) => {
     const entryTimezone = entry.timezone || browserTimezone;
     const isLeaveEntry = entry.leaveType && entry.leaveType !== 'None';
@@ -595,6 +580,7 @@ const handleDownload = useCallback(async () => {
     );
   };
 
+  // Renders the content for the Daily view
   const renderDailyView = () => {
     const dailyDate = dateColumns[0]?.isoDate;
     if (!dailyDate) return <div className="no-results">No date selected for daily view.</div>;
@@ -624,15 +610,17 @@ const handleDownload = useCallback(async () => {
     );
   };
 
+  // Options for the employee filter dropdown (used in download/send modals)
   const employeeOptions = useMemo(() => [
       { value: '', label: 'All Employees' },
       ...employees.map(e => ({ value: e._id, label: e.name }))
   ], [employees]);
 
+  // Currently selected employee option for the filter dropdown
   const selectedEmployeeOption = useMemo(() =>
       employeeOptions.find(e => e.value === selectedEmployee) || null
   , [employeeOptions, selectedEmployee]);
-
+  // Render
   return (
     <div className='project-timesheet-container timesheet-page'>
        <Alert /> {/* Render Alert component here */}
@@ -653,7 +641,6 @@ const handleDownload = useCallback(async () => {
       {showDownloadFilters && (
         <div id="project-timesheet-download-options" className="timesheet-options-container download-options">
           <h4>Download Project Timesheet Report</h4>
-          {/* Error handled by Alert component */}
           <div className="filter-controls">
        
             <DatePicker selected={startDate} onChange={setStartDate} selectsStart startDate={startDate} endDate={endDate} placeholderText="From Date" dateFormat="yyyy-MM-dd" className="filter-datepicker" wrapperClassName="date-picker-wrapper" aria-label="Download Start Date" />
@@ -668,7 +655,6 @@ const handleDownload = useCallback(async () => {
       {showSendFilters && (
         <div id="project-timesheet-send-options" className="timesheet-options-container send-options">
           <h4>Send Project Timesheet Report</h4>
-           {/* Error handled by Alert component */}
           <div className="filter-controls">
            
             <DatePicker selected={startDate} onChange={setStartDate} selectsStart startDate={startDate} endDate={endDate} placeholderText="From Date" dateFormat="yyyy-MM-dd" className="filter-datepicker" wrapperClassName="date-picker-wrapper" aria-label="Send Start Date" />
@@ -693,7 +679,7 @@ const handleDownload = useCallback(async () => {
                     classNamePrefix="react-select"
                     isLoading={isLoading && !projects.length}
                     isDisabled={isLoading}
-                    isClearable={false} // Keep this false if a project context is always needed
+                    isClearable={false} // A project context is always needed for this view
                 />
              </div>
          )}
@@ -717,12 +703,10 @@ const handleDownload = useCallback(async () => {
             <FontAwesomeIcon icon={faArrowRight} />
           </button>
         </div>
-        {/* Pass context to CreateTimesheet page */}
         <Link
-          // Update route to use URL params for the new component
           to={`/timesheet/project/create/${projects.find(p => p._id === selectedProjectId)?.clientId?._id}/${selectedProjectId}`}
-          className={`btn btn-success create-timesheet-link ${!selectedProjectId || selectedProjectId === ALL_PROJECTS_VALUE ? 'disabled-link' : ''}`} // Disable if no specific project selected
-          aria-disabled={!selectedProjectId || selectedProjectId === ALL_PROJECTS_VALUE || !projects.find(p => p._id === selectedProjectId)?.clientId?._id} // Also disable if client ID can't be found
+          className={`btn btn-success create-timesheet-link ${!selectedProjectId || selectedProjectId === ALL_PROJECTS_VALUE ? 'disabled-link' : ''}`}
+          aria-disabled={!selectedProjectId || selectedProjectId === ALL_PROJECTS_VALUE || !projects.find(p => p._id === selectedProjectId)?.clientId?._id}
         >
           <FontAwesomeIcon icon={faPlus} /> Create Timesheet
         </Link>
@@ -730,9 +714,7 @@ const handleDownload = useCallback(async () => {
 
        {isLoading ? (
          <div className='loading-indicator'><FontAwesomeIcon icon={faSpinner} spin size='2x' /> Loading Timesheets...</div>
-       ) : /* error ? ( // Handled by Alert component
-         <div className='error-message'><FontAwesomeIcon icon={faExclamationCircle} /> {error}</div>
-       ) : */ !selectedProjectId ? (
+       ) : !selectedProjectId ? (
          <div className='no-results'>Please select a project {showProjectSelector ? '(or "All Projects") ' : ''}to view timesheets.</div>
        ) : (
          viewType === 'Daily' ? (
@@ -791,7 +773,6 @@ const handleDownload = useCallback(async () => {
                                             const entryTimezone = entry.timezone || browserTimezone;
                                             const isLeaveEntry = entry.leaveType && entry.leaveType !== 'None';
                                             const totalHours = parseFloat(entry.totalHours) || 0;
-
                                             return (
                                               <div key={entry._id} className="timesheet-entry-detail-inline">
                                                 <div className="inline-actions">
@@ -859,9 +840,8 @@ const handleDownload = useCallback(async () => {
          )
        )}
 
-      {/* Delete Confirmation Modal */}
       {showDeleteConfirm && itemToDelete && (
-          <div className="logout-confirm-overlay"> {/* Re-use styles */}
+          <div className="logout-confirm-overlay">
             <div className="logout-confirm-dialog">
               <h4>Confirm Timesheet Deletion</h4>
               <p>Are you sure you want to permanently delete this timesheet entry? This action cannot be undone.</p>

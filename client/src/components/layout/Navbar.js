@@ -21,30 +21,25 @@ const Navbar = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
 
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false); 
-  const [isLoggingOut, setIsLoggingOut] = useState(false); 
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false); // User dropdown state
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false); // Logout confirmation modal state
+  const [isLoggingOut, setIsLoggingOut] = useState(false); // Logout loading state
   const dropdownRef = useRef(null);
   const { isAuthenticated, user } = useSelector((state) => state.auth || {});
   const userName = user?.name || "Guest";
   const userRole = user?.role || "Unknown";
   
-
+  // Handlers
   const handleLogoutClick = () => {
     setIsDropdownOpen(false);
     setShowLogoutConfirm(true);
   };
 
   const confirmLogoutAction = () => {
-    setIsLoggingOut(true); // Show loading state
-
+    setIsLoggingOut(true);
     dispatch(logout());
-    // Show success alert
-
     dispatch(setAlert('Logout successful!', 'success'));
-
     navigate("/login");
-
     setShowLogoutConfirm(false);
     setIsLoggingOut(false);
   };
@@ -54,7 +49,7 @@ const Navbar = () => {
     setIsLoggingOut(false);
   };
 
-  // Close dropdown when clicking outside
+  // Effect to close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
@@ -65,12 +60,11 @@ const Navbar = () => {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [dropdownRef]);
 
+  // Render
   return (
     <>
       <div className="navbar">
- 
         <Alert />
-
         <div className="navbar-section">
           <button className="navbar-icon-button menu-button" onClick={toggleSidebar} aria-label="Toggle Sidebar">
             <FontAwesomeIcon icon={faBars} />
@@ -104,8 +98,7 @@ const Navbar = () => {
           )}
         </div>
       </div>
-
-      {/* Logout Confirmation Modal */}
+      
       {showLogoutConfirm && (
           <div className="logout-confirm-overlay">
             <div className="logout-confirm-dialog">

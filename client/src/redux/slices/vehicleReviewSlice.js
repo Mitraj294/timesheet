@@ -93,18 +93,18 @@ export const deleteVehicleReview = createAsyncThunk(
 // Download single review report
 export const downloadReviewReport = createAsyncThunk(
   'vehicleReviews/downloadReport',
-  async ({ reviewId, format }, { getState, rejectWithValue }) => {
+  async ({ reviewId, format }, { getState, rejectWithValue }) => { // format can be 'pdf' or 'excel'
     try {
       const { token } = getState().auth;
       if (!token) return rejectWithValue('Authentication required.');
       const config = {
         headers: { Authorization: `Bearer ${token}` },
         responseType: 'blob',
-        params: { format }
+        params: { format } // Send format to backend
       };
       const response = await axios.get(`${API_URL}/vehicles/reviews/${reviewId}/download`, config);
       const contentDisposition = response.headers['content-disposition'];
-      let filename = `review_${reviewId}.${format}`;
+      let filename = `review_${reviewId}.${format === 'excel' ? 'xlsx' : 'pdf'}`; // Adjust fallback based on format
       if (contentDisposition) {
         const filenameMatch = contentDisposition.match(/filename\*?=['"]?(?:UTF-\d['"]*)?([^;\r\n"']*)['"]?;?/i);
         if (filenameMatch && filenameMatch[1]) filename = decodeURIComponent(filenameMatch[1]);
@@ -122,11 +122,11 @@ export const downloadReviewReport = createAsyncThunk(
 // Send single review report via email
 export const sendReviewReportByClient = createAsyncThunk(
   'vehicleReviews/sendReport',
-  async ({ reviewId, email, format }, { getState, rejectWithValue }) => {
+  async ({ reviewId, email /*, format */ }, { getState, rejectWithValue }) => { // format is no longer needed
     try {
       const { token } = getState().auth;
       if (!token) return rejectWithValue('Authentication required.');
-      const body = { email, format };
+      const body = { email }; // Only email is needed, format is handled as PDF by backend
       await axios.post(`${API_URL}/vehicles/reviews/report/email/${reviewId}`, body, getAuthHeaders(token));
       return { email };
     } catch (error) {
