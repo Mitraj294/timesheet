@@ -28,7 +28,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(helmet());
 app.use(cookieParser());
-app.use('/api/users', userRoutes);
+// Remove inconsistent mounting: app.use('/api/users', userRoutes);
 
 // MongoDB Connection
 const connectDB = async () => {
@@ -57,6 +57,7 @@ app.use(`${BASE_API_URL}/projects`, projectRoutes);
 app.use(`${BASE_API_URL}/roles`, roleRoutes);
 app.use(`${BASE_API_URL}/schedules`, scheduleRoutes);
 app.use(`${BASE_API_URL}/vehicles`, vehicleRoutes);
+app.use(`${BASE_API_URL}/users`, userRoutes); // Mount userRoutes consistently
 
 // Root Route
 app.get("/", (req, res) => {
