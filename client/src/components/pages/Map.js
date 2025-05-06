@@ -9,6 +9,7 @@ import {
   faLocationCrosshairs, // Import an icon for the button
 } from '@fortawesome/free-solid-svg-icons';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
+import { ZoomControl } from 'react-leaflet'; // Import ZoomControl
 import { setAlert } from '../../redux/slices/alertSlice'; // Import setAlert
 import Alert from '../layout/Alert'; // Import Alert component
 import L from 'leaflet';
@@ -78,7 +79,7 @@ const Map = () => {
           console.error('Expected an array of employees, but got:', data);
           setEmployees([]);
         }
-        dispatch(setAlert('Employees loaded.', 'success')); // Example if needed
+     
       } catch (error) {
         console.error('Error fetching employees:', error);
         setEmployees([]); // Set empty array on error
@@ -311,8 +312,10 @@ const Map = () => {
         center={[mapCenter.lat, mapCenter.lng]}
         zoom={12}
         style={{ height: '400px', width: '100%' }}
+        zoomControl={false} // Disable the default zoom control
         className="leaflet-map-container"
       >
+        <ZoomControl position="topright" /> {/* Add custom zoom control */}
         <TileLayer
           attribution='&copy; <a href="https://openstreetmap.org/copyright">OpenStreetMap</a> contributors'
           url='https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'

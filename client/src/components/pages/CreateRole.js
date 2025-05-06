@@ -29,7 +29,7 @@ import {
     faPen, // Added Edit icon
 } from '@fortawesome/free-solid-svg-icons';
 
-const COLORS = ['Blue', 'Red', 'Green', 'Purple', 'Yellow', 'Default'];
+const COLORS = ['Blue', 'Red', 'Green', 'Yellow', 'Default'];
 
 // Helper function for UTC conversion (similar to RosterPage)
 const convertLocalTimeToUTC = (localTimeStr, dateStr) => {

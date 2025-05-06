@@ -10,6 +10,82 @@
     flex-direction: column; // Added from roster page
 }
 
+// Ensure consistent button styles (if not already defined globally)
+// Placed near the top for general use
+.btn {
+    display: inline-flex; // Use flex for icon alignment
+    align-items: center;
+    justify-content: center;
+    gap: 0.5em; // Space between icon and text
+    padding: 0.375rem 0.75rem;
+    font-size: 1rem;
+    font-weight: 400;
+    line-height: 1.5;
+    text-align: center;
+    text-decoration: none;
+    vertical-align: middle;
+    cursor: pointer;
+    user-select: none;
+    border: 1px solid transparent;
+    border-radius: 0.375rem;
+    transition: color 0.15s ease-in-out, background-color 0.15s ease-in-out, border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+
+    &:disabled {
+        opacity: 0.65;
+        cursor: not-allowed;
+    }
+
+    // Add specific colors if needed (e.g., .btn-red, .btn-purple)
+    &.btn-red {
+        color: #fff;
+        background-color: #dc3545;
+        border-color: #dc3545;
+
+        &:hover {
+            background-color: #bb2d3b;
+            border-color: #b02a37;
+        }
+    }
+
+    &.btn-purple {
+        color: #fff;
+        background-color: #6f42c1; // Example purple
+        border-color: #6f42c1;
+
+        &:hover {
+            background-color: #5a349e;
+            border-color: #533091;
+        }
+    }
+
+    &.btn-success {
+        // Added from existing styles
+        color: #fff;
+        background-color: #28a745;
+        border-color: #28a745;
+
+        &:hover {
+            background-color: darken(#28a745, 10%);
+            border-color: darken(#28a745, 10%);
+        }
+    }
+
+    &.btn-blue {
+        // Added from existing styles
+        color: #fff;
+        background-color: #007bff;
+        border-color: #007bff;
+
+        &:hover {
+            background-color: darken(#007bff, 10%);
+            border-color: darken(#007bff, 10%);
+        }
+    }
+
+    // Add other button colors if needed
+}
+
+
 .timesheet-header {
     display: flex;
     flex-wrap: wrap;
@@ -63,167 +139,159 @@
         gap: 10px;
         justify-content: flex-end;
 
+        // Use the general .btn styles defined above
         .btn {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
+            // Override general styles if needed, e.g., smaller font size
             font-size: 0.85rem;
             padding: 8px 12px;
-            border-radius: 4px;
-            border: none;
-            cursor: pointer;
-            color: white;
-            text-align: center;
-
-            &.btn-purple {
-                background-color: #6f42c1;
-
-                &:hover {
-                    background-color: darken(#6f42c1, 10%);
-                }
-            }
-
-            &.btn-red {
-                background-color: #dc3545;
-
-                &:hover {
-                    background-color: darken(#dc3545, 10%);
-                }
-            }
-
-            &.btn-success {
-                background-color: #28a745;
-
-                &:hover {
-                    background-color: darken(#28a745, 10%);
-                }
-            }
-
-            &.btn-blue {
-                background-color: #007bff;
-                border-color: #007bff;
-
-                &:hover {
-                    background-color: darken(#007bff, 10%);
-                    border-color: darken(#007bff, 10%);
-                }
-            }
+            // border-radius: 4px; // General .btn already has border-radius
         }
     }
 }
 
+// Styles for the Download/Send Options Container (Merged from input)
 .timesheet-options-container {
-    background-color: #f8f9fa;
+    background-color: #f8f9fa; // Light background
     border: 1px solid #dee2e6;
-    border-radius: 5px;
-    padding: 15px 20px;
-    margin-bottom: 20px;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    border-radius: 0.375rem; // Match button radius
+    padding: 1rem 1.5rem;
+    margin-top: 1rem;
+    margin-bottom: 1.5rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 
     h4 {
         margin-top: 0;
-        margin-bottom: 15px;
+        margin-bottom: 1rem;
         font-size: 1.1rem;
-        font-weight: 600;
-        border-bottom: 1px solid #eee;
-        padding-bottom: 10px;
+        color: #343a40;
+        // Removed border-bottom from original file, new style doesn't have it
     }
 
-    .error-text,
-    .small.error-text {
-        color: #dc3545;
-        font-size: 0.85rem;
-        margin-bottom: 10px;
-        display: flex;
-        align-items: center;
-        gap: 5px;
-    }
-
-    .small.error-text {
-        margin-top: 5px;
-        margin-bottom: 0;
-    }
-
+    // Container for the filter inputs and button
     .filter-controls {
         display: flex;
-        flex-wrap: wrap;
-        gap: 10px;
-        align-items: center;
+        flex-wrap: wrap; // Allow items to wrap on smaller screens
+        gap: 0.75rem; // Space between items
+        align-items: center; // Align items vertically
 
-        .react-select-container,
-        .filter-select,
-        .date-picker-wrapper,
-        .filter-email {
-            flex: 1 1 180px;
-            min-width: 160px;
+        // --- Styling for react-select ---
+        .react-select-container {
+            flex: 1 1 200px; // Allow shrinking/growing, base width 200px
+            min-width: 180px; // Minimum width before wrapping
+
+            // Override default react-select styles if needed
+            .react-select__control {
+                border-color: #ced4da; // Match other inputs
+                min-height: 38px; // Match button height
+
+                &:hover {
+                    border-color: #86b7fe; // Bootstrap focus color
+                }
+            }
+
+            .react-select__indicator-separator {
+                background-color: #ced4da;
+            }
+
+            // Add more specific overrides as needed
         }
 
-        .react-select__control,
-        .filter-select,
-        .filter-datepicker,
-        .filter-email {
-            padding: 8px 10px;
-            border: 1px solid #ced4da;
-            border-radius: 4px;
-            font-size: 0.9rem;
-            height: 38px;
-            box-sizing: border-box;
-            width: 100%;
-        }
+        // --- Styling for react-datepicker ---
+        .react-datepicker-wrapper {
+            flex: 1 1 150px; // Allow shrinking/growing, base width 150px
+            min-width: 130px;
 
-        .react-select__control {
-            padding: 0;
-        }
-
-        .date-picker-wrapper {
             .react-datepicker__input-container {
-                display: block;
-                width: 100%;
-            }
+                width: 100%; // Ensure container takes full width
 
-            .filter-datepicker {
-                width: 100%;
+                .filter-datepicker {
+                    width: 100%; // Make input fill the wrapper
+                    padding: 0.375rem 0.75rem;
+                    font-size: 1rem;
+                    line-height: 1.5;
+                    color: #212529;
+                    background-color: #fff;
+                    background-clip: padding-box;
+                    border: 1px solid #ced4da;
+                    border-radius: 0.375rem;
+                    transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+
+                    &:focus {
+                        border-color: #86b7fe;
+                        outline: 0;
+                        box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+                    }
+
+                    &::placeholder {
+                        color: #6c757d;
+                        opacity: 1;
+                    }
+                }
             }
         }
 
+        // --- Styling for Email Input ---
+        .filter-email {
+            flex: 1 1 200px; // Allow shrinking/growing, base width 200px
+            min-width: 180px;
+            padding: 0.375rem 0.75rem;
+            font-size: 1rem;
+            line-height: 1.5;
+            color: #212529;
+            background-color: #fff;
+            border: 1px solid #ced4da;
+            border-radius: 0.375rem;
+            transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+
+            &:focus {
+                border-color: #86b7fe;
+                outline: 0;
+                box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+            }
+
+            &::placeholder {
+                color: #6c757d;
+                opacity: 1;
+            }
+        }
+
+        // --- Styling for Action Button ---
         .action-button {
-            flex: 0 0 auto;
-            padding: 8px 15px;
-            border-radius: 4px;
-            border: none;
-            cursor: pointer;
-            color: white;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-            font-size: 0.9rem;
-            height: 38px;
-            box-sizing: border-box;
+            // Inherits base .btn styles
+            flex-shrink: 0; // Prevent button from shrinking
+            margin-left: auto; // Push button to the right if space allows on larger screens
 
-            &.btn-red {
-                background-color: #dc3545;
-
-                &:hover {
-                    background-color: darken(#dc3545, 10%);
-                }
+            // On smaller screens when items wrap, remove the auto margin
+            @media (max-width: 768px) {
+                // Adjust breakpoint as needed
+                margin-left: 0;
+                width: 100%; // Make button full width when stacked
+                margin-top: 0.5rem; // Add some space when stacked
             }
 
-            &.btn-purple {
-                background-color: #6f42c1;
-
-                &:hover {
-                    background-color: darken(#6f42c1, 10%);
-                }
+            @media (max-width: 992px) {
+                // Example breakpoint for slightly larger screens
+                margin-left: 0; // Remove auto margin earlier if needed
             }
+        }
 
-            &:disabled {
-                opacity: 0.65;
-                cursor: not-allowed;
+        // --- Responsive Adjustments ---
+        @media (max-width: 768px) {
+            // Adjust breakpoint as needed
+            flex-direction: column; // Stack items vertically
+            align-items: stretch; // Make items full width
+
+            .react-select-container,
+            .react-datepicker-wrapper,
+            .filter-email,
+            .action-button {
+                flex-basis: auto; // Reset flex-basis
+                width: 100%; // Ensure full width
             }
         }
     }
 }
+
 
 // --- Navigation Bar ---
 .timesheet-navigation-bar {
@@ -235,39 +303,127 @@
     margin-bottom: 25px;
     padding: 10px 0;
 
-    // Default Order & Layout (Desktop)
-    .project-selector-container {
-        order: 1;
-        flex: 1 1 250px;
-        min-width: 200px;
+    // Common styles for child elements of any timesheet-navigation-bar
+    >div,
+    >a {
+        // Target direct children that are divs or links
+        display: flex; // Ensure children are flex items for alignment and sizing
+        align-items: center; // Vertically align content within each child
     }
 
+    // --- Styles for General Timesheet Navigation (Timesheet.js) ---
+    &.general-timesheet-nav {
+        .period-display {
+            flex: 1 0 auto; // Grow, don't shrink from content, base on content
+            justify-content: flex-start; // Align to the left
+            order: 1;
+            text-align: center;
+            padding: 0 10px;
+            box-sizing: border-box;
+        }
+
+        .navigation-controls {
+            flex: 2 0 auto; // Allow to grow more, don't shrink, base on content
+            justify-content: center; // Center this whole block
+            order: 2;
+            gap: 10px;
+            box-sizing: border-box;
+        }
+
+        .create-timesheet-link {
+            flex: 0 0 auto; // Don't grow, don't shrink, size to content
+            order: 3;
+            justify-content: flex-end; // Align to the right
+            box-sizing: border-box;
+        }
+
+        @media (max-width: 768px) {
+
+            // When items stack
+            .period-display,
+            .navigation-controls,
+            .create-timesheet-link {
+                flex-basis: 100%; // Each takes full width
+                justify-content: center; // Center content when stacked
+                margin-bottom: 10px;
+
+                &:last-child {
+                    margin-bottom: 0;
+                }
+            }
+
+            .create-timesheet-link {
+                justify-content: center; // Center button when stacked
+            }
+        }
+    }
+
+    // --- Styles for Project Specific Navigation (ProjectTimesheet.js) ---
+    &.project-specific-nav {
+        .project-selector-container {
+            order: 1;
+            flex: 1 1 100%; // Always full width on its own line
+            min-width: 200px;
+            margin-bottom: 15px; // Space below project selector
+            box-sizing: border-box;
+        }
+
+        // Group for the items below project selector
+        .period-display {
+            flex: 1 0 auto;
+            justify-content: flex-start;
+            order: 2; // Comes after project selector
+            text-align: center;
+            padding: 0 10px;
+            box-sizing: border-box;
+        }
+
+        .navigation-controls {
+            flex: 2 0 auto;
+            justify-content: center;
+            order: 3; // After period display
+            gap: 10px;
+            box-sizing: border-box;
+        }
+
+        .create-timesheet-link {
+            flex: 0 0 auto; // Don't grow, don't shrink, size to content
+            order: 4; // Last item in the row
+            justify-content: flex-end;
+            box-sizing: border-box;
+        }
+
+        @media (max-width: 992px) {
+
+            // Breakpoint for stacking the three items (period, controls, create link)
+            .period-display,
+            .navigation-controls,
+            .create-timesheet-link {
+                flex-basis: 100%; // Each takes full width when stacked
+                justify-content: center;
+                margin-bottom: 10px;
+
+                &:last-child {
+                    margin-bottom: 0;
+                }
+            }
+        }
+    }
+
+    // Common styles for elements within ANY navigation bar type
     .period-display {
-        order: 2;
-        flex: 0 1 auto;
-        text-align: center;
-        padding: 0 10px;
+        h4 {
+            margin: 0;
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #343a40;
+            white-space: nowrap;
+        }
     }
-
-    // Centered, less flexible
-    .navigation-controls {
-        order: 3;
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        flex: 1 1 auto;
-        justify-content: center;
-    }
-
-    // Grouped controls, flexible
-    .create-timesheet-link {
-        order: 4;
-        flex: 0 0 auto;
-    }
-
-    // Last item, fixed size
 
     .project-selector-container {
+
+        // Common styling for project selector if needed
         .react-select-container {
             width: 100%;
         }
@@ -279,45 +435,17 @@
         }
     }
 
-    .period-display {
-        h4 {
-            margin: 0;
-            font-size: 1.1rem;
-            font-weight: 600;
-            color: #343a40;
-            white-space: nowrap;
-        }
-    }
-
     .navigation-controls {
-        // Default (Desktop) - keep Prev/Select/Next together
-        flex-wrap: nowrap;
 
+        // Children (nav-button, view-type-select-wrapper) will wrap based on their own flex properties and parent width
         .nav-button {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-            padding: 8px 12px;
-            border-radius: 4px;
-            border: 1px solid transparent;
-            cursor: pointer;
+            // Inherits base .btn styles
             font-size: 0.85rem;
-            color: white;
+            padding: 8px 12px;
             height: 38px;
             box-sizing: border-box;
             white-space: nowrap;
             flex: 0 0 auto; // Don't grow/shrink by default
-
-            &.btn-blue {
-                background-color: #007bff;
-                border-color: #007bff;
-
-                &:hover {
-                    background-color: darken(#007bff, 10%);
-                    border-color: darken(#007bff, 10%);
-                }
-            }
         }
 
         .view-type-select-wrapper {
@@ -339,28 +467,13 @@
     }
 
     .create-timesheet-link {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        gap: 8px;
-        padding: 8px 15px;
-        border-radius: 4px;
-        border: none;
-        cursor: pointer;
-        font-size: 0.85rem;
-        text-decoration: none;
-        color: white;
-        height: 38px;
+        // Inherits base .btn styles
+        font-size: 0.85rem; // Match nav-button font size
+        padding: 8px 12px; // Match nav-button padding for consistent height
+        // height: 38px; // Allow height to be determined by content and padding
         box-sizing: border-box;
         white-space: nowrap;
-
-        &.btn-success {
-            background-color: #28a745;
-
-            &:hover {
-                background-color: darken(#28a745, 10%);
-            }
-        }
+        text-decoration: none; // Ensure link looks like button
     }
 }
 
@@ -743,6 +856,8 @@
 
 // Tablet and Mobile (<= 768px)
 @media (max-width: 768px) {
+
+    // General header adjustments
     .timesheet-header {
         .title-breadcrumbs h3 {
             font-size: 1.3rem;
@@ -754,59 +869,65 @@
         }
     }
 
-    .timesheet-navigation-bar {
+    // Specific adjustments for .general-timesheet-nav (Timesheet.js)
+    .timesheet-navigation-bar.general-timesheet-nav {
 
-        // Mobile Order for main blocks
-        .project-selector-container {
-            order: 1;
-            flex-basis: 100%;
-            margin-bottom: 10px;
-        }
-
-        .period-display {
-            order: 2;
-            flex-basis: 100%;
-            text-align: center;
-            margin-bottom: 10px;
-        }
-
+        // Stacking of .period-display, .navigation-controls, .create-timesheet-link
+        // is handled by its own @media (max-width: 768px) block within .general-timesheet-nav
         .navigation-controls {
-            order: 3;
-            width: 100%;
-        }
-
-        // Controls group takes full width
-        .create-timesheet-link {
-            order: 4;
-            width: 100%;
-            margin-top: 10px;
+            // Controls within general nav might need specific stacking
+            flex-wrap: wrap; // Allow prev/select/next to wrap
             justify-content: center;
-        }
-
-        // Mobile Layout within Navigation Controls
-        .navigation-controls {
-            display: flex; // Keep as flex container
-            flex-wrap: wrap; // Allow wrapping inside
-            justify-content: space-between; // Space out items on the line (Prev/Next)
-            gap: 10px; // Gap between wrapped items (Selector and Prev/Next line)
 
             .view-type-select-wrapper {
                 order: 1; // Selector comes first
-                flex-basis: 100%; // Takes full width on its own line
+                flex: 1 1 100%; // Take full width on its own line if project selector is hidden, or share
+                margin-bottom: 10px; // Add space if prev/next wrap below
             }
 
             .nav-button {
                 order: 2; // Prev/Next buttons come second
-                flex: 1 1 45%; // Each takes slightly less than half width to allow gap
+                flex: 1 1 40%; // Allow them to share space
                 justify-content: center; // Center text/icon within button
             }
         }
     }
 
+    // Specific adjustments for .project-specific-nav (ProjectTimesheet.js)
+    .timesheet-navigation-bar.project-specific-nav {
+
+        // .project-selector-container is already full width due to its base style
+        // The three items below it (.period-display, .navigation-controls, .create-timesheet-link)
+        // will stack due to the @media (max-width: 992px) rule inside .project-specific-nav
+        // If further adjustments are needed for 768px specifically for these three, add them here.
+        // For example, to ensure the .navigation-controls children also stack nicely:
+        .navigation-controls {
+            flex-wrap: wrap;
+            justify-content: center;
+
+            .view-type-select-wrapper {
+                order: 1;
+                flex: 1 1 100%;
+                margin-bottom: 10px;
+            }
+
+            .nav-button {
+                order: 2;
+                flex: 1 1 40%;
+                justify-content: center;
+            }
+        }
+    }
+
+    // Common responsive styles for filter controls
     .timesheet-options-container .filter-controls {
+
+        // Stacking is already handled by the base .timesheet-options-container styles
+        // This media query block might be redundant for filter controls if base is sufficient
+        // .action-button adjustments are fine here if specific to 768px
         .action-button {
-            flex-basis: 100%;
-            margin-left: 0;
+            // flex-basis: 100%; // Already handled by base stacking
+            // margin-left: 0; // Already handled by base stacking
         }
     }
 
@@ -841,15 +962,26 @@
     .timesheet-navigation-bar {
         gap: 10px; // Reduce overall gap
 
-        .period-display h4 {
-            font-size: 1rem;
-        }
+        // Apply to both types of nav bars
+        &.general-timesheet-nav,
+        &.project-specific-nav {
+            .period-display h4 {
+                font-size: 1rem;
+            }
 
-        .navigation-controls .nav-button,
-        .create-timesheet-link {
-            font-size: 0.8rem;
-            padding: 6px 10px;
-            height: 34px;
+            .navigation-controls .nav-button,
+            .create-timesheet-link {
+                font-size: 0.8rem;
+                padding: 6px 10px;
+                height: 34px;
+            }
+
+            // Reduce margins between stacked items
+            .project-selector-container,
+            // Only in project-specific-nav
+            .period-display {
+                margin-bottom: 8px;
+            }
         }
 
         .navigation-controls .view-type-dropdown {
@@ -858,25 +990,26 @@
         }
 
         // Reduce margins between stacked items
-        .project-selector-container,
-        .period-display,
         .navigation-controls .view-type-select-wrapper {
-            margin-bottom: 8px;
+            margin-bottom: 8px; // Space if prev/next are below
         }
 
-        .create-timesheet-link {
+        &.general-timesheet-nav .create-timesheet-link,
+        &.project-specific-nav .create-timesheet-link {
+            // Target specifically
             margin-top: 8px;
         }
     }
 
     .timesheet-options-container .filter-controls {
 
+        // Inherits stacking from 768px breakpoint
         .react-select-container,
         .filter-select,
+        // Keep this if used directly
         .date-picker-wrapper,
         .filter-email {
-            flex-basis: 100%;
-            min-width: unset;
+            min-width: unset; // Already handled by width: 100%
         }
 
         .action-button {
@@ -902,19 +1035,18 @@
     }
 }
 
-// Optional: Stack Prev/Next on very narrow screens if needed
+// Stack Prev/Next on very narrow screens if needed
 @media (max-width: 360px) {
+    .timesheet-navigation-bar {
 
-    // Adjusted breakpoint slightly
-    .timesheet-navigation-bar .navigation-controls {
-        .nav-button {
+        // Apply to both nav types
+        &.general-timesheet-nav .navigation-controls .nav-button,
+        &.project-specific-nav .navigation-controls .nav-button {
             flex-basis: 100%; // Stack Prev/Next
 
             &:first-of-type {
-                margin-bottom: 8px;
+                margin-bottom: 8px; // Add space between stacked buttons
             }
-
-            // Add space between stacked buttons
         }
     }
 }

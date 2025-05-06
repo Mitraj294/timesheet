@@ -681,8 +681,7 @@ const handleDownload = useCallback(async () => {
            {!selectedProjectId && <small className="error-text">Please select a project first.</small>}
         </div>
       )}
-
-       <div className='timesheet-navigation-bar'>
+       <div className='timesheet-navigation-bar project-specific-nav'>
          {showProjectSelector && (
              <div className="project-selector-container">
                 <Select

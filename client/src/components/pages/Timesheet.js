@@ -701,7 +701,7 @@ const Timesheet = () => {
         </div>
       )}
 
-       <div className='timesheet-navigation-bar'>
+       <div className='timesheet-navigation-bar general-timesheet-nav'>
         <div className='period-display'><h4>{periodDisplayText}</h4></div>
         <div className='navigation-controls'>
           <button className='nav-button btn btn-blue' onClick={handlePrev} aria-label={`Previous ${periodLabel}`}>
