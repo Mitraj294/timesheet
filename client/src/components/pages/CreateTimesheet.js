@@ -38,7 +38,7 @@ import { setAlert } from '../../redux/slices/alertSlice'; // Import setAlert
 import Alert from '../layout/Alert'; // Import Alert component
 import { DateTime } from 'luxon';
 
-const API_URL = process.env.REACT_APP_API_URL || 'https://timesheet-c4mj.onrender.com/api';
+const API_URL = process.env.REACT_APP_API_URL || 'https://timesheet-slpc.onrender.com/api';
 
 // Constants for default values
 const DEFAULT_LUNCH_DURATION = '00:30';

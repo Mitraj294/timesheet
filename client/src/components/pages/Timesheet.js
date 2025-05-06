@@ -54,7 +54,7 @@ import Alert from '../layout/Alert'; // Import Alert component
 
 import Select from "react-select"; // Assuming react-select is used here too based on filter controls
 
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+const API_URL = process.env.REACT_APP_API_URL || 'https://timesheet-slpc.onrender.com/api';
 
 const formatDateString = (dateString, format = 'yyyy-MM-dd') => {
     if (!dateString || !/^\d{4}-\d{2}-\d{2}$/.test(dateString)) return 'Invalid Date';
