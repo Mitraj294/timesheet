@@ -132,8 +132,9 @@ const AppContent = () => {
 
         {/* General Timesheet Create/Edit */}
         <Route path="/timesheet" element={<PrivateRoute><Timesheet /></PrivateRoute>} />
+        {/* This route handles both creating a new timesheet (no ID) and editing (with timesheetId) */}
         <Route path="/timesheet/create" element={<PrivateRoute><CreateTimesheet /></PrivateRoute>} />
-        <Route path="/timesheet/edit/:id" element={<PrivateRoute><CreateTimesheet /></PrivateRoute>} /> {/* Assuming edit uses same component */}
+        <Route path="/timesheet/create/:timesheetId" element={<PrivateRoute><CreateTimesheet /></PrivateRoute>} />
 
         {/* Project-Specific Timesheet Create/Edit */}
         <Route path="/timesheet/project/create/:clientId/:projectId" element={<PrivateRoute><CreateProjectTimesheet /></PrivateRoute>} />

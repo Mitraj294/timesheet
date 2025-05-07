@@ -88,7 +88,7 @@ const ResetPassword = () => {
                                 type={showPassword ? "text" : "password"}
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
-                                placeholder="Enter new password"
+                                placeholder="Enter new password (min. 6 characters)"
                                 required
                                 disabled={isLoading}
                             />
@@ -105,7 +105,7 @@ const ResetPassword = () => {
                                 type={showConfirmPassword ? "text" : "password"}
                                 value={confirmPassword}
                                 onChange={(e) => setConfirmPassword(e.target.value)}
-                                placeholder="Confirm new password"
+                                placeholder="Confirm your new password"
                                 required
                                 disabled={isLoading}
                             />

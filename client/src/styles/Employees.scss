@@ -1,5 +1,4 @@
 @use 'sass:color';
-
 $primary-color: #007bff;
 $secondary-color: #6c757d;
 $success-color: #28a745;
@@ -18,7 +17,6 @@ $font-family: 'Segoe UI', sans-serif;
 
 $breakpoint-md: 768px;
 $breakpoint-sm: 576px;
-
 
 .btn {
     padding: 0.6rem 1.2rem;
@@ -43,8 +41,6 @@ $breakpoint-sm: 576px;
     }
 }
 
-// Suggestion: Add a general .btn-primary style if needed for buttons like "Add Employee"
-// that aren't links (<a> tags).
 .btn-primary {
     background-color: $primary-color; // Or use $success-color if preferred
     color: #fff;
@@ -55,7 +51,7 @@ $breakpoint-sm: 576px;
 }
 
 .btn-secondary {
-    // Added for the retry button
+    // For retry button
     background-color: $secondary-color;
     color: #fff;
 
@@ -63,7 +59,6 @@ $breakpoint-sm: 576px;
         background-color: color.adjust($secondary-color, $lightness: -10%);
     }
 }
-
 
 .vehicles-page {
     padding: clamp(1rem, 2vw, 1.5rem);
@@ -133,7 +128,7 @@ $breakpoint-sm: 576px;
         }
     }
 
-    // Style for the button directly within the header (used in Employees.js)
+    // Button directly within the header
     .btn {
         flex-shrink: 0; // Prevent button from shrinking too much
     }
@@ -151,7 +146,7 @@ $breakpoint-sm: 576px;
         text-decoration: none;
     }
 
-    // Specific style for the "Create Vehicle" Link button
+    // "Create Vehicle" Link button
     a.btn.btn-primary {
         background-color: $success-color; // Using success color here
         color: #fff;
@@ -462,7 +457,7 @@ $breakpoint-sm: 576px;
     }
 }
 
-// Responsive adjustments (Medium screens and below)
+// Responsive adjustments
 @media (max-width: $breakpoint-md) {
     .vehicles-grid {
         // Remove grid container styles, let cards stack
@@ -546,7 +541,6 @@ $breakpoint-sm: 576px;
     }
 }
 
-// Responsive adjustments (Small screens and below)
 @media (max-width: $breakpoint-sm) {
     .vehicles-header {
         align-items: flex-start; // Align items top when wrapping

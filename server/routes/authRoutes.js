@@ -10,7 +10,7 @@ import {
 } from "../controllers/authController.js";
 import User from "../models/User.js";
 // Import the authentication middleware
-import { protect } from '../middleware/authMiddleware.js'; // Adjust path if needed
+import { protect } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
 
@@ -47,35 +47,25 @@ router.post("/check-user", async (req, res) => {
   }
 });
 
-// PUT /api/auth/change-password - Handles password change for logged-in user
-router.put('/change-password', protect, changePassword); // Add this line
-
+// PUT /api/auth/change-password - Handles password change for logged-in user (protected)
+router.put('/change-password', protect, changePassword);
 
 // --- Protected Routes ---
-// GET /api/auth/me
+
+// GET /api/auth/me - Fetches the currently authenticated user's details (protected)
 router.get('/me', protect, async (req, res) => {
-  // --- ADD THIS LOG ---
-  console.log(`[${new Date().toISOString()}] /api/auth/me route handler entered.`);
   try {
     if (!req.user) {
-       // --- ADD THIS LOG ---
-       console.log(`[${new Date().toISOString()}] /api/auth/me handler: req.user is missing!`);
        return res.status(404).json({ message: 'User data not found after authentication.' });
     }
-    // --- ADD THIS LOG ---
-    console.log(`[${new Date().toISOString()}] /api/auth/me handler: Sending user data for ${req.user.email}`);
     res.json(req.user);
   } catch (err) {
-    console.error(`[${new Date().toISOString()}] Error in /api/auth/me handler:`, err.message);
+    console.error(`Error in /api/auth/me handler: ${err.message}`);
     res.status(500).send('Server Error');
   }
 });
 
-// DELETE /api/auth/me - Deletes the logged-in user's account
-router.delete('/me', protect, deleteAccount); // Add this line
-
-// --- ADD THIS LOG ---
-console.log(`[${new Date().toISOString()}] authRoutes.js file loaded and router configured.`);
+// DELETE /api/auth/me - Deletes the logged-in user's account (protected)
+router.delete('/me', protect, deleteAccount);
 
 export default router;
-

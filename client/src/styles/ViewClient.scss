@@ -702,11 +702,7 @@ $breakpoint-sm: 576px;
     .vehicles-grid {
         .vehicles-row.vehicle-card {
             &>div {
-
                 // Keep label/value side-by-side
-                &.actions {
-                    // Keep actions horizontal and right-aligned
-                }
             }
         }
     }

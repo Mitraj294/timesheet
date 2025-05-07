@@ -307,10 +307,19 @@ const Timesheet = () => {
     setShowDeleteConfirm(false);
     setItemToDelete(null);
   };
-  const handleUpdate = (timesheet) => {
-    // Navigate to the create/update timesheet page with the selected timesheet data
-    navigate('/timesheet/create', { state: { timesheet } });
-   };
+  const handleUpdate = (timesheetEntry) => {
+    if (timesheetEntry && timesheetEntry._id) {
+      // Navigate to the edit timesheet page, passing the timesheet ID in the URL.
+      // CreateTimesheet.js uses useParams() to get this ID as `timesheetIdForEdit`.
+      // Ensure your React Router has a route like:
+      // <Route path="/timesheet/create/:timesheetId" element={<CreateTimesheet />} />
+      // OR <Route path="/timesheet/edit/:timesheetId" element={<CreateTimesheet />} />
+      navigate(`/timesheet/create/${timesheetEntry._id}`); // Or use `/timesheet/edit/${timesheetEntry._id}` if that's your route
+    } else {
+      console.error("Cannot edit timesheet: Missing timesheet ID.", timesheetEntry);
+      dispatch(setAlert("Cannot edit timesheet: Missing ID.", "danger"));
+    }
+  };
 
    const confirmDeleteTimesheet = useCallback(async () => {
     // Delete a timesheet entry after confirmation

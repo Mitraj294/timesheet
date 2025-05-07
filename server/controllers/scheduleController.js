@@ -2,7 +2,9 @@ import Schedule from '../models/Schedule.js';
 import mongoose from 'mongoose';
 import { DateTime } from 'luxon';
 
-// Create schedules in bulk
+// @desc    Create schedules in bulk
+// @route   POST /api/schedules/bulk
+// @access  Private (e.g.,  Employer/Employee)
 export const createBulkSchedules = async (req, res) => {
   try {
     const schedules = req.body;
@@ -13,6 +15,7 @@ export const createBulkSchedules = async (req, res) => {
 
     const schedulesToSave = schedules.map((sch) => {
       if (!sch.startTime || !sch.endTime || !sch.date || !sch.employee) {
+        // This error will be caught by the main catch block and result in a 500.
         throw new Error('Missing required schedule fields');
       }
 
@@ -34,11 +37,15 @@ export const createBulkSchedules = async (req, res) => {
     res.status(201).json({ message: 'Schedules created successfully' });
   } catch (err) {
     console.error('Error creating schedules:', err);
-    res.status(500).json({ message: err.message || 'Server error' });
+    // If the error is due to "Missing required fields", a 400 might be more appropriate.
+    // However, for a generic server error:
+    res.status(500).json({ message: 'Server error while creating schedules' });
   }
 };
 
-// Get schedules by week (based on local time)
+// @desc    Get schedules by week (converts to/from UTC for storage/retrieval)
+// @route   GET /api/schedules/week
+// @access  Private (e.g.,  Employer/Employee or relevant Employees)
 export const getSchedulesByWeek = async (req, res) => {
   try {
     const { weekStart } = req.query;
@@ -77,7 +84,10 @@ export const getSchedulesByWeek = async (req, res) => {
     res.status(500).json({ message: 'Failed to fetch schedules' });
   }
 };
-// Update a single schedule by ID
+
+// @desc    Update a single schedule by ID
+// @route   PUT /api/schedules/:id
+// @access  Private (e.g.,  Employer/Employee)
 export const updateSchedule = async (req, res) => {
   try {
     const { id } = req.params;
@@ -104,7 +114,9 @@ export const updateSchedule = async (req, res) => {
   }
 };
 
-// Delete schedule by ID
+// @desc    Delete a schedule by ID
+// @route   DELETE /api/schedules/:id
+// @access  Private (e.g.,  Employer/Employee)
 export const deleteSchedule = async (req, res) => {
   try {
     const { id } = req.params;
@@ -121,7 +133,9 @@ export const deleteSchedule = async (req, res) => {
   }
 };
 
-
+// @desc    Delete schedules by date range
+// @route   DELETE /api/schedules/by-date-range
+// @access  Private (e.g.,  Employer/Employee)
 export const deleteByDateRange = async (req, res) => {
   try {
     const { startDate, endDate } = req.body;
@@ -140,7 +154,7 @@ export const deleteByDateRange = async (req, res) => {
 
     res.status(200).json({ message: `${result.deletedCount} schedules deleted.` });
   } catch (err) {
-    console.error('Error deleting schedule:', err);
-    res.status(500).json({ message: 'Failed to delete schedule' });
+    console.error('Error deleting schedules by date range:', err);
+    res.status(500).json({ message: 'Failed to delete schedules by date range' });
   }
 };

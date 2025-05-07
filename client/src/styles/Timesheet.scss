@@ -1,5 +1,4 @@
 .timesheet-page {
-    // Apply styles similar to .roster-page
     padding: clamp(1rem, 2vw, 1.5rem); // Responsive padding
     max-width: 1600px; // Max width from roster page
     margin: 0 auto; // Center the content
@@ -10,8 +9,7 @@
     flex-direction: column; // Added from roster page
 }
 
-// Ensure consistent button styles (if not already defined globally)
-// Placed near the top for general use
+// Consistent button styles
 .btn {
     display: inline-flex; // Use flex for icon alignment
     align-items: center;
@@ -35,7 +33,7 @@
         cursor: not-allowed;
     }
 
-    // Add specific colors if needed (e.g., .btn-red, .btn-purple)
+    // Specific button colors
     &.btn-red {
         color: #fff;
         background-color: #dc3545;
@@ -59,7 +57,6 @@
     }
 
     &.btn-success {
-        // Added from existing styles
         color: #fff;
         background-color: #28a745;
         border-color: #28a745;
@@ -71,7 +68,6 @@
     }
 
     &.btn-blue {
-        // Added from existing styles
         color: #fff;
         background-color: #007bff;
         border-color: #007bff;
@@ -81,8 +77,6 @@
             border-color: darken(#007bff, 10%);
         }
     }
-
-    // Add other button colors if needed
 }
 
 
@@ -139,17 +133,14 @@
         gap: 10px;
         justify-content: flex-end;
 
-        // Use the general .btn styles defined above
         .btn {
-            // Override general styles if needed, e.g., smaller font size
             font-size: 0.85rem;
             padding: 8px 12px;
-            // border-radius: 4px; // General .btn already has border-radius
         }
     }
 }
 
-// Styles for the Download/Send Options Container (Merged from input)
+// Styles for the Download/Send Options Container
 .timesheet-options-container {
     background-color: #f8f9fa; // Light background
     border: 1px solid #dee2e6;
@@ -164,7 +155,6 @@
         margin-bottom: 1rem;
         font-size: 1.1rem;
         color: #343a40;
-        // Removed border-bottom from original file, new style doesn't have it
     }
 
     // Container for the filter inputs and button
@@ -174,12 +164,11 @@
         gap: 0.75rem; // Space between items
         align-items: center; // Align items vertically
 
-        // --- Styling for react-select ---
+        // Styling for react-select
         .react-select-container {
             flex: 1 1 200px; // Allow shrinking/growing, base width 200px
             min-width: 180px; // Minimum width before wrapping
 
-            // Override default react-select styles if needed
             .react-select__control {
                 border-color: #ced4da; // Match other inputs
                 min-height: 38px; // Match button height
@@ -192,11 +181,9 @@
             .react-select__indicator-separator {
                 background-color: #ced4da;
             }
-
-            // Add more specific overrides as needed
         }
 
-        // --- Styling for react-datepicker ---
+        // Styling for react-datepicker
         .react-datepicker-wrapper {
             flex: 1 1 150px; // Allow shrinking/growing, base width 150px
             min-width: 130px;
@@ -230,7 +217,7 @@
             }
         }
 
-        // --- Styling for Email Input ---
+        // Styling for Email Input
         .filter-email {
             flex: 1 1 200px; // Allow shrinking/growing, base width 200px
             min-width: 180px;
@@ -255,9 +242,8 @@
             }
         }
 
-        // --- Styling for Action Button ---
+        // Styling for Action Button
         .action-button {
-            // Inherits base .btn styles
             flex-shrink: 0; // Prevent button from shrinking
             margin-left: auto; // Push button to the right if space allows on larger screens
 
@@ -275,7 +261,7 @@
             }
         }
 
-        // --- Responsive Adjustments ---
+        // Responsive Adjustments
         @media (max-width: 768px) {
             // Adjust breakpoint as needed
             flex-direction: column; // Stack items vertically
@@ -292,8 +278,7 @@
     }
 }
 
-
-// --- Navigation Bar ---
+// Navigation Bar
 .timesheet-navigation-bar {
     display: flex;
     flex-wrap: wrap; // Allow wrapping
@@ -303,7 +288,6 @@
     margin-bottom: 25px;
     padding: 10px 0;
 
-    // Common styles for child elements of any timesheet-navigation-bar
     >div,
     >a {
         // Target direct children that are divs or links
@@ -311,7 +295,7 @@
         align-items: center; // Vertically align content within each child
     }
 
-    // --- Styles for General Timesheet Navigation (Timesheet.js) ---
+    // Styles for General Timesheet Navigation (Timesheet.js)
     &.general-timesheet-nav {
         .period-display {
             flex: 1 0 auto; // Grow, don't shrink from content, base on content
@@ -358,7 +342,7 @@
         }
     }
 
-    // --- Styles for Project Specific Navigation (ProjectTimesheet.js) ---
+    // Styles for Project Specific Navigation (ProjectTimesheet.js)
     &.project-specific-nav {
         .project-selector-container {
             order: 1;
@@ -368,7 +352,6 @@
             box-sizing: border-box;
         }
 
-        // Group for the items below project selector
         .period-display {
             flex: 1 0 auto;
             justify-content: flex-start;
@@ -395,7 +378,7 @@
 
         @media (max-width: 992px) {
 
-            // Breakpoint for stacking the three items (period, controls, create link)
+            // Stacking for period, controls, create link
             .period-display,
             .navigation-controls,
             .create-timesheet-link {
@@ -422,8 +405,6 @@
     }
 
     .project-selector-container {
-
-        // Common styling for project selector if needed
         .react-select-container {
             width: 100%;
         }
@@ -436,10 +417,7 @@
     }
 
     .navigation-controls {
-
-        // Children (nav-button, view-type-select-wrapper) will wrap based on their own flex properties and parent width
         .nav-button {
-            // Inherits base .btn styles
             font-size: 0.85rem;
             padding: 8px 12px;
             height: 38px;
@@ -467,10 +445,8 @@
     }
 
     .create-timesheet-link {
-        // Inherits base .btn styles
         font-size: 0.85rem; // Match nav-button font size
         padding: 8px 12px; // Match nav-button padding for consistent height
-        // height: 38px; // Allow height to be determined by content and padding
         box-sizing: border-box;
         white-space: nowrap;
         text-decoration: none; // Ensure link looks like button
@@ -852,8 +828,7 @@
     }
 }
 
-// --- Responsive Adjustments ---
-
+// Responsive Adjustments
 // Tablet and Mobile (<= 768px)
 @media (max-width: 768px) {
 
@@ -871,9 +846,6 @@
 
     // Specific adjustments for .general-timesheet-nav (Timesheet.js)
     .timesheet-navigation-bar.general-timesheet-nav {
-
-        // Stacking of .period-display, .navigation-controls, .create-timesheet-link
-        // is handled by its own @media (max-width: 768px) block within .general-timesheet-nav
         .navigation-controls {
             // Controls within general nav might need specific stacking
             flex-wrap: wrap; // Allow prev/select/next to wrap
@@ -896,11 +868,7 @@
     // Specific adjustments for .project-specific-nav (ProjectTimesheet.js)
     .timesheet-navigation-bar.project-specific-nav {
 
-        // .project-selector-container is already full width due to its base style
-        // The three items below it (.period-display, .navigation-controls, .create-timesheet-link)
-        // will stack due to the @media (max-width: 992px) rule inside .project-specific-nav
-        // If further adjustments are needed for 768px specifically for these three, add them here.
-        // For example, to ensure the .navigation-controls children also stack nicely:
+        // Ensure .navigation-controls children stack nicely
         .navigation-controls {
             flex-wrap: wrap;
             justify-content: center;
@@ -920,16 +888,6 @@
     }
 
     // Common responsive styles for filter controls
-    .timesheet-options-container .filter-controls {
-
-        // Stacking is already handled by the base .timesheet-options-container styles
-        // This media query block might be redundant for filter controls if base is sufficient
-        // .action-button adjustments are fine here if specific to 768px
-        .action-button {
-            // flex-basis: 100%; // Already handled by base stacking
-            // margin-left: 0; // Already handled by base stacking
-        }
-    }
 
     .timesheet-table {
         font-size: 0.8rem;
@@ -960,7 +918,7 @@
     }
 
     .timesheet-navigation-bar {
-        gap: 10px; // Reduce overall gap
+        gap: 10px;
 
         // Apply to both types of nav bars
         &.general-timesheet-nav,
@@ -978,8 +936,8 @@
 
             // Reduce margins between stacked items
             .project-selector-container,
-            // Only in project-specific-nav
             .period-display {
+                // project-selector-container only in project-specific-nav
                 margin-bottom: 8px;
             }
         }
@@ -996,14 +954,12 @@
 
         &.general-timesheet-nav .create-timesheet-link,
         &.project-specific-nav .create-timesheet-link {
-            // Target specifically
             margin-top: 8px;
         }
     }
 
     .timesheet-options-container .filter-controls {
 
-        // Inherits stacking from 768px breakpoint
         .react-select-container,
         .filter-select,
         // Keep this if used directly

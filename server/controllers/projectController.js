@@ -2,15 +2,18 @@ import Project from "../models/Project.js";
 import Timesheet from "../models/Timesheet.js";
 import mongoose from 'mongoose';
 
+// @desc    Create a new project for a specific client
+// @route   POST /api/projects/client/:clientId
+// @access  Private (e.g., Admin/Employer)
 export const createProject = async (req, res) => {
   const { clientId } = req.params;
   const { name, startDate, finishDate, address, expectedHours, notes, isImportant, status } = req.body;
 
   if (!name || !clientId) {
-    return res.status(400).json({ error: "Project name and client ID are required." });
+    return res.status(400).json({ message: "Project name and client ID are required." });
   }
   if (!mongoose.Types.ObjectId.isValid(clientId)) {
-      return res.status(400).json({ error: "Invalid Client ID format." });
+      return res.status(400).json({ message: "Invalid Client ID format." });
   }
 
   try {
@@ -21,27 +24,34 @@ export const createProject = async (req, res) => {
       clientId
     });
     await newProject.save();
+    // Populate clientId to include client name in the response
     await newProject.populate('clientId', 'name');
     res.status(201).json({ message: "Project created successfully", project: newProject });
   } catch (error) {
     console.error("Error creating project:", error);
     if (error.code === 11000) {
-        return res.status(409).json({ error: "A project with similar details might already exist." });
+        return res.status(409).json({ message: "A project with this name might already exist for the client." });
     }
-    res.status(500).json({ error: "Server error while creating project." });
+    res.status(500).json({ message: "Server error while creating project." });
   }
 };
 
+// @desc    Get all projects
+// @route   GET /api/projects
+// @access  Private (e.g., Admin/Employer)
 export const getAllProjects = async (req, res) => {
   try {
     const projects = await Project.find().populate('clientId', 'name');
     res.status(200).json(projects);
   } catch (error) {
     console.error("Error fetching all projects:", error);
-    res.status(500).json({ message: "Server error while fetching projects." });
+    res.status(500).json({ message: "Server error while fetching all projects." });
   }
 };
 
+// @desc    Get all projects for a specific client ID
+// @route   GET /api/projects/client/:clientId
+// @access  Private (e.g., Admin/Employer or Client themselves)
 export const getProjectsByClientId = async (req, res) => {
   const { clientId } = req.params;
   if (!mongoose.Types.ObjectId.isValid(clientId)) {
@@ -52,10 +62,13 @@ export const getProjectsByClientId = async (req, res) => {
     res.status(200).json(projects);
   } catch (error) {
     console.error("Error fetching projects by client:", error);
-    res.status(500).json({ message: "Server error while fetching projects." });
+    res.status(500).json({ message: "Server error while fetching projects for the client." });
   }
 };
 
+// @desc    Get a single project by its ID, including total actual hours
+// @route   GET /api/projects/:projectId
+// @access  Private (e.g., Admin/Employer)
 export const getProjectById = async (req, res) => {
   const { projectId } = req.params;
 
@@ -83,10 +96,13 @@ export const getProjectById = async (req, res) => {
 
   } catch (error) {
     console.error("Error fetching project:", error);
-    res.status(500).json({ error: "Server error while fetching project." });
+    res.status(500).json({ message: "Server error while fetching project." });
   }
 };
 
+// @desc    Update a project by its ID
+// @route   PUT /api/projects/:projectId
+// @access  Private (e.g., Admin/Employer)
 export const updateProject = async (req, res) => {
   const { projectId } = req.params;
   const updates = req.body;
@@ -123,10 +139,13 @@ export const updateProject = async (req, res) => {
     if (error.code === 11000) {
         return res.status(409).json({ message: "Update failed due to duplicate key constraint." });
     }
-    res.status(500).json({ message: "Server error while updating project" });
+    res.status(500).json({ message: "Server error while updating project." });
   }
 };
 
+// @desc    Delete a project by its ID
+// @route   DELETE /api/projects/:projectId
+// @access  Private (e.g., Admin/Employer)
 export const deleteProject = async (req, res) => {
   const { projectId } = req.params;
 
@@ -135,6 +154,8 @@ export const deleteProject = async (req, res) => {
   }
 
   try {
+    // TODO: Consider implications for associated Timesheets.
+    // Options: delete them, nullify projectId, or prevent project deletion if timesheets exist.
 
     const deletedProject = await Project.findByIdAndDelete(projectId);
 
@@ -146,6 +167,6 @@ export const deleteProject = async (req, res) => {
 
   } catch (error) {
     console.error("Error deleting project:", error);
-    res.status(500).json({ error: "Server error while deleting project" });
+    res.status(500).json({ message: "Server error while deleting project." });
   }
 };

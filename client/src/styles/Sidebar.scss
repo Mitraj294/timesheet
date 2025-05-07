@@ -71,7 +71,6 @@
     }
 }
 
-/* Sidebar Toggle Button */
 .sidebar-toggle {
     position: fixed;
     top: 15px;
@@ -89,12 +88,10 @@
     }
 }
 
-/* When Sidebar is Open */
 .sidebar.open+.sidebar-toggle {
     left: 250px;
 }
 
-/* Responsive Sidebar */
 @media (max-width: 768px) {
     .sidebar {
         width: 200px;

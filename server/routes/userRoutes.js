@@ -6,7 +6,7 @@ const router = express.Router();
 
 // --- Protected Routes ---
 
-// PUT /api/users/profile - Update the logged-in user's profile (name, email)
+// PUT /api/users/profile - Update the logged-in user's profile (name, email, etc.) (protected)
 router.put('/profile', protect, updateUserProfile);
 
 

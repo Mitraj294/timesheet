@@ -1,6 +1,6 @@
 @use 'sass:color';
 
-// --- Standard Variables ---
+// Standard Variables
 $primary-color: #007bff;
 $secondary-color: #6c757d;
 $success-color: #28a745;
@@ -21,7 +21,7 @@ $breakpoint-lg: 1024px;
 $breakpoint-md: 768px;
 $breakpoint-sm: 576px;
 
-// --- Page Container ---
+// Page Container
 .view-dashboard-page {
     padding: clamp(1rem, 2vw, 1.5rem);
     max-width: 1400px; // Allow wider view
@@ -31,7 +31,7 @@ $breakpoint-sm: 576px;
     min-height: calc(100vh - 60px); // Adjust based on header height
 }
 
-// --- Filters Section ---
+// Filters Section
 .dashboard-filters-container {
     background: #fff; // Use white background like other containers
     padding: 1.5rem;
@@ -132,7 +132,7 @@ $breakpoint-sm: 576px;
     }
 }
 
-// --- Summary Grid & Cards ---
+// Summary Grid & Cards
 .dashboard-summary-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); // Adjust minmax
@@ -141,7 +141,6 @@ $breakpoint-sm: 576px;
 }
 
 .summary-card {
-
     background: #ffffff;
     padding: 1.25rem;
     border-radius: $border-radius;
@@ -218,7 +217,7 @@ $breakpoint-sm: 576px;
     }
 }
 
-// --- Chart Cards ---
+// Chart Cards
 .chart-card {
     background: #ffffff;
     padding: 1.5rem;
@@ -281,8 +280,7 @@ $breakpoint-sm: 576px;
     // border: 1px dashed lightgray; // Optional: uncomment to visualize the spacer during adjustment
 }
 
-
-// --- Loading/Error States ---
+// Loading/Error States
 .loading-indicator,
 .error-message {
     display: flex;
@@ -311,11 +309,8 @@ $breakpoint-sm: 576px;
     background-color: color.adjust($danger-color, $lightness: 45%);
 }
 
-
-// --- Responsive Design ---
+// Responsive Design
 @media (max-width: $breakpoint-lg) {
-
-    // 1024px
     .dashboard-summary-grid {
         grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); // Adjust minmax for slightly smaller screens
     }
@@ -388,8 +383,7 @@ $breakpoint-sm: 576px;
     }
 }
 
-/* Add at the end of Dashboard.scss or a relevant global styles file */
-
+// Logout Confirmation Modal
 .logout-confirm-overlay {
     position: fixed;
     top: 0;

@@ -16,14 +16,14 @@ const scheduleSchema = new mongoose.Schema({
     required: true,
   },
   startTime: {
-    type: String, 
+    type: String, // Storing as string e.g., "09:00"
     required: true,
   },
   endTime: {
-    type: String, 
+    type: String, // Storing as string e.g., "17:00"
     required: true,
   },
-  timezone: {  
+  timezone: {
     type: String,
     required: true,
     default: 'UTC',

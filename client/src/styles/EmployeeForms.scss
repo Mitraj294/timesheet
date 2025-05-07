@@ -1,6 +1,6 @@
 // /home/digilab/timesheet/client/src/styles/EmployeeForms.scss
 
-// Variables (optional, but good practice)
+// Variables
 $primary-color: #007bff;
 $secondary-color: #6c757d;
 $success-color: #28a745;
@@ -115,7 +115,6 @@ $page-bg: #f4f7f6; // Light background for the page
 
 // General Form Styles
 .employee-form {
-    // Use this class on the <form> tag
     display: flex;
     flex-direction: column;
     gap: 20px; // Space between form groups
@@ -226,7 +225,6 @@ $page-bg: #f4f7f6; // Light background for the page
             }
         }
 
-        // Summary display (e.g., Total Hours)
         &.summary {
             background-color: lighten($primary-color, 45%);
             border: 1px solid lighten($primary-color, 35%);
@@ -248,7 +246,6 @@ $page-bg: #f4f7f6; // Light background for the page
         }
     }
 
-    // Checkbox Group Styles
     .checkbox-group {
         display: flex;
         align-items: center;
@@ -280,7 +277,6 @@ $page-bg: #f4f7f6; // Light background for the page
         }
     }
 
-    // Form Footer (for buttons)
     .form-footer {
         display: flex;
         justify-content: flex-end; // Align buttons to the right
@@ -291,7 +287,7 @@ $page-bg: #f4f7f6; // Light background for the page
     }
 }
 
-// Shared Button Styles (assuming you have base .btn styles)
+// Shared Button Styles
 .btn {
     display: inline-flex;
     align-items: center;

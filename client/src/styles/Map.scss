@@ -15,11 +15,11 @@ $border-radius: 5px;
 $box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
 $font-family: 'Segoe UI', sans-serif; // Added from Vehicles.scss
 
-// --- Breakpoints (Added from Vehicles.scss) ---
+// Breakpoints
 $breakpoint-md: 768px;
 $breakpoint-sm: 576px;
 
-// --- Button Mixins (Derived from Vehicles.scss) ---
+// Button Mixins
 @mixin base-button {
     display: inline-flex;
     align-items: center;
@@ -90,8 +90,6 @@ $breakpoint-sm: 576px;
     }
 }
 
-// --- End Button Mixins ---
-
 
 .visually-hidden {
     position: absolute;
@@ -117,7 +115,6 @@ $breakpoint-sm: 576px;
             font-size: clamp(1.4rem, 3vw, 1.75rem); // Match Vehicles.scss header
             display: flex;
             align-items: center;
-            gap: 0.6rem; // Match Vehicles.scss header
             margin-bottom: 0; // Remove margin if part of a larger header block
             color: $text-color; // Use variable
             font-weight: 600; // Match Vehicles.scss header
@@ -126,7 +123,7 @@ $breakpoint-sm: 576px;
 
     // Combined Header Block (Optional - if you want header/breadcrumbs together like Vehicles.scss)
     .map-page-header {
-        // New wrapper class suggestion
+        // Wrapper for title and breadcrumbs
         display: flex;
         justify-content: space-between;
         align-items: flex-start; // Align items to top
@@ -316,7 +313,7 @@ $breakpoint-sm: 576px;
     }
 }
 
-// --- Responsive Adjustments ---
+// Responsive Adjustments
 @media (max-width: $breakpoint-md) {
 
     // Using variable from Vehicles.scss

@@ -6,40 +6,41 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
+// Middleware to protect routes by verifying JWT token.
 export const protect = async (req, res, next) => {
-  // --- ADD THIS LOG ---
-  console.log(`[${new Date().toISOString()}] protect middleware entered for: ${req.method} ${req.originalUrl}`);
+  console.log(`[${new Date().toISOString()}] Protect middleware: Processing ${req.method} ${req.originalUrl}`);
   let token;
 
   if (req.headers.authorization && req.headers.authorization.startsWith("Bearer")) {
     try {
+      // Extract token from "Bearer <token>"
       token = req.headers.authorization.split(" ")[1];
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+      // Attach user to request object, excluding the password
       req.user = await User.findById(decoded.id).select("-password");
 
       if (!req.user) {
-          console.log(`[${new Date().toISOString()}] protect middleware: User not found for token ID: ${decoded.id}`);
+          console.warn(`[${new Date().toISOString()}] Protect middleware: User not found for token ID: ${decoded.id}`);
           return res.status(401).json({ message: "Not authorized, user not found" });
       }
 
-      // --- ADD THIS LOG ---
-      console.log(`[${new Date().toISOString()}] protect middleware: Token verified, user ${req.user.email} attached. Calling next().`);
+      console.log(`[${new Date().toISOString()}] Protect middleware: Token verified for user ${req.user.email}. Proceeding.`);
       next(); // Proceed to the next middleware/route handler
     } catch (error) {
-      console.error(`[${new Date().toISOString()}] protect middleware: Token verification failed:`, error.message);
+      console.error(`[${new Date().toISOString()}] Protect middleware: Token verification failed. Error: ${error.message}`);
       res.status(401).json({ message: "Not authorized, token failed" });
     }
   } else {
-    console.log(`[${new Date().toISOString()}] protect middleware: No token provided.`);
+    console.warn(`[${new Date().toISOString()}] Protect middleware: No token provided in headers.`);
     res.status(401).json({ message: "Not authorized, no token provided" });
   }
 };
 
 // Middleware to restrict access to employers only
-// Assumes the 'protect' middleware has already run and attached req.user
+// This middleware should be used *after* the 'protect' middleware.
 export const employerOnly = (req, res, next) => {
-  // Check if req.user exists and has the role 'employer'
-  // protect middleware should run *before* this one
+  // Check if req.user (attached by 'protect' middleware) exists and has the 'employer' role.
   if (req.user && req.user.role === 'employer') {
     next(); // User is an employer, proceed
   } else {

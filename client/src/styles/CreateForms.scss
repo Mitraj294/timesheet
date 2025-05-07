@@ -1,4 +1,4 @@
-/* === Global Styles === */
+// Global Styles
 * {
     margin: 0;
     padding: 0;
@@ -17,7 +17,7 @@ body {
     margin: 0 auto;
 }
 
-/* === Breadcrumb Navigation === */
+// Breadcrumb Navigation
 .breadcrumb {
     display: flex;
     align-items: center;
@@ -41,7 +41,7 @@ body {
     }
 }
 
-/* === Container Styling === */
+// Container Styling
 .create-client-container,
 .create-project-container {
     background: #ffffff;
@@ -58,14 +58,14 @@ body {
     }
 }
 
-/* === Form Styling === */
+// Form Styling
 form {
     display: flex;
     flex-direction: column;
     gap: 20px;
 }
 
-/* Form Group */
+// Form Group
 .form-group {
     display: flex;
     align-items: center;
@@ -104,7 +104,7 @@ form {
     }
 }
 
-/* === Checkbox Group === */
+// Checkbox Group
 .checkbox-group {
     display: flex;
     align-items: center;
@@ -121,7 +121,7 @@ form {
     }
 }
 
-/* === Form Buttons === */
+// Form Buttons
 .form-buttons {
     display: flex;
     justify-content: flex-end;
@@ -162,7 +162,7 @@ form {
     }
 }
 
-/* === Responsive Design === */
+// Responsive Design
 @media (max-width: 768px) {
 
     .create-client-container,
@@ -211,7 +211,7 @@ form {
     }
 }
 
-/* === Timesheet Styles === */
+// Timesheet Styles
 .create-timesheet-container {
     max-width: 600px;
     margin: auto;

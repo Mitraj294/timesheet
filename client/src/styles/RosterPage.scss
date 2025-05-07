@@ -1,6 +1,6 @@
 @use 'sass:color';
 
-// --- Standard Variables ---
+// Standard Variables
 $primary-color: #007bff;
 $secondary-color: #6c757d;
 $success-color: #28a745;
@@ -18,13 +18,13 @@ $box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
 $font-family: 'Segoe UI', sans-serif;
 $light-warning-color: #fff3cd; // Keep this for shift cards
 
-// --- Breakpoints ---
+// Breakpoints
 $breakpoint-lg: 1200px; // Added lg breakpoint
 $breakpoint-md: 1024px;
 $breakpoint-sm: 768px;
 $breakpoint-xs: 576px;
 
-// --- Standard Button Styles ---
+// Standard Button Styles
 .btn {
     padding: 0.6rem 1.2rem;
     border: none;
@@ -104,7 +104,7 @@ $breakpoint-xs: 576px;
     }
 }
 
-// --- Page Container ---
+// Page Container
 .roster-page {
     display: flex;
     flex-direction: column;
@@ -115,7 +115,7 @@ $breakpoint-xs: 576px;
     max-width: 1600px;
     margin: 0 auto;
 
-    // --- Standard Header ---
+    // Standard Header
     .roster-header {
         display: flex;
         justify-content: space-between;
@@ -182,7 +182,7 @@ $breakpoint-xs: 576px;
         // Rollout button
     }
 
-    // --- Week Navigation ---
+    // Week Navigation
     .week-nav {
         display: flex;
         justify-content: space-between;
@@ -211,7 +211,7 @@ $breakpoint-xs: 576px;
         // Use standard button class
     }
 
-    // --- Loading/Error States ---
+    // Loading/Error States
     .loading-indicator,
     .error-message {
         display: flex;
@@ -246,7 +246,7 @@ $breakpoint-xs: 576px;
         // Add margin if it's a main page error
     }
 
-    // --- Roster Body Layout ---
+    // Roster Body Layout
     .roster-body {
         display: grid;
         // Adjust grid columns slightly for better flexibility
@@ -265,7 +265,7 @@ $breakpoint-xs: 576px;
             }
         }
 
-        // --- Sidebars ---
+        // Sidebars
         .roles-sidebar,
         .employees-sidebar {
             background-color: #fff;
@@ -375,7 +375,7 @@ $breakpoint-xs: 576px;
             }
         }
 
-        // --- Schedule Grid (Keep original table-like structure) ---
+        // Schedule Grid (Keep original table-like structure)
         .schedule-wrapper {
             padding: 0;
             box-sizing: border-box;
@@ -581,7 +581,7 @@ $breakpoint-xs: 576px;
         }
     }
 
-    // --- Modal Styles ---
+    // Modal Styles
     .modal-overlay {
         position: fixed;
         top: 0;
@@ -720,7 +720,7 @@ $breakpoint-xs: 576px;
     }
 }
 
-// --- Role Card Colors (Keep original) ---
+// Role Card Colors
 .role-card {
     &.role-blue {
         background-color: color.adjust($primary-color, $lightness: 40%);
@@ -777,10 +777,8 @@ $breakpoint-xs: 576px;
     }
 }
 
-// --- Responsive Adjustments ---
+// Responsive Adjustments
 @media (max-width: $breakpoint-md) {
-
-    // 1024px
     .roster-page .roster-body {
         grid-template-columns: 1fr; // Stack sidebars and grid
 
@@ -798,8 +796,6 @@ $breakpoint-xs: 576px;
 }
 
 @media (max-width: $breakpoint-sm) {
-
-    // 768px
     .roster-page {
         .roster-header {
             flex-direction: column;
@@ -886,8 +882,6 @@ $breakpoint-xs: 576px;
 }
 
 @media (max-width: $breakpoint-xs) {
-
-    // 576px
     .roster-page {
         padding: 0.5rem;
 
@@ -935,7 +929,7 @@ $breakpoint-xs: 576px;
     }
 }
 
-// --- Confirmation Modal Styles (Reusing Logout Styles) ---
+// Confirmation Modal Styles (Reusing Logout Styles)
 .logout-confirm-overlay,
 .modal-overlay {
     // Apply to both modal types

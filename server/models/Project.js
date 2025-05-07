@@ -13,10 +13,10 @@ const ProjectSchema = new mongoose.Schema({
     enum: ["Ongoing", "Completed"],
     default: "Ongoing"
   },
-  clientId: {                         
+  clientId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "Client",
-    required: true                    
+    required: true
   },
 }, { timestamps: true });
 

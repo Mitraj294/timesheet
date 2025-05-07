@@ -6,52 +6,63 @@ import User from "../models/User.js";
 // Import your email sending utility (adjust path if necessary)
 import sendEmail from '../utils/sendEmail.js';
 
-// Register User
+// --- Constants ---
+const MIN_PASSWORD_LENGTH = 6;
+const JWT_EXPIRY = '1d';
+const RESET_TOKEN_EXPIRY_MINUTES = 10;
+const RESET_TOKEN_EXPIRY_MS = RESET_TOKEN_EXPIRY_MINUTES * 60 * 1000;
+const USER_ROLES = {
+  EMPLOYER: 'employer',
+  EMPLOYEE: 'employee',
+  // Add other roles as needed
+};
+
+// @desc    Register a new user
+// @route   POST /api/auth/register
+// @access  Public
 export const registerUser = async (req, res) => {
   try {
-    // Include new optional fields
     const { name, email, password, role, country, phoneNumber, companyName } = req.body;
 
-    // Basic input validation
     if (!name || !email || !password || !role ) {
       return res.status(400).json({ message: "Please provide name, email, password, and role" });
     }
-    // Add more validation as needed (e.g., password length, email format)
+
+    // Enhanced validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return res.status(400).json({ message: "Please provide a valid email address" });
+    }
+    if (password.length < MIN_PASSWORD_LENGTH) {
+      return res.status(400).json({ message: `Password must be at least ${MIN_PASSWORD_LENGTH} characters long` });
+    }
+    if (!Object.values(USER_ROLES).includes(role.toLowerCase())) {
+      return res.status(400).json({ message: "Invalid user role provided" });
+    }
 
     const userExists = await User.findOne({ email });
     if (userExists) {
       return res.status(400).json({ message: "User already exists with this email" });
     }
 
-    // Hash password before saving
-    // Note: Hashing is done via middleware/hook in your User model, which is good practice.
-    // If not, you would hash here:
+    // Hashing is typically handled by a pre-save hook in the User model.
     // const salt = await bcrypt.genSalt(10);
     // const hashedPassword = await bcrypt.hash(password, salt);
 
     const user = await User.create({
       name,
       email,
-      password, // Send plain password if model hook handles hashing
-      // password: hashedPassword, // Send hashed password if hashing here
+      password, // Model hook should handle hashing
       role,
-      country: country || '', // Save optional fields, default to empty string if not provided
+      country: country || '', 
       phoneNumber: phoneNumber || '',
-      companyName: role === 'employer' ? (companyName || '') : '', // Only save companyName for employers
+      companyName: role.toLowerCase() === USER_ROLES.EMPLOYER ? (companyName || '') : '', // companyName for employers only
     });
 
-    // Check if user creation was successful
-    if (!user) {
-      // This case might be redundant if User.create throws an error handled by catch block
-      return res.status(400).json({ message: "Invalid user data, failed to create user" });
-    }
-
-    // Respond with success message and non-sensitive user data
-    // Avoid sending back the whole user object if it contains sensitive info
     res.status(201).json({
       message: "User registered successfully",
       user: {
-        _id: user._id, // Use _id for consistency
+        _id: user._id,
         name: user.name,
         email: user.email,
         role: user.role,
@@ -59,8 +70,7 @@ export const registerUser = async (req, res) => {
         phoneNumber: user.phoneNumber,
         companyName: user.companyName,
       },
-      // Optionally, generate and return a token immediately if registration implies login
-      // token: generateToken(user._id, user.role) // Example call
+      // token: generateToken(user._id, user.role) // Optional: immediate login token post-registration
     });
   } catch (error) {
     console.error("Error in user registration:", error);
@@ -68,40 +78,39 @@ export const registerUser = async (req, res) => {
   }
 };
 
-// Login User
+const generateToken = (userId, userRole) => {
+  return jwt.sign({ id: userId, role: userRole }, process.env.JWT_SECRET, {
+    expiresIn: JWT_EXPIRY,
+  });
+};
+
+// @desc    Authenticate user & get token
+// @route   POST /api/auth/login
+// @access  Public
 export const loginUser = async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    // Basic input validation
     if (!email || !password) {
       return res.status(400).json({ message: "Please provide email and password" });
     }
 
-    // Find user by email
     const user = await User.findOne({ email });
-    // Check if user exists and if password matches
-    // Use a single "Invalid credentials" message for security (don't reveal if email exists)
     if (!user || !(await bcrypt.compare(password, user.password))) {
-      return res.status(401).json({ message: "Invalid credentials" }); // Use 401 Unauthorized
+      // Generic "Invalid credentials" for security; 401 Unauthorized
+      return res.status(401).json({ message: "Invalid credentials" });
     }
 
-    // Generate JWT token
-    const token = jwt.sign(
-      { id: user._id, role: user.role }, // Payload
-      process.env.JWT_SECRET,             // Secret Key
-      { expiresIn: "1d" }                 // Options (e.g., expiration)
-    );
+    const token = generateToken(user._id, user.role);
 
-    // Respond with token and non-sensitive user data
     res.json({
       token,
       user: {
-        id: user._id, // Use id or _id consistently
+        _id: user._id,
         name: user.name,
         email: user.email,
         role: user.role,
-        country: user.country, // Add optional fields
+        country: user.country,
         phoneNumber: user.phoneNumber,
         companyName: user.companyName
       }
@@ -113,34 +122,32 @@ export const loginUser = async (req, res) => {
   }
 };
 
-// Change Password
+// @desc    Change user password
+// @route   PUT /api/auth/changepassword
+// @access  Private (Requires authentication)
 export const changePassword = async (req, res) => {
     try {
         const { currentPassword, newPassword } = req.body;
-        const userId = req.user.id; // Get user ID from protect middleware
+        const userId = req.user.id; // userId from protect middleware
 
-        // Basic validation
         if (!currentPassword || !newPassword) {
             return res.status(400).json({ message: "Current and new passwords are required." });
         }
-        if (newPassword.length < 6) {
-            return res.status(400).json({ message: "New password must be at least 6 characters long." });
+        if (newPassword.length < MIN_PASSWORD_LENGTH) {
+            return res.status(400).json({ message: `New password must be at least ${MIN_PASSWORD_LENGTH} characters long.` });
         }
 
-        // Find user
         const user = await User.findById(userId);
         if (!user) {
-            // Should not happen if protect middleware works, but good check
+            // User should exist if protect middleware ran
             return res.status(404).json({ message: "User not found." });
         }
 
-        // Verify current password
         const isMatch = await bcrypt.compare(currentPassword, user.password);
         if (!isMatch) {
             return res.status(401).json({ message: "Incorrect current password." });
         }
-
-        // Hash and save new password (pre-save hook in User model will handle hashing)
+        // Model hook handles new password hashing
         user.password = newPassword;
         await user.save();
 
@@ -152,10 +159,12 @@ export const changePassword = async (req, res) => {
     }
 };
 
-// --- NEW: Forgot Password ---
+// @desc    Initiate password reset process
+// @route   POST /api/auth/forgotpassword
+// @access  Public
 export const forgotPassword = async (req, res) => {
     try {
-        console.log(`[${new Date().toISOString()}] Entered forgotPassword controller.`); // <-- ADD THIS LINE
+        console.log(`[${new Date().toISOString()}] Entered forgotPassword controller.`);
         const { email } = req.body;
         if (!email) {
             return res.status(400).json({ message: "Please provide an email address." });
@@ -163,55 +172,51 @@ export const forgotPassword = async (req, res) => {
 
         const user = await User.findOne({ email });
         if (!user) {
-            // Important: Don't reveal if the user exists or not for security
-            // Send a success-like response even if email not found
+            // Security: don't reveal email existence. Generic response even if email not found.
             console.log(`Password reset requested for non-existent email: ${email}`);
-            return res.json({ message: "If an account with that email exists, a password reset link has been sent." }); // Exit early, no error
+            return res.json({ message: "If an account with that email exists, a password reset link has been sent." }); // No error, exit early
         }
 
-        // 1. Generate Reset Token
         const resetToken = crypto.randomBytes(32).toString('hex');
         const hashedToken = crypto
             .createHash('sha256')
             .update(resetToken)
             .digest('hex');
 
-        // 2. Set Token and Expiry on User (e.g., 10 minutes)
         user.passwordResetToken = hashedToken;
-        user.passwordResetExpires = Date.now() + 10 * 60 * 1000; // 10 minutes from now
-        await user.save({ validateBeforeSave: false }); // Save without validating other fields potentially
+        user.passwordResetExpires = Date.now() + RESET_TOKEN_EXPIRY_MS;
+        await user.save({ validateBeforeSave: false }); // Skip full validation on this save
 
-        // 3. Create Reset URL (adjust BASE_URL as needed)
-        //    Use environment variables for the base URL!
+        // CLIENT_BASE_URL from env
         const resetUrl = `${process.env.CLIENT_BASE_URL || 'http://localhost:3000'}/reset-password/${resetToken}`;
 
-        // 4. Send Email (Requires setup with nodemailer or similar)
+        // Email sending (e.g., nodemailer)
         const message = `
             <h1>Password Reset Request</h1>
             <p>You requested a password reset for your account.</p>
             <p>Please click on the following link, or paste it into your browser to complete the process:</p>
             <a href="${resetUrl}" clicktracking=off>${resetUrl}</a>
-            <p>This link will expire in 10 minutes.</p>
+            <p>This link will expire in ${RESET_TOKEN_EXPIRY_MINUTES} minutes.</p>
             <p>If you did not request this, please ignore this email and your password will remain unchanged.</p>
         `;
 
         try {
-            console.log(`[${new Date().toISOString()}] Attempting to send password reset email to: ${user.email}`); // Log before sending
-            // --- Actually send the email ---
+            console.log(`[${new Date().toISOString()}] Attempting to send password reset email to: ${user.email}`);
             await sendEmail({
                 to: user.email,
-                subject: 'Your Password Reset Link (Valid for 10 min)',
+                subject: `Your Password Reset Link (Valid for ${RESET_TOKEN_EXPIRY_MINUTES} min)`,
                 html: message,
             });
-            console.log(`[${new Date().toISOString()}] Password reset email successfully sent (or appeared to send) to: ${user.email}`); // Log after sending
-            // Send the same generic message for success or if user wasn't found
+            console.log(`[${new Date().toISOString()}] Password reset email successfully sent (or appeared to send) to: ${user.email}`);
+            // Generic message for success or if user wasn't found
             res.json({ message: "If an account with that email exists, a password reset link has been sent." });
         } catch (emailError) {
-            console.error(`[${new Date().toISOString()}] FAILED to send password reset email to ${user.email}. Error Details:`, emailError); // Log the full error object
-            // Clear token fields if email fails to prevent unusable token
+            // Log the full error object
+            console.error(`[${new Date().toISOString()}] FAILED to send password reset email to ${user.email}. Error Details:`, emailError);
+            // Clear token on email send failure
             user.passwordResetToken = undefined;
             user.passwordResetExpires = undefined;
-            await user.save({ validateBeforeSave: false });
+            await user.save({ validateBeforeSave: false }); // Skip full validation
             return res.status(500).json({ message: "Error sending password reset email. Please try again later." });
         }
 
@@ -222,41 +227,41 @@ export const forgotPassword = async (req, res) => {
     }
 };
 
-// --- NEW: Reset Password ---
+// @desc    Reset user password using a token
+// @route   POST /api/auth/resetpassword/:token
+// @access  Public
 export const resetPassword = async (req, res) => {
     try {
         const { token } = req.params;
         const { newPassword } = req.body;
 
-        if (!newPassword || newPassword.length < 6) {
-            return res.status(400).json({ message: "Password must be at least 6 characters long." });
+        if (!newPassword || newPassword.length < MIN_PASSWORD_LENGTH) {
+            return res.status(400).json({ message: `Password must be at least ${MIN_PASSWORD_LENGTH} characters long.` });
         }
 
-        // 1. Hash the incoming token to match the stored one
         const hashedToken = crypto
             .createHash('sha256')
             .update(token)
             .digest('hex');
 
-        // 2. Find user by hashed token and check expiry
         const user = await User.findOne({
             passwordResetToken: hashedToken,
-            passwordResetExpires: { $gt: Date.now() } // Check if token is still valid (greater than now)
+            passwordResetExpires: { $gt: Date.now() } // Token expiry check
         });
 
         if (!user) {
             return res.status(400).json({ message: "Password reset token is invalid or has expired." });
         }
 
-        // 3. Set the new password (pre-save hook in User model will hash it)
+        // Model hook hashes new password
         user.password = newPassword;
-        user.passwordResetToken = undefined; // Clear the token fields
+        user.passwordResetToken = undefined; // Clear reset token fields
         user.passwordResetExpires = undefined;
         await user.save();
 
-        // 4. Optional: Log the user in immediately by sending a new JWT token
-        // const jwtToken = jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET, { expiresIn: "1d" });
-        // res.json({ message: "Password reset successful.", token: jwtToken, user: { ... } });
+        // Optional: immediate login post-reset
+        // const loginToken = generateToken(user._id, user.role);
+        // res.json({ message: "Password reset successful.", token: loginToken, user: { _id: user._id, name: user.name, email: user.email, role: user.role } });
 
         res.json({ message: "Password has been reset successfully." });
 
@@ -266,26 +271,27 @@ export const resetPassword = async (req, res) => {
     }
 };
 
-// Delete User Account
+// @desc    Delete user account
+// @route   DELETE /api/auth/deleteaccount
+// @access  Private (Requires authentication and password confirmation)
 export const deleteAccount = async (req, res) => {
     try {
-        const userId = req.user.id; // Get user ID from protect middleware
+        const userId = req.user.id; // userId from protect middleware
 
-        // Find user to ensure they exist before attempting delete
         const user = await User.findById(userId);
         if (!user) {
-            // Should not happen if protect middleware works
+            // User should exist if protect middleware ran
             return res.status(404).json({ message: "User not found." });
         }
 
-        // --- Optional: Add password verification step here for extra security ---
-        const { password } = req.body; // If requiring password confirmation
-        if (!password || !(await user.matchPassword(password))) { // Use the model method
+        // Optional: password verification for delete
+        const { password } = req.body; // Password confirmation for delete
+        if (!password || !(await user.matchPassword(password))) { // user.matchPassword()
             return res.status(401).json({ message: "Incorrect password. Account deletion failed." });
         }
 
         await User.findByIdAndDelete(userId);
-        console.log(`User ${userId} deleted successfully.`); // Add logging
+        console.log(`User ${userId} deleted successfully.`); // Log deletion
         // TODO: Add logic here to delete associated data (e.g., Employee record, Timesheets, Reviews) if necessary
 
         res.json({ message: "Account deleted successfully." });
@@ -294,10 +300,3 @@ export const deleteAccount = async (req, res) => {
         res.status(500).json({ message: "Server error during account deletion." });
     }
 };
-
-// Helper function to generate token (optional, can be inline as above)
-// const generateToken = (id, role) => {
-//   return jwt.sign({ id, role }, process.env.JWT_SECRET, {
-//     expiresIn: '1d', // Example: token expires in 1 day
-//   });
-// };

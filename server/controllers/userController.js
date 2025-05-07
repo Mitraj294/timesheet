@@ -1,9 +1,8 @@
 import User from "../models/User.js";
 
-// @desc    Update user profile (name, email)
-// @route   PUT /api/users/profile
-// @access  Private
 // @desc    Update user profile (name, email, country, phone, company)
+// @route   PUT /api/users/profile
+// @access  Private (Requires authentication)
 export const updateUserProfile = async (req, res) => {
     try {
         const userId = req.user.id; // From protect middleware
@@ -43,7 +42,7 @@ export const updateUserProfile = async (req, res) => {
 
         // Respond with updated, non-sensitive user data
         res.json({
-            id: updatedUser._id, // or id
+            _id: updatedUser._id, // Consistent with other controllers
             name: updatedUser.name,
             email: updatedUser.email,
             role: updatedUser.role,

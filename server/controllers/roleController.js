@@ -1,6 +1,9 @@
 import Role from '../models/Role.js';
 import { DateTime } from 'luxon';
 
+// @desc    Create a new role
+// @route   POST /api/roles
+// @access  Private (e.g., Employer/Employee)
 export const createRole = async (req, res) => {
   try {
     const { roleName, roleDescription, color, assignedEmployees, schedule } = req.body;
@@ -36,6 +39,9 @@ export const createRole = async (req, res) => {
   }
 };
 
+// @desc    Get all roles
+// @route   GET /api/roles
+// @access  Private (e.g., Employer/Employee)
 export const getRoles = async (req, res) => {
   try {
     const roles = await Role.find()
@@ -49,6 +55,9 @@ export const getRoles = async (req, res) => {
   }
 };
 
+// @desc    Get a single role by ID
+// @route   GET /api/roles/:id
+// @access  Private (e.g., Employer/Employee)
 export const getRoleById = async (req, res) => {
   try {
     const role = await Role.findById(req.params.id);
@@ -58,10 +67,13 @@ export const getRoleById = async (req, res) => {
     res.status(200).json(role);
   } catch (err) {
     console.error('Error fetching role:', err);
-    res.status(500).json({ message: 'Server error' });
+    res.status(500).json({ message: 'Server error while fetching role' });
   }
 };
 
+// @desc    Update a role
+// @route   PUT /api/roles/:id
+// @access  Private (e.g., Employer/Employee)
 export const updateRole = async (req, res) => {
   try {
     const { id } = req.params;
@@ -88,6 +100,9 @@ export const updateRole = async (req, res) => {
   }
 };
 
+// @desc    Delete a role
+// @route   DELETE /api/roles/:id
+// @access  Private (e.g., Employer/Employee)
 export const deleteRole = async (req, res) => {
   try {
     const { id } = req.params;
@@ -103,7 +118,9 @@ export const deleteRole = async (req, res) => {
 };
 
 
-// DELETE /api/roles/:roleId/schedule/:scheduleId
+// @desc    Delete a specific schedule entry from a role
+// @route   DELETE /api/roles/:roleId/schedule/:scheduleId
+// @access  Private (e.g., Employer/Employee)
 export const deleteScheduleFromRole = async (req, res) => {
   const { roleId, scheduleId } = req.params;
 
@@ -129,7 +146,9 @@ export const deleteScheduleFromRole = async (req, res) => {
   }
 };
 
-
+// @desc    Delete schedules by date range (Note: Operates on Schedule model directly)
+// @route   DELETE /api/schedules/by-date-range (Or a more role-specific route if applicable)
+// @access  Private (e.g., Employer/Employee)
 export const deleteByDateRange = async (req, res) => {
   const { startDate, endDate } = req.body;
 

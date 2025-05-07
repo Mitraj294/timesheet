@@ -1,6 +1,6 @@
 // /home/digilab/timesheet/server/models/User.js
 import mongoose from "mongoose";
-import bcrypt from 'bcryptjs'; // Import bcryptjs
+import bcrypt from 'bcryptjs';
 
 const UserSchema = new mongoose.Schema({
   name: { type: String, required: true },
@@ -16,27 +16,23 @@ const UserSchema = new mongoose.Schema({
   passwordResetExpires: { type: Date },
 });
 
-// Middleware to hash password before saving
+// Middleware: Hash password before saving a new user or when password is modified.
 UserSchema.pre('save', async function(next) {
-  // Only hash the password if it has been modified (or is new)
   if (!this.isModified('password')) {
     return next();
   }
   try {
-    // Generate a salt
-    const salt = await bcrypt.genSalt(10); // 10 is a good salt round value
-    // Hash the password using the generated salt
+    const salt = await bcrypt.genSalt(10); // Salt rounds
     this.password = await bcrypt.hash(this.password, salt);
     next();
   } catch (error) {
-    next(error); // Pass error to the next middleware
+    next(error);
   }
 });
 
-// Method to compare entered password with hashed password (optional but useful)
+// Method: Compare entered password with the hashed password in the database.
 UserSchema.methods.matchPassword = async function(enteredPassword) {
   return await bcrypt.compare(enteredPassword, this.password);
 };
-
 
 export default mongoose.model("User", UserSchema);

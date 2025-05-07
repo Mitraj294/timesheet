@@ -1,7 +1,5 @@
 import ExcelJS from 'exceljs';
 import { format } from 'date-fns'; 
-import * as dateFnsTz from 'date-fns-tz';
-const { utcToZonedTime, zonedTimeToUtc } = dateFnsTz;
 
 import Client from '../models/Client.js';
 import Project from '../models/Project.js';
@@ -16,6 +14,12 @@ export const createClient = async (req, res) => {
     const { name, emailAddress, phoneNumber, address, notes, isImportant } = req.body;
 
     if (!name || !emailAddress || !phoneNumber) {
+      return res.status(400).json({ message: "Name, Email Address, and Phone Number are required." });
+    }
+
+    // Basic email format validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(emailAddress)) {
       return res.status(400).json({ message: "Name, Email, and Phone are required." });
     }
 
@@ -61,7 +65,7 @@ export const getClientById = async (req, res) => {
     res.status(200).json(client);
   } catch (error) {
     console.error("Error fetching client by ID:", error);
-    res.status(500).json({ message: "Server error" });
+    res.status(500).json({ message: "Error fetching client" });
   }
 };
 
@@ -71,6 +75,14 @@ export const getClientById = async (req, res) => {
 export const updateClient = async (req, res) => {
   try {
     const { name, emailAddress, phoneNumber, address, notes, isImportant } = req.body;
+
+    // Basic email format validation (optional, but good for consistency)
+    if (emailAddress) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(emailAddress)) {
+        return res.status(400).json({ message: "Please provide a valid email address." });
+      }
+    }
 
     const updatedClient = await Client.findByIdAndUpdate(
       req.params.id,
@@ -85,7 +97,7 @@ export const updateClient = async (req, res) => {
     res.status(200).json(updatedClient);
   } catch (error) {
     console.error("Error updating client:", error);
-    res.status(500).json({ message: "Server error" });
+    res.status(500).json({ message: "Error updating client" });
   }
 };
 
@@ -106,7 +118,9 @@ export const deleteClient = async (req, res) => {
 };
 
 
-
+// @desc    Fetch all projects for a specific client
+// @route   GET /api/clients/:id/projects
+// @access  Public 
 export const getClientProjects = async (req, res) => {
   try {
     const { id } = req.params;
@@ -123,25 +137,26 @@ export const getClientProjects = async (req, res) => {
     res.status(200).json(projects);
   } catch (error) {
     console.error("Error fetching projects:", error);
-    res.status(500).json({ message: "Server error" });
+    res.status(500).json({ message: "Error fetching client projects" });
   }
 };
 
 
-// Download client as an Excel file
-
+// @desc    Download timesheet data grouped by clients, projects, and employees as an Excel file
+// @route   GET /api/clients/download/excel  (Assuming a route, adjust if different)
+// @access  Public 
 export const downloadClients = async (req, res) => {
   try {
-    const clients = await Client.find();
-    const projects = await Project.find();
-    const employees = await Employee.find();
+    // Fetch timesheets with populated data. This will be the primary source for the report.
+    // The initial separate fetches for clients, projects, employees are not strictly necessary
+    // if the report is driven by timesheet entries, as populate handles fetching related data.
     const timesheets = await Timesheet.find()
       .populate('employeeId')
       .populate('projectId')
       .populate('clientId');
 
-    if (!clients.length) {
-      return res.status(404).json({ error: 'No clients found' });
+    if (!timesheets.length) {
+      return res.status(404).json({ message: 'No timesheet data found to generate a report.' });
     }
 
     const dataMap = {};
@@ -151,6 +166,7 @@ export const downloadClients = async (req, res) => {
       const projectId = ts.projectId?._id?.toString();
       const employeeId = ts.employeeId?._id?.toString();
 
+      // Skip if essential linked data is missing
       if (!clientId || !projectId || !employeeId) return;
 
       if (!dataMap[clientId]) {
@@ -176,6 +192,11 @@ export const downloadClients = async (req, res) => {
 
       dataMap[clientId].projects[projectId].employees[employeeId].timesheets.push(ts);
     });
+
+    // If dataMap is empty after processing (e.g., all timesheets lacked linked info)
+    if (Object.keys(dataMap).length === 0) {
+      return res.status(404).json({ message: 'No valid timesheet entries to build the report.' });
+    }
 
     const workbook = new ExcelJS.Workbook();
     const worksheet = workbook.addWorksheet('Clients Timesheets');
@@ -209,21 +230,24 @@ export const downloadClients = async (req, res) => {
     ];
 
     const formatTimeOnly = (isoString) => {
+      // Handles cases where startTime or endTime might be null/undefined
       if (!isoString) return '';
       const date = new Date(isoString);
-      return format(date, 'hh:mm a'); // Format like "09:00 AM"
+      return isNaN(date.getTime()) ? '' : format(date, 'hh:mm a'); // Format like "09:00 AM"
     };
 
     const formatDateOnly = (isoString) => {
       if (!isoString) return '';
       const date = new Date(isoString);
-      return format(date, 'dd/MM/yyyy'); // Format like "17/04/2025"
+      return isNaN(date.getTime()) ? '' : format(date, 'dd/MM/yyyy'); // Format like "17/04/2025"
     };
 
     const formatDayOnly = (isoString) => {
       if (!isoString) return '';
       const date = new Date(isoString);
-      return format(date, 'EEEE'); // "Monday", "Tuesday", etc.
+      // `format` with 'EEEE' gives full day name, e.g., "Monday"
+      // Ensure date is valid before formatting
+      return isNaN(date.getTime()) ? '' : format(date, 'EEEE');
     };
 
     for (const clientId in dataMap) {
@@ -278,6 +302,6 @@ export const downloadClients = async (req, res) => {
 
   } catch (error) {
     console.error('Excel download error:', error);
-    res.status(500).json({ error: 'Failed to generate Excel file' });
+    res.status(500).json({ message: 'Failed to generate Excel file' });
   }
-};;
+};

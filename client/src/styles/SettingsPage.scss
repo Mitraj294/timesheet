@@ -1,6 +1,6 @@
 // /home/digilab/timesheet/client/src/styles/SettingsPage.scss
 
-// Variables (optional, but good for consistency)
+// Variables
 $primary-color: #007bff;
 $secondary-color: #6c757d;
 $success-color: #28a745;
@@ -19,16 +19,12 @@ $input-font-size: 14px;
 $input-padding: 10px 12px;
 $input-height: 38px; // Consistent height for inputs
 
-// --- General Page Layout (assuming some styles from vehicles-page are inherited) ---
+// General Page Layout
 .settings-page {
     display: block;
 }
 
-// --- Header (styles from vehicles-header are likely reused) ---
-// If specific overrides are needed for settings page header:
-// .settings-page .vehicles-header { ... }
-
-// --- Section Styling ---
+// Section Styling
 .settings-section {
     background-color: #fff;
     padding: 1.5rem 2rem;
@@ -46,7 +42,7 @@ $input-height: 38px; // Consistent height for inputs
     }
 }
 
-// --- Base Form Styles (to replace Forms.scss for this page) ---
+// Base Form Styles
 .form-container {
 
     // Used within .settings-section
@@ -133,7 +129,7 @@ $input-height: 38px; // Consistent height for inputs
     }
 }
 
-// --- Base Button Styles ---
+// Base Button Styles
 .btn {
     display: inline-block;
     font-weight: 600;
@@ -215,8 +211,7 @@ $input-height: 38px; // Consistent height for inputs
     }
 }
 
-
-// --- Account Information Display ---
+// Account Information Display
 .account-info-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
@@ -246,7 +241,7 @@ $input-height: 38px; // Consistent height for inputs
     }
 }
 
-// --- Phone Input Specific Styles ---
+// Phone Input Specific Styles
 .form-container .phone-input-group {
     // Increased specificity
     display: flex;
@@ -291,7 +286,7 @@ $input-height: 38px; // Consistent height for inputs
     }
 }
 
-// --- Password Input Specific Styles ---
+// Password Input Specific Styles
 .form-container .styles_PasswordInputContainer {
     position: relative;
     display: flex;
@@ -300,20 +295,8 @@ $input-height: 38px; // Consistent height for inputs
 
     input[type="password"],
     input[type="text"].password-input-field {
-        // Added class for when type is text
-        // Inherit general input styles for consistency
-        // General styles are applied above, these are overrides/additions
         flex-grow: 1; // Ensure input takes available space
         padding-right: 45px !important; // Crucial: space for the button, !important to override general padding if needed
-        // Height, font-size, border, etc., should be inherited from general input styles
-        // If not, explicitly set them:
-        // height: $input-height;
-        // font-size: $input-font-size;
-        // line-height: 1.4;
-        // border: 1px solid $input-border-color;
-        // border-radius: $border-radius;
-        // padding-left: $input-padding; // From general input
-        // box-sizing: border-box;
     }
 }
 
@@ -335,8 +318,7 @@ $input-height: 38px; // Consistent height for inputs
     z-index: 2; // Above input focus outline
 
     svg {
-        font-size: 1rem; // **Normal and consistent eye icon size**
-        // Adjust if 1rem is not the desired "normal" size, e.g., 1.1rem
+        font-size: 1rem; // Normal and consistent eye icon size
     }
 
     &:hover {
@@ -348,8 +330,7 @@ $input-height: 38px; // Consistent height for inputs
     }
 }
 
-
-// --- Delete Confirmation Dialog ---
+// Delete Confirmation Dialog
 .logout-confirm-overlay {
     position: fixed;
     top: 0;
@@ -391,7 +372,7 @@ $input-height: 38px; // Consistent height for inputs
     }
 }
 
-// --- Link Styled Like Button ---
+// Link Styled Like Button
 .link-like-button {
     display: inline-block;
     padding: 6px 12px;

@@ -1,6 +1,5 @@
 @use 'sass:color';
 
-// Variables (copied from Vehicles.scss)
 $primary-color: #007bff;
 $secondary-color: #6c757d;
 $success-color: #28a745;
@@ -17,163 +16,129 @@ $border-radius: 5px;
 $box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
 $font-family: 'Segoe UI', sans-serif;
 
+$breakpoint-lg: 1024px;
 $breakpoint-md: 768px;
 $breakpoint-sm: 576px;
 
-// Base button styles (copied from Vehicles.scss)
 .btn {
+    padding: 0.6rem 1.2rem;
+    border: none;
+    border-radius: $border-radius;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease, opacity 0.2s ease;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    padding: 0.5rem 1rem;
-    font-size: 0.9rem;
-    font-weight: 500;
-    line-height: 1.5;
-    text-align: center;
-    text-decoration: none;
-    vertical-align: middle;
-    cursor: pointer;
-    user-select: none;
-    background-color: transparent;
-    border: 1px solid transparent;
-    border-radius: 0.25rem;
-    transition: color 0.15s ease-in-out, background-color 0.15s ease-in-out, border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+    gap: 0.5rem;
     white-space: nowrap;
+    font-size: 1rem;
+    line-height: 1.5;
+    font-family: $font-family;
+    text-decoration: none;
 
     &:disabled {
         opacity: 0.65;
         cursor: not-allowed;
     }
-
-    .svg-inline--fa {
-        margin-right: 0.4em;
-    }
-
-    span+.svg-inline--fa {
-        margin-right: 0;
-        margin-left: 0.4em;
-    }
-
-    .svg-inline--fa:only-child {
-        margin-right: 0;
-    }
-}
-
-// Button Color Variants (copied from Vehicles.scss)
-.btn-success {
-    color: #fff;
-    background-color: $success-color;
-    border-color: $success-color;
-
-    &:hover:not(:disabled) {
-        background-color: color.adjust($success-color, $lightness: -7%);
-        border-color: color.adjust($success-color, $lightness: -10%);
-    }
-
-    &:disabled {
-        background-color: $success-color;
-        border-color: $success-color;
-    }
-}
-
-.btn-info {
-    color: #fff;
-    background-color: $info-color;
-    border-color: $info-color;
-
-    &:hover:not(:disabled) {
-        background-color: color.adjust($info-color, $lightness: -7%);
-        border-color: color.adjust($info-color, $lightness: -10%);
-    }
-
-    &:disabled {
-        background-color: $info-color;
-        border-color: $info-color;
-    }
-}
-
-.btn-secondary {
-    color: #fff;
-    background-color: $secondary-color;
-    border-color: $secondary-color;
-
-    &:hover:not(:disabled) {
-        background-color: color.adjust($secondary-color, $lightness: -7%);
-        border-color: color.adjust($secondary-color, $lightness: -10%);
-    }
-
-    &:disabled {
-        background-color: $secondary-color;
-        border-color: $secondary-color;
-    }
 }
 
 .btn-primary {
-    color: #fff;
     background-color: $primary-color;
-    border-color: $primary-color;
+    color: #fff;
 
     &:hover:not(:disabled) {
-        background-color: color.adjust($primary-color, $lightness: -7%);
-        border-color: color.adjust($primary-color, $lightness: -10%);
-    }
-
-    &:disabled {
-        background-color: $primary-color;
-        border-color: $primary-color;
+        background-color: color.adjust($primary-color, $lightness: -10%);
     }
 }
 
 .btn-warning {
-    color: #212529;
     background-color: $warning-color;
-    border-color: $warning-color;
+    color: #212529;
 
     &:hover:not(:disabled) {
-        background-color: color.adjust($warning-color, $lightness: -7%);
-        border-color: color.adjust($warning-color, $lightness: -10%);
-    }
-
-    &:disabled {
-        background-color: $warning-color;
-        border-color: $warning-color;
+        background-color: color.adjust($warning-color, $lightness: -10%);
     }
 }
 
 .btn-danger {
-    color: #fff;
     background-color: $danger-color;
-    border-color: $danger-color;
-
-    &:hover:not(:disabled) {
-        background-color: color.adjust($danger-color, $lightness: -7%);
-        border-color: color.adjust($danger-color, $lightness: -10%);
-    }
-
-    &:disabled {
-        background-color: mix(white, $danger-color, 35%);
-        border-color: mix(white, $danger-color, 35%);
-    }
-}
-
-.btn-purple {
     color: #fff;
-    background-color: $purple-color;
-    border-color: $purple-color;
 
     &:hover:not(:disabled) {
-        background-color: color.adjust($purple-color, $lightness: -7%);
-        border-color: color.adjust($purple-color, $lightness: -10%);
-    }
-
-    &:disabled {
-        background-color: $purple-color;
-        border-color: $purple-color;
+        background-color: color.adjust($danger-color, $lightness: -10%);
     }
 }
 
-// Page structure styles (using .vehicles-* classes)
-.vehicles-page {
+.btn-secondary {
+    background-color: $secondary-color;
+    color: #fff;
+
+    &:hover:not(:disabled) {
+        background-color: color.adjust($secondary-color, $lightness: -10%);
+    }
+}
+
+.btn-success {
+    background-color: $success-color;
+    color: #fff;
+
+    &:hover:not(:disabled) {
+        background-color: color.adjust($success-color, $lightness: -10%);
+    }
+}
+
+.btn-icon {
+    background: none;
+    border: none;
+    padding: 0.3rem;
+    cursor: pointer;
+    border-radius: $border-radius;
+    font-size: 1.1rem;
+    line-height: 1;
+    transition: background-color 0.2s ease, color 0.2s ease;
+    color: $dark-grey;
+    vertical-align: middle;
+    margin: 0 0.15rem;
+
+    &:hover:not(:disabled) {
+        background-color: color.adjust($medium-grey, $lightness: -5%);
+    }
+
+    &:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+}
+
+.btn-icon-blue {
+    @extend .btn-icon;
+    color: $primary-color;
+
+    &:hover:not(:disabled) {
+        color: color.adjust($primary-color, $lightness: -15%);
+    }
+}
+
+.btn-icon-yellow {
+    @extend .btn-icon;
+    color: color.adjust($warning-color, $lightness: -10%);
+
+    &:hover:not(:disabled) {
+        color: color.adjust($warning-color, $lightness: -25%);
+    }
+}
+
+.btn-icon-red {
+    @extend .btn-icon;
+    color: $danger-color;
+
+    &:hover:not(:disabled) {
+        color: color.adjust($danger-color, $lightness: -15%);
+    }
+}
+
+.view-client-page {
     padding: clamp(1rem, 2vw, 1.5rem);
     max-width: 1200px;
     margin: 0 auto;
@@ -182,7 +147,7 @@ $breakpoint-sm: 576px;
     min-height: calc(100vh - 60px);
 }
 
-.vehicles-header {
+.page-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -199,16 +164,15 @@ $breakpoint-sm: 576px;
         flex-direction: column;
         gap: 0.25rem;
         flex-grow: 1;
-        min-width: 200px;
 
         h2 {
-            font-size: clamp(1.4rem, 3vw, 1.75rem); // Adjusted size to match Vehicles.scss
+            font-size: clamp(1.4rem, 3vw, 1.75rem);
             display: flex;
             align-items: center;
-            gap: 0.6rem; // Adjusted gap
+            gap: 0.6rem;
             color: $text-color;
             margin: 0;
-            font-weight: 600; // Adjusted weight
+            font-weight: 600;
         }
 
         .breadcrumbs {
@@ -230,7 +194,7 @@ $breakpoint-sm: 576px;
             }
 
             .breadcrumb-separator {
-                margin: 0 0.3rem;
+                margin: 0 0.4rem;
                 color: color.adjust($dark-grey, $lightness: 15%);
                 white-space: nowrap;
             }
@@ -238,144 +202,138 @@ $breakpoint-sm: 576px;
             .breadcrumb-current {
                 color: $dark-grey;
                 white-space: nowrap;
+                font-weight: 500;
             }
         }
     }
 
     .header-actions {
         display: flex;
-        align-items: center;
-        gap: 0.5rem;
+        gap: 0.75rem;
         flex-shrink: 0;
-        flex-wrap: nowrap;
-
-        .btn,
-        a.btn {
-            text-decoration: none;
-        }
     }
 }
 
-// Report options container (copied from Vehicles.scss)
-.report-options-container {
+.client-info-card,
+.client-hours-card {
     background-color: #fff;
-    padding: 1.5rem;
+    padding: clamp(1rem, 3vw, 1.5rem);
     border-radius: $border-radius;
     box-shadow: $box-shadow;
+    border: 1px solid $border-color;
     margin-bottom: 1.5rem;
+}
+
+.client-info-card {
+    .client-details-grid {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
+}
+
+.detail-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    font-size: 0.95rem;
+
+    .detail-icon {
+        color: $primary-color;
+        width: 1.1em;
+        text-align: center;
+        flex-shrink: 0;
+    }
+
+    .detail-label {
+        font-weight: 600;
+        color: $dark-grey;
+        flex-shrink: 0;
+    }
+
+    .detail-value {
+        color: $text-color;
+        word-break: break-word;
+    }
+}
+
+.projects-section {
+    margin-top: 2rem;
+
+    .section-header {
+        margin-bottom: 1rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 1px solid $border-color;
+
+        h3 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: $text-color;
+            margin: 0;
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+        }
+    }
+}
+
+.data-grid {
+    background-color: #fff;
+    border-radius: $border-radius;
+    box-shadow: $box-shadow;
+    overflow: hidden;
     border: 1px solid $border-color;
 
-    h4 {
-        margin-top: 0;
-        margin-bottom: 1rem;
-        font-weight: 600;
-        color: $text-color;
+    .data-row {
+        display: grid;
+        align-items: center;
         border-bottom: 1px solid $border-color;
-        padding-bottom: 0.5rem;
-    }
 
-    .date-picker-range {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 1rem;
-        margin-bottom: 1rem;
-
-        .date-picker-wrapper {
-            flex-grow: 1;
-            min-width: 180px;
+        &:last-child {
+            border-bottom: none;
         }
 
-        .date-input {
-            width: 100%;
-            padding: 0.6rem 0.8rem;
-            font-size: 1rem;
-            border: 1px solid $border-color;
-            border-radius: 4px;
-            box-sizing: border-box;
-            font-family: $font-family;
-
-            &:focus {
-                border-color: $primary-color;
-                box-shadow: 0 0 0 3px rgba($primary-color, 0.25);
-            }
+        &>div {
+            padding: 0.8rem 1rem;
+            font-size: 0.95rem;
+            color: $text-color;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
         }
-    }
 
-    .send-report-email {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 1rem;
-        align-items: center;
-        margin-top: 1rem;
+        &.header {
+            background-color: $light-grey;
+            font-weight: 600;
+            color: color.adjust($dark-grey, $lightness: -10%);
+            border-bottom-width: 2px;
 
-        input[type="email"] {
-            flex-grow: 1;
-            padding: 0.6rem 0.8rem;
-            font-size: 1rem;
-            border: 1px solid $border-color;
-            border-radius: 4px;
-            min-width: 200px;
-            font-family: $font-family;
-
-            &:focus {
-                border-color: $primary-color;
-                box-shadow: 0 0 0 3px rgba($primary-color, 0.25);
+            &>div {
+                white-space: normal;
             }
         }
 
-        >.btn-purple {
-            // Use standard class
-            margin-top: 0;
+        &:not(.header):not(.no-results):hover {
+            background-color: $medium-grey;
         }
-    }
 
-    .error-text {
-        color: color.adjust($danger-color, $lightness: -10%);
-        font-size: 0.9rem;
-        margin-bottom: 1rem;
-        display: flex;
-        align-items: center;
-        gap: 0.4rem;
-    }
+        &.no-results {
+            display: block;
+            text-align: center;
+            padding: 1.5rem;
+            color: $dark-grey;
+            font-style: italic;
+        }
 
-    >.btn-danger,
-    >.btn-purple {
-        // Use standard classes
-        margin-top: 1rem;
+        .actions {
+            display: flex;
+            justify-content: center;
+            gap: 0.5rem;
+            padding: 0.6rem 1rem;
+        }
     }
 }
 
-// Search bar styles (using .vehicles-search class)
-.vehicles-search {
-    position: relative;
-    margin-bottom: 1.5rem;
-
-    input[type="text"] {
-        width: 100%;
-        padding: 0.7rem 1rem 0.7rem 2.5rem;
-        font-size: 1rem;
-        border: 1px solid $border-color;
-        border-radius: $border-radius;
-        box-sizing: border-box;
-        font-family: $font-family;
-
-        &:focus {
-            border-color: $primary-color;
-            box-shadow: 0 0 0 3px rgba($primary-color, 0.25);
-        }
-    }
-
-    .search-icon {
-        position: absolute;
-        left: 0.8rem;
-        top: 50%;
-        transform: translateY(-50%);
-        color: $dark-grey;
-        pointer-events: none;
-    }
-}
-
-// Loading/Error indicators (copied from Vehicles.scss)
 .loading-indicator,
 .error-message {
     display: flex;
@@ -394,6 +352,11 @@ $breakpoint-sm: 576px;
     p {
         margin-top: 0.75rem;
         font-size: 1rem;
+        margin-bottom: 0;
+    }
+
+    .btn-secondary {
+        margin-top: 1rem;
     }
 }
 
@@ -403,154 +366,8 @@ $breakpoint-sm: 576px;
     background-color: color.adjust($danger-color, $lightness: 45%);
 }
 
-.loading-indicator.page-loading,
-.error-message.page-error {
-    min-height: 300px; // Keep specific page loading height if needed
-}
-
-// Grid styles (using .vehicles-grid classes)
-.vehicles-grid {
-    background-color: #fff;
-    border-radius: $border-radius;
-    box-shadow: $box-shadow;
-    overflow: hidden;
-    border: 1px solid $border-color;
-
-    .vehicles-row {
-        display: grid;
-        // grid-template-columns: defined inline in component based on data
-        align-items: center;
-        border-bottom: 1px solid $border-color;
-
-        &:last-child {
-            border-bottom: none;
-        }
-
-        &>div {
-            padding: 0.8rem 1rem;
-            font-size: 0.95rem;
-            color: $text-color;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-            // Default text align left, override below if needed
-            text-align: left;
-        }
-
-        &.header {
-            background-color: $light-grey;
-            font-weight: 600;
-            color: color.adjust($dark-grey, $lightness: -10%);
-            border-bottom-width: 2px;
-
-            &>div {
-                white-space: normal;
-            }
-        }
-
-        &:not(.header):not(.no-results):hover {
-            background-color: $medium-grey;
-        }
-
-        &.no-results,
-        .loading-indicator {
-            display: block;
-            text-align: center;
-            padding: 1.5rem;
-            color: $dark-grey;
-            font-style: italic;
-            grid-column: 1 / -1;
-        }
-
-        .loading-indicator {
-            font-style: normal;
-        }
-
-        // Center align specific columns (like checkmarks)
-        div[data-label="Oil Checked"],
-        div[data-label="Vehicle Checked"],
-        div[data-label="Vehicle Broken"] {
-            // Center Yes/No as well
-            text-align: center;
-        }
-
-        .actions {
-            display: flex;
-            justify-content: center;
-            gap: 0.5rem;
-            padding: 0.6rem 1rem;
-            text-align: center;
-
-            a.btn-icon {
-                display: inline-flex;
-                align-items: center;
-                justify-content: center;
-                text-decoration: none;
-            }
-
-            .btn-icon {
-                background: none;
-                border: none;
-                padding: 0.3rem;
-                cursor: pointer;
-                border-radius: $border-radius;
-                font-size: 1.1rem;
-                line-height: 1;
-                transition: background-color 0.2s ease, color 0.2s ease;
-                color: $dark-grey;
-                vertical-align: middle;
-
-                &:hover:not(:disabled) {
-                    background-color: color.adjust($medium-grey, $lightness: -5%);
-                }
-
-                &:disabled {
-                    opacity: 0.5;
-                    cursor: not-allowed;
-                }
-
-                &.btn-icon-blue {
-                    color: $primary-color;
-
-                    &:hover:not(:disabled) {
-                        color: color.adjust($primary-color, $lightness: -15%);
-                    }
-                }
-
-                &.btn-icon-yellow {
-                    color: color.adjust($warning-color, $lightness: -10%);
-
-                    &:hover:not(:disabled) {
-                        color: color.adjust($warning-color, $lightness: -25%);
-                    }
-                }
-
-                &.btn-icon-red {
-                    color: $danger-color;
-
-                    &:hover:not(:disabled) {
-                        color: color.adjust($danger-color, $lightness: -15%);
-                    }
-                }
-            }
-        }
-
-        // Icon colors (copied from Vehicles.scss context)
-        .icon-green {
-            color: $success-color;
-            font-size: 1.1em;
-        }
-
-        .icon-red {
-            color: $danger-color;
-            font-size: 1.1em;
-        }
-    }
-}
-
-// Responsive Adjustments (copied from Vehicles.scss)
 @media (max-width: $breakpoint-md) {
-    .vehicles-grid {
+    .data-grid {
         background-color: transparent;
         box-shadow: none;
         border-radius: 0;
@@ -559,12 +376,11 @@ $breakpoint-sm: 576px;
         flex-direction: column;
         gap: 1rem;
 
-        .vehicles-row.header {
+        .data-row.header {
             display: none;
         }
 
-        .vehicles-row.vehicle-card {
-            // Use .vehicle-card class
+        .data-row.data-card {
             display: block;
             background-color: #fff;
             border: 1px solid $border-color;
@@ -583,9 +399,8 @@ $breakpoint-sm: 576px;
                 white-space: normal;
                 display: flex;
                 justify-content: space-between;
-                align-items: center; // Align items vertically
+                align-items: baseline;
                 border-bottom: 1px dashed color.adjust($border-color, $lightness: 5%);
-                text-align: right; // Align value right
 
                 &:last-child {
                     border-bottom: none;
@@ -597,14 +412,12 @@ $breakpoint-sm: 576px;
                     color: $dark-grey;
                     margin-right: 0.5rem;
                     flex-shrink: 0;
-                    text-align: left; // Keep label left
                 }
 
                 &.actions {
                     justify-content: flex-end;
                     padding-top: 0.8rem;
                     margin-top: 0.5rem;
-                    border-bottom: none;
 
                     &::before {
                         display: none;
@@ -613,8 +426,7 @@ $breakpoint-sm: 576px;
             }
         }
 
-        .vehicles-row.no-results,
-        .loading-indicator {
+        .data-row.no-results {
             background-color: #fff;
             border-radius: $border-radius;
             box-shadow: $box-shadow;
@@ -622,19 +434,12 @@ $breakpoint-sm: 576px;
             border: 1px solid $border-color;
         }
     }
-
-    .report-options-container {
-        padding: 1rem;
-    }
 }
 
 @media (max-width: $breakpoint-sm) {
-    .btn {
-        padding: 0.4rem 0.8rem;
-        font-size: 0.85rem;
-    }
+    .page-header {
+        align-items: flex-start;
 
-    .vehicles-header {
         .title-breadcrumbs h2 {
             font-size: 1.25rem;
         }
@@ -644,66 +449,26 @@ $breakpoint-sm: 576px;
         }
 
         .header-actions {
-            flex-wrap: wrap;
-            justify-content: flex-end;
             width: 100%;
-            gap: 0.5rem;
 
-            >.btn,
-            >a.btn {
-                flex-basis: 100%;
+            .btn {
+                flex-grow: 1;
                 justify-content: center;
             }
         }
     }
 
-    // Remove .vehicles-actions specific styles if they existed
-
-    .report-options-container {
-
-        .date-picker-range,
-        .send-report-email {
-            flex-direction: column;
-            align-items: stretch;
-
-            .date-picker-wrapper,
-            input[type="email"],
-            button {
-                min-width: 0;
-                width: 100%;
-            }
-        }
-
-        .btn-danger {
-            color: #fff;
-            background-color: $danger-color;
-            border-color: $danger-color;
-
-            &:hover:not(:disabled) {
-                background-color: color.adjust($danger-color, $lightness: -7%);
-                border-color: color.adjust($danger-color, $lightness: -10%);
-            }
-
-            &:disabled {
-                background-color: mix(white, $danger-color, 35%);
-                border-color: mix(white, $danger-color, 35%);
-            }
-        }
-
-        // Ensure download button is full width
+    .client-info-card .client-details-grid,
+    .client-hours-card .detail-item {
+        gap: 0.8rem;
+        font-size: 0.9rem;
     }
 
-    // Grid card styles for small screens (label/value side-by-side)
-    // Inherited from breakpoint-md, no specific overrides needed here
-    .vehicles-grid {
-        .vehicles-row.vehicle-card {
-            &>div {
+    .data-grid .data-row.data-card {
+        padding: 0.8rem;
 
-                // Keep label/value side-by-side
-                &.actions {
-                    // Keep actions horizontal and right-aligned
-                }
-            }
+        &>div {
+            font-size: 0.85rem;
         }
     }
 }

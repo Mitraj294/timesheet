@@ -7,7 +7,7 @@ const clientSchema = new mongoose.Schema({
   address: { type: String },
   notes: { type: String },
   isImportant: { type: Boolean, default: false },
-  projects: [{ type: mongoose.Schema.Types.ObjectId, ref: "Project" }], 
+  projects: [{ type: mongoose.Schema.Types.ObjectId, ref: "Project" }], // Array of associated project IDs
 });
 
 const Client = mongoose.model("Client", clientSchema);

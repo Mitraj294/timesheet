@@ -1,5 +1,4 @@
 // /home/digilab/timesheet/client/src/styles/Alerts.scss
-
 $alert-padding: 1.1rem 1.25rem; // Slightly increased padding
 $alert-margin-bottom: 1rem;
 $alert-border-radius: 0.25rem;
@@ -24,7 +23,7 @@ $alert-bg-info: #bee5eb; // Darker background
 $alert-border-info: #bee5eb;
 
 .alert-container {
-    position: fixed; // Or absolute, depending on your layout needs
+    position: fixed;
     top: 70px; // Adjust based on your Navbar height
     // Center horizontally
     left: 50%;
@@ -65,10 +64,9 @@ $alert-border-info: #bee5eb;
         border-color: $alert-border-warning;
     }
 
-    // Add other types like alert-info if needed explicitly
 }
 
-// Optional: Style for a close button if you add one
+// Style for a close button if you add one
 .alert-close-btn {
     position: absolute;
     top: 0.5rem;

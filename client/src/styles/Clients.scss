@@ -1,4 +1,4 @@
-/* === Global Styles === */
+// Global Styles
 * {
     margin: 0;
     padding: 0;
@@ -35,10 +35,9 @@ body {
             min-width: 600px;
         }
     }
-
 }
 
-/* === Header Section === */
+// Header Section
 .header {
     display: flex;
     justify-content: space-between;
@@ -89,7 +88,7 @@ body {
     }
 }
 
-/* === Breadcrumb Navigation === */
+// Breadcrumb Navigation
 .breadcrumb {
     font-size: 14px;
     color: #7f8c8d;
@@ -109,7 +108,7 @@ body {
     }
 }
 
-/* === Search Bar === */
+// Search Bar
 .search-bar {
     display: flex;
     gap: 10px;
@@ -143,7 +142,7 @@ body {
     }
 }
 
-/* === Client & Project Cards === */
+// Client & Project Cards
 .card {
     display: flex;
     align-items: center;
@@ -190,7 +189,7 @@ body {
     }
 }
 
-/* === List Section === */
+// List Section
 .list {
     background: #ffffff;
     border-radius: 8px;
@@ -287,7 +286,7 @@ body {
     }
 }
 
-/* === Responsive Design === */
+// Responsive Design
 @media (max-width: 992px) {
     .header {
         flex-direction: column;

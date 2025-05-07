@@ -6,37 +6,43 @@ import VehicleReview from '../models/VehicleReview.js';
 import Employee from '../models/Employee.js';
 
 
-// Get all vehicles
+// @desc    Get all vehicles
+// @route   GET /api/vehicles
+// @access  Private (e.g., Authenticated users)
 export const getVehicles = async (req, res) => {
   try {
     const vehicles = await Vehicle.find().sort({ createdAt: -1 });
     res.json(vehicles);
   } catch (err) {
     console.error('Error fetching vehicles:', err);
-    res.status(500).json({ error: 'Failed to fetch vehicles' });
+    res.status(500).json({ message: 'Failed to fetch vehicles' });
   }
 };
 
-// Get single vehicle by ID
+// @desc    Get a single vehicle by ID
+// @route   GET /api/vehicles/:id
+// @access  Private (e.g., Authenticated users)
 export const getVehicleById = async (req, res) => {
   try {
     const vehicle = await Vehicle.findById(req.params.id);
-    if (!vehicle) return res.status(404).json({ error: 'Vehicle not found' });
+    if (!vehicle) return res.status(404).json({ message: 'Vehicle not found' });
     res.json(vehicle);
   } catch (err) {
     console.error('Error getting vehicle:', err);
-    res.status(500).json({ error: 'Failed to get vehicle' });
+    res.status(500).json({ message: 'Failed to get vehicle' });
   }
 };
 
-// Create new vehicle
+// @desc    Create a new vehicle
+// @route   POST /api/vehicles
+// @access  Private (e.g., Admin/Manager)
 export const createVehicle = async (req, res) => {
   try {
     const { name, hours, wofRego } = req.body;
 
     // Basic validation
     if (!name) {
-        return res.status(400).json({ error: 'Vehicle name is required' });
+        return res.status(400).json({ message: 'Vehicle name is required' });
     }
 
     const vehicle = new Vehicle({
@@ -51,32 +57,36 @@ export const createVehicle = async (req, res) => {
     console.error('Error creating vehicle:', err);
     // Check for potential duplicate key errors if name should be unique
     if (err.code === 11000) {
-         return res.status(409).json({ error: 'Vehicle name already exists' });
+         return res.status(409).json({ message: 'Vehicle name already exists' });
     }
-    res.status(500).json({ error: 'Failed to create vehicle' });
+    res.status(500).json({ message: 'Failed to create vehicle' });
   }
 };
 
-// Update vehicle
+// @desc    Update a vehicle
+// @route   PUT /api/vehicles/:id
+// @access  Private (e.g., Admin/Manager)
 export const updateVehicle = async (req, res) => {
   try {
     const updated = await Vehicle.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true });
     if (!updated) {        
-        return res.status(404).json({ error: 'Vehicle not found' });
+        return res.status(404).json({ message: 'Vehicle not found' });
     }
     res.json(updated);
   } catch (err) {
     console.error('Error updating vehicle:', err);
-    res.status(500).json({ error: 'Failed to update vehicle' });
+    res.status(500).json({ message: 'Failed to update vehicle' });
   }
 };
 
-// Delete vehicle
+// @desc    Delete a vehicle
+// @route   DELETE /api/vehicles/:id
+// @access  Private (e.g., Admin/Manager)
 export const deleteVehicle = async (req, res) => {
   try {
     const deletedVehicle = await Vehicle.findByIdAndDelete(req.params.id);
     if (!deletedVehicle) {
-        return res.status(404).json({ error: 'Vehicle not found for deletion' });
+        return res.status(404).json({ message: 'Vehicle not found for deletion' });
     }
     // IMPORTANT: Decide on handling associated reviews.
     // Option 1: Delete associated reviews (uncomment if this is the desired behavior)
@@ -84,20 +94,22 @@ export const deleteVehicle = async (req, res) => {
     res.json({ message: 'Vehicle deleted successfully' });
   } catch (err) {
     console.error('Error deleting vehicle:', err);
-    res.status(500).json({ error: 'Failed to delete vehicle' });
+    res.status(500).json({ message: 'Failed to delete vehicle' });
   }
 };
 
 // --- Vehicle Review Routes ---
 
-// Create a Vehicle Review
+// @desc    Create a new vehicle review
+// @route   POST /api/vehicles/reviews
+// @access  Private (e.g., Authenticated users, Employees)
 export const createVehicleReview = async (req, res) => {
   try {
     const { vehicle, dateReviewed, employeeId, oilChecked, vehicleChecked, vehicleBroken, notes, hours } = req.body;
 
     // Validate required fields
     if (!vehicle || !dateReviewed || !employeeId) {
-        return res.status(400).json({ error: 'Missing required review fields (vehicle, dateReviewed, employeeId)' });
+        return res.status(400).json({ message: 'Missing required review fields (vehicle, dateReviewed, employeeId)' });
     }
 
     // Check if referenced documents exist
@@ -107,10 +119,10 @@ export const createVehicleReview = async (req, res) => {
     ]);
 
     if (!existingVehicle) {
-      return res.status(404).json({ error: 'Vehicle not found' });
+      return res.status(404).json({ message: 'Vehicle not found for review' });
     }
     if (!existingEmployee) {
-      return res.status(404).json({ error: 'Employee not found' });
+      return res.status(404).json({ message: 'Employee not found for review' });
     }
 
     const review = new VehicleReview({
@@ -132,11 +144,13 @@ export const createVehicleReview = async (req, res) => {
     res.status(201).json(populatedReview);
   } catch (err) {
     console.error('Error creating review:', err);
-    res.status(500).json({ error: 'Failed to create review' });
+    res.status(500).json({ message: 'Failed to create review' });
   }
 };
 
-// Get all reviews for a specific vehicle by its ID
+// @desc    Get all reviews for a specific vehicle by its ID
+// @route   GET /api/vehicles/:vehicleId/reviews
+// @access  Private (e.g., Authenticated users)
 export const getVehicleReviewsByVehicleId = async (req, res) => {
   try {
     const { vehicleId } = req.params;
@@ -144,7 +158,7 @@ export const getVehicleReviewsByVehicleId = async (req, res) => {
     // Validate if vehicle exists first
     const vehicle = await Vehicle.findById(vehicleId).select('name wofRego'); // Only select needed fields
     if (!vehicle) {
-      return res.status(404).json({ error: 'Vehicle not found' });
+      return res.status(404).json({ message: 'Vehicle not found' });
     }
 
     const reviews = await VehicleReview.find({ vehicle: vehicleId })
@@ -158,7 +172,9 @@ export const getVehicleReviewsByVehicleId = async (req, res) => {
   }
 };
 
-// Get a single vehicle review by reviewId
+// @desc    Get a single vehicle review by its ID
+// @route   GET /api/vehicles/reviews/:reviewId
+// @access  Private (e.g., Authenticated users)
 export const getReviewById = async (req, res) => {
   try {
     const { reviewId } = req.params;
@@ -166,25 +182,28 @@ export const getReviewById = async (req, res) => {
       .populate('vehicle', 'name wofRego')
       .populate('employeeId', 'name');
 
-    if (!review) return res.status(404).json({ error: 'Review not found' });
+    if (!review) return res.status(404).json({ message: 'Review not found' });
 
     res.status(200).json(review);
   } catch (err) {
     console.error('Error fetching review by ID:', err); // Keep detailed server log
-    res.status(500).json({ error: 'Failed to fetch review' }); // Client-facing error
+    res.status(500).json({ message: 'Failed to fetch review' }); // Client-facing error
   }
 };
 
 
-// Get vehicle with its reviews
+// @desc    Get a vehicle along with all its reviews
+// @route   GET /api/vehicles/:vehicleId/with-reviews
+// @access  Private (e.g., Authenticated users)
 // TODO: This function is very similar to getVehicleReviewsByVehicleId. Evaluate if consolidation is possible or if distinct use cases justify both.
+// One difference is this returns the full vehicle object, while getVehicleReviewsByVehicleId returns selected vehicle fields.
 export const getVehicleWithReviews = async (req, res) => {
   try {
     const { vehicleId } = req.params;
 
     const vehicle = await Vehicle.findById(vehicleId);
     if (!vehicle) {
-      return res.status(404).json({ error: 'Vehicle not found' });
+      return res.status(404).json({ message: 'Vehicle not found' });
     }
 
     const reviews = await VehicleReview.find({ vehicle: vehicleId })
@@ -194,11 +213,13 @@ export const getVehicleWithReviews = async (req, res) => {
     res.status(200).json({ vehicle, reviews });
   } catch (err) {
     console.error('Error fetching vehicle with reviews:', err); // Keep detailed server log
-    res.status(500).json({ error: 'Server error while fetching vehicle and reviews' }); // Client-facing error
+    res.status(500).json({ message: 'Server error while fetching vehicle and reviews' }); // Client-facing error
   }
 };
 
-// Update a review
+// @desc    Update a vehicle review by its ID
+// @route   PUT /api/vehicles/reviews/:reviewId
+// @access  Private (e.g., Admin/Manager or original reviewer)
 export const updateReview = async (req, res) => {
   try {
     const { reviewId } = req.params;
@@ -209,30 +230,32 @@ export const updateReview = async (req, res) => {
                                       .populate('vehicle', 'name wofRego')
                                       .populate('employeeId', 'name');
     if (!updated) {
-      return res.status(404).json({ error: 'Review not found for update' });
+      return res.status(404).json({ message: 'Review not found for update' });
     }
     res.json(updated);
   } catch (err) {
     console.error('Error updating review:', err);
-    res.status(500).json({ error: 'Failed to update review' });
+    res.status(500).json({ message: 'Failed to update review' });
   }
 };
 
 
-// Delete a review by VehicleReview ID
+// @desc    Delete a vehicle review by its ID
+// @route   DELETE /api/vehicles/reviews/:reviewId
+// @access  Private (e.g., Admin/Manager or original reviewer)
 export const deleteReview = async (req, res) => {
   try {
     const { reviewId } = req.params;
 
     const deletedReview = await VehicleReview.findByIdAndDelete(reviewId);
     if (!deletedReview) {
-      return res.status(404).json({ error: 'Review not found for deletion' });
+      return res.status(404).json({ message: 'Review not found for deletion' });
     }
 
     res.status(200).json({ message: 'Review deleted successfully' });
   } catch (err) {
     console.error('Error deleting review:', err);
-    res.status(500).json({ error: 'Failed to delete review' });
+    res.status(500).json({ message: 'Failed to delete review' });
   }
 };
 
@@ -246,22 +269,25 @@ const generateReviewFilename = (review, extension) => {
     return `Review_${vehicleName}_${employeeName}_${reviewDate}.${extension}`;
 };
 
-// Download a single review report (PDF or Excel)
+// @desc    Download a single vehicle review report (PDF or Excel)
+// @route   GET /api/vehicles/reviews/:reviewId/download
+// @access  Private (e.g., Authenticated users)
 export const downloadReviewReport = async (req, res) => {
   const { reviewId } = req.params;
   const { format = 'pdf' } = req.query; // Default to pdf
 
   if (!['pdf', 'excel'].includes(format)) {
-      return res.status(400).json({ error: 'Invalid format. Use "pdf" or "excel".' });
+      return res.status(400).json({ message: 'Invalid format. Use "pdf" or "excel".' });
   }
 
   try {
     const review = await VehicleReview.findById(reviewId)
       .populate('vehicle', 'name wofRego')
       .populate('employeeId', 'name');
+    // TODO: REFACTOR_SINGLE_REVIEW_REPORT_GENERATION - Consider refactoring PDF and Excel generation into separate helper functions.
 
     if (!review) {
-      return res.status(404).json({ error: 'Review not found' });
+      return res.status(404).json({ message: 'Review not found' });
     }
 
     const filename = generateReviewFilename(review, format === 'pdf' ? 'pdf' : 'xlsx');
@@ -344,7 +370,7 @@ export const downloadReviewReport = async (req, res) => {
     console.error('Error generating single review report:', error);
     // Avoid sending JSON response if headers might have been partially sent
     if (!res.headersSent) {
-        res.status(500).json({ error: 'Internal server error generating report' });
+        res.status(500).json({ message: 'Internal server error generating report' });
     } else {
         console.error("Headers already sent, could not send error JSON response.");
         res.end(); // End the response if possible
@@ -352,26 +378,29 @@ export const downloadReviewReport = async (req, res) => {
   }
 };
 
-// Send a single review report via email
+// @desc    Send a single vehicle review report via email
+// @route   POST /api/vehicles/reviews/:reviewId/send-email
+// @access  Private (e.g., Authenticated users)
 export const sendReviewReportByClient = async (req, res) => {
   const { reviewId } = req.params;
   let { email, format = 'pdf' } = req.body; // Default to pdf
 
   if (!email) {
-    return res.status(400).json({ error: 'Email address is required.' });
+    return res.status(400).json({ message: 'Email address is required.' });
   }
   if (format === 'excel') {
-    return res.status(400).json({ error: 'Excel format is temporarily unavailable for sending single reviews. Please use PDF format for now.' });
+    // Note: This restriction was in the original code. If Excel is now supported, this check can be removed.
+    return res.status(400).json({ message: 'Excel format is temporarily unavailable for sending single reviews. Please use PDF format for now.' });
   }
   format = 'pdf'; // Ensure only PDF is processed
-
+  // TODO: REFACTOR_SINGLE_REVIEW_REPORT_GENERATION - Use the same refactored PDF generation helper as in downloadReviewReport.
   try {
     // Load the review, vehicle and employee data
     const review = await VehicleReview.findById(reviewId)
       .populate('vehicle', 'name wofRego')
       .populate('employeeId', 'name');
     if (!review) {
-      return res.status(404).json({ error: 'Review not found.' });
+      return res.status(404).json({ message: 'Review not found.' });
     }
 
     let buffer;
@@ -379,9 +408,6 @@ export const sendReviewReportByClient = async (req, res) => {
     let contentType;
     const subject = `Vehicle Review Report: ${review.vehicle?.name || 'N/A'} (${new Date(review.dateReviewed).toLocaleDateString()})`;
     const textBody = `Please find attached the ${format.toUpperCase()} review report for vehicle "${review.vehicle?.name || 'N/A'}" reviewed by ${review.employeeId?.name || 'N/A'} on ${new Date(review.dateReviewed).toLocaleDateString()}.`;
-
-    // TODO: REFACTOR_PDF_SINGLE_REVIEW - Refactor PDF generation into a reusable helper function:
-    // e.g., const pdfBuffer = await generateSingleReviewPdfBuffer(review);
 
     if (format === 'pdf') {
       contentType = 'application/pdf';
@@ -445,11 +471,13 @@ export const sendReviewReportByClient = async (req, res) => {
     res.status(200).json({ message: 'Review report sent successfully via email.' });
   } catch (error) {
     console.error('Error sending review report by email:', error);
-    res.status(500).json({ error: 'Failed to send review report via email.' });
+    res.status(500).json({ message: 'Failed to send review report via email.' });
   }
 };
 
-// Download a multi-review report for a specific vehicle (Excel only)
+// @desc    Download a multi-review report for a specific vehicle (Excel only)
+// @route   GET /api/vehicles/:vehicleId/report/download
+// @access  Private (e.g., Authenticated users)
 export const downloadVehicleReport = async (req, res) => {
   try {
     const { vehicleId } = req.params;
@@ -457,25 +485,25 @@ export const downloadVehicleReport = async (req, res) => {
 
     // Validate inputs
     if (!vehicleId) {
-        return res.status(400).json({ error: 'Vehicle ID is required.' });
+        return res.status(400).json({ message: 'Vehicle ID is required.' });
     }
     // Basic date validation (more robust validation might be needed)
     const start = startDate ? new Date(startDate) : null;
     const end = endDate ? new Date(endDate) : null;
 
     if (start && isNaN(start.getTime())) {
-        return res.status(400).json({ error: 'Invalid start date format.' });
+        return res.status(400).json({ message: 'Invalid start date format.' });
     }
     if (end && isNaN(end.getTime())) {
-        return res.status(400).json({ error: 'Invalid end date format.' });
+        return res.status(400).json({ message: 'Invalid end date format.' });
     }
     // Set end date to end of day
     if (end) {
         end.setHours(23, 59, 59, 999);
     }
 
-    const vehicle = await Vehicle.findById(vehicleId);
-    if (!vehicle) return res.status(404).json({ error: 'Vehicle not found' });
+    const vehicle = await Vehicle.findById(vehicleId).lean(); // Use .lean() if not modifying
+    if (!vehicle) return res.status(404).json({ message: 'Vehicle not found' });
 
     // Build query for reviews
     const reviewQuery = {
@@ -490,9 +518,7 @@ export const downloadVehicleReport = async (req, res) => {
     const reviews = await VehicleReview.find(reviewQuery)
                                         .populate('employeeId', 'name') // Only need employee name
                                         .sort({ dateReviewed: -1 }); // Sort by date
-
-    // TODO: REFACTOR_EXCEL_VEHICLE_HISTORY - Refactor Excel generation into a reusable helper:
-    // e.g., const workbook = generateVehicleHistoryExcelWorkbook(vehicle, reviews);
+    // TODO: REFACTOR_EXCEL_VEHICLE_HISTORY - Consider refactoring Excel generation into a reusable helper.
 
     const workbook = new ExcelJS.Workbook();
     workbook.creator = 'Vehicle Management System'; // Optional metadata
@@ -581,7 +607,7 @@ export const downloadVehicleReport = async (req, res) => {
   } catch (err) {
     console.error('Error generating vehicle Excel report:', err);
      if (!res.headersSent) {
-        res.status(500).json({ error: 'Error generating vehicle Excel report' });
+        res.status(500).json({ message: 'Error generating vehicle Excel report' });
     } else {
         console.error("Headers already sent, could not send error JSON response.");
         res.end();
@@ -589,7 +615,9 @@ export const downloadVehicleReport = async (req, res) => {
   }
 };
 
-// Send a multi-review report for a specific vehicle via email
+// @desc    Send a multi-review report for a specific vehicle via email (Excel only)
+// @route   POST /api/vehicles/:vehicleId/report/send-email
+// @access  Private (e.g., Authenticated users)
 export const sendVehicleReportByEmail = async (req, res) => {
   try {
     const { vehicleId } = req.params;
@@ -597,16 +625,16 @@ export const sendVehicleReportByEmail = async (req, res) => {
 
     // Validate inputs
     if (!vehicleId || !email) {
-      return res.status(400).json({ error: "Vehicle ID and Email are required." });
+      return res.status(400).json({ message: "Vehicle ID and Email are required." });
     }
     const start = startDate ? new Date(startDate) : null;
     const end = endDate ? new Date(endDate) : null;
-    if (start && isNaN(start.getTime())) return res.status(400).json({ error: 'Invalid start date format.' });
-    if (end && isNaN(end.getTime())) return res.status(400).json({ error: 'Invalid end date format.' });
+    if (start && isNaN(start.getTime())) return res.status(400).json({ message: 'Invalid start date format.' });
+    if (end && isNaN(end.getTime())) return res.status(400).json({ message: 'Invalid end date format.' });
     if (end) end.setHours(23, 59, 59, 999);
 
-    const vehicle = await Vehicle.findById(vehicleId);
-    if (!vehicle) return res.status(404).json({ error: 'Vehicle not found' });
+    const vehicle = await Vehicle.findById(vehicleId).lean();
+    if (!vehicle) return res.status(404).json({ message: 'Vehicle not found' });
 
     // Build query
     const reviewQuery = { vehicle: vehicleId };
@@ -622,12 +650,11 @@ export const sendVehicleReportByEmail = async (req, res) => {
 
     // Don't send email if no reviews, inform user
     if (reviews.length === 0) {
-      return res.status(404).json({ error: 'No reviews found for this vehicle in the selected date range. Email not sent.' });
+      return res.status(404).json({ message: 'No reviews found for this vehicle in the selected date range. Email not sent.' });
     }
 
     // --- Generate Excel Workbook (Similar to downloadVehicleReport) ---
-    // TODO: REFACTOR_EXCEL_VEHICLE_HISTORY - Use the same refactored helper as downloadVehicleReport:
-    // e.g., const workbook = generateVehicleHistoryExcelWorkbook(vehicle, reviews);
+    // TODO: REFACTOR_EXCEL_VEHICLE_HISTORY - Use the same refactored helper as in downloadVehicleReport.
 
     const workbook = new ExcelJS.Workbook();
     workbook.creator = 'Vehicle Management System';
@@ -719,27 +746,29 @@ export const sendVehicleReportByEmail = async (req, res) => {
 
   } catch (error) {
     console.error('Error sending vehicle report email:', error);
-    res.status(500).json({ error: 'Failed to send vehicle report email.' });
+    res.status(500).json({ message: 'Failed to send vehicle report email.' });
   }
 };
 
 // --- Aggregate Reports ---
 
-// Download report for ALL vehicles (Excel only)
+// @desc    Download a report for ALL vehicles and their reviews (Excel only)
+// @route   GET /api/vehicles/report/all/download
+// @access  Private (e.g., Admin/Manager)
 export const downloadAllVehiclesReport = async (req, res) => {
   try {
     const { startDate, endDate } = req.query;
 
     const start = startDate ? new Date(startDate) : null;
     const end = endDate ? new Date(endDate) : null;
-    if (start && isNaN(start.getTime())) return res.status(400).json({ error: 'Invalid start date format.' });
-    if (end && isNaN(end.getTime())) return res.status(400).json({ error: 'Invalid end date format.' });
+    if (start && isNaN(start.getTime())) return res.status(400).json({ message: 'Invalid start date format.' });
+    if (end && isNaN(end.getTime())) return res.status(400).json({ message: 'Invalid end date format.' });
     if (end) end.setHours(23, 59, 59, 999);
 
     // Fetch all vehicles efficiently
     const vehicles = await Vehicle.find().lean();
     if (!vehicles || vehicles.length === 0) {
-      return res.status(404).json({ error: 'No vehicles found in the system.' });
+      return res.status(404).json({ message: 'No vehicles found in the system.' });
     }
 
     const vehicleIds = vehicles.map(v => v._id);
@@ -813,8 +842,7 @@ export const downloadAllVehiclesReport = async (req, res) => {
           });
       }
     }
-    // TODO: REFACTOR_EXCEL_ALL_VEHICLES - Consider refactoring the workbook generation into a helper function:
-    // e.g., const workbook = generateAllVehiclesExcelWorkbook(vehicles, reviewsByVehicleId);
+    // TODO: REFACTOR_EXCEL_ALL_VEHICLES - Consider refactoring the workbook generation into a helper function.
     // This helper would return an ExcelJS.Workbook instance.
 
     // Handle case where no reviews were found for any vehicle in the range
@@ -843,7 +871,7 @@ export const downloadAllVehiclesReport = async (req, res) => {
   } catch (error) {
     console.error('Error downloading all vehicles report:', error);
      if (!res.headersSent) {
-        res.status(500).json({ error: 'Internal server error generating all vehicles report' });
+        res.status(500).json({ message: 'Internal server error generating all vehicles report' });
     } else {
         console.error("Headers already sent, could not send error JSON response.");
         res.end();
@@ -851,13 +879,15 @@ export const downloadAllVehiclesReport = async (req, res) => {
   }
 };
 
-// Send report for ALL vehicles via email
+// @desc    Send a report for ALL vehicles and their reviews via email (Excel only)
+// @route   POST /api/vehicles/report/all/send-email
+// @access  Private (e.g., Admin/Manager)
 export const sendAllVehiclesReportByEmail = async (req, res) => {
   try {
     const { startDate, endDate, email } = req.body;
 
     if (!email) {
-      return res.status(400).json({ error: 'Recipient email address is required' });
+      return res.status(400).json({ message: 'Recipient email address is required' });
     }
 
     const start = startDate ? new Date(startDate) : null;
@@ -872,7 +902,7 @@ export const sendAllVehiclesReportByEmail = async (req, res) => {
     // Fetch all vehicles
     const vehicles = await Vehicle.find().lean();
     if (!vehicles || vehicles.length === 0) {
-      return res.status(404).json({ error: 'No vehicles found. Email not sent.' });
+      return res.status(404).json({ message: 'No vehicles found. Email not sent.' });
     }
 
     const vehicleIds = vehicles.map(v => v._id);
@@ -899,8 +929,7 @@ export const sendAllVehiclesReportByEmail = async (req, res) => {
     }, {});
 
     // --- Generate Excel Workbook (Similar to downloadAllVehiclesReport) ---
-    // TODO: REFACTOR_EXCEL_ALL_VEHICLES - Use the same refactored helper as downloadAllVehiclesReport:
-    // e.g., const workbook = generateAllVehiclesExcelWorkbook(vehicles, reviewsByVehicleId);
+    // TODO: REFACTOR_EXCEL_ALL_VEHICLES - Use the same refactored helper as in downloadAllVehiclesReport.
     const columns = [
         { header: 'Vehicle Name', key: 'vehicleName', width: 25 },
         { header: 'Date Reviewed', key: 'date', width: 15 },
@@ -947,7 +976,7 @@ export const sendAllVehiclesReportByEmail = async (req, res) => {
     }
 
     if (!hasReviews) {
-      return res.status(404).json({ error: 'No reviews found for any vehicle in the specified date range. Email not sent.' });
+      return res.status(404).json({ message: 'No reviews found for any vehicle in the specified date range. Email not sent.' });
     }
 
     mainSheet.getColumn('notes').alignment = { wrapText: true, vertical: 'top' };
@@ -981,6 +1010,6 @@ export const sendAllVehiclesReportByEmail = async (req, res) => {
     res.status(200).json({ message: 'All vehicles report sent successfully via email!' });
   } catch (error) {
     console.error('Error sending all vehicles report email:', error);
-    res.status(500).json({ error: `Failed to send all vehicles report email. ${error.message}` });
+    res.status(500).json({ message: `Failed to send all vehicles report email. ${error.message}` });
   }
 };

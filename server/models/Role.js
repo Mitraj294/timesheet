@@ -1,7 +1,7 @@
 import mongoose from 'mongoose';
 
 const scheduleSchema = new mongoose.Schema({
-  day: { type: String, required: true },
+  day: { type: String, required: true }, // e.g., "Monday", "Tuesday"
   startTime: { type: String },
   endTime: { type: String }
 });
@@ -11,8 +11,7 @@ const roleSchema = new mongoose.Schema({
   roleDescription: { type: String },
   color: { type: String },
   assignedEmployees: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Employee' }],
-
-  schedule: [scheduleSchema]
+  schedule: [scheduleSchema] // Default weekly schedule for this role
 }, { timestamps: true });
 
 const Role = mongoose.model('Role', roleSchema);

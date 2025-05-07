@@ -111,7 +111,9 @@ const buildTimesheetData = (body) => {
   return finalData;
 };
 
-// createTimesheet function remains the same
+// @desc    Create a new timesheet entry
+// @route   POST /api/timesheets
+// @access  Private (e.g., Employee, Employer)
 export const createTimesheet = async (req, res) => {
   try {
     const timesheetData = buildTimesheetData(req.body);
@@ -128,13 +130,15 @@ export const createTimesheet = async (req, res) => {
   }
 };
 
-// checkTimesheet function remains the same
+// @desc    Check if a timesheet exists for a given employee and date
+// @route   GET /api/timesheets/check
+// @access  Private (e.g., Employee, Employer)
 export const checkTimesheet = async (req, res) => {
   const { employee, date } = req.query;
-  if (!employee || !date) return res.status(400).json({ error: 'Missing employee or date' });
-  if (!mongoose.Types.ObjectId.isValid(employee)) return res.status(400).json({ error: 'Invalid employee ID' });
+  if (!employee || !date) return res.status(400).json({ message: 'Missing employee or date parameters' });
+  if (!mongoose.Types.ObjectId.isValid(employee)) return res.status(400).json({ message: 'Invalid employee ID format' });
   if (!moment(date, "YYYY-MM-DD", true).isValid()) {
-      return res.status(400).json({ error: `Invalid date format (YYYY-MM-DD required): ${date}` });
+      return res.status(400).json({ message: `Invalid date format (YYYY-MM-DD required): ${date}` });
   }
 
   try {
@@ -145,12 +149,14 @@ export const checkTimesheet = async (req, res) => {
     return res.json({ exists: !!existing, timesheet: existing || null });
   } catch (err) {
     console.error('[Server Check] Error checking timesheet:', err);
-    res.status(500).json({ error: 'Server error during timesheet check' });
+    res.status(500).json({ message: 'Server error during timesheet check' });
   }
 };
 
 
-// --- Updated getTimesheets (Reduced Logging) ---
+// @desc    Get timesheets based on filters (employeeIds, projectId, startDate, endDate)
+// @route   GET /api/timesheets
+// @access  Private (e.g., Employee, Employer)
 export const getTimesheets = async (req, res) => {
   try {
     const { employeeIds = [], projectId, startDate, endDate } = req.query; // Added projectId
@@ -242,12 +248,39 @@ export const getTimesheets = async (req, res) => {
   } catch (error) {
     console.error("[Server Get] Error fetching timesheets:", error.message);
     // console.error("Full error object:", error); // Keep this for debugging if needed
-    res.status(500).json({ message: "Failed to fetch timesheets", error: error.message });
+    res.status(500).json({ message: `Failed to fetch timesheets: ${error.message}` });
   }
 };
-// --- End Updated getTimesheets ---
 
-// updateTimesheet function remains the same
+// @desc    Get a single timesheet by its ID
+// @route   GET /api/timesheets/:id
+// @access  Private (e.g., Employee, Employer)
+export const getTimesheetById = async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ message: "Invalid Timesheet ID format" });
+    }
+
+    const timesheet = await Timesheet.findById(id)
+      .populate("employeeId", "name email wage status expectedWeeklyHours")
+      .populate("clientId", "name emailAddress")
+      .populate("projectId", "name startDate finishDate")
+      .lean(); // Use .lean() if you don't need Mongoose document methods
+
+    if (!timesheet) {
+      return res.status(404).json({ message: "Timesheet not found" });
+    }
+    res.json(timesheet);
+  } catch (error) {
+    console.error("[Server GetById] Error fetching timesheet:", error);
+    res.status(500).json({ message: `Error fetching timesheet: ${error.message}` });
+  }
+};
+
+// @desc    Update an existing timesheet entry
+// @route   PUT /api/timesheets/:id
+// @access  Private (e.g., Employee, Employer)
 export const updateTimesheet = async (req, res) => {
   try {
     const { id } = req.params;
@@ -275,7 +308,9 @@ export const updateTimesheet = async (req, res) => {
   }
 };
 
-// getTimesheetsByProject function remains the same
+// @desc    Get all timesheets for a specific project
+// @route   GET /api/timesheets/project/:projectId
+// @access  Private (e.g., Employee, Employer)
 export const getTimesheetsByProject = async (req, res) => {
     try {
         const { projectId } = req.params;
@@ -289,10 +324,13 @@ export const getTimesheetsByProject = async (req, res) => {
         res.json(timesheets);
     } catch (error) {
         console.error("[Server GetByProject] Error:", error);
-        res.status(500).json({ message: "Server Error", error: error.message });
+        res.status(500).json({ message: `Error fetching timesheets by project: ${error.message}` });
     }
 };
-// getTimesheetsByEmployee function remains the same
+
+// @desc    Get all timesheets for a specific employee
+// @route   GET /api/timesheets/employee/:employeeId
+// @access  Private (e.g., Employee, Employer)
 export const getTimesheetsByEmployee = async (req, res) => {
      try {
         const { employeeId } = req.params;
@@ -306,10 +344,13 @@ export const getTimesheetsByEmployee = async (req, res) => {
         res.json(timesheets);
     } catch (error) {
         console.error("[Server GetByEmployee] Error:", error);
-        res.status(500).json({ message: "Server Error", error: error.message });
+        res.status(500).json({ message: `Error fetching timesheets by employee: ${error.message}` });
     }
 };
-// getTimesheetsByClient function remains the same
+
+// @desc    Get all timesheets for a specific client
+// @route   GET /api/timesheets/client/:clientId
+// @access  Private (e.g., Employee, Employer)
 export const getTimesheetsByClient = async (req, res) => {
      try {
         const { clientId } = req.params;
@@ -323,11 +364,13 @@ export const getTimesheetsByClient = async (req, res) => {
         res.json(timesheets);
     } catch (error) {
         console.error("[Server GetByClient] Error:", error);
-        res.status(500).json({ message: "Server Error", error: error.message });
+        res.status(500).json({ message: `Error fetching timesheets by client: ${error.message}` });
     }
 };
 
-// deleteTimesheet function remains the same
+// @desc    Delete a timesheet entry by ID
+// @route   DELETE /api/timesheets/:id
+// @access  Private (e.g., Employee, Employer)
 export const deleteTimesheet = async (req, res) => {
     try {
         const { id } = req.params;
@@ -342,7 +385,7 @@ export const deleteTimesheet = async (req, res) => {
         res.status(200).json({ message: "Timesheet deleted successfully", id: id });
       } catch (error) {
         console.error("[Server Delete] Error deleting timesheet:", error);
-        res.status(500).json({ message: "Server Error", error: error.message });
+        res.status(500).json({ message: `Error deleting timesheet: ${error.message}` });
       }
  };
 
@@ -544,12 +587,26 @@ const handleReportAction = async (req, res, isDownload, groupBy) => {
     }
   } catch (error) {
     console.error(`[Server Report] Exception during ${action} process:`, error);
-    return res.status(500).json({ message: `Failed to ${isDownload ? 'generate report' : 'send email'}. Please try again later.`, error: error.message });
+    return res.status(500).json({ message: `Failed to ${isDownload ? 'generate report' : 'send email'}: ${error.message}` });
   }
 };
 
-// Exported report functions remain the same
+// @desc    Download timesheets as Excel, grouped by employee
+// @route   POST /api/timesheets/report/download/employee
+// @access  Private (e.g., Employer)
 export const downloadTimesheets = (req, res) => handleReportAction(req, res, true, 'employee');
+
+// @desc    Send timesheets email with Excel attachment, grouped by employee
+// @route   POST /api/timesheets/report/email/employee
+// @access  Private (e.g., Employer)
 export const sendTimesheetEmail = (req, res) => handleReportAction(req, res, false, 'employee');
+
+// @desc    Download timesheets as Excel, grouped by project
+// @route   POST /api/timesheets/report/download/project
+// @access  Private (e.g., Employer)
 export const downloadProjectTimesheets = (req, res) => handleReportAction(req, res, true, 'project');
+
+// @desc    Send timesheets email with Excel attachment, grouped by project
+// @route   POST /api/timesheets/report/email/project
+// @access  Private (e.g., Employer)
 export const sendProjectTimesheetEmail = (req, res) => handleReportAction(req, res, false, 'project');

@@ -1,6 +1,6 @@
 @use 'sass:color';
 
-// Variables (copied from Vehicles.scss)
+// Variables
 $primary-color: #007bff;
 $secondary-color: #6c757d;
 $success-color: #28a745;
@@ -20,9 +20,8 @@ $font-family: 'Segoe UI', sans-serif;
 $breakpoint-md: 768px;
 $breakpoint-sm: 576px;
 
-// --- Base Styles ---
+// Base Styles
 .vehicles-page {
-    // Use the same page wrapper class
     padding: clamp(1rem, 2vw, 1.5rem);
     max-width: 1200px;
     margin: 0 auto;
@@ -31,7 +30,7 @@ $breakpoint-sm: 576px;
     min-height: calc(100vh - 60px); // Assuming a fixed header height
 }
 
-// --- Header Styles (Copied from Vehicles.scss) ---
+// Header Styles
 .vehicles-header {
     display: flex;
     justify-content: space-between;
@@ -92,7 +91,6 @@ $breakpoint-sm: 576px;
         }
     }
 
-    // Header actions container (might not be used in forms, but keep for consistency)
     .header-actions {
         display: flex;
         align-items: center;
@@ -107,7 +105,7 @@ $breakpoint-sm: 576px;
     }
 }
 
-// --- Button Styles (Copied from Vehicles.scss) ---
+// Button Styles
 .btn {
     display: inline-flex;
     align-items: center;
@@ -196,9 +194,7 @@ $breakpoint-sm: 576px;
     }
 }
 
-// Add other btn variants (primary, warning, purple, info) if needed for forms
-
-// --- Loading/Error Styles (Copied from Vehicles.scss) ---
+// Loading/Error Styles
 .loading-indicator,
 .error-message {
     display: flex;
@@ -231,7 +227,7 @@ $breakpoint-sm: 576px;
     min-height: 300px;
 }
 
-// --- Form Specific Styles ---
+// Form Specific Styles
 .form-container {
     background-color: #fff;
     padding: clamp(1.5rem, 3vw, 2.5rem);
@@ -241,9 +237,7 @@ $breakpoint-sm: 576px;
     margin: 0 auto; // Center the form container
 }
 
-// Use a consistent form class (e.g., .standard-form or keep .employee-form if widely used)
 .employee-form {
-    // Or rename to .standard-form
     display: flex;
     flex-direction: column;
     gap: 1.25rem; // Space between form groups
@@ -390,7 +384,7 @@ $breakpoint-sm: 576px;
     border-top: 1px solid $border-color;
 }
 
-// --- Styles for CreateRole specific elements --- Added Section ---
+// Styles for CreateRole specific elements
 .selected-employees-tags {
     display: flex;
     flex-wrap: wrap;
@@ -469,9 +463,7 @@ $breakpoint-sm: 576px;
     }
 }
 
-// --- End Styles for CreateRole specific elements ---
-
-// --- Responsive Adjustments for Forms ---
+// Responsive Adjustments for Forms
 @media (max-width: $breakpoint-sm) {
     .vehicles-header {
 
@@ -522,9 +514,6 @@ $breakpoint-sm: 576px;
             }
         }
     }
-
-
-
 
     .phone-input-group {
         display: flex;

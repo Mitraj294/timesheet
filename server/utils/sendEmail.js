@@ -3,8 +3,10 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
+// Asynchronously sends an email using nodemailer.
+// `options` should include: to, subject, text, and/or html.
 const sendEmail = async (options) => {
-    console.log(`[${new Date().toISOString()}] Entered sendEmail utility for: ${options.to}`);
+    console.log(`[${new Date().toISOString()}] Attempting to send email to: ${options.to} with subject: "${options.subject}"`);
     
     const transporter = nodemailer.createTransport({
         host: process.env.EMAIL_HOST,
@@ -28,10 +30,10 @@ const sendEmail = async (options) => {
 
     try {
         const info = await transporter.sendMail(mailOptions);
-        console.log('Email sent: %s', info.messageId);
+        console.log(`Email sent successfully to ${options.to}. Message ID: ${info.messageId}`);
         return info;
     } catch (error) {
-        console.error('Error sending email: ', error);
+        console.error(`Error sending email to ${options.to}: `, error.message);
         throw new Error('Email could not be sent due to a server error.');
     }
 };

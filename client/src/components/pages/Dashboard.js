@@ -2,7 +2,7 @@
 import React, { useEffect, useState, useRef, useMemo } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { fetchEmployees, selectAllEmployees, selectEmployeeStatus, selectEmployeeError } from "../../redux/slices/employeeSlice";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { fetchTimesheets, selectAllTimesheets, selectTimesheetStatus, selectTimesheetError, clearTimesheetError } from "../../redux/slices/timesheetSlice";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { setAlert } from "../../redux/slices/alertSlice";
@@ -132,6 +132,7 @@ const getWeeklyTotals = (data, periodStart, weeks) => {
 const Dashboard = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
+  // const location = useLocation(); // Not strictly needed if App.js uses key={location.key} for re-mount
 
   const employees = useSelector(selectAllEmployees);
   const employeeStatus = useSelector(selectEmployeeStatus);
@@ -153,22 +154,22 @@ const Dashboard = () => {
   const projectsChartRef = useRef(null);
 
   // Effects
-  // Fetch employees if authenticated and not already fetched
+  // Fetch employees if authenticated. Will run on every mount (navigation to dashboard due to key={location.key} in App.js).
   useEffect(() => {
-    if (!isAuthLoading && token && employeeStatus === 'idle') {
+    if (!isAuthLoading && token) {
+      // console.log("Dashboard: (Re)Mounting or token/auth status changed. Fetching employees.");
       dispatch(fetchEmployees());
     }
-  }, [dispatch, token, isAuthLoading, employeeStatus]);
+  }, [dispatch, token, isAuthLoading]); // Removed employeeStatus to ensure fetch on re-mount
 
-  // Fetch timesheets if authenticated and not already fetched or if fetch failed previously
+  // Fetch timesheets if authenticated. Will run on every mount.
   useEffect(() => {
     if (isAuthLoading || !token) {
         return;
     }
-    if (timesheetStatus === 'idle' || timesheetStatus === 'failed') {
-        dispatch(fetchTimesheets());
-    }
-  }, [token, isAuthLoading, timesheetStatus, dispatch]);
+    // console.log("Dashboard: (Re)Mounting or token/auth status changed. Fetching timesheets.");
+    dispatch(fetchTimesheets()); // Fetches all timesheets
+  }, [token, isAuthLoading, dispatch]); // Removed timesheetStatus to ensure fetch on re-mount
 
   // Handlers
   const handleLogoutClick = () => {

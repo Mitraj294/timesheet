@@ -22,13 +22,12 @@ import userRoutes from './routes/userRoutes.js';
 
 const app = express();
 
-// Middleware
+// Core Middleware
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(helmet());
 app.use(cookieParser());
-// Remove inconsistent mounting: app.use('/api/users', userRoutes);
 
 // MongoDB Connection
 const connectDB = async () => {
@@ -37,14 +36,16 @@ const connectDB = async () => {
       console.error("MONGO_URI is missing in .env file!");
       process.exit(1);
     }
+    console.log("Attempting to connect to MongoDB...");
     await mongoose.connect(process.env.MONGO_URI);
-    console.log("MongoDB Connected...");
+    console.log("MongoDB Connected Successfully.");
   } catch (error) {
     console.error("MongoDB Connection Error:", error.message);
-    process.exit(1);
+    process.exit(1); // Exit process with failure
   }
 };
-connectDB();
+
+connectDB(); // Initialize MongoDB connection
 
 // Use BASE_API_URL for all routes
 const BASE_API_URL = process.env.BASE_API_URL || '/api';
@@ -58,18 +59,18 @@ app.use(`${BASE_API_URL}/roles`, roleRoutes);
 app.use(`${BASE_API_URL}/schedules`, scheduleRoutes);
 app.use(`${BASE_API_URL}/vehicles`, vehicleRoutes);
 app.use(`${BASE_API_URL}/users`, userRoutes); // Mount userRoutes consistently
-
 // Root Route
 app.get("/", (req, res) => {
   res.send("TimeSheet Backend is Running...");
 });
 
 // Global Error Handler
+// This should be the last piece of middleware.
 app.use((err, req, res, next) => {
-  console.error("Error:", err.stack);
-  res.status(500).json({ message: "Something went wrong. Please try again." });
+  console.error("Unhandled Error:", err.stack);
+  res.status(err.status || 500).json({ message: err.message || "Something went wrong. Please try again." });
 });
 
 // Start Server
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+app.listen(PORT, () => console.log(`Server successfully started on port ${PORT}`));

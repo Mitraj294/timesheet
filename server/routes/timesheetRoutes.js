@@ -3,6 +3,7 @@ import { protect, employerOnly } from '../middleware/authMiddleware.js';
 import {
   createTimesheet,
   getTimesheets,
+  getTimesheetById, 
   checkTimesheet,
   getTimesheetsByProject,
   getTimesheetsByEmployee,
@@ -17,19 +18,28 @@ import {
 
 const router = express.Router();
 
+// Base timesheet routes
 router.get('/', protect, getTimesheets);
 router.post('/', protect, createTimesheet);
-router.put('/:id', protect, updateTimesheet);
-router.delete('/:id', protect, deleteTimesheet);
 
-router.get('/check', protect, checkTimesheet); // Added protect middleware
+// Check for existing timesheet (MUST be before /:id route)
+router.get('/check', protect, checkTimesheet);
 
-router.get('/project/:projectId', protect, getTimesheetsByProject); // Added protect middleware
-router.get('/employee/:employeeId', protect, getTimesheetsByEmployee); // Added protect middleware
-router.get('/client/:clientId', protect, getTimesheetsByClient); // Added protect middleware
+router.route('/:id')
+  .get(protect, getTimesheetById) 
+  .put(protect, updateTimesheet)
+  .delete(protect, deleteTimesheet);
 
+// Get timesheets by specific criteria
+router.get('/project/:projectId', protect, getTimesheetsByProject);
+router.get('/employee/:employeeId', protect, getTimesheetsByEmployee);
+router.get('/client/:clientId', protect, getTimesheetsByClient);
+
+// Download and email general timesheet reports
 router.post('/download', protect, downloadTimesheets);
 router.post('/send', protect, sendTimesheetEmail);
+
+// Download and email project-specific timesheet reports
 router.post('/download/project', protect, downloadProjectTimesheets);
 router.post('/send-email/project', protect, sendProjectTimesheetEmail);
 

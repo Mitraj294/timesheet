@@ -9,8 +9,8 @@ const timesheetSchema = new mongoose.Schema({
     required: true,
     match: [/^\d{4}-\d{2}-\d{2}$/, 'Date must be in YYYY-MM-DD format']
   },
-  startTime: { type: Date, default: null }, // Stored as UTC BSON Date
-  endTime: { type: Date, default: null },   // Stored as UTC BSON Date
+  startTime: { type: Date, default: null }, // Stored as full UTC BSON Date
+  endTime: { type: Date, default: null },   // Stored as full UTC BSON Date
   lunchBreak: { type: String, enum: ['Yes', 'No'], default: 'No' },
   lunchDuration: {
       type: String,
@@ -27,8 +27,10 @@ const timesheetSchema = new mongoose.Schema({
   updatedAt: { type: Date, default: Date.now }
 });
 
+// Ensure a unique timesheet entry per employee per day.
 timesheetSchema.index({ employeeId: 1, date: 1 }, { unique: true });
 
+// Middleware: Update the 'updatedAt' field on each save.
 timesheetSchema.pre('save', function(next) {
   this.updatedAt = Date.now();
   next();

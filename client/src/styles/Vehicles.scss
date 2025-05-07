@@ -1,5 +1,4 @@
 @use 'sass:color';
-
 $primary-color: #007bff;
 $secondary-color: #6c757d;
 $success-color: #28a745;
@@ -18,7 +17,6 @@ $font-family: 'Segoe UI', sans-serif;
 
 $breakpoint-md: 768px;
 $breakpoint-sm: 576px;
-
 
 .btn {
     display: inline-flex;
@@ -567,7 +565,6 @@ $breakpoint-sm: 576px;
         }
     }
 }
-
 
 @media (max-width: $breakpoint-md) {
 

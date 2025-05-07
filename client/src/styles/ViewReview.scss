@@ -1,6 +1,6 @@
 @use 'sass:color';
 
-// Variables (copied from Vehicles.scss)
+// Variables
 $primary-color: #007bff;
 $secondary-color: #6c757d;
 $success-color: #28a745;
@@ -20,7 +20,7 @@ $font-family: 'Segoe UI', sans-serif;
 $breakpoint-md: 768px;
 $breakpoint-sm: 576px;
 
-// Base button styles (copied from Vehicles.scss)
+// Base button styles
 .btn {
     display: inline-flex;
     align-items: center;
@@ -59,7 +59,7 @@ $breakpoint-sm: 576px;
     }
 }
 
-// Button Color Variants (copied from Vehicles.scss)
+// Button Color Variants
 .btn-success {
     color: #fff;
     background-color: $success-color;
@@ -172,7 +172,7 @@ $breakpoint-sm: 576px;
     }
 }
 
-// Page structure styles (using .vehicles-* classes)
+// Page structure styles
 .vehicles-page {
     padding: clamp(1rem, 2vw, 1.5rem);
     max-width: 1200px;
@@ -255,8 +255,6 @@ $breakpoint-sm: 576px;
         }
     }
 }
-
-// Remove .view-review-actions as buttons are now in header-actions
 
 // Prompt styles (keep specific styles)
 .prompt-overlay {
@@ -452,7 +450,7 @@ $breakpoint-sm: 576px;
     }
 }
 
-// Loading/Error indicators (copied from Vehicles.scss)
+// Loading/Error indicators
 .loading-indicator,
 .error-message {
     display: flex;
@@ -485,10 +483,9 @@ $breakpoint-sm: 576px;
     min-height: 300px; // Keep specific page loading height if needed
 }
 
-// Responsive Adjustments (copied/adapted from Vehicles.scss)
+// Responsive Adjustments
 @media (max-width: $breakpoint-sm) {
     .btn {
-        // Apply smaller button size
         padding: 0.4rem 0.8rem;
         font-size: 0.85rem;
     }
@@ -519,8 +516,6 @@ $breakpoint-sm: 576px;
             }
         }
     }
-
-    // Remove .view-review-actions specific responsive styles
 
     .prompt-container {
         // Keep prompt responsive styles

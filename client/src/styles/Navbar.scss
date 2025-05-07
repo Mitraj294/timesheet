@@ -1,5 +1,4 @@
 // /home/digilab/timesheet/client/src/styles/Navbar.scss
-
 .navbar {
     display: flex;
     justify-content: space-between;
@@ -34,7 +33,7 @@
     gap: 10px;
 }
 
-// --- START: Updated Center Section Styles ---
+// Updated Center Section Styles
 .navbar-logo-container {
     display: flex;
     align-items: center; // Vertically align logo and text group
@@ -71,9 +70,7 @@
     color: white; // Ensure text is white
 }
 
-// --- END: Updated Center Section Styles ---
-
-// --- START: Updated Right Section Styles ---
+// Updated Right Section Styles
 .navbar-user-nav {
     display: flex;
     align-items: center;
@@ -155,9 +152,7 @@
     }
 }
 
-// --- END: Updated Right Section Styles ---
-
-// --- START: Responsive Styles ---
+// Responsive Styles
 @media (max-width: 768px) {
     .navbar {
         padding: 10px 15px; // Reduce padding on smaller screens
@@ -208,5 +203,3 @@
         gap: 5px; // Reduce gap
     }
 }
-
-// --- END: Responsive Styles ---
