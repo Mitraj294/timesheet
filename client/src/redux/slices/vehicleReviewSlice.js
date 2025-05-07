@@ -1,19 +1,23 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import axios from 'axios';
 
+// API base URL. Defaults to Render if local env var is not set.
 const API_URL = process.env.REACT_APP_API_URL || 'https://timesheet-c4mj.onrender.com/api';
 
+// Creates authorization headers if a token is provided.
 const getAuthHeaders = (token) => ({
   headers: { Authorization: `Bearer ${token}` },
 });
 
+// Extracts a user-friendly error message from an API error.
 const getErrorMessage = (error) => {
   return error.response?.data?.message || error.response?.data?.error || error.message || 'An unexpected error occurred';
 };
 
-// --- Async Thunks ---
+//  Async Thunks 
 
-// Fetch reviews for a specific vehicle
+// Fetches reviews for a specific vehicle. Requires authentication.
+// vehicleId: The ID of the vehicle.
 export const fetchReviewsByVehicleId = createAsyncThunk(
   'vehicleReviews/fetchByVehicleId',
   async (vehicleId, { getState, rejectWithValue }) => {
@@ -30,7 +34,8 @@ export const fetchReviewsByVehicleId = createAsyncThunk(
   }
 );
 
-// Fetch single review by ID
+// Fetches a single review by its ID. Requires authentication.
+// reviewId: The ID of the review.
 export const fetchReviewById = createAsyncThunk(
   'vehicleReviews/fetchById',
   async (reviewId, { getState, rejectWithValue }) => {
@@ -45,7 +50,8 @@ export const fetchReviewById = createAsyncThunk(
   }
 );
 
-// Create vehicle review
+// Creates a vehicle review. Requires authentication.
+// reviewData: Data for the new review.
 export const createVehicleReview = createAsyncThunk(
   'vehicleReviews/create',
   async (reviewData, { getState, rejectWithValue }) => {
@@ -60,7 +66,9 @@ export const createVehicleReview = createAsyncThunk(
   }
 );
 
-// Update vehicle review
+// Updates a vehicle review. Requires authentication.
+// params.reviewId: ID of the review to update.
+// params.reviewData: New data for the review.
 export const updateVehicleReview = createAsyncThunk(
   'vehicleReviews/update',
   async ({ reviewId, reviewData }, { getState, rejectWithValue }) => {
@@ -75,7 +83,8 @@ export const updateVehicleReview = createAsyncThunk(
   }
 );
 
-// Delete vehicle review
+// Deletes a vehicle review. Requires authentication.
+// reviewId: ID of the review to delete.
 export const deleteVehicleReview = createAsyncThunk(
   'vehicleReviews/delete',
   async (reviewId, { getState, rejectWithValue }) => {
@@ -90,7 +99,9 @@ export const deleteVehicleReview = createAsyncThunk(
   }
 );
 
-// Download single review report
+// Downloads a single review report (PDF or Excel). Requires authentication.
+// params.reviewId: ID of the review.
+// params.format: 'pdf' or 'excel'.
 export const downloadReviewReport = createAsyncThunk(
   'vehicleReviews/downloadReport',
   async ({ reviewId, format }, { getState, rejectWithValue }) => { // format can be 'pdf' or 'excel'
@@ -119,7 +130,9 @@ export const downloadReviewReport = createAsyncThunk(
   }
 );
 
-// Send single review report via email
+// Sends a single review report (as PDF) via email. Requires authentication.
+// params.reviewId: ID of the review.
+// params.email: Recipient's email address.
 export const sendReviewReportByClient = createAsyncThunk(
   'vehicleReviews/sendReport',
   async ({ reviewId, email /*, format */ }, { getState, rejectWithValue }) => { // format is no longer needed
@@ -135,40 +148,45 @@ export const sendReviewReportByClient = createAsyncThunk(
   }
 );
 
-// --- Slice Definition ---
+//  Slice Definition 
+// Initial state for the vehicleReviews slice.
 const initialState = {
-  items: [], // List of reviews (usually filtered by vehicle in component)
-  currentReview: null, // For viewing/editing single review
-  status: 'idle', // Status for list fetching (fetchByVehicleId)
-  error: null, // Error for list fetching
-  currentStatus: 'idle', // Status for fetching single review (fetchById)
-  currentError: null, // Error for fetching single review
-  operationStatus: 'idle', // Status for create/update/delete
-  operationError: null, // Error for create/update/delete
-  reportStatus: 'idle', // Status for report generation/sending
-  reportError: null, // Error for report generation/sending
+  items: [],           // List of reviews (usually filtered by vehicle in component).
+  currentReview: null, // For viewing/editing a single review.
+  status: 'idle',      // Status for list fetching (fetchByVehicleId).
+  error: null,         // Error for list fetching.
+  currentStatus: 'idle', // Status for fetching a single review (fetchById).
+  currentError: null,    // Error for fetching a single review.
+  operationStatus: 'idle', // Status for create/update/delete operations.
+  operationError: null,    // Error for create/update/delete operations.
+  reportStatus: 'idle',    // Status for report generation/sending.
+  reportError: null,       // Error for report generation/sending.
 };
 
 const vehicleReviewSlice = createSlice({
   name: 'vehicleReviews',
   initialState,
   reducers: {
+    // Resets the current review details.
     resetCurrentReview: (state) => {
       state.currentReview = null;
       state.currentStatus = 'idle';
       state.currentError = null;
     },
+    // Clears status and error for create/update/delete operations.
     clearReviewOperationStatus: (state) => {
       state.operationStatus = 'idle';
       state.operationError = null;
     },
+    // Clears status and error for report operations.
     clearReviewReportStatus: (state) => {
       state.reportStatus = 'idle';
       state.reportError = null;
     },
+    // Resets the entire vehicleReviews slice state to initial.
     resetReviewState: () => initialState, // Reset entire slice state
   },
-  extraReducers: (builder) => {
+  extraReducers: (builder) => { // Handles async thunk actions
     builder
       // List Fetching (by Vehicle)
       .addCase(fetchReviewsByVehicleId.pending, (state) => { state.status = 'loading'; state.error = null; })
@@ -182,6 +200,7 @@ const vehicleReviewSlice = createSlice({
        .addCase(deleteVehicleReview.fulfilled, (state, action) => {
         state.operationStatus = 'succeeded';
         state.items = state.items.filter(r => r._id !== action.payload); // Remove from list
+        state.operationError = null; // Clear error on success
         if (state.currentReview?._id === action.payload) state.currentReview = null; // Clear current if deleted
       })
       // Create/Update/Delete Operations
@@ -196,6 +215,7 @@ const vehicleReviewSlice = createSlice({
           const index = state.items.findIndex(r => r._id === action.payload._id);
           if (index !== -1) state.items[index] = action.payload; else state.items.push(action.payload); // Add or update
           if (state.currentReview?._id === action.payload._id) state.currentReview = action.payload; // Update current if matching
+          state.operationError = null; // Clear error on success
         }
       )
    
@@ -210,7 +230,7 @@ const vehicleReviewSlice = createSlice({
       )
       .addMatcher(
         (action) => [downloadReviewReport.fulfilled.type, sendReviewReportByClient.fulfilled.type].includes(action.type),
-        (state) => { state.reportStatus = 'succeeded'; }
+        (state) => { state.reportStatus = 'succeeded'; state.reportError = null; } // Clear error on success
       )
       .addMatcher(
         (action) => [downloadReviewReport.rejected.type, sendReviewReportByClient.rejected.type].includes(action.type),
@@ -219,7 +239,8 @@ const vehicleReviewSlice = createSlice({
   },
 });
 
-// --- Exports ---
+//  Exports 
+// Export synchronous actions
 export const {
   resetCurrentReview,
   clearReviewOperationStatus,
@@ -227,16 +248,27 @@ export const {
   resetReviewState,
 } = vehicleReviewSlice.actions;
 
+// Export main reducer
 export default vehicleReviewSlice.reducer;
 
-// --- Selectors ---
+//  Selectors 
+// Selects all reviews (typically for a specific vehicle, filtered in component).
 export const selectAllReviewsForVehicle = (state) => state.vehicleReviews.items;
+// Selects the currently viewed/edited review.
 export const selectCurrentReviewData = (state) => state.vehicleReviews.currentReview;
+// Selects the status for fetching the list of reviews.
 export const selectReviewListStatus = (state) => state.vehicleReviews.status;
+// Selects the error for fetching the list of reviews.
 export const selectReviewListError = (state) => state.vehicleReviews.error;
+// Selects the status for fetching a single review.
 export const selectCurrentReviewStatus = (state) => state.vehicleReviews.currentStatus;
+// Selects the error for fetching a single review.
 export const selectCurrentReviewError = (state) => state.vehicleReviews.currentError;
+// Selects the status for create/update/delete operations.
 export const selectReviewOperationStatus = (state) => state.vehicleReviews.operationStatus;
+// Selects the error for create/update/delete operations.
 export const selectReviewOperationError = (state) => state.vehicleReviews.operationError;
+// Selects the status for report generation/sending.
 export const selectReviewReportStatus = (state) => state.vehicleReviews.reportStatus;
+// Selects the error for report generation/sending.
 export const selectReviewReportError = (state) => state.vehicleReviews.reportError;

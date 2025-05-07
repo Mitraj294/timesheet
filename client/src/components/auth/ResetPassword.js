@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faLock, faSpinner, faSave, faArrowLeft, faExclamationCircle } from '@fortawesome/free-solid-svg-icons';
+import { faLock, faSpinner, faSave, faArrowLeft, faExclamationCircle, faEye, faEyeSlash } from '@fortawesome/free-solid-svg-icons';
 
 import { resetPassword, clearAuthError, selectAuthError, selectIsAuthLoading } from '../../redux/slices/authSlice';
 import { setAlert } from '../../redux/slices/alertSlice';
@@ -13,6 +13,8 @@ const ResetPassword = () => {
     const { token } = useParams();
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
+    const [showPassword, setShowPassword] = useState(false);
+    const [showConfirmPassword, setShowConfirmPassword] = useState(false);
     const [localError, setLocalError] = useState(null);
     const dispatch = useDispatch();
     const navigate = useNavigate();
@@ -80,31 +82,43 @@ const ResetPassword = () => {
                     )}
                     <div className="styles_InputGroup">
                         <label htmlFor="password">New Password</label>
-                        <input
-                            id="password"
-                            type="password"
-                            value={password}
-                            onChange={(e) => setPassword(e.target.value)}
-                            required
-                            disabled={isLoading}
-                        />
+                        <div className="styles_PasswordInputContainer">
+                            <input
+                                id="password"
+                                type={showPassword ? "text" : "password"}
+                                value={password}
+                                onChange={(e) => setPassword(e.target.value)}
+                                placeholder="Enter new password"
+                                required
+                                disabled={isLoading}
+                            />
+                            <button type="button" onClick={() => setShowPassword(!showPassword)} className="styles_PasswordToggleBtn" disabled={isLoading}>
+                                <FontAwesomeIcon icon={showPassword ? faEyeSlash : faEye} className="styles_InputIcon styles_InputIconRight" />
+                            </button>
+                        </div>
                     </div>
                     <div className="styles_InputGroup">
                         <label htmlFor="confirmPassword">Confirm New Password</label>
-                        <input
-                            id="confirmPassword"
-                            type="password"
-                            value={confirmPassword}
-                            onChange={(e) => setConfirmPassword(e.target.value)}
-                            required
-                            disabled={isLoading}
-                        />
+                        <div className="styles_PasswordInputContainer">
+                            <input
+                                id="confirmPassword"
+                                type={showConfirmPassword ? "text" : "password"}
+                                value={confirmPassword}
+                                onChange={(e) => setConfirmPassword(e.target.value)}
+                                placeholder="Confirm new password"
+                                required
+                                disabled={isLoading}
+                            />
+                            <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="styles_PasswordToggleBtn" disabled={isLoading}>
+                                <FontAwesomeIcon icon={showConfirmPassword ? faEyeSlash : faEye} className="styles_InputIcon styles_InputIconRight" />
+                            </button>
+                        </div>
                     </div>
                     <button type="submit" className="styles_Button" disabled={isLoading}>
                         {isLoading ? <><FontAwesomeIcon icon={faSpinner} spin /> Resetting...</> : <><FontAwesomeIcon icon={faSave} /> Reset Password</>}
                     </button>
                 </form>
-                 <div style={{ marginTop: '1rem' }}>
+                 <div style={{ marginTop: '1rem', textAlign: 'center' }}>
                     <Link to="/login" className="link-like-button"><FontAwesomeIcon icon={faArrowLeft} /> Back to Login</Link>
                 </div>
             </div>

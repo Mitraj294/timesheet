@@ -1,19 +1,22 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import axios from 'axios';
 
+// API base URL. Defaults to Render if local env var is not set.
 const API_URL = process.env.REACT_APP_API_URL || 'https://timesheet-c4mj.onrender.com/api';
 
+// Creates authorization headers if a token is provided.
 const getAuthHeaders = (token) => ({
   headers: { Authorization: `Bearer ${token}` },
 });
 
+// Extracts a user-friendly error message from an API error.
 const getErrorMessage = (error) => {
   return error.response?.data?.message || error.response?.data?.error || error.message || 'An unexpected error occurred';
 };
 
-// --- Async Thunks ---
+// Async Thunks
 
-// Fetch all vehicles
+// Fetches all vehicles. Requires authentication.
 export const fetchVehicles = createAsyncThunk(
   'vehicles/fetchVehicles',
   async (_, { getState, rejectWithValue }) => {
@@ -28,7 +31,8 @@ export const fetchVehicles = createAsyncThunk(
   }
 );
 
-// Fetch single vehicle by ID
+// Fetches a single vehicle by its ID. Requires authentication.
+// vehicleId: The ID of the vehicle.
 export const fetchVehicleById = createAsyncThunk(
   'vehicles/fetchVehicleById',
   async (vehicleId, { getState, rejectWithValue }) => {
@@ -43,7 +47,8 @@ export const fetchVehicleById = createAsyncThunk(
   }
 );
 
-// Create vehicle
+// Creates a vehicle. Requires authentication.
+// vehicleData: Data for the new vehicle.
 export const createVehicle = createAsyncThunk(
   'vehicles/createVehicle',
   async (vehicleData, { getState, rejectWithValue }) => {
@@ -58,7 +63,9 @@ export const createVehicle = createAsyncThunk(
   }
 );
 
-// Update vehicle
+// Updates a vehicle. Requires authentication.
+// params.vehicleId: ID of the vehicle to update.
+// params.vehicleData: New data for the vehicle.
 export const updateVehicle = createAsyncThunk(
   'vehicles/updateVehicle',
   async ({ vehicleId, vehicleData }, { getState, rejectWithValue }) => {
@@ -73,7 +80,8 @@ export const updateVehicle = createAsyncThunk(
   }
 );
 
-// Delete vehicle
+// Deletes a vehicle. Requires authentication.
+// vehicleId: ID of the vehicle to delete.
 export const deleteVehicle = createAsyncThunk(
   'vehicles/deleteVehicle',
   async (vehicleId, { getState, rejectWithValue }) => {
@@ -88,7 +96,9 @@ export const deleteVehicle = createAsyncThunk(
   }
 );
 
-// Download report for a single vehicle
+// Downloads a report for a single vehicle. Requires authentication.
+// params.vehicleId: ID of the vehicle.
+// params.startDate, params.endDate: Date range for the report.
 export const downloadVehicleReport = createAsyncThunk(
   'vehicles/downloadVehicleReport',
   async ({ vehicleId, startDate, endDate }, { getState, rejectWithValue }) => {
@@ -117,7 +127,9 @@ export const downloadVehicleReport = createAsyncThunk(
   }
 );
 
-// Send report for a single vehicle via email
+// Sends a report for a single vehicle via email. Requires authentication.
+// params.vehicleId: ID of the vehicle.
+// params.startDate, params.endDate, params.email: Date range and recipient email.
 export const sendVehicleReportByEmail = createAsyncThunk(
   'vehicles/sendVehicleReportByEmail',
   async ({ vehicleId, startDate, endDate, email }, { getState, rejectWithValue }) => {
@@ -133,7 +145,8 @@ export const sendVehicleReportByEmail = createAsyncThunk(
   }
 );
 
-// Download report for ALL vehicles
+// Downloads a report for ALL vehicles. Requires authentication.
+// params.startDate, params.endDate: Date range for the report.
 export const downloadAllVehiclesReport = createAsyncThunk(
   'vehicles/downloadAllVehiclesReport',
   async ({ startDate, endDate }, { getState, rejectWithValue }) => {
@@ -162,7 +175,8 @@ export const downloadAllVehiclesReport = createAsyncThunk(
   }
 );
 
-// Send report for ALL vehicles via email
+// Sends a report for ALL vehicles via email. Requires authentication.
+// params.startDate, params.endDate, params.email: Date range and recipient email.
 export const sendAllVehiclesReportByEmail = createAsyncThunk(
   'vehicles/sendAllVehiclesReportByEmail',
   async ({ startDate, endDate, email }, { getState, rejectWithValue }) => {
@@ -178,37 +192,42 @@ export const sendAllVehiclesReportByEmail = createAsyncThunk(
   }
 );
 
-// --- Slice Definition ---
+// Slice Definition
+// Initial state for the vehicles slice.
 const initialState = {
-  items: [], // List of all vehicles
-  currentVehicle: null, // For viewing/editing single vehicle
-  status: 'idle', // 'idle' | 'loading' | 'succeeded' | 'failed' (for list fetching)
-  error: null, // Error for list fetching
-  currentStatus: 'idle', // Status for fetching single vehicle
-  currentError: null, // Error for fetching single vehicle
-  operationStatus: 'idle', // Status for create/update/delete
-  operationError: null, // Error for create/update/delete
-  reportStatus: 'idle', // Status for report generation/sending
-  reportError: null, // Error for report generation/sending
+  items: [],            // List of all vehicles.
+  currentVehicle: null, // For viewing/editing a single vehicle.
+  status: 'idle',       // Status for list fetching.
+  error: null,          // Error for list fetching.
+  currentStatus: 'idle',  // Status for fetching a single vehicle.
+  currentError: null,     // Error for fetching a single vehicle.
+  operationStatus: 'idle',// Status for create/update/delete operations.
+  operationError: null,   // Error for create/update/delete operations.
+  reportStatus: 'idle',   // Status for report generation/sending.
+  reportError: null,      // Error for report generation/sending.
 };
 
 const vehicleSlice = createSlice({
   name: 'vehicles',
   initialState,
   reducers: {
+    // Resets the current vehicle details.
     resetCurrentVehicle: (state) => {
       state.currentVehicle = null;
       state.currentStatus = 'idle';
       state.currentError = null;
     },
+    // Clears status and error for create/update/delete operations.
     clearOperationStatus: (state) => {
       state.operationStatus = 'idle';
       state.operationError = null;
     },
+    // Clears status and error for report operations.
     clearReportStatus: (state) => {
       state.reportStatus = 'idle';
       state.reportError = null;
     },
+    // Clears all error fields in the vehicle slice.
     clearVehicleError: (state) => { // General error clear
         state.error = null;
         state.currentError = null;
@@ -216,7 +235,7 @@ const vehicleSlice = createSlice({
         state.reportError = null;
     },
   },
-  extraReducers: (builder) => {
+  extraReducers: (builder) => { // Handles async thunk actions
     builder
       // List Fetching
       .addCase(fetchVehicles.pending, (state) => { state.status = 'loading'; state.error = null; })
@@ -228,7 +247,11 @@ const vehicleSlice = createSlice({
       .addCase(fetchVehicleById.rejected, (state, action) => { state.currentStatus = 'failed'; state.currentError = action.payload; })
       // Create
       .addCase(createVehicle.pending, (state) => { state.operationStatus = 'loading'; state.operationError = null; })
-      .addCase(createVehicle.fulfilled, (state, action) => { state.operationStatus = 'succeeded'; state.items.push(action.payload); }) // Add to list
+      .addCase(createVehicle.fulfilled, (state, action) => {
+        state.operationStatus = 'succeeded';
+        state.items.push(action.payload); // Add to list
+        state.operationError = null;
+      })
       .addCase(createVehicle.rejected, (state, action) => { state.operationStatus = 'failed'; state.operationError = action.payload; })
       // Update
       .addCase(updateVehicle.pending, (state) => { state.operationStatus = 'loading'; state.operationError = null; })
@@ -237,6 +260,7 @@ const vehicleSlice = createSlice({
         const index = state.items.findIndex(v => v._id === action.payload._id);
         if (index !== -1) state.items[index] = action.payload; // Update in list
         if (state.currentVehicle?._id === action.payload._id) state.currentVehicle = action.payload; // Update current if matching
+        state.operationError = null;
       })
       .addCase(updateVehicle.rejected, (state, action) => { state.operationStatus = 'failed'; state.operationError = action.payload; })
       // Delete
@@ -245,6 +269,7 @@ const vehicleSlice = createSlice({
         state.operationStatus = 'succeeded';
         state.items = state.items.filter(v => v._id !== action.payload); // Remove from list
         if (state.currentVehicle?._id === action.payload) state.currentVehicle = null; // Clear current if deleted
+        state.operationError = null;
       })
       .addCase(deleteVehicle.rejected, (state, action) => { state.operationStatus = 'failed'; state.operationError = action.payload; })
       // Report Actions (Download/Send - Single & All)
@@ -260,7 +285,7 @@ const vehicleSlice = createSlice({
           downloadVehicleReport.fulfilled.type, sendVehicleReportByEmail.fulfilled.type,
           downloadAllVehiclesReport.fulfilled.type, sendAllVehiclesReportByEmail.fulfilled.type
         ].includes(action.type),
-        (state) => { state.reportStatus = 'succeeded'; }
+        (state) => { state.reportStatus = 'succeeded'; state.reportError = null; } // Clear error on success
       )
       .addMatcher(
         (action) => [
@@ -272,7 +297,8 @@ const vehicleSlice = createSlice({
   },
 });
 
-// --- Exports ---
+// Exports
+// Export synchronous actions
 export const {
   resetCurrentVehicle,
   clearOperationStatus,
@@ -280,16 +306,27 @@ export const {
   clearVehicleError,
 } = vehicleSlice.actions;
 
+// Export main reducer
 export default vehicleSlice.reducer;
 
-// --- Selectors ---
+// Selectors
+// Selects all vehicles.
 export const selectAllVehicles = (state) => state.vehicles.items;
+// Selects the currently viewed/edited vehicle.
 export const selectVehicleByIdState = (state) => state.vehicles.currentVehicle; // Renamed for clarity
+// Selects the status for fetching the list of vehicles.
 export const selectVehicleListStatus = (state) => state.vehicles.status;
+// Selects the error for fetching the list of vehicles.
 export const selectVehicleListError = (state) => state.vehicles.error;
+// Selects the status for fetching a single vehicle.
 export const selectCurrentVehicleStatus = (state) => state.vehicles.currentStatus;
+// Selects the error for fetching a single vehicle.
 export const selectCurrentVehicleError = (state) => state.vehicles.currentError;
+// Selects the status for create/update/delete operations.
 export const selectVehicleOperationStatus = (state) => state.vehicles.operationStatus;
+// Selects the error for create/update/delete operations.
 export const selectVehicleOperationError = (state) => state.vehicles.operationError;
+// Selects the status for report generation/sending.
 export const selectVehicleReportStatus = (state) => state.vehicles.reportStatus;
+// Selects the error for report generation/sending.
 export const selectVehicleReportError = (state) => state.vehicles.reportError;

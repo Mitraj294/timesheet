@@ -101,7 +101,7 @@ const Login = () => {
                 disabled={loading}
               />
               <button type="button" onClick={() => setShowPassword(!showPassword)} className="styles_PasswordToggleBtn" disabled={loading}>
-                <FontAwesomeIcon icon={showPassword ? faEyeSlash : faEye} />
+                <FontAwesomeIcon icon={showPassword ? faEyeSlash : faEye}  className="styles_InputIcon styles_InputIconRight" />
               </button>
             </div>
           </div>

@@ -2,14 +2,17 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import axios from 'axios';
 
+// API base URL. Defaults to Render if local env var is not set.
 const API_URL = process.env.REACT_APP_API_URL || 'https://timesheet-c4mj.onrender.com/api';
 
+// Creates authorization headers if a token is provided.
 const getAuthHeaders = (token) => {
   return token
     ? { headers: { Authorization: `Bearer ${token}` } }
     : {};
 };
 
+// Extracts a user-friendly error message from an API error.
 const getErrorMessage = (error) => {
     return error.response?.data?.message || error.response?.data || error.message || 'An unexpected error occurred';
 }
@@ -40,7 +43,8 @@ export const fetchTimesheets = createAsyncThunk(
   }
 );
 
-// Async Thunk for Deleting a Timesheet
+// Deletes a Timesheet by its ID. Requires authentication.
+// timesheetId: The ID of the timesheet to delete.
 export const deleteTimesheet = createAsyncThunk(
   'timesheets/deleteTimesheet',
   async (timesheetId, { getState, rejectWithValue }) => {
@@ -57,7 +61,8 @@ export const deleteTimesheet = createAsyncThunk(
   }
 );
 
-// Async Thunk for Downloading Timesheet Report
+// Downloads Timesheet Report as an Excel file. Requires authentication.
+// params: { employeeIds?, startDate, endDate, timezone }
 export const downloadTimesheet = createAsyncThunk(
   'timesheets/downloadTimesheet',
   async (params, { getState, rejectWithValue }) => {
@@ -99,7 +104,8 @@ export const downloadTimesheet = createAsyncThunk(
   }
 );
 
-// Async Thunk for Sending Timesheet Report via Email
+// Sends Timesheet Report via Email. Requires authentication.
+// params: { email, employeeIds?, startDate, endDate, timezone }
 export const sendTimesheet = createAsyncThunk(
   'timesheets/sendTimesheet',
   async (params, { getState, rejectWithValue }) => {
@@ -124,7 +130,8 @@ export const sendTimesheet = createAsyncThunk(
   }
 );
 
-// Async Thunk for Downloading Project-Specific Timesheet Report
+// Downloads Project-Specific Timesheet Report. Requires authentication.
+// params: { projectIds, employeeIds?, startDate, endDate, timezone }
 export const downloadProjectTimesheet = createAsyncThunk(
   'timesheets/downloadProjectTimesheet',
   async (params, { getState, rejectWithValue }) => {
@@ -165,7 +172,8 @@ export const downloadProjectTimesheet = createAsyncThunk(
   }
 );
 
-// Async Thunk for Sending Project-Specific Timesheet Report via Email
+// Sends Project-Specific Timesheet Report via Email. Requires authentication.
+// params: { email, projectIds, employeeIds?, startDate, endDate, timezone }
 export const sendProjectTimesheet = createAsyncThunk(
   'timesheets/sendProjectTimesheet',
   async (params, { getState, rejectWithValue }) => {
@@ -182,7 +190,8 @@ export const sendProjectTimesheet = createAsyncThunk(
   }
 );
 
-// Async Thunk for Checking if a Timesheet Exists
+// Checks if a Timesheet Exists for a given employee and date. Requires authentication.
+// params: { employee, date }
 export const checkTimesheetExists = createAsyncThunk(
   'timesheets/checkTimesheetExists',
   async ({ employee, date }, { getState, rejectWithValue }) => {
@@ -203,7 +212,8 @@ export const checkTimesheetExists = createAsyncThunk(
   }
 );
 
-// Async Thunk for Creating a Timesheet
+// Creates a new Timesheet. Requires authentication.
+// timesheetData: Data for the new timesheet.
 export const createTimesheet = createAsyncThunk(
   'timesheets/createTimesheet',
   async (timesheetData, { getState, rejectWithValue }) => {
@@ -223,7 +233,9 @@ export const createTimesheet = createAsyncThunk(
   }
 );
 
-// Async Thunk for Updating a Timesheet
+// Updates an existing Timesheet. Requires authentication.
+// params.id: ID of the timesheet to update.
+// params.timesheetData: New data for the timesheet.
 export const updateTimesheet = createAsyncThunk(
   'timesheets/updateTimesheet',
   async ({ id, timesheetData }, { getState, rejectWithValue }) => {
@@ -243,7 +255,8 @@ export const updateTimesheet = createAsyncThunk(
   }
 );
 
-// --- Add Async Thunk for Fetching Single Timesheet ---
+// Fetches a single Timesheet by its ID. Requires authentication.
+// timesheetId: The ID of the timesheet.
 export const fetchTimesheetById = createAsyncThunk(
   'timesheets/fetchTimesheetById',
   async (timesheetId, { getState, rejectWithValue }) => {
@@ -260,36 +273,39 @@ export const fetchTimesheetById = createAsyncThunk(
   }
 );
 
+// Initial state for the timesheets slice.
 const initialState = {
-  timesheets: [],
-  totalHours: 0,
-  avgHours: 0,
-  status: 'idle',
-  error: null,
-  // Add specific state for download action
-  downloadStatus: 'idle', // 'idle' | 'loading' | 'succeeded' | 'failed'
-  downloadError: null,
-  // Add specific state for project download action
-  projectDownloadStatus: 'idle',
-  projectDownloadError: null,
-  // Add specific state for send action
-  sendStatus: 'idle', // 'idle' | 'loading' | 'succeeded' | 'failed'
-  sendError: null,
-  // Add specific state for project send action
-  projectSendStatus: 'idle',
-  projectSendError: null,
-  // Add specific state for check/create/update actions
-  checkStatus: 'idle',
-  checkError: null,
-  checkResult: null, // To store { exists: boolean, timesheet: object | null }
-  createStatus: 'idle',
-  createError: null,
-  updateStatus: 'idle',
-  updateError: null,
-  // Add state for the single timesheet being viewed/edited
-  currentTimesheet: null,
-  currentTimesheetStatus: 'idle', // 'idle' | 'loading' | 'succeeded' | 'failed'
-  currentTimesheetError: null,
+  timesheets: [], // List of timesheets for the selected period.
+  totalHours: 0,  // Total hours for the fetched timesheets.
+  avgHours: 0,    // Average hours for the fetched timesheets.
+  status: 'idle', // General loading status for timesheet list operations.
+  error: null,    // General error for timesheet list operations.
+
+  downloadStatus: 'idle', // Status for general timesheet download.
+  downloadError: null,    // Error for general timesheet download.
+
+  projectDownloadStatus: 'idle', // Status for project-specific timesheet download.
+  projectDownloadError: null,    // Error for project-specific timesheet download.
+
+  sendStatus: 'idle', // Status for sending general timesheet report.
+  sendError: null,    // Error for sending general timesheet report.
+
+  projectSendStatus: 'idle', // Status for sending project-specific timesheet report.
+  projectSendError: null,    // Error for sending project-specific timesheet report.
+
+  checkStatus: 'idle',   // Status for checking timesheet existence.
+  checkError: null,      // Error for checking timesheet existence.
+  checkResult: null,     // Result of the timesheet existence check.
+
+  createStatus: 'idle', // Status for creating a timesheet.
+  createError: null,    // Error for creating a timesheet.
+
+  updateStatus: 'idle', // Status for updating a timesheet.
+  updateError: null,    // Error for updating a timesheet.
+
+  currentTimesheet: null,        // Currently viewed/edited single timesheet.
+  currentTimesheetStatus: 'idle',// Loading status for a single timesheet.
+  currentTimesheetError: null,   // Error for single timesheet operations.
 };
 
 const timesheetSlice = createSlice({
@@ -297,6 +313,7 @@ const timesheetSlice = createSlice({
   initialState,
   reducers: {
     clearTimesheetError: (state) => {
+      // Clears general timesheet error and resets status if 'failed'.
       state.error = null;
       if (state.status === 'failed') {
           state.status = 'idle';
@@ -331,13 +348,13 @@ const timesheetSlice = createSlice({
         state.updateStatus = 'idle';
         state.updateError = null;
     },
-    // Add reducer to clear current timesheet
+    // Clears the current single timesheet details.
     clearCurrentTimesheet: (state) => {
         state.currentTimesheet = null;
         state.currentTimesheetStatus = 'idle';
         state.currentTimesheetError = null;
     },
-    // Action to clear all timesheet data (e.g., on logout)
+    // Resets the entire timesheet state to initial (e.g., on logout).
     clearTimesheets: () => initialState,
   },
   extraReducers: (builder) => {
@@ -356,28 +373,33 @@ const timesheetSlice = createSlice({
       .addCase(fetchTimesheets.rejected, (state, action) => {
         state.status = 'failed';
         state.error = action.payload;
+        state.timesheets = []; // Clear data on error
+        state.totalHours = 0;
+        state.avgHours = 0;
       })
       // --- deleteTimesheet ---
       .addCase(deleteTimesheet.pending, (state) => {
-        // Optionally set a specific delete status: state.deleteStatus = 'loading';
-        state.error = null; // Clear general error
+        state.status = 'loading'; // Use general status for list modification
+        state.error = null;
       })
       .addCase(deleteTimesheet.fulfilled, (state, action) => {
-        // state.deleteStatus = 'succeeded';
+        state.status = 'succeeded';
         state.timesheets = state.timesheets.filter(ts => ts._id !== action.payload);
+        state.error = null;
       })
       .addCase(deleteTimesheet.rejected, (state, action) => {
-        // state.deleteStatus = 'failed';
-        state.error = action.payload; // Set general error
+        state.status = 'failed';
+        state.error = action.payload;
       })
       // --- downloadTimesheet ---
       .addCase(downloadTimesheet.pending, (state) => {
         state.downloadStatus = 'loading';
         state.downloadError = null;
       })
-      .addCase(downloadTimesheet.fulfilled, (state) => {
+      .addCase(downloadTimesheet.fulfilled, (state, action) => {
         state.downloadStatus = 'succeeded';
         // Blob and filename are handled in the component upon success
+        state.downloadError = null;
       })
       .addCase(downloadTimesheet.rejected, (state, action) => {
         state.downloadStatus = 'failed';
@@ -388,8 +410,9 @@ const timesheetSlice = createSlice({
         state.projectDownloadStatus = 'loading';
         state.projectDownloadError = null;
       })
-      .addCase(downloadProjectTimesheet.fulfilled, (state) => {
+      .addCase(downloadProjectTimesheet.fulfilled, (state, action) => {
         state.projectDownloadStatus = 'succeeded';
+        state.projectDownloadError = null;
       })
       .addCase(downloadProjectTimesheet.rejected, (state, action) => {
         state.projectDownloadStatus = 'failed';
@@ -400,8 +423,9 @@ const timesheetSlice = createSlice({
         state.projectSendStatus = 'loading';
         state.projectSendError = null;
       })
-      .addCase(sendProjectTimesheet.fulfilled, (state) => {
+      .addCase(sendProjectTimesheet.fulfilled, (state, action) => {
         state.projectSendStatus = 'succeeded';
+        state.projectSendError = null;
       })
       .addCase(sendProjectTimesheet.rejected, (state, action) => {
         state.projectSendStatus = 'failed';
@@ -412,8 +436,9 @@ const timesheetSlice = createSlice({
         state.sendStatus = 'loading';
         state.sendError = null;
       })
-      .addCase(sendTimesheet.fulfilled, (state) => {
+      .addCase(sendTimesheet.fulfilled, (state, action) => {
         state.sendStatus = 'succeeded';
+        state.sendError = null;
       })
       .addCase(sendTimesheet.rejected, (state, action) => {
         state.sendStatus = 'failed';
@@ -428,6 +453,7 @@ const timesheetSlice = createSlice({
       .addCase(checkTimesheetExists.fulfilled, (state, action) => {
         state.checkStatus = 'succeeded';
         state.checkResult = action.payload;
+        state.checkError = null;
       })
       .addCase(checkTimesheetExists.rejected, (state, action) => {
         state.checkStatus = 'failed';
@@ -442,6 +468,7 @@ const timesheetSlice = createSlice({
         state.createStatus = 'succeeded';
         // Optionally add the new timesheet to the state if needed immediately
         // state.timesheets.push(action.payload.data);
+        state.createError = null;
         // Or rely on a subsequent fetchTimesheets call
       })
       .addCase(createTimesheet.rejected, (state, action) => {
@@ -457,6 +484,7 @@ const timesheetSlice = createSlice({
       .addCase(fetchTimesheetById.fulfilled, (state, action) => {
         state.currentTimesheetStatus = 'succeeded';
         state.currentTimesheet = action.payload; // Store the fetched timesheet
+        state.currentTimesheetError = null;
       })
       .addCase(fetchTimesheetById.rejected, (state, action) => {
         state.currentTimesheetStatus = 'failed';
@@ -478,6 +506,7 @@ const timesheetSlice = createSlice({
         if (state.currentTimesheet?._id === action.payload.timesheet._id) {
             state.currentTimesheet = action.payload.timesheet;
         }
+        state.updateError = null;
       })
       .addCase(updateTimesheet.rejected, (state, action) => {
         state.updateStatus = 'failed';
@@ -486,8 +515,10 @@ const timesheetSlice = createSlice({
   },
 });
 
+// Export main reducer
 export default timesheetSlice.reducer;
 
+// Export synchronous actions
 export const selectAllTimesheets = (state) => state.timesheets.timesheets;
 export const selectTimesheetStatus = (state) => state.timesheets.status;
 export const selectTimesheetError = (state) => state.timesheets.error;
@@ -505,11 +536,11 @@ export const selectTimesheetSendError = (state) => state.timesheets.sendError;
 // Selectors for project send state
 export const selectTimesheetProjectSendStatus = (state) => state.timesheets.projectSendStatus;
 export const selectTimesheetProjectSendError = (state) => state.timesheets.projectSendError;
-// Export all actions
+// Export all clear actions
 export const {
     clearTimesheetError, clearTimesheets,
-    clearDownloadStatus, clearSendStatus, clearProjectDownloadStatus, clearProjectSendStatus, // Export new clear actions
-    clearCheckStatus, clearCreateStatus, clearUpdateStatus, clearCurrentTimesheet // Export new clear actions
+    clearDownloadStatus, clearSendStatus, clearProjectDownloadStatus, clearProjectSendStatus,
+    clearCheckStatus, clearCreateStatus, clearUpdateStatus, clearCurrentTimesheet
 } = timesheetSlice.actions;
 // Selectors for check/create/update state
 export const selectTimesheetCheckStatus = (state) => state.timesheets.checkStatus;
@@ -519,7 +550,7 @@ export const selectTimesheetCreateStatus = (state) => state.timesheets.createSta
 export const selectTimesheetCreateError = (state) => state.timesheets.createError;
 export const selectTimesheetUpdateStatus = (state) => state.timesheets.updateStatus;
 export const selectTimesheetUpdateError = (state) => state.timesheets.updateError;
-// --- Add exports for current timesheet ---
+// Selectors for current single timesheet
 export const selectCurrentTimesheet = (state) => state.timesheets.currentTimesheet;
 export const selectCurrentTimesheetStatus = (state) => state.timesheets.currentTimesheetStatus;
 export const selectCurrentTimesheetError = (state) => state.timesheets.currentTimesheetError;
