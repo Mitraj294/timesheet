@@ -132,76 +132,90 @@ const getWeeklyTotals = (data, periodStart, weeks) => {
 const Dashboard = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
-  // const location = useLocation(); // Not strictly needed if App.js uses key={location.key} for re-mount
 
-  const employees = useSelector(selectAllEmployees);
+  const employeesFromStore = useSelector(selectAllEmployees);
   const employeeStatus = useSelector(selectEmployeeStatus);
   const employeesError = useSelector(selectEmployeeError);
-  const allTimesheets = useSelector(selectAllTimesheets);
+  const allTimesheetsFromStore = useSelector(selectAllTimesheets);
   const timesheetStatus = useSelector(selectTimesheetStatus);
   const timesheetError = useSelector(selectTimesheetError);
   const { token, isLoading: isAuthLoading, isAuthenticated, user } = useSelector((state) => state.auth || {});
 
   // Local component state
-  const [employeeTimesheets, setEmployeeTimesheets] = useState([]);
   const [selectedEmployee, setSelectedEmployee] = useState({ value: "All", label: "All Employees" });
   const [viewType, setViewType] = useState({ value: "Weekly", label: "View by Weekly" });
   const [selectedProjectClient, setSelectedProjectClient] = useState({ value: "All", label: "All Clients" });
 
-  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const chartRef = useRef(null);
   const clientsChartRef = useRef(null);
   const projectsChartRef = useRef(null);
 
   // Effects
-  // Fetch employees if authenticated. Will run on every mount (navigation to dashboard due to key={location.key} in App.js).
   useEffect(() => {
     if (!isAuthLoading && token) {
-      // console.log("Dashboard: (Re)Mounting or token/auth status changed. Fetching employees.");
       dispatch(fetchEmployees());
     }
-  }, [dispatch, token, isAuthLoading]); // Removed employeeStatus to ensure fetch on re-mount
+  }, [dispatch, token, isAuthLoading]);
 
-  // Fetch timesheets if authenticated. Will run on every mount.
   useEffect(() => {
-    if (isAuthLoading || !token) {
-        return;
+    if (!isAuthLoading && token) {
+      dispatch(fetchTimesheets());
     }
-    // console.log("Dashboard: (Re)Mounting or token/auth status changed. Fetching timesheets.");
-    dispatch(fetchTimesheets()); // Fetches all timesheets
-  }, [token, isAuthLoading, dispatch]); // Removed timesheetStatus to ensure fetch on re-mount
+  }, [token, isAuthLoading, dispatch]);
 
-  // Handlers
-  const handleLogoutClick = () => {
-    setShowLogoutConfirm(true);
-  };
-
-  const confirmLogout = () => {
-  
-    dispatch(setAlert('Logout successful!', 'success'));
-    setShowLogoutConfirm(false);
-  };
-
-  const cancelLogout = () => {
-    setShowLogoutConfirm(false);
-  };
-
-  // Filters timesheets based on the selected employee
-  useEffect(() => {
-    if (selectedEmployee.value === "All") {
-      setEmployeeTimesheets(allTimesheets);
-    } else {
-      setEmployeeTimesheets(
-        allTimesheets.filter(ts => (ts.employeeId?._id || ts.employeeId) === selectedEmployee.value)
-      );
+  // Find the Employee record for the logged-in user if their role is 'employee'
+  const loggedInEmployeeRecord = useMemo(() => {
+    if (user?.role === 'employee' && Array.isArray(employeesFromStore) && user?._id) {
+      return employeesFromStore.find(emp => emp.userId === user._id);
     }
-  }, [selectedEmployee, allTimesheets]);
+    return null;
+  }, [employeesFromStore, user]);
+
+  // Create a memoized set of employee IDs belonging to the current employer
+  const employerEmployeeIds = useMemo(() => {
+    if (user?.role === 'employer' && Array.isArray(employeesFromStore)) {
+      return new Set(employeesFromStore.map(emp => emp._id));
+    }
+    return new Set();
+  }, [employeesFromStore, user?.role]);
+
+  // Filter employees to show only those belonging to the current employer
+  const employerScopedEmployees = useMemo(() => {
+    if (user?.role === 'employer') {
+        return employeesFromStore.filter(emp => employerEmployeeIds.has(emp._id));
+    }
+    return employeesFromStore; // For other roles, or if not an employer, return all fetched (backend should scope)
+  }, [employeesFromStore, employerEmployeeIds, user?.role]);
+
+
+  // Create a "truly scoped" version of allTimesheets based on user role
+  const trulyScopedAllTimesheets = useMemo(() => {
+    if (user?.role === 'employer') {
+      return allTimesheetsFromStore.filter(ts => {
+        const employeeId = ts.employeeId?._id || ts.employeeId;
+        return employerEmployeeIds.has(employeeId);
+      });
+    } else if (user?.role === 'employee' && loggedInEmployeeRecord) {
+      return allTimesheetsFromStore.filter(ts => {
+        const timesheetEmployeeId = ts.employeeId?._id || ts.employeeId;
+        return timesheetEmployeeId === loggedInEmployeeRecord._id;
+      });
+    }
+    return [];
+  }, [allTimesheetsFromStore, employerEmployeeIds, user, loggedInEmployeeRecord]);
 
   // Memoized options for employee and view type dropdowns
-  const employeeOptions = useMemo(() => [
-    { value: "All", label: "All Employees" },
-    ...(Array.isArray(employees) ? employees.map((emp) => ({ value: emp._id, label: emp.name })) : []),
-  ], [employees]);
+  const employeeOptions = useMemo(() => {
+    if (user?.role === 'employer') {
+      return [
+        { value: "All", label: "All Employees" },
+        ...employerScopedEmployees.map((emp) => ({ value: emp._id, label: emp.name })),
+      ];
+    } else if (user?.role === 'employee' && loggedInEmployeeRecord) {
+      return [{ value: loggedInEmployeeRecord._id, label: loggedInEmployeeRecord.name }];
+    }
+    return [];
+  }, [user, employerScopedEmployees, loggedInEmployeeRecord]);
 
   const viewOptions = useMemo(() => [
     { value: "Weekly", label: "View by Weekly" },
@@ -209,51 +223,80 @@ const Dashboard = () => {
     { value: "Monthly", label: "View by Monthly" },
   ], []);
 
+  // Adjust selectedEmployee state based on role and available data
+  useEffect(() => {
+    if (user?.role === 'employee' && loggedInEmployeeRecord) {
+      if (selectedEmployee.value !== loggedInEmployeeRecord._id) {
+        setSelectedEmployee({ value: loggedInEmployeeRecord._id, label: loggedInEmployeeRecord.name });
+      }
+    } else if (user?.role === 'employer') {
+      if (selectedEmployee.value !== "All" && Array.isArray(employerScopedEmployees) && !employerScopedEmployees.find(e => e._id === selectedEmployee.value)) {
+        setSelectedEmployee({ value: "All", label: "All Employees" });
+      } else if (selectedEmployee.value !== "All" && Array.isArray(employerScopedEmployees) && employerScopedEmployees.length === 0) {
+        setSelectedEmployee({ value: "All", label: "All Employees" });
+      }
+    }
+  }, [user, loggedInEmployeeRecord, employerScopedEmployees, selectedEmployee.value]);
+
+  // Filters timesheets based on the selected employee (or role)
+  const employeeTimesheets = useMemo(() => {
+    if (user?.role === 'employee' && loggedInEmployeeRecord) {
+        return trulyScopedAllTimesheets; // Already scoped for the logged-in employee
+    } else if (user?.role === 'employer') {
+        if (selectedEmployee.value === "All") {
+            return trulyScopedAllTimesheets;
+        }
+        return trulyScopedAllTimesheets.filter(ts => (ts.employeeId?._id || ts.employeeId) === selectedEmployee.value);
+    }
+    return [];
+  }, [user, loggedInEmployeeRecord, selectedEmployee.value, trulyScopedAllTimesheets]);
+
+
   // Memoized date ranges for current and previous periods
   const currentPeriod = useMemo(() => getPeriodRange(viewType.value), [viewType.value]);
   const previousPeriod = useMemo(() => getPreviousPeriodRange(currentPeriod, viewType.value), [currentPeriod, viewType.value]);
 
-  // Memoized filtered timesheets for the current period (all employees)
+  // Memoized filtered timesheets for the current period (all employees under employer, or single employee)
   const filteredAllCurrentTimesheets = useMemo(() => {
     const start = DateTime.fromJSDate(currentPeriod.start);
     const end = DateTime.fromJSDate(currentPeriod.end);
-    return allTimesheets.filter((t) => {
+    return trulyScopedAllTimesheets.filter((t) => {
       if (!t?.date || (t.leaveType && t.leaveType !== "None")) return false;
       try {
         const d = DateTime.fromISO(t.date);
         return d >= start.startOf('day') && d <= end.endOf('day');
       } catch { return false; }
     });
-  }, [allTimesheets, currentPeriod]);
+  }, [trulyScopedAllTimesheets, currentPeriod]);
 
-  // Memoized valid timesheets (excluding leave entries) for the selected employee
-  const validTimesheets = useMemo(() => employeeTimesheets.filter((t) => !t.leaveType || t.leaveType === "None"), [employeeTimesheets]);
+  // Memoized valid timesheets (excluding leave entries) for the current view (selected employee or logged-in employee)
+  const validTimesheetsForCurrentView = useMemo(() => employeeTimesheets.filter((t) => !t.leaveType || t.leaveType === "None"), [employeeTimesheets]);
 
-  // Memoized filtered timesheets for the current period (selected employee)
+  // Memoized filtered timesheets for the current period (selected employee or logged-in employee)
   const filteredCurrentTimesheets = useMemo(() => {
     const start = DateTime.fromJSDate(currentPeriod.start);
     const end = DateTime.fromJSDate(currentPeriod.end);
-    return validTimesheets.filter((t) => {
+    return validTimesheetsForCurrentView.filter((t) => {
       if (!t?.date) return false;
       try {
         const d = DateTime.fromISO(t.date);
         return d >= start.startOf('day') && d <= end.endOf('day');
       } catch { return false; }
     });
-  }, [validTimesheets, currentPeriod]);
+  }, [validTimesheetsForCurrentView, currentPeriod]);
 
-  // Memoized filtered timesheets for the previous period (selected employee)
+  // Memoized filtered timesheets for the previous period (selected employee or logged-in employee)
   const filteredPreviousTimesheets = useMemo(() => {
     const start = DateTime.fromJSDate(previousPeriod.start);
     const end = DateTime.fromJSDate(previousPeriod.end);
-    return validTimesheets.filter((t) => {
+    return validTimesheetsForCurrentView.filter((t) => {
       if (!t?.date) return false;
       try {
         const d = DateTime.fromISO(t.date);
         return d >= start.startOf('day') && d <= end.endOf('day');
       } catch { return false; }
     });
-  }, [validTimesheets, previousPeriod]);
+  }, [validTimesheetsForCurrentView, previousPeriod]);
 
   // Derived loading and error states
   const isEmployeeLoading = employeeStatus === 'loading';
@@ -268,14 +311,14 @@ const Dashboard = () => {
     }
   }, [combinedError, dispatch]);
 
-  // Memoized summary calculations for "All Employees" view
+  // Memoized summary calculations for "All Employees" view (employer only)
   const totalHoursAllPeriodSummary = useMemo(() => filteredAllCurrentTimesheets.reduce((acc, sheet) => acc + (parseFloat(sheet.totalHours) || 0), 0), [filteredAllCurrentTimesheets]);
   const avgHoursAllPeriodSummary = useMemo(() => {
-       const totalWorkingTimesheets = filteredAllCurrentTimesheets.length;
-       return totalWorkingTimesheets > 0 ? (totalHoursAllPeriodSummary / totalWorkingTimesheets) : 0;
+       const numberOfEmployeesInvolved = new Set(filteredAllCurrentTimesheets.map(ts => ts.employeeId?._id || ts.employeeId)).size;
+       return numberOfEmployeesInvolved > 0 ? (totalHoursAllPeriodSummary / numberOfEmployeesInvolved) : 0;
    }, [totalHoursAllPeriodSummary, filteredAllCurrentTimesheets]);
 
-  // Memoized summary calculations for selected employee view
+  // Memoized summary calculations for selected/logged-in employee view
   const totalHoursEmployeeSummary = useMemo(() => filteredCurrentTimesheets.reduce((acc, sheet) => acc + (parseFloat(sheet.totalHours) || 0), 0), [filteredCurrentTimesheets]);
   const avgHoursEmployeeSummary = useMemo(() => {
       const uniqueDaysWorked = new Set(filteredCurrentTimesheets.map(t => t.date)).size;
@@ -288,15 +331,19 @@ const Dashboard = () => {
   const formattedTotalHoursEmployee = convertDecimalToTime(totalHoursEmployeeSummary);
   const formattedAvgHoursEmployee = convertDecimalToTime(avgHoursEmployeeSummary);
 
-  // Determine which total/avg hours to display based on employee selection
-  const displayTotalHours = selectedEmployee.value === "All" ? formattedTotalHoursAllPeriod : formattedTotalHoursEmployee;
-  const displayAvgHours = selectedEmployee.value === "All" ? formattedAvgHoursAllPeriod : formattedAvgHoursEmployee;
+  // Determine which total/avg hours to display based on role and employee selection
+  const displayTotalHours = (user?.role === 'employer' && selectedEmployee.value === "All")
+    ? formattedTotalHoursAllPeriod
+    : formattedTotalHoursEmployee;
+  const displayAvgHours = (user?.role === 'employer' && selectedEmployee.value === "All")
+    ? formattedAvgHoursAllPeriod
+    : formattedAvgHoursEmployee;
 
-  // Memoized calculation for total leaves taken by the selected employee in the current period
+  // Memoized calculation for total leaves taken by the selected/logged-in employee in the current period
   const totalLeaves = useMemo(() => {
       const start = DateTime.fromJSDate(currentPeriod.start);
       const end = DateTime.fromJSDate(currentPeriod.end);
-      return employeeTimesheets.filter(t => {
+      return employeeTimesheets.filter(t => { // Use employeeTimesheets (already scoped)
           if (!t?.date || !t.leaveType || t.leaveType === "None") return false;
           try {
               const d = DateTime.fromISO(t.date);
@@ -305,7 +352,7 @@ const Dashboard = () => {
       }).length;
   }, [employeeTimesheets, currentPeriod]);
 
-  // Memoized calculations for lunch break statistics
+  // Memoized calculations for lunch break statistics for selected/logged-in employee
   const lunchBreakEntries = useMemo(() => filteredCurrentTimesheets.filter((t) => t.lunchBreak === "Yes"), [filteredCurrentTimesheets]);
   const totalLunchDuration = useMemo(() => lunchBreakEntries.reduce((acc, t) => {
     if (!t.lunchDuration || !t.lunchDuration.includes(':')) return acc;
@@ -316,7 +363,7 @@ const Dashboard = () => {
   }, 0), [lunchBreakEntries]);
   const avgLunchBreak = useMemo(() => lunchBreakEntries.length > 0 ? convertDecimalToTime(totalLunchDuration / lunchBreakEntries.length) : "00:00", [totalLunchDuration, lunchBreakEntries]);
 
-  // Memoized calculation for number of unique projects/clients worked on
+  // Memoized calculation for number of unique projects/clients worked on by selected/logged-in employee
   const projectsWorked = useMemo(() => new Set(filteredCurrentTimesheets.map((t) => t.projectId?._id || t.projectId).filter(Boolean)).size, [filteredCurrentTimesheets]);
   const clientsWorked = useMemo(() => new Set(filteredCurrentTimesheets.map((t) => t.clientId?._id || t.clientId).filter(Boolean)).size, [filteredCurrentTimesheets]);
 
@@ -364,11 +411,11 @@ const Dashboard = () => {
     const currentStart = currentPeriod.start;
     const currentEnd = currentPeriod.end;
     const previousStart = previousPeriod.start;
-    const previousEnd = previousPeriod.end;
+    // const previousEnd = previousPeriod.end; // Not used directly for label
 
     const formatRange = (start, end) => `${DateTime.fromJSDate(start).toFormat('MMM d')} - ${DateTime.fromJSDate(end).toFormat('MMM d, yyyy')}`;
-    const currentRangeStr = formatRange(currentStart, currentEnd);
-    const previousRangeStr = formatRange(previousStart, previousEnd);
+    // const currentRangeStr = formatRange(currentStart, currentEnd); // Not used directly for label
+    // const previousRangeStr = formatRange(previousStart, previousEnd); // Not used directly for label
 
       let relativeThisLabel = "";
       let relativeLastLabel = "";
@@ -384,7 +431,7 @@ const Dashboard = () => {
             const day = startDt.plus({ days: i });
             specificLabels.push(day.toFormat('MMM d'));
           }
-        } else {
+        } else { // Fortnightly or Monthly
           for (let w = 0; w < numItems; w++) {
             const weekStart = startDt.plus({ weeks: w });
             const weekEnd = weekStart.endOf('week');
@@ -419,10 +466,10 @@ const Dashboard = () => {
       previousBarSpecificLabels = calculateSpecificLabels(previousStart, weeks, "Monthly");
     }
 
-     const thisPeriodLabel = relativeThisLabel;
-     const lastPeriodLabel = relativeLastLabel;
+     const thisPeriodLabelText = relativeThisLabel;
+     const lastPeriodLabelText = relativeLastLabel;
 
-    return { labels, currentData, previousData, thisPeriodLabel, lastPeriodLabel, currentBarSpecificLabels, previousBarSpecificLabels };
+    return { labels, currentData, previousData, thisPeriodLabel: thisPeriodLabelText, lastPeriodLabel: lastPeriodLabelText, currentBarSpecificLabels, previousBarSpecificLabels };
   }, [viewType.value, filteredCurrentTimesheets, filteredPreviousTimesheets, currentPeriod, previousPeriod, showLoading, combinedError]);
 
   // Memoized data for the "Hours by Client" pie chart
@@ -569,39 +616,38 @@ const Dashboard = () => {
       <div className="dashboard-filters-container">
         <div className="greeting">
             <h4>Hello, {user?.name || "User"}!</h4>
-            <p>Here is your company status report.</p>
+            <p>Here is your {user?.role === 'employer' ? 'company' : 'personal'} status report.</p>
         </div>
-        <div className="filters">
-          <div className="select-container">
-            <label htmlFor="employeeSelect">Select Employee:</label>
-            <Select
-              inputId="employeeSelect"
-              options={employeeOptions}
-              value={selectedEmployee}
-              onChange={setSelectedEmployee}
-              className="react-select-container"
-              classNamePrefix="react-select"
-              isDisabled={showLoading}
-              isLoading={isEmployeeLoading}
-            />
-          </div>
-          <div className="select-container">
-            <label htmlFor="viewTypeSelect">Period of Time:</label>
-            <Select
-              inputId="viewTypeSelect"
-              options={viewOptions}
-              value={viewType}
-              onChange={setViewType}
-              className="react-select-container"
-              classNamePrefix="react-select"
-              isDisabled={showLoading}
-            />
-          </div>
-        </div>
-     
+        {user?.role === 'employer' && ( // Only show filters for employer
+            <div className="filters">
+              <div className="select-container">
+                <label htmlFor="employeeSelect">Select Employee:</label>
+                <Select
+                  inputId="employeeSelect"
+                  options={employeeOptions}
+                  value={selectedEmployee}
+                  onChange={setSelectedEmployee}
+                  className="react-select-container"
+                  classNamePrefix="react-select"
+                  isDisabled={showLoading || user?.role !== 'employer'}
+                  isLoading={isEmployeeLoading}
+                />
+              </div>
+              <div className="select-container">
+                <label htmlFor="viewTypeSelect">Period of Time:</label>
+                <Select
+                  inputId="viewTypeSelect"
+                  options={viewOptions}
+                  value={viewType}
+                  onChange={setViewType}
+                  className="react-select-container"
+                  classNamePrefix="react-select"
+                  isDisabled={showLoading}
+                />
+              </div>
+            </div>
+        )}
       </div>
-
-    
 
       {showLoading && (
         <div className='loading-indicator'>
@@ -613,47 +659,46 @@ const Dashboard = () => {
       {!showLoading && !combinedError && (
         <>
           <div className="dashboard-summary-grid">
-            {selectedEmployee.value === "All" ? (
-              <>
+            {user?.role === 'employer' && selectedEmployee.value === "All" && ( // Total Employees card only for employer and when "All Employees" is selected
                 <div className="summary-card">
                   <FontAwesomeIcon icon={faUsers} className="summary-icon users" />
                   <div className="summary-content">
-                    <h3>{(Array.isArray(employees) ? employees.length : 0)}</h3>
+                    <h3>{(Array.isArray(employerScopedEmployees) ? employerScopedEmployees.length : 0)}</h3>
                     <p>Total Employees</p>
                   </div>
                 </div>
-                 <div className="summary-card">
-                  <FontAwesomeIcon icon={faClock} className="summary-icon hours" />
-                  <div className="summary-content">
-                    <h3>{displayTotalHours}</h3>
-                    <p>Total Hours ({viewType.label.split(' ')[2]})</p>
-                  </div>
-                </div>
-                <div className="summary-card">
-                  <FontAwesomeIcon icon={faStopwatch} className="summary-icon avg-hours" />
-                  <div className="summary-content">
-                    <h3>{displayAvgHours}</h3>
-                    <p>Avg. Employee Hours ({viewType.label.split(' ')[2]})</p>
-                  </div>
-                </div>
-              </>
-            ) : (
+            )}
+
+            {/* Total Hours Card */}
+            <div className="summary-card">
+              <FontAwesomeIcon icon={faClock} className="summary-icon hours" />
+              <div className="summary-content">
+                <h3>{displayTotalHours}</h3>
+                <p>
+                  {(user?.role === 'employer' && selectedEmployee.value === "All")
+                    ? `Total Hours (${viewType.label.split(' ')[2]})`
+                    : `Total Hours Worked`}
+                </p>
+              </div>
+            </div>
+
+            {/* Average Hours Card */}
+            <div className="summary-card">
+              <FontAwesomeIcon icon={faStopwatch} className="summary-icon avg-hours" />
+              <div className="summary-content">
+                <h3>{displayAvgHours}</h3>
+                <p>
+                  {(user?.role === 'employer' && selectedEmployee.value === "All")
+                    ? `Avg. Employee Hours (${viewType.label.split(' ')[2]})`
+                    : `Avg. Daily Hours Worked`}
+                </p>
+              </div>
+            </div>
+
+            {/* Cards specific to a single employee view (selected by employer OR logged-in employee) */}
+            { (user?.role === 'employer' && selectedEmployee.value !== "All") || (user?.role === 'employee') ? (
               <>
                  <div className="summary-card">
-                  <FontAwesomeIcon icon={faClock} className="summary-icon hours" />
-                  <div className="summary-content">
-                    <h3>{displayTotalHours}</h3>
-                    <p>Total Hours Worked</p>
-                  </div>
-                </div>
-                 <div className="summary-card">
-                  <FontAwesomeIcon icon={faStopwatch} className="summary-icon avg-hours" />
-                  <div className="summary-content">
-                    <h3>{displayAvgHours}</h3>
-                    <p>Avg. Daily Hours Worked</p>
-                  </div>
-                </div>
-                <div className="summary-card">
                   <FontAwesomeIcon icon={faUtensils} className="summary-icon lunch" />
                    <div className="summary-content">
                     <h3>{avgLunchBreak}</h3>
@@ -682,7 +727,7 @@ const Dashboard = () => {
                   </div>
                 </div>
               </>
-            )}
+            ) : null}
           </div>
 
           <div className="chart-card">

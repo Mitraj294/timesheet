@@ -10,7 +10,8 @@ const EmployeeSchema = new mongoose.Schema({
   holidayMultiplier: { type: Number, default: 1.5 },
   wage: { type: Number, required: true },
   totalLeavesTaken: { type: Number, default: 0 },
-  userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', unique: true, sparse: true } // Link to User model, unique but allows null
+  userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', unique: true, sparse: true }, // Link to User model for the employee themselves
+  employerId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true } // Link to the User model for the employer
 });
 
 export default mongoose.model("Employee", EmployeeSchema);

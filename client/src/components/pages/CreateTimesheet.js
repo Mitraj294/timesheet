@@ -24,9 +24,9 @@ import {
     selectTimesheetUpdateStatus,
     selectTimesheetUpdateError,
     selectCurrentTimesheet,
-    selectCurrentTimesheetStatus,
-    clearCheckStatus, clearCreateStatus, clearUpdateStatus, clearCurrentTimesheet // Added clearCurrentTimesheet
-} from '../../redux/slices/timesheetSlice';
+    selectCurrentTimesheetStatus, clearCheckStatus, clearCreateStatus, clearUpdateStatus, clearCurrentTimesheet // Added clearCurrentTimesheet
+} from "../../redux/slices/timesheetSlice";
+import { selectAuthUser } from '../../redux/slices/authSlice'; // Import selectAuthUser
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
   faPen,
@@ -38,7 +38,7 @@ import {
   faBuilding, faUserTie, faProjectDiagram, faCalendarAlt, faSignOutAlt, faStickyNote, faDollarSign, faInfoCircle
 } from '@fortawesome/free-solid-svg-icons';
 import '../../styles/Forms.scss'; // Ensure this path is correct
-import { setAlert } from '../../redux/slices/alertSlice';
+import { setAlert } from "../../redux/slices/alertSlice";
 import Alert from '../layout/Alert';
 import { DateTime } from 'luxon';
 
@@ -67,6 +67,7 @@ const CreateTimesheet = () => {
   const { clientId: clientIdFromUrl, projectId: projectIdFromUrl, timesheetId: timesheetIdForEdit } = useParams();
 
   const isEditing = Boolean(timesheetIdForEdit);
+  const user = useSelector(selectAuthUser); // Get logged-in user from authSlice
   const navigationState = location.state || {};
   const { clientId: preselectedClientId, projectId: preselectedProjectId, source } = navigationState;
 
@@ -96,6 +97,14 @@ const CreateTimesheet = () => {
   const currentTimesheetStatus = useSelector(selectCurrentTimesheetStatus);
 
   const isLeaveSelected = formData.leaveType !== 'None';
+
+  // Find the Employee record for the logged-in user if their role is 'employee'
+  const loggedInEmployeeRecord = useMemo(() => {
+    if (user?.role === 'employee' && Array.isArray(employees) && user?._id) {
+      return employees.find(emp => emp.userId === user._id);
+    }
+    return null;
+  }, [employees, user]);
 
   const calculateHoursPure = useCallback((currentFormData) => {
     const { startTime, endTime, lunchBreak, lunchDuration, leaveType } = currentFormData;
@@ -247,19 +256,30 @@ const CreateTimesheet = () => {
         }));
       }
     } else { // Create mode
-      setFormData(prev => ({
-        ...DEFAULT_FORM_DATA,
-        clientId: clientIdFromUrl || preselectedClientId || '',
-        projectId: projectIdFromUrl || preselectedProjectId || '',
-        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-      }));
+      if (user?.role === 'employee' && loggedInEmployeeRecord) {
+        setFormData(prev => ({
+          ...DEFAULT_FORM_DATA,
+          employeeId: loggedInEmployeeRecord._id,
+          hourlyWage: loggedInEmployeeRecord.wage || '',
+          clientId: clientIdFromUrl || preselectedClientId || '',
+          projectId: projectIdFromUrl || preselectedProjectId || '',
+          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        }));
+      } else {
+        setFormData(prev => ({ // Default for employer or if employee record not yet loaded
+          ...DEFAULT_FORM_DATA,
+          clientId: clientIdFromUrl || preselectedClientId || '',
+          projectId: projectIdFromUrl || preselectedProjectId || '',
+          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        }));
+      }
     }
   }, [
       isEditing, currentTimesheetStatus, timesheetToEdit, timesheetIdForEdit,
       clientIdFromUrl, preselectedClientId, projectIdFromUrl, preselectedProjectId,
       calculateHoursPure, dispatch, employees
     ]);
-
+  
   useEffect(() => {
       let calculatedHoursValue = 0;
       try {
@@ -277,14 +297,16 @@ const CreateTimesheet = () => {
         // console.error("Calculation Error in useEffect:", calcError.message);
       }
   }, [formData.startTime, formData.endTime, formData.lunchBreak, formData.lunchDuration, formData.leaveType, calculateHoursPure, error]);
-
+  
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => {
         let updated = { ...prev, [name]: value };
         if (name === 'employeeId') {
-            const selectedEmployee = employees.find((emp) => emp._id === value);
-            updated.hourlyWage = selectedEmployee ? selectedEmployee.wage || '' : '';
+            if (user?.role !== 'employee') { // Employees cannot change their pre-filled wage via this dropdown
+              const selectedEmployee = employees.find((emp) => emp._id === value);
+              updated.hourlyWage = selectedEmployee ? selectedEmployee.wage || '' : '';
+            }
         } else if (name === 'leaveType') {
             const isNowLeave = value !== 'None';
             const wasLeave = prev.leaveType !== 'None';
@@ -525,7 +547,14 @@ const CreateTimesheet = () => {
 
           <div className='form-group'>
             <label htmlFor='employeeId'><FontAwesomeIcon icon={faUserTie} /> Employee*</label>
-            <select id='employeeId' name='employeeId' value={formData.employeeId} onChange={handleChange} required disabled={isEditing || isLoading}>
+            <select
+              id='employeeId'
+              name='employeeId'
+              value={formData.employeeId}
+              onChange={handleChange}
+              required
+              disabled={isEditing || isLoading || user?.role === 'employee'} // Disable for employees
+            >
               <option value=''>-- Select Employee --</option>
               {employees.map((emp) => (<option key={emp._id} value={emp._id}>{emp.name}</option>))}
             </select>

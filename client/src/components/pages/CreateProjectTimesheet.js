@@ -2,7 +2,7 @@ import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { useNavigate, Link, useParams } from 'react-router-dom'; // Use useParams to get IDs from URL
 import { useSelector, useDispatch } from 'react-redux';
 import { fetchClients, selectAllClients } from '../../redux/slices/clientSlice';
-import { fetchEmployees, selectAllEmployees } from '../../redux/slices/employeeSlice';
+import { fetchEmployees, selectAllEmployees,selectEmployeeStatus} from '../../redux/slices/employeeSlice';
 import {
   fetchProjects,
   clearProjects,
@@ -22,8 +22,10 @@ import {
     selectTimesheetUpdateError,
     clearCreateStatus, clearUpdateStatus,
     selectCurrentTimesheet,
-    selectCurrentTimesheetStatus,
+    selectCurrentTimesheetStatus 
+
 } from '../../redux/slices/timesheetSlice';
+import { selectAuthUser } from '../../redux/slices/authSlice'; // Import selectAuthUser from authSlice
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
   faPen,
@@ -34,7 +36,7 @@ import {
   faClock,
   faBuilding, faUserTie, faProjectDiagram, faCalendarAlt, faSignOutAlt, faStickyNote, faDollarSign, faInfoCircle
 } from '@fortawesome/free-solid-svg-icons';
-import '../../styles/Forms.scss';
+import '../../styles/Forms.scss'; // Ensure this path is correct
 import { setAlert } from '../../redux/slices/alertSlice';
 import Alert from '../layout/Alert';
 import { DateTime } from 'luxon';
@@ -57,11 +59,14 @@ const DEFAULT_FORM_DATA = {
   timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
 };
 
+const DEFAULT_LUNCH_DURATION = '00:00'; // Default duration value when lunch is not taken or for leave entries
+
 const CreateProjectTimesheet = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
   // Get clientId and projectId from URL params
   const { clientId: clientIdFromUrl, projectId: projectIdFromUrl, timesheetId: timesheetIdForEdit } = useParams();
+  const user = useSelector(selectAuthUser); // Get logged-in user
   const isEditing = Boolean(timesheetIdForEdit); // Determine edit mode based on timesheetId param
 
   // Local component state
@@ -74,7 +79,8 @@ const CreateProjectTimesheet = () => {
   const [filteredProjects, setFilteredProjects] = useState([]); // For project dropdown if client selection is enabled
 
   // Redux state selectors
-  const employees = useSelector(selectAllEmployees);
+  const employees = useSelector(selectAllEmployees); // For employee dropdown
+  const employeeStatus = useSelector(selectEmployeeStatus); // For checking if employees are loaded
   const clients = useSelector(selectAllClients); // Used for displaying client name
   const allProjects = useSelector(selectProjectItems); // Used for displaying project name and filtering
   const projectStatus = useSelector(selectProjectStatus);
@@ -88,6 +94,14 @@ const CreateProjectTimesheet = () => {
   const currentTimesheetStatus = useSelector(selectCurrentTimesheetStatus);
 
   const isLeaveSelected = formData.leaveType !== 'None';
+
+  // Find the Employee record for the logged-in user if their role is 'employee'
+  const loggedInEmployeeRecord = useMemo(() => {
+    if (user?.role === 'employee' && Array.isArray(employees) && user?._id) {
+      return employees.find(emp => emp.userId === user._id);
+    }
+    return null;
+  }, [employees, user]);
 
   // Pure function to calculate total hours, memoized for performance
   const calculateHoursPure = useCallback((currentFormData) => {
@@ -120,10 +134,14 @@ const CreateProjectTimesheet = () => {
 
   // Effects
   // Displays errors from Redux state (project fetch, timesheet create/update) as alerts
-  useEffect(() => {
-    const reduxError = projectError || createError || updateError;
+  useEffect(() => { // Combined error handling
+    const reduxError = projectError || createError || updateError || (isEditing && currentTimesheetStatus === 'failed' && !timesheetToEdit ? "Failed to load timesheet for editing." : null);
     if (reduxError) dispatch(setAlert(reduxError, 'danger'));
-  }, [projectError, createError, updateError, dispatch]);
+    // Cleanup function to clear errors when component unmounts or dependencies change
+    return () => {
+        if (reduxError) { dispatch(clearCreateStatus()); dispatch(clearUpdateStatus()); /* dispatch(clearProjectError()); */ } // Clear relevant errors
+    };
+  }, [projectError, createError, updateError, isEditing, currentTimesheetStatus, timesheetToEdit, dispatch]);
 
   // Fetches initial data: employees, and the specific timesheet if in edit mode
   useEffect(() => {
@@ -135,7 +153,7 @@ const CreateProjectTimesheet = () => {
         if (currentTimesheetStatus === 'idle' || timesheetToEdit?._id !== timesheetIdForEdit) {
              dispatch(fetchTimesheetById(timesheetIdForEdit)); // Assumes this thunk exists
         }
-    }
+    } // No else needed here, form init for create mode is handled in another useEffect
   }, [dispatch, clientIdFromUrl, projectIdFromUrl, isEditing, timesheetIdForEdit, employees.length]);
 
   // Fetches projects for the current client if client selection is dynamic and not a leave entry
@@ -175,6 +193,8 @@ const CreateProjectTimesheet = () => {
           try { formattedDate = DateTime.fromISO(formattedDate).toFormat('yyyy-MM-dd'); }
           catch { formattedDate = DateTime.now().toFormat('yyyy-MM-dd'); }
       }
+      const employeeForWage = employees.find(emp => emp._id === (timesheetToEdit.employeeId?._id || timesheetToEdit.employeeId));
+
       const initialFormData = {
         timezone: entryTimezone,
         employeeId: timesheetToEdit.employeeId?._id || timesheetToEdit.employeeId || '',
@@ -183,12 +203,12 @@ const CreateProjectTimesheet = () => {
         date: formattedDate,
         startTime: utcToLocalTimeInput(timesheetToEdit.startTime),
         hourlyWage: employees.find(emp => emp._id === (timesheetToEdit.employeeId?._id || timesheetToEdit.employeeId))?.wage || '',
+        hourlyWage: employeeForWage?.wage || timesheetToEdit.hourlyWage || '',
         endTime: utcToLocalTimeInput(timesheetToEdit.endTime),
         lunchBreak: timesheetToEdit.lunchBreak || 'No',
         lunchDuration: /^\d{2}:\d{2}$/.test(timesheetToEdit.lunchDuration) ? timesheetToEdit.lunchDuration : '00:30',
         leaveType: timesheetToEdit.leaveType || 'None',
         description: timesheetToEdit.description || '',
-        hourlyWage: timesheetToEdit.employeeId?.wage || timesheetToEdit.hourlyWage || '',
         totalHours: timesheetToEdit.totalHours || 0,
         notes: timesheetToEdit.notes || '',
       };
@@ -201,10 +221,21 @@ const CreateProjectTimesheet = () => {
           setError(`Error calculating initial hours: ${calcError.message}`);
       }
     } else if (!isEditing) {
-        // Ensure client/project IDs from URL are set on initial load for create mode
-        setFormData(prev => ({ ...prev, clientId: clientIdFromUrl || '', projectId: projectIdFromUrl || '' }));
+        // Create mode: Pre-fill employee if logged-in user is an employee
+        if (user?.role === 'employee' && loggedInEmployeeRecord) {
+            setFormData(prev => ({
+                ...DEFAULT_FORM_DATA,
+                clientId: clientIdFromUrl || '',
+                projectId: projectIdFromUrl || '',
+                employeeId: loggedInEmployeeRecord._id,
+                hourlyWage: loggedInEmployeeRecord.wage || '',
+                timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+            }));
+        } else { // For employer or if employee record not yet loaded
+            setFormData(prev => ({ ...DEFAULT_FORM_DATA, clientId: clientIdFromUrl || '', projectId: projectIdFromUrl || '' }));
+        }
     }
-  }, [timesheetToEdit, currentTimesheetStatus, timesheetIdForEdit, calculateHoursPure, isEditing, clientIdFromUrl, projectIdFromUrl, dispatch, employees]); // Added employees dependency
+  }, [timesheetToEdit, currentTimesheetStatus, timesheetIdForEdit, calculateHoursPure, isEditing, clientIdFromUrl, projectIdFromUrl, dispatch, employees, user, loggedInEmployeeRecord]); // Added user, loggedInEmployeeRecord
 
   // Recalculates total hours whenever relevant time inputs or leave status change
   useEffect(() => {
@@ -229,8 +260,10 @@ const CreateProjectTimesheet = () => {
     setFormData(prev => {
         let updated = { ...prev, [name]: value };
         if (name === 'employeeId') {
-            const selectedEmployee = employees.find((emp) => emp._id === value);
-            updated.hourlyWage = selectedEmployee ? selectedEmployee.wage || '' : '';
+            if (user?.role !== 'employee') { // Employees cannot change their pre-filled wage via this dropdown
+                const selectedEmployee = employees.find((emp) => emp._id === value);
+                updated.hourlyWage = selectedEmployee ? selectedEmployee.wage || '' : '';
+            }
         } else if (name === 'leaveType') {
             const isNowLeave = value !== 'None';
             if (isNowLeave) {
@@ -394,7 +427,14 @@ const CreateProjectTimesheet = () => {
 
           <div className='form-group'>
             <label htmlFor='employeeId'><FontAwesomeIcon icon={faUserTie} /> Employee*</label>
-            <select id='employeeId' name='employeeId' value={formData.employeeId} onChange={handleChange} required disabled={isEditing || isLoading}>
+            <select
+              id='employeeId'
+              name='employeeId'
+              value={formData.employeeId}
+              onChange={handleChange}
+              required
+              disabled={isEditing || isLoading || user?.role === 'employee'} // Disable for employees
+            >
               <option value=''>-- Select Employee --</option>
               {employees.map((emp) => (<option key={emp._id} value={emp._id}>{emp.name}</option>))}
             </select>
@@ -402,7 +442,7 @@ const CreateProjectTimesheet = () => {
 
           <div className='form-group'>
             <label htmlFor='date'><FontAwesomeIcon icon={faCalendarAlt} /> Date*</label>
-            <input id='date' type='date' name='date' value={formData.date} onChange={handleChange} required disabled={isLoading} />
+            <input id='date' type='date' name='date' value={formData.date} onChange={handleChange} required disabled={isLoading || isEditing} />
           </div>
 
           <div className='form-group'>

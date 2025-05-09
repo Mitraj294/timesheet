@@ -17,13 +17,13 @@ router.post('/bulk', protect, employerOnly, createBulkSchedules);
 // GET /api/schedules - Get schedules by week (protected)
 router.get('/', protect, getSchedulesByWeek);
 
-// DELETE /api/schedules/deleteByDateRange - Delete schedules within a date range (protected)
-router.delete('/deleteByDateRange', protect, deleteByDateRange);
+// DELETE /api/schedules/deleteByDateRange - Delete schedules within a date range (protected, employer only)
+router.delete('/deleteByDateRange', protect, employerOnly, deleteByDateRange);
 
-// PUT /api/schedules/:id - Update a specific schedule entry (protected)
-router.put('/:id', protect, updateSchedule); 
+// PUT /api/schedules/:id - Update a specific schedule entry (protected, employer only)
+router.put('/:id', protect, employerOnly, updateSchedule); 
 
-// DELETE /api/schedules/:id - Delete a specific schedule entry (protected)
-router.delete('/:id', protect, deleteSchedule);
+// DELETE /api/schedules/:id - Delete a specific schedule entry (protected, employer only)
+router.delete('/:id', protect, employerOnly, deleteSchedule);
 
 export default router;

@@ -48,6 +48,7 @@ import {
     clearTimesheetError, clearProjectDownloadStatus, clearProjectSendStatus // Import clear actions
 } from '../../redux/slices/timesheetSlice';
 import { setAlert } from '../../redux/slices/alertSlice';
+import { selectAuthUser } from '../../redux/slices/authSlice'; // Import user selector
 import Alert from '../layout/Alert';
 
 const ALL_PROJECTS_VALUE = 'ALL_PROJECTS';
@@ -202,6 +203,7 @@ const ProjectTimesheet = ({ initialProjectId = '', onProjectChange, showProjectS
   const timesheetStatus = useSelector(selectTimesheetStatus);
   const timesheetError = useSelector(selectTimesheetError);
   const downloadStatus = useSelector(selectTimesheetProjectDownloadStatus); // Use project download status
+  const user = useSelector(selectAuthUser); // Get logged-in user
   const downloadErrorRedux = useSelector(selectTimesheetProjectDownloadError); // Use project download error
   const sendStatus = useSelector(selectTimesheetProjectSendStatus); // Use project send status
   const sendErrorRedux = useSelector(selectTimesheetProjectSendError); // Use project send error
@@ -222,6 +224,14 @@ const ProjectTimesheet = ({ initialProjectId = '', onProjectChange, showProjectS
   const [itemToDelete, setItemToDelete] = useState(null); // { id }
 
   const browserTimezone = useMemo(() => DateTime.local().zoneName, []); // Keep this
+
+  // Find the Employee record for the logged-in user if their role is 'employee'
+  const loggedInEmployeeRecord = useMemo(() => {
+    if (user?.role === 'employee' && Array.isArray(employees) && user?._id) {
+      return employees.find(emp => emp.userId === user._id);
+    }
+    return null;
+  }, [employees, user]);
 
   // Derived loading state for UI feedback
   const isLoading = useMemo(() =>
@@ -438,11 +448,25 @@ const handleDownload = useCallback(async () => {
   // Memoized data for display
   const dateColumns = useMemo(() => generateDateColumns(currentDate, viewType), [currentDate, viewType]);
 
+  // Filter timesheets based on user role
+  const relevantTimesheets = useMemo(() => {
+    if (user?.role === 'employee' && loggedInEmployeeRecord) {
+        return timesheets.filter(ts => (ts.employeeId?._id || ts.employeeId) === loggedInEmployeeRecord._id);
+    } else if (user?.role === 'employer') {
+        // For employers, the timesheets are already fetched based on selectedProjectId
+        // or all projects under their scope by the backend.
+        return timesheets;
+    }
+    return []; // Default to empty if role not handled or data not ready
+  }, [timesheets, user, loggedInEmployeeRecord]);
+
+
   const groupTimesheetsByEmployee = useMemo(() => {
       let grouped = {};
       const currentViewDates = new Set(dateColumns.map(d => d.isoDate));
 
-      timesheets.forEach((timesheet) => {
+      // Use relevantTimesheets which are already scoped by role
+      relevantTimesheets.forEach((timesheet) => {
         if (!timesheet || !timesheet.employeeId || !timesheet.date || !/^\d{4}-\d{2}-\d{2}$/.test(timesheet.date)) {
             return;
         }
@@ -487,7 +511,7 @@ const handleDownload = useCallback(async () => {
 
       return Object.values(grouped).sort((a, b) => a.name.localeCompare(b.name));
 
-    }, [timesheets, employees, clients, dateColumns]);
+    }, [relevantTimesheets, employees, clients, dateColumns]); // Use relevantTimesheets
 
   // Generates the display text for the current period (e.g., "Jan 01 - Jan 07, 2024")
   const periodDisplayText = useMemo(() => {
@@ -503,14 +527,37 @@ const handleDownload = useCallback(async () => {
     }
   }, [dateColumns, viewType]);
 
+  // Filter projects for the dropdown based on user role
+  const employerScopedProjects = useMemo(() => {
+    if (!user || !projects || !clients) return [];
+
+    if (user.role === 'employer') {
+        // Assuming projects are already fetched scoped to the employer by the backend.
+        // If not, an additional filter like in Clients.js would be needed here.
+        return projects.filter(p => {
+            const client = clients.find(c => (p.clientId?._id || p.clientId) === c._id);
+            return client && client.employerId === user._id; // Ensure client belongs to this employer
+        });
+    } else if (user.role === 'employee' && loggedInEmployeeRecord?.employerId) {
+        const employeeEmployerId = typeof loggedInEmployeeRecord.employerId === 'object'
+            ? loggedInEmployeeRecord.employerId._id
+            : loggedInEmployeeRecord.employerId;
+        return projects.filter(p => {
+            const client = clients.find(c => (p.clientId?._id || p.clientId) === c._id);
+            return client && client.employerId === employeeEmployerId;
+        });
+    }
+    return [];
+  }, [projects, clients, user, loggedInEmployeeRecord]);
+
   // Options for the project selector dropdown
   const projectOptions = useMemo(() => {
-      const options = projects.map(p => ({ value: p._id, label: p.name }));
+      const options = employerScopedProjects.map(p => ({ value: p._id, label: p.name }));
       if (showProjectSelector) {
           options.unshift({ value: ALL_PROJECTS_VALUE, label: 'All Projects (Timesheets)' });
       }
       return options;
-  }, [projects, showProjectSelector]);
+  }, [employerScopedProjects, showProjectSelector]);
 
   const selectedProjectOption = useMemo(() => {
       return projectOptions.find(opt => opt.value === selectedProjectId) || null;
@@ -628,21 +675,32 @@ const handleDownload = useCallback(async () => {
         <div className="title-breadcrumbs">
           <h3><FontAwesomeIcon icon={faProjectDiagram} /> Project Timesheet</h3>
         </div>
-        <div className="header-actions">
-          <button className="btn btn-red" onClick={() => { setShowDownloadFilters(prev => !prev); setShowSendFilters(false); dispatch(clearProjectDownloadStatus()); }} aria-expanded={showDownloadFilters} aria-controls="project-timesheet-download-options">
-            <FontAwesomeIcon icon={faDownload} /> Download Report
-          </button>
-          <button className="btn btn-purple" onClick={() => { setShowSendFilters(prev => !prev); setShowDownloadFilters(false); dispatch(clearProjectSendStatus()); }} aria-expanded={showSendFilters} aria-controls="project-timesheet-send-options">
-            <FontAwesomeIcon icon={faEnvelope} /> Send Report
-          </button>
-        </div>
+        {user?.role === 'employer' && (
+          <div className="header-actions">
+            <button className="btn btn-red" onClick={() => { setShowDownloadFilters(prev => !prev); setShowSendFilters(false); dispatch(clearProjectDownloadStatus()); }} aria-expanded={showDownloadFilters} aria-controls="project-timesheet-download-options">
+              <FontAwesomeIcon icon={faDownload} /> Download Report
+            </button>
+            <button className="btn btn-purple" onClick={() => { setShowSendFilters(prev => !prev); setShowDownloadFilters(false); dispatch(clearProjectSendStatus()); }} aria-expanded={showSendFilters} aria-controls="project-timesheet-send-options">
+              <FontAwesomeIcon icon={faEnvelope} /> Send Report
+            </button>
+          </div>
+        )}
       </div>
 
-      {showDownloadFilters && (
+      {user?.role === 'employer' && showDownloadFilters && (
         <div id="project-timesheet-download-options" className="timesheet-options-container download-options">
           <h4>Download Project Timesheet Report</h4>
           <div className="filter-controls">
-       
+            <Select
+                options={employeeOptions}
+                value={selectedEmployeeOption}
+                onChange={option => setSelectedEmployee(option?.value || '')}
+                className="react-select-container filter-select"
+                classNamePrefix="react-select"
+                placeholder="Filter by Employee (Optional)"
+                isClearable={true}
+                isDisabled={isDownloading}
+            />
             <DatePicker selected={startDate} onChange={setStartDate} selectsStart startDate={startDate} endDate={endDate} placeholderText="From Date" dateFormat="yyyy-MM-dd" className="filter-datepicker" wrapperClassName="date-picker-wrapper" aria-label="Download Start Date" />
             <DatePicker selected={endDate} onChange={setEndDate} selectsEnd startDate={startDate} endDate={endDate} minDate={startDate} placeholderText="To Date" dateFormat="yyyy-MM-dd" className="filter-datepicker" wrapperClassName="date-picker-wrapper" aria-label="Download End Date" />
             <button className="btn btn-red action-button" onClick={handleDownload} disabled={isDownloading || !selectedProjectId}>
@@ -652,11 +710,20 @@ const handleDownload = useCallback(async () => {
            {!selectedProjectId && <small className="error-text">Please select a project first.</small>}
         </div>
       )}
-      {showSendFilters && (
+      {user?.role === 'employer' && showSendFilters && (
         <div id="project-timesheet-send-options" className="timesheet-options-container send-options">
           <h4>Send Project Timesheet Report</h4>
           <div className="filter-controls">
-           
+            <Select
+                options={employeeOptions}
+                value={selectedEmployeeOption}
+                onChange={option => setSelectedEmployee(option?.value || '')}
+                className="react-select-container filter-select"
+                classNamePrefix="react-select"
+                placeholder="Filter by Employee (Optional)"
+                isClearable={true}
+                isDisabled={isSending}
+            />
             <DatePicker selected={startDate} onChange={setStartDate} selectsStart startDate={startDate} endDate={endDate} placeholderText="From Date" dateFormat="yyyy-MM-dd" className="filter-datepicker" wrapperClassName="date-picker-wrapper" aria-label="Send Start Date" />
             <DatePicker selected={endDate} onChange={setEndDate} selectsEnd startDate={startDate} endDate={endDate} minDate={startDate} placeholderText="To Date" dateFormat="yyyy-MM-dd" className="filter-datepicker" wrapperClassName="date-picker-wrapper" aria-label="Send End Date" />
             <input type="email" placeholder="Recipient email" value={email} onChange={e => setEmail(e.target.value)} className="filter-email" aria-label="Recipient Email" required />

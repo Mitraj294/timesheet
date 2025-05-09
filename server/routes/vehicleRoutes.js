@@ -17,43 +17,46 @@ import {
   sendReviewReportByClient,
   sendVehicleReportByEmail,
   sendAllVehiclesReportByEmail
-} from '../controllers/vehicleController.js';
-
+} from '../controllers/vehicleController.js'; // Assuming createVehicle is the correct add function
+import { protect, employerOnly } from '../middleware/authMiddleware.js'; // Import middleware
 
 const router = express.Router();
 
 // Test route for vehicle API health check
 router.get('/test', (req, res) => {
-  res.send('Vehicle test route is working');
+  res.send('Vehicle test route is working. Ensure you are authenticated if testing protected routes.');
 });
 
+// Apply protection and employerOnly middleware to all subsequent routes in this file
+router.use(protect, employerOnly);
+
 // Vehicle CRUD operations
-router.get('/', getVehicles);                      // GET all vehicles
-router.get('/:id', getVehicleById);                // GET single vehicle by ID
-router.post('/', createVehicle);                   // POST create vehicle
-router.put('/:id', updateVehicle);                 // PUT update vehicle
-router.delete('/:id', deleteVehicle);              // DELETE vehicle
+router.get('/', getVehicles);
+router.post('/', createVehicle); // Renamed from addVehicle if that was the intent
+router.get('/:id', getVehicleById);
+router.put('/:id', updateVehicle);
+router.delete('/:id', deleteVehicle);
 
 // Vehicle Review CRUD operations
-router.post('/reviews', createVehicleReview);      // POST create review
-router.get('/reviews/:reviewId', getReviewById);     // GET review by review ID
-router.put('/reviews/:reviewId', updateReview);      // PUT update review
-router.delete('/reviews/:reviewId', deleteReview);   // DELETE review
+router.post('/reviews', createVehicleReview);
+router.get('/reviews/:reviewId', getReviewById);
+router.put('/reviews/:reviewId', updateReview);
+router.delete('/reviews/:reviewId', deleteReview);
 
 // Get reviews associated with a specific vehicle
-router.get('/vehicle/:vehicleId/reviews', getVehicleReviewsByVehicleId); // GET all reviews for a vehicle
-router.get('/vehicle-with-reviews/:vehicleId', getVehicleWithReviews);   // GET vehicle with reviews
+router.get('/vehicle/:vehicleId/reviews', getVehicleReviewsByVehicleId);
+router.get('/vehicle-with-reviews/:vehicleId', getVehicleWithReviews);
 
 // Review Report routes
 router.get('/reviews/:reviewId/download', downloadReviewReport);
-router.post('/reviews/report/email/:reviewId', sendReviewReportByClient);
+router.post('/reviews/:reviewId/send-email', sendReviewReportByClient); // Matched controller function name
 
 // All Vehicles Report routes
-router.get('/download/all', downloadAllVehiclesReport);
-router.post('/send-report',  sendAllVehiclesReportByEmail);
+router.get('/report/all/download', downloadAllVehiclesReport); // More consistent path
+router.post('/report/all/send-email',  sendAllVehiclesReportByEmail); // More consistent path
 
 // Single Vehicle Report routes
-router.get('/:vehicleId/download-report', downloadVehicleReport);
-router.post('/report/email/:vehicleId', sendVehicleReportByEmail);
+router.get('/:vehicleId/report/download', downloadVehicleReport); // More consistent path
+router.post('/:vehicleId/report/send-email', sendVehicleReportByEmail); // More consistent path
 
 export default router;

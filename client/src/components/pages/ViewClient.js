@@ -4,13 +4,13 @@ import { Link, useParams, useNavigate } from "react-router-dom";
 import { useSelector, useDispatch } from "react-redux";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
-  fetchClientById, selectCurrentClient, selectCurrentClientStatus, selectCurrentClientError, clearCurrentClient // Client-specific Redux actions and selectors
+  fetchClientById, selectCurrentClient, selectCurrentClientStatus, selectCurrentClientError, clearCurrentClient
 } from "../../redux/slices/clientSlice";
 import {
   fetchProjects, deleteProject, selectProjectsByClientId, selectProjectStatus, selectProjectError, clearProjects, clearProjectError
 } from "../../redux/slices/projectSlice";
 import {
-  fetchTimesheets, selectAllTimesheets, selectTimesheetStatus, selectTimesheetError
+  fetchTimesheets, selectAllTimesheets, selectTimesheetStatus
 } from "../../redux/slices/timesheetSlice";
 import { setAlert } from "../../redux/slices/alertSlice";
 import {
@@ -26,9 +26,10 @@ import {
   faSpinner,
   faExclamationCircle,
   faBriefcase,
+  faCalendarAlt,
+  faCalendarCheck,
 } from "@fortawesome/free-solid-svg-icons";
 import Alert from "../layout/Alert";
-import "../../styles/Vehicles.scss"; // Reusing some styles for consistency
 import "../../styles/ViewClient.scss"; // Specific styles for this page
 
 const ViewClient = () => {
@@ -45,43 +46,64 @@ const ViewClient = () => {
   const projectError = useSelector(selectProjectError);
   const allTimesheets = useSelector(selectAllTimesheets);
   const timesheetStatus = useSelector(selectTimesheetStatus);
-  const timesheetError = useSelector(selectTimesheetError);
   const { user } = useSelector((state) => state.auth || {});
 
   // Local component state
   const [clientTotalHours, setClientTotalHours] = useState(0);
-  // const [error, setError] = useState(null); // Local errors are now handled via alerts
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [itemToDelete, setItemToDelete] = useState(null); // Stores { id, name } for project deletion confirmation
+  const [itemToDelete, setItemToDelete] = useState(null);
 
-  // Effects
-  // Fetches client details, their projects, and all timesheets on component mount or when clientId changes
+  // State for responsive layout
+  const [isSmallScreen, setIsSmallScreen] = useState(window.innerWidth < 768);
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsSmallScreen(window.innerWidth < 768);
+    };
+    window.addEventListener('resize', handleResize);
+    handleResize();
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  const getProjectCellStyle = (projectIndex, fieldType) => {
+    if (!isSmallScreen) return {};
+
+    // On small screens:
+    // Col 1: Name (spans 6 rows)
+    // Col 2: Status, Start, Finish, Address, Expected, Notes (stacked, 6 rows)
+    // Col 3: Actions (spans 6 rows)
+    const stackedDetailItemsCount = 6;
+    const dataRowsPerProjectBlock = stackedDetailItemsCount;
+    // Headers occupy lines 1 to (stackedDetailItemsCount + 1). Data starts after that.
+    const projectBlockStartRowLine = (stackedDetailItemsCount + 1) + (projectIndex * dataRowsPerProjectBlock);
+
+    switch (fieldType) {
+      case 'name':          return { gridArea: `${projectBlockStartRowLine} / 1 / ${projectBlockStartRowLine + dataRowsPerProjectBlock} / 2` };
+      case 'actions':       return { gridArea: `${projectBlockStartRowLine} / 3 / ${projectBlockStartRowLine + dataRowsPerProjectBlock} / 4` };
+      case 'status':        return { gridArea: `${projectBlockStartRowLine + 0} / 2 / ${projectBlockStartRowLine + 1} / 3` };
+      case 'startDate':     return { gridArea: `${projectBlockStartRowLine + 1} / 2 / ${projectBlockStartRowLine + 2} / 3` };
+      case 'finishDate':    return { gridArea: `${projectBlockStartRowLine + 2} / 2 / ${projectBlockStartRowLine + 3} / 3` };
+      case 'address':       return { gridArea: `${projectBlockStartRowLine + 3} / 2 / ${projectBlockStartRowLine + 4} / 3` };
+      case 'expectedHours': return { gridArea: `${projectBlockStartRowLine + 4} / 2 / ${projectBlockStartRowLine + 5} / 3` };
+      case 'notes':         return { gridArea: `${projectBlockStartRowLine + 5} / 2 / ${projectBlockStartRowLine + dataRowsPerProjectBlock} / 3` };
+      default: return {};
+    }
+  };
+
   useEffect(() => {
     const fetchData = async () => {
       try {
         dispatch(fetchClientById(clientId));
-        dispatch(fetchProjects(clientId)); // Fetch projects for this client
+        dispatch(fetchProjects(clientId));
         if (timesheetStatus !== 'succeeded' && timesheetStatus !== 'loading') {
             dispatch(fetchTimesheets());
         }
-
       } catch (err) {
         console.error("Error fetching data:", err);
-        let errorMessage = "Failed to fetch data from the server.";
-        if (err.message === "Authentication token not found.") {
-            errorMessage = "Authentication required. Please log in.";
-        } else if (err.response?.data?.message) {
-            errorMessage = err.response.data.message;
-        } else if (err.message) {
-            errorMessage = err.message;
-        }
-        dispatch(setAlert(errorMessage, 'danger'));
+        dispatch(setAlert(err.message || "Failed to fetch data.", 'danger'));
       }
     };
-
     fetchData();
-
-    // Cleanup when component unmounts or clientId changes
     return () => {
         dispatch(clearCurrentClient());
         dispatch(clearProjects());
@@ -89,7 +111,6 @@ const ViewClient = () => {
     };
   }, [clientId, dispatch, timesheetStatus]);
 
-  // Calculates total hours for the client when timesheets or clientId change
   useEffect(() => {
     if (timesheetStatus === 'succeeded' && clientId) {
       const filtered = allTimesheets.filter(
@@ -103,16 +124,13 @@ const ViewClient = () => {
     }
   }, [allTimesheets, timesheetStatus, clientId]);
 
-  // Displays errors from Redux state (client, project, timesheet fetch) as alerts
   useEffect(() => {
-    const reduxError = clientError || projectError || timesheetError;
+    const reduxError = clientError || projectError; // Removed timesheetError as it's less relevant here
     if (reduxError) {
       dispatch(setAlert(reduxError, 'danger'));
     }
-  }, [clientError, projectError, timesheetError, dispatch]);
+  }, [clientError, projectError, dispatch]);
 
-  // Handlers
-  // Initiates the project deletion process
   const handleDeleteClick = (projectId, projectName) => {
     setItemToDelete({ id: projectId, name: projectName });
     setShowDeleteConfirm(true);
@@ -123,44 +141,29 @@ const ViewClient = () => {
     setItemToDelete(null);
   };
 
-  // Confirms and dispatches the delete action for a project
   const confirmDeleteProject = async () => {
     if (!itemToDelete) return;
-    const { id: projectId, name: projectName } = itemToDelete;
-    // setError(null); // Local error state removed, alerts handle this
-
+    const { id: projectIdToDelete, name: projectName } = itemToDelete;
     try {
-      await dispatch(deleteProject(projectId)).unwrap();
+      await dispatch(deleteProject(projectIdToDelete)).unwrap();
       dispatch(setAlert(`Project "${projectName}" deleted successfully.`, 'success'));
     } catch (err) {
-      console.error("Error deleting project:", err);
-      let errorMessage = `Failed to delete project "${projectName}".`; // Default message
-      if (err?.message) {
-        errorMessage = err.message;
-      } else if (typeof err === 'string') {
-        errorMessage = err;
-      }
-      dispatch(setAlert(String(errorMessage), 'danger'));
+      dispatch(setAlert(String(err?.message || `Failed to delete project "${projectName}".`), 'danger'));
     }
     setShowDeleteConfirm(false);
     setItemToDelete(null);
   };
 
-  // Derived state for UI
   const isLoading = useMemo(() =>
     clientStatus === 'loading' || projectStatus === 'loading' || timesheetStatus === 'loading',
     [clientStatus, projectStatus, timesheetStatus]
   );
-  const isDeletingProject = projectStatus === 'loading'; // True if a project delete/update operation is in progress
+  const isDeletingProject = projectStatus === 'loading';
 
-  // Defines the CSS grid column layout for the projects table
-  const projectGridColumns = '1fr 1.5fr 1fr 1fr 1.5fr 1fr 1.5fr auto';
-
-  // Render logic
-  if (isLoading && clientStatus !== 'succeeded') { // Show loading if client data isn't ready
+  if (isLoading && clientStatus !== 'succeeded') {
     return (
-      <div className="vehicles-page"> {/* Use standard page class */}
-        <div className='loading-indicator'>
+      <div className="view-client-page">
+        <div className='loading-indicator page-loading'>
           <FontAwesomeIcon icon={faSpinner} spin size='2x' />
           <p>Loading client data...</p>
         </div>
@@ -168,23 +171,23 @@ const ViewClient = () => {
     );
   }
 
-  // Handles case where client data is not available after loading attempts
   if (!client) {
      return (
-      <div className="vehicles-page">
-        <div className='error-message'>
+      <div className="view-client-page">
+        <Alert />
+        <div className='error-message page-error'>
           <FontAwesomeIcon icon={faExclamationCircle} />
           <p>Client data could not be loaded.</p>
-           <Link to="/clients" className="btn btn-secondary" style={{marginTop: '1rem'}}>Back to Clients</Link>
+           <Link to="/clients" className="btn btn-secondary">Back to Clients</Link>
         </div>
       </div>
      );
   }
 
   return (
-    <div className="vehicles-page">
+    <div className="view-client-page">
       <Alert />
-      <div className="vehicles-header">
+      <div className="page-header">
         <div className="title-breadcrumbs">
           <h2>
             <FontAwesomeIcon icon={faUser} /> View Client
@@ -197,27 +200,28 @@ const ViewClient = () => {
             <span className="breadcrumb-current">{client.name}</span>
           </div>
         </div>
-         {user?.role === "employer" && (
-            <div className="header-actions">
-                 <button
-                    className="btn btn-warning"
-                    onClick={() => navigate(`/clients/update/${clientId}`)}
-                    title={`Edit Client ${client.name}`}
-                 >
-                    <FontAwesomeIcon icon={faPen} /> Edit Client
-                 </button>
-                 <button
-                    className="btn btn-success"
-                    onClick={() => navigate(`/clients/${clientId}/create-project`)}
-                    title="Create New Project for this Client"
-                  >
-                    <FontAwesomeIcon icon={faPlus} /> Create Project
-                  </button>
-            </div>
-         )}
+        <div className="header-actions">
+          {user?.role === "employer" && (
+            <button
+              className="btn btn-warning"
+              onClick={() => navigate(`/clients/update/${clientId}`)}
+              title={`Edit Client ${client.name}`}
+            >
+              <FontAwesomeIcon icon={faPen} /> Edit Client
+            </button>
+          )}
+          {(user?.role === "employer" || user?.role === "employee") && (
+            <button
+              className="btn btn-success"
+              onClick={() => navigate(`/clients/${clientId}/create-project`)}
+              title="Create New Project for this Client"
+            >
+              <FontAwesomeIcon icon={faPlus} /> Create Project
+            </button>
+          )}
+        </div>
       </div>
 
-      {/* Client Summary Section */}
       <div className="client-summary-section">
         <h3 className="section-heading">Client Summary</h3>
         <div className="client-summary-cards">
@@ -243,7 +247,7 @@ const ViewClient = () => {
           </div>
           <div className="summary-card client-hours-card">
             <div className="card-content">
-              <p className="hours-label">Total Hours</p>
+              <p className="hours-label">Total Hours Logged</p>
               <h2 className="hours-value">{clientTotalHours.toFixed(2)}h</h2>
             </div>
             <FontAwesomeIcon icon={faClock} className="hours-icon" />
@@ -251,85 +255,78 @@ const ViewClient = () => {
         </div>
       </div>
 
-      {/* Projects Section for this Client */}
       <div className="projects-section">
         <div className="section-header">
             <h3><FontAwesomeIcon icon={faBriefcase} /> Projects</h3>
         </div>
+        <div className="responsive-grid projects-grid">
+          <div className="grid-header">Status</div>
+          <div className="grid-header">Name</div>
+          <div className="grid-header">Start Date</div>
+          <div className="grid-header">Finish Date</div>
+          <div className="grid-header">Address</div>
+          <div className="grid-header">Expected Hours</div>
+          <div className="grid-header">Notes</div>
+          {(user?.role === "employer" || user?.role === "employee") && <div className="grid-header actions-header">Actions</div>}
 
-        <div className="vehicles-grid">
-          <div className="vehicles-row header" style={{ gridTemplateColumns: projectGridColumns }}>
-            <div>Status</div>
-            <div>Name</div>
-            <div>Start Date</div>
-            <div>Finish Date</div>
-            <div>Address</div>
-            <div>Expected Hours</div>
-            <div>Notes</div>
-            {user?.role === "employer" && <div>Actions</div>}
-          </div>
           {projectStatus === 'loading' && projects.length === 0 && !isDeletingProject && (
-             <div className='loading-indicator' style={{ gridColumn: '1 / -1' }}>
+             <div className='loading-indicator grid-cell' style={{ gridColumn: '1 / -1' }}>
                 <FontAwesomeIcon icon={faSpinner} spin /> Loading projects...
              </div>
           )}
-
           {projectStatus !== 'loading' && projects.length === 0 && !isDeletingProject ? (
-            <div className="vehicles-row no-results">
+            <div className="grid-cell no-results-message" style={{ gridColumn: '1 / -1' }}>
               No projects found for this client.
             </div>
           ) : (
-            projects.map((project) => (
-              <div
-                key={project._id}
-                className="vehicles-row vehicle-card"
-                style={{ gridTemplateColumns: projectGridColumns }}
-              >
-                <div data-label="Status">{project.status || '--'}</div>
-                <div data-label="Name">{project.name || '--'}</div>
-                <div data-label="Start Date">{project.startDate ? new Date(project.startDate).toLocaleDateString() : '--'}</div>
-                <div data-label="Finish Date">{project.finishDate ? new Date(project.finishDate).toLocaleDateString() : '--'}</div>
-                <div data-label="Address">{project.address || '--'}</div>
-                <div data-label="Expected Hrs">{project.expectedHours != null ? `${project.expectedHours} h` : '--'}</div>
-                <div data-label="Notes">{project.notes || '--'}</div>
-                <div data-label="Actions" className="actions">
-                  <button
-                    className="btn-icon btn-icon-blue"
-                    onClick={() => navigate(`/clients/${clientId}/projects/view/${project._id}`)}
-                    title={`View ${project.name}`}
-                    aria-label={`View ${project.name}`}
-                  >
-                    <FontAwesomeIcon icon={faEye} />
-                  </button>
-                  {user?.role === "employer" && (
-                    <>
+            projects.map((project, projectIndex) => (
+              <React.Fragment key={project._id}>
+                <div className="grid-cell" style={getProjectCellStyle(projectIndex, 'status')} data-label="Status">{project.status || '--'}</div>
+                <div className="grid-cell" style={getProjectCellStyle(projectIndex, 'name')} data-label="Name">{project.name || '--'}</div>
+                <div className="grid-cell" style={getProjectCellStyle(projectIndex, 'startDate')} data-label="Start Date">{project.startDate ? new Date(project.startDate).toLocaleDateString() : '--'}</div>
+                <div className="grid-cell" style={getProjectCellStyle(projectIndex, 'finishDate')} data-label="Finish Date">{project.finishDate ? new Date(project.finishDate).toLocaleDateString() : '--'}</div>
+                <div className="grid-cell" style={getProjectCellStyle(projectIndex, 'address')} data-label="Address">{project.address || '--'}</div>
+                <div className="grid-cell" style={getProjectCellStyle(projectIndex, 'expectedHours')} data-label="Expected Hrs">{project.expectedHours != null ? `${project.expectedHours} h` : '--'}</div>
+                <div className="grid-cell notes-cell" style={getProjectCellStyle(projectIndex, 'notes')} data-label="Notes">{project.notes || '--'}</div>
+                {(user?.role === "employer" || user?.role === "employee") && (
+                  <div className="grid-cell actions-cell" style={getProjectCellStyle(projectIndex, 'actions')} data-label="Actions">
                     <button
-                      className="btn-icon btn-icon-yellow"
-                      onClick={() => navigate(`/clients/${clientId}/projects/update/${project._id}`)}
-                      title={`Edit ${project.name}`}
-                      aria-label={`Edit ${project.name}`}
+                      className="btn-icon btn-icon-blue"
+                      onClick={() => navigate(`/clients/${clientId}/projects/view/${project._id}`)}
+                      title={`View ${project.name}`}
+                      aria-label={`View ${project.name}`}
                     >
-                      <FontAwesomeIcon icon={faPen} />
-                    </button> 
-                    <button
-                      className="btn-icon btn-icon-red"
-                      onClick={() => handleDeleteClick(project._id, project.name)}
-                      title={`Delete ${project.name}`}
-                      aria-label={`Delete ${project.name}`}
-                      disabled={isDeletingProject}
-                    >
-                      <FontAwesomeIcon icon={faTrash} />
+                      <FontAwesomeIcon icon={faEye} />
                     </button>
-                    </>
-                  )}
-                </div>
-              </div>
+                    {user?.role === "employer" && (
+                        <button
+                        className="btn-icon btn-icon-red"
+                        onClick={() => handleDeleteClick(project._id, project.name)}
+                        title={`Delete ${project.name}`}
+                        aria-label={`Delete ${project.name}`}
+                        disabled={isDeletingProject}
+                      >
+                        <FontAwesomeIcon icon={faTrash} />
+                      </button>
+                    )}
+                    {(user?.role === "employer" || user?.role === "employee") && (
+                        <button
+                          className="btn-icon btn-icon-yellow"
+                          onClick={() => navigate(`/clients/${clientId}/projects/update/${project._id}`)}
+                          title={`Edit ${project.name}`}
+                          aria-label={`Edit ${project.name}`}
+                        >
+                          <FontAwesomeIcon icon={faPen} />
+                        </button>
+                    )}
+                  </div>
+                )}
+              </React.Fragment>
             ))
           )}
         </div>
       </div>
 
-      {/* Delete Project Confirmation Modal */}
       {showDeleteConfirm && itemToDelete && (
           <div className="logout-confirm-overlay">
             <div className="logout-confirm-dialog">
@@ -338,7 +335,7 @@ const ViewClient = () => {
               <div className="logout-confirm-actions">
                 <button className="btn btn-secondary" onClick={cancelDelete} disabled={isDeletingProject}>Cancel</button>
                 <button className="btn btn-danger" onClick={confirmDeleteProject} disabled={isDeletingProject}>
-                  {isDeleting ? <><FontAwesomeIcon icon={faSpinner} spin /> Deleting...</> : 'Delete Project'}
+                  {isDeletingProject ? <><FontAwesomeIcon icon={faSpinner} spin /> Deleting...</> : 'Delete Project'}
                 </button>
               </div>
             </div>

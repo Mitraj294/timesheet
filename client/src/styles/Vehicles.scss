@@ -720,3 +720,215 @@ $breakpoint-sm: 576px;
         }
     }
 }
+
+// Add these styles to your SCSS file (e.g., Vehicles.scss or a new Clients.scss)
+
+.clients-responsive-grid {
+    display: grid;
+    // Default: Large screen layout (6 columns)
+    grid-template-columns: 1.5fr 1.5fr 1fr 2fr 1.5fr auto;
+    gap: 1px; // Creates thin borders between cells
+    background-color: #e0e0e0; // Border color
+    margin-top: 1rem;
+    border: 1px solid #e0e0e0; // Outer border
+
+    .client-grid-header,
+    .client-grid-cell {
+        background-color: #fff; // Cell background
+        box-sizing: border-box; // Ensure padding and border are included in the element's total width and height
+        padding: 10px 12px;
+        display: flex; // For vertical centering of content if needed
+        align-items: center;
+        overflow-wrap: break-word; // Prevent long text from breaking layout
+        word-break: break-word;
+    }
+
+    .client-grid-header {
+        font-weight: bold;
+        background-color: #f5f5f5; // Header background
+        position: sticky; // Make headers sticky if the grid scrolls
+        top: 0; // Adjust if you have a sticky navbar above
+        z-index: 10;
+    }
+
+    .client-actions-header,
+    .client-actions-cell {
+        justify-content: center; // Center action buttons
+        gap: 0.5rem; // Space between action buttons
+    }
+
+    .notes-cell {
+        white-space: pre-wrap; // Preserve line breaks in notes
+        max-height: 100px; // Limit height and allow scroll if needed
+        overflow-y: auto;
+    }
+
+    .no-results-message {
+        grid-column: 1 / -1; // Make it span all columns
+        text-align: center;
+        padding: 2rem;
+        color: #777;
+    }
+
+    // Small screen layout (max-width: 768px)
+    @media (max-width: 768px) {
+        // 3 columns: Name | Details | Actions
+        grid-template-columns: minmax(120px, 1fr) 2fr minmax(80px, auto);
+        grid-auto-rows: min-content; // Adjust row height to content
+
+        // Show headers and style them for the new layout
+        .client-grid-header {
+            // display: none; // REMOVE: Headers are now visible
+            padding: 6px 8px; // Adjust padding for a tighter header
+            font-size: 0.85em; // Smaller font for headers
+            border-bottom: 1px solid #f0f0f0; // Light border between stacked headers
+            background-color: #f9f9f9; // Distinct header background
+            display: flex; // Use flex for alignment
+            align-items: center; // Default vertical alignment
+            justify-content: center; // Default horizontal alignment
+
+            // Client Name Header (Top-Left, spans 4 rows)
+            &:nth-child(1) {
+                grid-column: 1 / 2;
+                grid-row: 1 / 5; // Span 4 rows (lines 1 to 5)
+                border-right: 1px solid #e0e0e0; // Vertical separator
+            }
+
+            // Email Header (Middle Col, Row 1)
+            &:nth-child(2) {
+                grid-column: 2 / 3;
+                grid-row: 1 / 2;
+                justify-content: flex-start; // Align left
+            }
+
+            // Phone Header (Middle Col, Row 2)
+            &:nth-child(3) {
+                grid-column: 2 / 3;
+                grid-row: 2 / 3;
+                justify-content: flex-start; // Align left
+            }
+
+            // Address Header (Middle Col, Row 3)
+            &:nth-child(4) {
+                grid-column: 2 / 3;
+                grid-row: 3 / 4;
+                justify-content: flex-start; // Align left
+            }
+
+            // Notes Header (Middle Col, Row 4)
+            &:nth-child(5) {
+                grid-column: 2 / 3;
+                grid-row: 4 / 5;
+                justify-content: flex-start; // Align left
+                border-bottom: none; // No bottom border for the last stacked header in this column
+            }
+
+            // Actions Header (Top-Right, spans 4 rows)
+            &:nth-child(6) {
+                // This is .client-actions-header
+                grid-column: 3 / 4;
+                grid-row: 1 / 5; // Span 4 rows (lines 1 to 5)
+                border-left: 1px solid #e0e0e0; // Vertical separator
+            }
+        }
+
+
+        .client-grid-cell {
+
+            // Default styling for detail cells (Email, Phone, Address, Notes)
+            // These will be in the middle column and should stack their label and value.
+            &:not([data-label="Client Name"]):not([data-label="Actions"]) {
+                display: flex;
+                flex-direction: column;
+                align-items: flex-start;
+
+                &::before {
+                    display: none; // Hide data-label as headers are visible
+                }
+            }
+
+            // Override for "Client Name" cell (first column, spans rows)
+            &[data-label="Client Name"] {
+                display: flex; // Use flex to center content if needed, or for consistency
+                align-items: center; // Vertically center the name
+                justify-content: flex-start; // Align name to the start
+
+                &::before {
+                    display: none; // Hide data-label
+                }
+            }
+
+            // Override for "Actions" cell (third column, spans rows)
+            &[data-label="Actions"] {
+
+                // Styles for .client-actions-cell (gap, justify-content) will apply here
+                &::before {
+                    display: none; // Hide data-label
+                }
+            }
+
+            // Common styles for data cells on small screens
+            border-bottom: 1px solid #eee;
+            min-height: 40px;
+            padding: 8px 12px;
+            align-items: flex-start; // Align content to the start for simple text cells
+            justify-content: flex-start;
+
+            // Ensure client name and actions cells are centered if they span multiple rows and contain just text/buttons
+            &[data-label="Client Name"],
+            &[data-label="Actions"] {
+                align-items: center; // Center content vertically
+                justify-content: center; // Center content horizontally (for actions)
+            }
+
+            &[data-label="Client Name"] {
+                justify-content: flex-start; // Keep name left-aligned
+            }
+        }
+    }
+}
+
+// Styles for action buttons (reused from existing .btn-icon)
+.btn-icon {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0.3rem 0.5rem;
+    font-size: 1rem;
+    border-radius: 4px;
+    transition: background-color 0.2s ease;
+
+    &:hover {
+        opacity: 0.8;
+    }
+
+    &.btn-icon-blue {
+        color: #007bff;
+
+        &:hover {
+            background-color: rgba(0, 123, 255, 0.1);
+        }
+    }
+
+    &.btn-icon-yellow {
+        color: #ffc107;
+
+        &:hover {
+            background-color: rgba(255, 193, 7, 0.1);
+        }
+    }
+
+    &.btn-icon-red {
+        color: #dc3545;
+
+        &:hover {
+            background-color: rgba(220, 53, 69, 0.1);
+        }
+    }
+
+    &:disabled {
+        color: #6c757d;
+        cursor: not-allowed;
+        opacity: 0.5;
+    }
+}

@@ -6,52 +6,45 @@ import {
     changePassword,
     deleteAccount,
     forgotPassword, // Import new controller
-    resetPassword   // Import new controller
+    resetPassword  , // Import new controller
+    checkUserExists,
+    requestCompanyInvitation,
+    getPendingInvitations,
+    approveInvitation,
+    rejectInvitation,
+    
 } from "../controllers/authController.js";
 import User from "../models/User.js";
 // Import the authentication middleware
-import { protect } from '../middleware/authMiddleware.js';
+import { protect ,employerOnly } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
 
 // --- Public Routes ---
-
 // POST /api/auth/register - Handles user registration
 router.post("/register", registerUser);
-
 // POST /api/auth/login - Handles user login
 router.post("/login", loginUser);
-
 // POST /api/auth/forgot-password - Initiates password reset
 router.post("/forgot-password", forgotPassword);
-
 // PUT /api/auth/reset-password/:token - Resets password using token
 router.put("/reset-password/:token", resetPassword);
-
 // POST /api/auth/check-user - Checks if a user exists by email (Public)
-router.post("/check-user", async (req, res) => {
-  try {
-    const { email } = req.body;
+router.post("/check-user", checkUserExists); // Uses the controller function, can be public or protected based on needs.
+// If it needs protection: router.post("/check-user", protect, checkUserExists);
+// If employer only: router.post("/check-user", protect, employerOnly, checkUserExists);
+// For now, let's assume it's used by employers adding employees, so protect + employerOnly is good.
+router.post('/check-user', protect, employerOnly, checkUserExists);
 
-    if (!email) {
-      return res.status(400).json({ message: "Email is required." });
-    }
-
-    const user = await User.findOne({ email });
-
-    // Return only whether the user exists for better security
-    return res.json({ exists: !!user });
-  } catch (error) {
-    console.error("Error checking user:", error);
-    return res.status(500).json({ message: "Server error checking user." });
-  }
-});
-
-// PUT /api/auth/change-password - Handles password change for logged-in user (protected)
-router.put('/change-password', protect, changePassword);
+// Invitation Routes
+router.post('/request-invitation', requestCompanyInvitation); // Public
+router.get('/invitations/pending', protect, employerOnly, getPendingInvitations); // Employer only
+router.post('/invitations/:invitationId/approve', protect, employerOnly, approveInvitation); // Employer only
+router.post('/invitations/:invitationId/reject', protect, employerOnly, rejectInvitation); // Employer only
 
 // --- Protected Routes ---
-
+// PUT /api/auth/change-password - Handles password change for logged-in user (protected)
+router.put('/change-password', protect, changePassword);
 // GET /api/auth/me - Fetches the currently authenticated user's details (protected)
 router.get('/me', protect, async (req, res) => {
   try {

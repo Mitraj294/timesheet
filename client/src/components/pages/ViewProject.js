@@ -11,6 +11,9 @@ import {
 } from "../../redux/slices/projectSlice";
 import { setAlert } from "../../redux/slices/alertSlice";
 import Alert from "../layout/Alert";
+import { selectAuthUser } from '../../redux/slices/authSlice';
+import { fetchEmployees, selectAllEmployees, selectEmployeeStatus } from '../../redux/slices/employeeSlice';
+import { selectAllTimesheets, selectTimesheetStatus } from '../../redux/slices/timesheetSlice';
 
 import {
   faProjectDiagram,
@@ -41,29 +44,34 @@ const ViewProject = () => {
   const projectError = useSelector(selectCurrentProjectError);
   const deleteStatus = useSelector(selectProjectStatus); // Use general status for delete
 
-  // Local state
+  const user = useSelector(selectAuthUser);
+  const allEmployees = useSelector(selectAllEmployees);
+  const employeeStatus = useSelector(selectEmployeeStatus);
+  const allTimesheets = useSelector(selectAllTimesheets);
+  const timesheetStatus = useSelector(selectTimesheetStatus); // To track loading of timesheets
+
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [itemToDelete, setItemToDelete] = useState(null); // Stores { id, name } for deletion confirmation
 
-  const { user } = useSelector((state) => state.auth || {});
+  // const { user } = useSelector((state) => state.auth || {}); // This was a duplicate declaration of 'user'
 
   // Effects
   // Fetches project data when the component mounts or when the projectId from the URL changes
+  // Also fetches employees if they haven't been loaded yet.
   useEffect(() => {
-    const fetchProjectData = async () => {
-      try {
-        dispatch(fetchProjectById(projectId));
-      } catch (err) {
-        console.error("Error fetching project data:", err);
-        const errorMessage = err?.message || "Failed to initiate project fetch.";
-        dispatch(setAlert(errorMessage, 'danger'));
-      }
-    };
+    if (projectId) {
+      dispatch(fetchProjectById(projectId));
+    }
 
-    fetchProjectData();
+    // Fetch employees if not already loaded or loading
+    // Relies on ProjectTimesheet component to fetch relevant timesheets
+    if (employeeStatus === 'idle') {
+      dispatch(fetchEmployees());
+    }
 
     // Cleanup: clear the current project data and any related errors when the component unmounts or projectId changes
     return () => {
+        // dispatch(clearEmployees()); // If you have such an action
         dispatch(clearCurrentProject());
         dispatch(clearProjectError());
     };
@@ -75,6 +83,29 @@ const ViewProject = () => {
       dispatch(setAlert(projectError, 'danger'));
     }
   }, [projectError, dispatch]);
+
+  const loggedInEmployeeRecord = useMemo(() => {
+    if (user?.role === 'employee' && Array.isArray(allEmployees) && allEmployees.length > 0 && user?._id) {
+      return allEmployees.find(emp => emp.userId === user._id);
+    }
+    return null;
+  }, [allEmployees, user]);
+
+  const yourTotalHoursOnProject = useMemo(() => {
+    if (user?.role === 'employee' && loggedInEmployeeRecord && project && Array.isArray(allTimesheets)) {
+      const employeeProjectTimesheets = allTimesheets.filter(ts => {
+        // Ensure correct comparison for potentially populated fields
+        const projectMatch = (ts.projectId?._id || ts.projectId) === project._id;
+        const employeeMatch = (ts.employeeId?._id || ts.employeeId) === loggedInEmployeeRecord._id;
+        return projectMatch && employeeMatch;
+      });
+      return employeeProjectTimesheets.reduce((sum, ts) => sum + (parseFloat(ts.totalHours) || 0), 0);
+    }
+    return 0;
+  }, [user, loggedInEmployeeRecord, project, allTimesheets]);
+
+
+
 
   // Handlers
   // Sets up the state for the delete confirmation modal
@@ -122,7 +153,11 @@ const ViewProject = () => {
   };
 
   // Derived state for UI
-  const isLoading = useMemo(() => projectStatus === 'loading', [projectStatus]);
+  const isLoading = useMemo(() =>
+    projectStatus === 'loading' ||
+    (user?.role === 'employee' && employeeStatus === 'loading') || // Also consider employee loading for employee view
+    (user?.role === 'employee' && timesheetStatus === 'loading' && yourTotalHoursOnProject === 0), // And timesheet loading for employee hours
+    [projectStatus, user, employeeStatus, timesheetStatus, yourTotalHoursOnProject]);
   const isDeleting = deleteStatus === 'loading'; // True if a delete operation is in progress
 
   if (isLoading && !project) { // Show a loading indicator if project data isn't available yet
@@ -248,22 +283,39 @@ const ViewProject = () => {
               </div>
             </div>
           </div>
-          <div className="summary-card client-hours-card project-hours-card">
-             <div className="card-content">
-               <p className="hours-label">Expected Hours</p>
-               <h2 className="hours-value">{project.expectedHours != null ? `${project.expectedHours}h` : '--'}</h2>
-             </div>
-             <FontAwesomeIcon icon={faClock} className="hours-icon" />
-          </div>
-          <div className="summary-card client-hours-card project-hours-card actual-hours-card">
-             <div className="card-content">
-               <p className="hours-label">Actual Hours</p>
-               <h2 className="hours-value">
-                 {typeof project.totalActualHours === "number" ? project.totalActualHours.toFixed(1) : "0.0"}h
-               </h2>
-             </div>
-             <FontAwesomeIcon icon={faClock} className="hours-icon actual-icon" />
-          </div>
+          {/* Cards for Employer */}
+          {user?.role === 'employer' && project && (
+            <>
+              <div className="summary-card client-hours-card project-hours-card">
+                <div className="card-content">
+                  <p className="hours-label">Expected Hours</p>
+                  <h2 className="hours-value">{project.expectedHours != null ? `${project.expectedHours}h` : '--'}</h2>
+                </div>
+                <FontAwesomeIcon icon={faClock} className="hours-icon" />
+              </div>
+              <div className="summary-card client-hours-card project-hours-card actual-hours-card">
+                <div className="card-content">
+                  <p className="hours-label">Actual Hours (Overall)</p>
+                  <h2 className="hours-value">
+                    {typeof project.totalActualHours === "number" ? project.totalActualHours.toFixed(1) : "0.0"}h
+                  </h2>
+                </div>
+                <FontAwesomeIcon icon={faClock} className="hours-icon actual-icon" />
+              </div>
+            </>
+          )}
+          {/* Card for Employee */}
+          {user?.role === 'employee' && loggedInEmployeeRecord && project && (
+            <div className="summary-card client-hours-card project-hours-card employee-specific-hours-card">
+              <div className="card-content">
+                <p className="hours-label">Your Total Hours</p>
+                <h2 className="hours-value">
+                  {yourTotalHoursOnProject.toFixed(1)}h
+                </h2>
+              </div>
+              <FontAwesomeIcon icon={faClock} className="hours-icon" />
+            </div>
+          )}
         </div>
       </div>
 

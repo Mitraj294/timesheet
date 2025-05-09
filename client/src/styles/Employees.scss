@@ -1,4 +1,6 @@
 @use 'sass:color';
+
+// Variables (can be moved to a global _variables.scss if shared across components)
 $primary-color: #007bff;
 $secondary-color: #6c757d;
 $success-color: #28a745;
@@ -18,576 +20,218 @@ $font-family: 'Segoe UI', sans-serif;
 $breakpoint-md: 768px;
 $breakpoint-sm: 576px;
 
-.btn {
-    padding: 0.6rem 1.2rem;
+// --- START: Responsive Grid Styles ---
+.responsive-grid {
+    display: grid;
+    gap: 1px; // Creates thin borders between cells
+    background-color: #e0e0e0; // Border color for the gaps
+    margin-top: 1rem;
+    border: 1px solid #e0e0e0; // Outer border
+    overflow: hidden; // Prevents gap/border issues at edges
+
+    // Default: Large screen layout (defined per grid type if needed, or flows naturally)
+    // For .employees-grid, large screen uses 9 columns as per original JSX
+    &.employees-grid {
+        grid-template-columns: 1.5fr 1fr 1.5fr 0.7fr 0.7fr 1fr 1fr 1fr auto; // Default for large screens
+    }
+
+    // Styles for both headers and cells
+    .grid-header,
+    .grid-cell {
+        background-color: #fff; // Cell background
+        box-sizing: border-box;
+        padding: 10px 12px;
+        display: flex;
+        align-items: center;
+        overflow-wrap: break-word;
+        word-break: break-word;
+        text-align: left; // Default text alignment
+    }
+
+    // Header specific styles
+    .grid-header {
+        font-weight: bold;
+        background-color: #f5f5f5;
+        position: sticky; // Optional: if you want sticky headers
+        top: 0; // Required for sticky
+        z-index: 10; // Required for sticky
+    }
+
+    // Action column specific styles
+    .actions-header,
+    .actions-cell {
+        justify-content: center; // Center action buttons/header text
+        gap: 0.5rem;
+    }
+
+    // Specific cell styles (can be overridden per grid type)
+    .notes-cell {
+        // Example, if you had notes
+        white-space: pre-wrap;
+        max-height: 100px;
+        overflow-y: auto;
+    }
+
+    .no-results-message {
+        grid-column: 1 / -1; // Span all columns
+        text-align: center;
+        padding: 2rem;
+        color: $dark-grey;
+        font-style: italic;
+    }
+
+    // --- Small screen layout (max-width: $breakpoint-md) ---
+    @media (max-width: $breakpoint-md) {
+        grid-auto-rows: min-content; // Adjust row height to content
+
+        // Generic small screen header styles (will be overridden by specific grid types)
+        .grid-header {
+            padding: 6px 8px;
+            font-size: 0.85em;
+            background-color: #f9f9f9;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        // Generic small screen cell styles
+        .grid-cell {
+            padding: 8px 12px;
+            font-size: 0.9rem;
+            white-space: normal; // Allow text to wrap
+            border-bottom: 1px solid #eee;
+            min-height: 40px;
+
+            // Hide data-label by default as headers are visible
+            &::before {
+                display: none;
+            }
+        }
+
+        // Employees Grid Layout (3 columns, headers span rows, data spans rows)
+        &.employees-grid {
+            grid-template-columns: minmax(120px, 1fr) 2fr minmax(80px, auto); // 3 columns
+
+            .grid-header {
+
+                // Headers for employees on small screen
+                // Name (1st header) spans 7 rows in col 1 (lines 1 to 8)
+                &:nth-child(1) {
+                    grid-column: 1 / 2;
+                    grid-row: 1 / 8;
+                    border-right: 1px solid #e0e0e0;
+                }
+
+                // Details (Employee Code to Wage - 2nd to 8th headers) stack in col 2
+                &:nth-child(2) {
+                    grid-column: 2 / 3;
+                    grid-row: 1 / 2;
+                    justify-content: flex-start;
+                }
+
+                // Employee Code
+                &:nth-child(3) {
+                    grid-column: 2 / 3;
+                    grid-row: 2 / 3;
+                    justify-content: flex-start;
+                }
+
+                // Email
+                &:nth-child(4) {
+                    grid-column: 2 / 3;
+                    grid-row: 3 / 4;
+                    justify-content: flex-start;
+                }
+
+                // Admin
+                &:nth-child(5) {
+                    grid-column: 2 / 3;
+                    grid-row: 4 / 5;
+                    justify-content: flex-start;
+                }
+
+                // Overtime
+                &:nth-child(6) {
+                    grid-column: 2 / 3;
+                    grid-row: 5 / 6;
+                    justify-content: flex-start;
+                }
+
+                // Expected Hours
+                &:nth-child(7) {
+                    grid-column: 2 / 3;
+                    grid-row: 6 / 7;
+                    justify-content: flex-start;
+                }
+
+                // Holiday Multiplier
+                &:nth-child(8) {
+                    grid-column: 2 / 3;
+                    grid-row: 7 / 8;
+                    justify-content: flex-start;
+                    border-bottom: none;
+                }
+
+                // Wage
+                // Actions (9th header) spans 7 rows in col 3 (lines 1 to 8)
+                &:nth-child(9).actions-header {
+                    grid-column: 3 / 4;
+                    grid-row: 1 / 8;
+                    border-left: 1px solid #e0e0e0;
+                }
+            }
+        }
+
+        // End .employees-grid
+    }
+
+    // End @media
+}
+
+// End .responsive-grid
+// --- END: Responsive Grid Styles ---
+
+// Styles for action buttons (can be global or component-specific)
+.btn-icon {
+    background: none;
     border: none;
-    border-radius: $border-radius;
-    font-weight: 500;
     cursor: pointer;
-    transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease, opacity 0.2s ease;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.5rem;
-    white-space: nowrap;
+    padding: 0.3rem 0.5rem;
     font-size: 1rem;
-    line-height: 1.5;
-    font-family: $font-family;
-    text-decoration: none;
+    border-radius: $border-radius;
+    transition: background-color 0.2s ease, color 0.2s ease;
+    color: $dark-grey;
+
+    &:hover:not(:disabled) {
+        opacity: 0.8;
+        background-color: color.adjust($medium-grey, $lightness: -5%);
+    }
+
+    &.btn-icon-blue {
+        color: $primary-color;
+
+        &:hover:not(:disabled) {
+            background-color: rgba($primary-color, 0.1);
+        }
+    }
+
+    &.btn-icon-yellow {
+        color: color.adjust($warning-color, $lightness: -10%);
+
+        &:hover:not(:disabled) {
+            background-color: rgba($warning-color, 0.1);
+        }
+    }
+
+    &.btn-icon-red {
+        color: $danger-color;
+
+        &:hover:not(:disabled) {
+            background-color: rgba($danger-color, 0.1);
+        }
+    }
 
     &:disabled {
-        opacity: 0.65;
-        cursor: not-allowed;
-    }
-}
-
-.btn-primary {
-    background-color: $primary-color; // Or use $success-color if preferred
-    color: #fff;
-
-    &:hover:not(:disabled) {
-        background-color: color.adjust($primary-color, $lightness: -10%); // Adjust color accordingly
-    }
-}
-
-.btn-secondary {
-    // For retry button
-    background-color: $secondary-color;
-    color: #fff;
-
-    &:hover:not(:disabled) {
-        background-color: color.adjust($secondary-color, $lightness: -10%);
-    }
-}
-
-.vehicles-page {
-    padding: clamp(1rem, 2vw, 1.5rem);
-    max-width: 1200px;
-    margin: 0 auto;
-    font-family: $font-family;
-    background-color: $light-grey;
-    min-height: calc(100vh - 60px); // Adjust 60px if your header/nav height is different
-}
-
-.vehicles-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center; // Changed from center to flex-start for better alignment if button wraps
-    margin-bottom: 1.5rem;
-    flex-wrap: wrap; // Allow wrapping for smaller screens
-    gap: 1rem; // Add gap for wrapped items
-    padding: 1rem;
-    background-color: #fff;
-    border-radius: $border-radius;
-    box-shadow: $box-shadow;
-
-    .title-breadcrumbs {
-        display: flex;
-        flex-direction: column;
-        gap: 0.25rem;
-        flex-grow: 1; // Allow title to take available space
-
-        h2 {
-            font-size: clamp(1.4rem, 3vw, 1.75rem);
-            display: flex;
-            align-items: center;
-            gap: 0.6rem;
-            color: $text-color;
-            margin: 0;
-            font-weight: 600;
-        }
-
-        .breadcrumbs {
-            font-size: 0.875rem;
-            color: $dark-grey;
-            display: flex;
-            align-items: center;
-            flex-wrap: wrap; // Allow breadcrumbs to wrap if needed
-
-            .breadcrumb-link {
-                color: $primary-color;
-                text-decoration: none;
-                font-weight: 500;
-                white-space: nowrap;
-
-                &:hover {
-                    text-decoration: underline;
-                }
-            }
-
-            .breadcrumb-separator {
-                margin: 0 0.3rem;
-                color: color.adjust($dark-grey, $lightness: 15%);
-                white-space: nowrap;
-            }
-
-            .breadcrumb-current {
-                color: $dark-grey;
-                white-space: nowrap;
-            }
-        }
-    }
-
-    // Button directly within the header
-    .btn {
-        flex-shrink: 0; // Prevent button from shrinking too much
-    }
-}
-
-// Styles specific to the Vehicles.js action bar (Create, Send, Download)
-.vehicles-actions {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.75rem;
-    margin-bottom: 1.5rem;
-
-    .btn,
-    a.btn {
-        text-decoration: none;
-    }
-
-    // "Create Vehicle" Link button
-    a.btn.btn-primary {
-        background-color: $success-color; // Using success color here
-        color: #fff;
-        border-color: $success-color;
-
-        &:hover:not(:disabled) {
-            background-color: color.adjust($success-color, $lightness: -10%);
-        }
-    }
-
-    .btn-send-report {
-        background-color: $purple-color;
-        color: #fff;
-
-        &:hover:not(:disabled) {
-            background-color: color.adjust($purple-color, $lightness: -10%);
-        }
-    }
-
-    .btn-download-report {
-        background-color: $danger-color; // Using danger color here
-        color: #fff;
-
-        &:hover:not(:disabled) {
-            background-color: color.adjust($danger-color, $lightness: -10%);
-        }
-    }
-}
-
-// Styles for the Send/Download report sections in Vehicles.js
-.report-options-container {
-    background-color: #fff;
-    padding: 1.5rem;
-    border-radius: $border-radius;
-    box-shadow: $box-shadow;
-    margin-bottom: 1.5rem;
-    border: 1px solid $border-color;
-
-    h4 {
-        margin-top: 0;
-        margin-bottom: 1rem;
-        font-weight: 600;
-        color: $text-color;
-        border-bottom: 1px solid $border-color;
-        padding-bottom: 0.5rem;
-    }
-
-    .date-picker-range {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 1rem;
-        margin-bottom: 1rem;
-
-        .date-picker-wrapper {
-            flex-grow: 1;
-            min-width: 180px; // Ensure date pickers have minimum width
-        }
-
-        // Styling for react-datepicker input
-        .date-input {
-            width: 100%;
-            padding: 0.6rem 0.8rem;
-            font-size: 1rem;
-            border: 1px solid $border-color;
-            border-radius: 4px;
-            box-sizing: border-box;
-            font-family: $font-family;
-
-            &:focus {
-                border-color: $primary-color;
-                box-shadow: 0 0 0 3px rgba($primary-color, 0.25);
-                outline: none;
-            }
-        }
-    }
-
-    .send-report-email {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 1rem;
-        align-items: center;
-
-        input[type="email"] {
-            flex-grow: 1;
-            padding: 0.6rem 0.8rem;
-            font-size: 1rem;
-            border: 1px solid $border-color;
-            border-radius: 4px;
-            min-width: 200px; // Give email input some base width
-            font-family: $font-family;
-
-            &:focus {
-                border-color: $primary-color;
-                box-shadow: 0 0 0 3px rgba($primary-color, 0.25);
-                outline: none;
-            }
-        }
-    }
-
-    .error-text {
-        color: color.adjust($danger-color, $lightness: -10%);
-        font-size: 0.9rem;
-        margin-bottom: 1rem;
-        display: flex;
-        align-items: center;
-        gap: 0.4rem;
-    }
-
-    // Reusing button styles defined in .vehicles-actions
-    .btn-send-report {
-        background-color: $purple-color;
-        color: #fff;
-
-        &:hover:not(:disabled) {
-            background-color: color.adjust($purple-color, $lightness: -10%);
-        }
-    }
-
-    .btn-download-report {
-        background-color: $danger-color;
-        color: #fff;
-
-        &:hover:not(:disabled) {
-            background-color: color.adjust($danger-color, $lightness: -10%);
-        }
-    }
-}
-
-// Search input styles (used by both pages)
-.vehicles-search {
-    position: relative;
-    margin-bottom: 1.5rem;
-
-    input[type="text"] {
-        width: 100%;
-        padding: 0.7rem 1rem 0.7rem 2.5rem; // Padding left for icon
-        font-size: 1rem;
-        border: 1px solid $border-color;
-        border-radius: $border-radius;
-        box-sizing: border-box;
-        font-family: $font-family;
-
-        &:focus {
-            border-color: $primary-color;
-            box-shadow: 0 0 0 3px rgba($primary-color, 0.25);
-            outline: none;
-        }
-    }
-
-    .search-icon {
-        position: absolute;
-        left: 0.8rem;
-        top: 50%;
-        transform: translateY(-50%);
         color: $dark-grey;
-        pointer-events: none; // Icon shouldn't be clickable
-    }
-}
-
-// Loading and Error message styles (used by both pages)
-.loading-indicator,
-.error-message {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: 2rem;
-    margin: 1.5rem auto; // Center horizontally
-    background-color: #fff;
-    border-radius: $border-radius;
-    box-shadow: $box-shadow;
-    text-align: center;
-    color: $dark-grey;
-    max-width: 600px; // Limit width for better readability
-
-    p {
-        margin-top: 0.75rem;
-        font-size: 1rem;
-        margin-bottom: 0; // Remove default bottom margin if any
-    }
-
-    // Style for the retry button within the error message
-    .btn-secondary {
-        margin-top: 1rem;
-    }
-}
-
-.error-message {
-    color: color.adjust($danger-color, $lightness: -10%);
-    border: 1px solid color.adjust($danger-color, $lightness: 30%);
-    background-color: color.adjust($danger-color, $lightness: 45%); // Lighter red background
-}
-
-// Grid styles (used by both pages)
-.vehicles-grid {
-    background-color: #fff;
-    border-radius: $border-radius;
-    box-shadow: $box-shadow;
-    overflow: hidden; // Important for border-radius on container
-    border: 1px solid $border-color;
-
-    .vehicles-row {
-        display: grid;
-        // grid-template-columns are set inline via style prop in the components
-        align-items: center; // Vertically align content in cells
-        border-bottom: 1px solid $border-color;
-
-        &:last-child {
-            border-bottom: none; // Remove border from last row
-        }
-
-        // Default cell styles
-        &>div {
-            padding: 0.8rem 1rem;
-            font-size: 0.95rem;
-            color: $text-color;
-            overflow: hidden; // Prevent content overflow
-            text-overflow: ellipsis; // Show ellipsis (...) for overflow
-            white-space: nowrap; // Keep content on one line initially
-        }
-
-        // Header row specific styles
-        &.header {
-            background-color: $light-grey;
-            font-weight: 600;
-            color: color.adjust($dark-grey, $lightness: -10%);
-            border-bottom-width: 2px; // Thicker border below header
-
-            // Allow header text to wrap if needed
-            &>div {
-                white-space: normal;
-            }
-        }
-
-        // Hover effect for data rows (excluding header and no-results message)
-        &:not(.header):not(.no-results):hover {
-            background-color: $medium-grey;
-        }
-
-        // Style for the "No results" message row
-        &.no-results {
-            display: block; // Override grid display
-            text-align: center;
-            padding: 1.5rem;
-            color: $dark-grey;
-            font-style: italic;
-        }
-
-        // Action buttons container within a row
-        .actions {
-            display: flex;
-            justify-content: center; // Center buttons horizontally
-            align-items: center; // Align buttons vertically
-            gap: 0.5rem; // Space between buttons
-            padding: 0.6rem 1rem; // Adjust padding for action cell
-
-            // Individual icon button styles
-            .btn-icon {
-                background: none;
-                border: none;
-                padding: 0.3rem; // Small padding around icon
-                cursor: pointer;
-                border-radius: $border-radius;
-                font-size: 1.1rem; // Icon size
-                line-height: 1; // Ensure icon aligns well
-                transition: background-color 0.2s ease, color 0.2s ease;
-                color: $dark-grey; // Default icon color
-                vertical-align: middle; // Align with text if needed
-
-                &:hover:not(:disabled) {
-                    background-color: color.adjust($medium-grey, $lightness: -5%); // Slight background on hover
-                }
-
-                &:disabled {
-                    opacity: 0.5;
-                    cursor: not-allowed;
-                }
-
-                // Specific colors for different action types
-                &.btn-icon-blue {
-                    // View
-                    color: $primary-color;
-
-                    &:hover:not(:disabled) {
-                        color: color.adjust($primary-color, $lightness: -15%);
-                    }
-                }
-
-                &.btn-icon-yellow {
-                    // Edit
-                    color: color.adjust($warning-color, $lightness: -10%);
-
-                    &:hover:not(:disabled) {
-                        color: color.adjust($warning-color, $lightness: -25%);
-                    }
-                }
-
-                &.btn-icon-red {
-                    // Delete
-                    color: $danger-color;
-
-                    &:hover:not(:disabled) {
-                        color: color.adjust($danger-color, $lightness: -15%);
-                    }
-                }
-            }
-        }
-    }
-}
-
-// Responsive adjustments
-@media (max-width: $breakpoint-md) {
-    .vehicles-grid {
-        // Remove grid container styles, let cards stack
-        background-color: transparent;
-        box-shadow: none;
-        border-radius: 0;
-        border: none;
-        display: flex; // Change to flex for gap property
-        flex-direction: column;
-        gap: 1rem; // Space between cards
-
-        .vehicles-row.header {
-            display: none; // Hide the header row on smaller screens
-        }
-
-        // Style each data row as a card
-        .vehicles-row.vehicle-card {
-            display: block; // Override grid display
-            background-color: #fff;
-            border: 1px solid $border-color;
-            border-radius: $border-radius;
-            box-shadow: $box-shadow;
-            padding: 1rem;
-            border-bottom: 1px solid $border-color; // Keep bottom border for separation
-
-            &:last-child {
-                border-bottom: 1px solid $border-color; // Ensure last card also has border
-            }
-
-            // Style individual data points within the card
-            &>div {
-                padding: 0.4rem 0; // Vertical padding for data points
-                font-size: 0.9rem;
-                white-space: normal; // Allow text wrapping
-                display: flex; // Use flex to align label and value
-                justify-content: space-between; // Push value to the right
-                align-items: baseline; // Align text baselines
-                border-bottom: 1px dashed color.adjust($border-color, $lightness: 5%); // Separator line
-
-                &:last-child {
-                    border-bottom: none; // No line after the last item (usually actions)
-                }
-
-                // Add the label using ::before pseudo-element
-                &::before {
-                    content: attr(data-label); // Get label from data-label attribute
-                    font-weight: 600;
-                    color: $dark-grey;
-                    margin-right: 0.5rem; // Space between label and value
-                    flex-shrink: 0; // Prevent label from shrinking
-                }
-
-                // Adjust actions container within the card
-                &.actions {
-                    justify-content: flex-end; // Align buttons to the right
-                    padding-top: 0.8rem; // Add space above actions
-                    margin-top: 0.5rem; // Ensure separation
-                    border-bottom: none; // Actions shouldn't have a bottom border
-
-                    &::before {
-                        display: none; // Don't show "Actions:" label
-                    }
-                }
-            }
-        }
-
-        // Style the "No results" message when in card view
-        .vehicles-row.no-results {
-            background-color: #fff;
-            border-radius: $border-radius;
-            box-shadow: $box-shadow;
-            padding: 1.5rem;
-            border: 1px solid $border-color;
-            margin-top: 0; // Reset margin if needed
-        }
-    }
-
-    // Adjust padding for report options container
-    .report-options-container {
-        padding: 1rem;
-    }
-}
-
-@media (max-width: $breakpoint-sm) {
-    .vehicles-header {
-        align-items: flex-start; // Align items top when wrapping
-
-        .title-breadcrumbs h2 {
-            font-size: 1.25rem; // Smaller heading
-        }
-
-        .breadcrumbs {
-            font-size: 0.8rem; // Smaller breadcrumbs
-        }
-    }
-
-    // Make action buttons full width on small screens
-    .vehicles-actions {
-
-        .btn,
-        a.btn {
-            flex-grow: 1; // Allow buttons to grow
-            flex-basis: 100%; // Try to take full width
-            justify-content: center; // Center text/icon within button
-        }
-    }
-
-    // Stack date pickers and email input vertically
-    .report-options-container {
-
-        .date-picker-range,
-        .send-report-email {
-            flex-direction: column;
-            align-items: stretch; // Make items full width
-
-            .date-picker-wrapper,
-            input[type="email"],
-            button {
-                min-width: 0; // Remove min-width
-                width: 100%; // Make full width
-            }
-        }
-    }
-
-    // Adjust card padding and font size slightly
-    .vehicles-grid .vehicles-row.vehicle-card {
-        padding: 0.8rem;
-
-        &>div {
-            font-size: 0.85rem;
-        }
+        cursor: not-allowed;
+        opacity: 0.5;
     }
 }

@@ -236,6 +236,14 @@ const Timesheet = () => {
   const user = useSelector(selectAuthUser); // Keep selectors inside component
 
   // --- Combined Loading and Error States ---
+  // Find the Employee record for the logged-in user if their role is 'employee'
+  const loggedInEmployeeRecord = useMemo(() => {
+    if (user?.role === 'employee' && Array.isArray(employees) && user?._id) {
+      return employees.find(emp => emp.userId === user._id);
+    }
+    return null;
+  }, [employees, user]);
+
   const isDataLoading = useMemo(() => // Renamed to avoid conflict with download loading
     employeeStatus === 'loading' ||
     clientStatus === 'loading' ||
@@ -462,12 +470,39 @@ const Timesheet = () => {
   // Generate date columns based on the current view type and date
   const dateColumns = useMemo(() => generateDateColumns(currentDate, viewType), [currentDate, viewType]);
 
+  // Create a memoized set of employee IDs belonging to the current employer
+  const employerEmployeeIds = useMemo(() => {
+    if (user?.role === 'employer' && Array.isArray(employees)) {
+      return new Set(employees.map(emp => emp._id));
+    }
+    return new Set(); // Return an empty set if not an employer or employees not loaded
+  }, [employees, user?.role]);
+
+  // Create a "scoped" version of timesheets, ensuring they belong to the employer's employees
+  const scopedTimesheets = useMemo(() => {
+    if (user?.role === 'employer') {
+      return timesheets.filter(ts => {
+        const employeeId = ts.employeeId?._id || ts.employeeId; // Handle populated vs unpopulated employeeId
+        return employerEmployeeIds.has(employeeId);
+      });
+    } else if (user?.role === 'employee' && loggedInEmployeeRecord) {
+      // Employee sees only their own timesheets
+      // This provides an additional frontend filter even if the backend already scopes.
+      return timesheets.filter(ts => {
+        const timesheetEmployeeId = ts.employeeId?._id || ts.employeeId;
+        return timesheetEmployeeId === loggedInEmployeeRecord._id;
+      });
+    }
+    // Default to empty if no role matches or data isn't ready
+    return []; 
+  }, [timesheets, employerEmployeeIds, user, loggedInEmployeeRecord]);
+
   // Group timesheets by employee and structure data for the table
   const groupTimesheets = useMemo(() => {
       let grouped = {};
       const currentViewDates = new Set(dateColumns.map(d => d.isoDate));
 
-      timesheets.forEach((timesheet) => {
+      scopedTimesheets.forEach((timesheet) => { // Use scopedTimesheets here
         if (!timesheet || !timesheet.employeeId || !timesheet.date || !/^\d{4}-\d{2}-\d{2}$/.test(timesheet.date)) {
             return;
         }
@@ -515,7 +550,7 @@ const Timesheet = () => {
 
       return Object.values(grouped).sort((a, b) => a.name.localeCompare(b.name));
 
-    }, [timesheets, employees, clients, projects, dateColumns]);
+    }, [scopedTimesheets, employees, clients, projects, dateColumns]); // Updated dependency
 
   // Generate the display text for the current time period
   const periodDisplayText = useMemo(() => {
@@ -641,7 +676,6 @@ const Timesheet = () => {
       employeeOptions.find(e => e.value === sendSelectedEmployee) || null
   , [employeeOptions, sendSelectedEmployee]);
 
-
   return (
     <div className='timesheet-page'>
        <Alert /> {/* Render Alert component here */}
@@ -654,59 +688,63 @@ const Timesheet = () => {
             <span className="breadcrumb-current">Timesheets</span>
           </div>
         </div>
-        <div className="header-actions">
-          <button className="btn btn-red" onClick={toggleDownloadReport} aria-expanded={showDownloadFilters} aria-controls="timesheet-download-options">
-            <FontAwesomeIcon icon={faDownload} /> Download Report
-          </button>
-          <button className="btn btn-purple" onClick={toggleSendReport} aria-expanded={showSendFilters} aria-controls="timesheet-send-options">
-            <FontAwesomeIcon icon={faEnvelope} /> Send Report
-          </button>
-        </div>
+        {user?.role === 'employer' && (
+          <div className="header-actions">
+            <button className="btn btn-red" onClick={toggleDownloadReport} aria-expanded={showDownloadFilters} aria-controls="timesheet-download-options">
+              <FontAwesomeIcon icon={faDownload} /> Download Report
+            </button>
+            <button className="btn btn-purple" onClick={toggleSendReport} aria-expanded={showSendFilters} aria-controls="timesheet-send-options">
+              <FontAwesomeIcon icon={faEnvelope} /> Send Report
+            </button>
+          </div>
+        )}
       </div>
-      {showDownloadFilters && (
-        <div id="timesheet-download-options" className="timesheet-options-container download-options">
-          <h4>Download Timesheet Report</h4>
-          {/* {downloadError && <p className='error-text'><FontAwesomeIcon icon={faExclamationCircle} /> {downloadError}</p>} */} {/* Handled by Alert */}
-          <div className="filter-controls">
-             <Select
-                options={employeeOptions}
-                value={downloadSelectedEmployeeOption} // Use memoized value
-                onChange={option => setDownloadSelectedEmployee(option?.value || '')}
-                className="react-select-container filter-select"
-                classNamePrefix="react-select"
-                placeholder="Filter by Employee (Optional)"
-                isClearable={true}
-            />
-            <DatePicker selected={downloadStartDate} onChange={setDownloadStartDate} selectsStart startDate={downloadStartDate} endDate={downloadEndDate} placeholderText="From Date" dateFormat="yyyy-MM-dd" className="filter-datepicker" wrapperClassName="date-picker-wrapper" aria-label="Download Start Date" />
-            <DatePicker selected={downloadEndDate} onChange={setDownloadEndDate} selectsEnd startDate={downloadStartDate} endDate={downloadEndDate} minDate={downloadStartDate} placeholderText="To Date" dateFormat="yyyy-MM-dd" className="filter-datepicker" wrapperClassName="date-picker-wrapper" aria-label="Download End Date" />
-            <button className="btn btn-red action-button" onClick={handleDownload} disabled={isDownloading}>
-              {isDownloading ? (<><FontAwesomeIcon icon={faSpinner} spin /> Downloading...</>) : (<><FontAwesomeIcon icon={faDownload} /> Download</>)}
-            </button>
+      {user?.role === 'employer' && showDownloadFilters && (
+          <div id="timesheet-download-options" className="timesheet-options-container download-options">
+            <h4>Download Timesheet Report</h4>
+            <div className="filter-controls">
+              {/* Employee select is already conditional for employer */}
+                <Select
+                    options={employeeOptions}
+                    value={downloadSelectedEmployeeOption}
+                    onChange={option => setDownloadSelectedEmployee(option?.value || '')}
+                    className="react-select-container filter-select"
+                    classNamePrefix="react-select"
+                    placeholder="Filter by Employee (Optional)"
+                    isClearable={true}
+                    isDisabled={isDownloading}
+                />
+              <DatePicker selected={downloadStartDate} onChange={setDownloadStartDate} selectsStart startDate={downloadStartDate} endDate={downloadEndDate} placeholderText="From Date" dateFormat="yyyy-MM-dd" className="filter-datepicker" wrapperClassName="date-picker-wrapper" aria-label="Download Start Date" />
+              <DatePicker selected={downloadEndDate} onChange={setDownloadEndDate} selectsEnd startDate={downloadStartDate} endDate={downloadEndDate} minDate={downloadStartDate} placeholderText="To Date" dateFormat="yyyy-MM-dd" className="filter-datepicker" wrapperClassName="date-picker-wrapper" aria-label="Download End Date" />
+              <button className="btn btn-red action-button" onClick={handleDownload} disabled={isDownloading}>
+                {isDownloading ? (<><FontAwesomeIcon icon={faSpinner} spin /> Downloading...</>) : (<><FontAwesomeIcon icon={faDownload} /> Download</>)}
+              </button>
+            </div>
           </div>
-        </div>
       )}
-      {showSendFilters && (
-        <div id="timesheet-send-options" className="timesheet-options-container send-options">
-          <h4>Send Timesheet Report</h4>
-           {/* {sendError && <p className='error-text'><FontAwesomeIcon icon={faExclamationCircle} /> {sendError}</p>} */} {/* Handled by Alert */}
-          <div className="filter-controls">
-             <Select
-                options={employeeOptions}
-                value={sendSelectedEmployeeOption} // Use memoized value
-                onChange={option => setSendSelectedEmployee(option?.value || '')}
-                className="react-select-container filter-select"
-                classNamePrefix="react-select"
-                placeholder="Filter by Employee (Optional)"
-                isClearable={true}
-            />
-            <DatePicker selected={sendStartDate} onChange={setSendStartDate} selectsStart startDate={sendStartDate} endDate={sendEndDate} placeholderText="From Date" dateFormat="yyyy-MM-dd" className="filter-datepicker" wrapperClassName="date-picker-wrapper" aria-label="Send Start Date" />
-            <DatePicker selected={sendEndDate} onChange={setSendEndDate} selectsEnd startDate={sendStartDate} endDate={sendEndDate} minDate={sendStartDate} placeholderText="To Date" dateFormat="yyyy-MM-dd" className="filter-datepicker" wrapperClassName="date-picker-wrapper" aria-label="Send End Date" />
-            <input type="email" placeholder="Recipient email" value={sendEmail} onChange={e => { setSendEmail(e.target.value); }} className="filter-email" aria-label="Recipient Email" required />
-            <button className="btn btn-purple action-button" onClick={handleSendEmail} disabled={isSending || !sendEmail || !/\S+@\S+\.\S+/.test(sendEmail)}>
-              {isSending ? (<><FontAwesomeIcon icon={faSpinner} spin /> Sending...</>) : (<><FontAwesomeIcon icon={faEnvelope} /> Send</>)}
-            </button>
+      {user?.role === 'employer' && showSendFilters && (
+          <div id="timesheet-send-options" className="timesheet-options-container send-options">
+            <h4>Send Timesheet Report</h4>
+            <div className="filter-controls">
+              {/* Employee select is already conditional for employer */}
+                <Select
+                    options={employeeOptions}
+                    value={sendSelectedEmployeeOption}
+                    onChange={option => setSendSelectedEmployee(option?.value || '')}
+                    className="react-select-container filter-select"
+                    classNamePrefix="react-select"
+                    placeholder="Filter by Employee (Optional)"
+                    isClearable={true}
+                    isDisabled={isSending}
+                />
+              <DatePicker selected={sendStartDate} onChange={setSendStartDate} selectsStart startDate={sendStartDate} endDate={sendEndDate} placeholderText="From Date" dateFormat="yyyy-MM-dd" className="filter-datepicker" wrapperClassName="date-picker-wrapper" aria-label="Send Start Date" />
+              <DatePicker selected={sendEndDate} onChange={setSendEndDate} selectsEnd startDate={sendStartDate} endDate={sendEndDate} minDate={sendStartDate} placeholderText="To Date" dateFormat="yyyy-MM-dd" className="filter-datepicker" wrapperClassName="date-picker-wrapper" aria-label="Send End Date" />
+              <input type="email" placeholder="Recipient email" value={sendEmail} onChange={e => { setSendEmail(e.target.value); }} className="filter-email" aria-label="Recipient Email" required />
+              <button className="btn btn-purple action-button" onClick={handleSendEmail} disabled={isSending || !sendEmail || !/\S+@\S+\.\S+/.test(sendEmail)}>
+                {isSending ? (<><FontAwesomeIcon icon={faSpinner} spin /> Sending...</>) : (<><FontAwesomeIcon icon={faEnvelope} /> Send</>)}
+              </button>
+            </div>
           </div>
-        </div>
       )}
 
        <div className='timesheet-navigation-bar general-timesheet-nav'>

@@ -1,0 +1,402 @@
+// /home/digilab/timesheet/client/src/styles/UserSettingsSection.scss
+
+// Variables
+$primary-color: #007bff;
+$secondary-color: #6c757d;
+$success-color: #28a745;
+$danger-color: #dc3545;
+$warning-color: #ffc107;
+$light-gray: #f8f9fa;
+$medium-gray: #ccc;
+$dark-gray: #343a40;
+$text-color: #333;
+$label-color: #555;
+$input-border-color: #ccc;
+$input-focus-border-color: $primary-color;
+$border-radius: 5px;
+$base-font-size: 1rem; // 16px
+$input-font-size: 14px;
+$input-padding: 10px 12px;
+$input-height: 38px; // Consistent height for inputs
+
+// General Page Layout (for the content within settings-content-area)
+// This class wraps the content of UserSettingsSection.js
+// Add any specific padding or margins if needed when integrated into the sidebar layout
+// For example, if settings-content-area in SettingsPage.scss has padding,
+// you might not need additional padding here.
+
+
+// Section Styling (reusing from your provided SettingsPage.scss for forms)
+.settings-section {
+    background-color: #fff;
+    padding: 1.5rem 2rem;
+    border-radius: $border-radius;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+    margin-bottom: 2rem;
+
+    &:last-child {
+        margin-bottom: 0; // No margin for the last section within this component
+    }
+
+    h3 {
+        margin-top: 0;
+        margin-bottom: 1.5rem;
+        border-bottom: 1px solid #eee;
+        padding-bottom: 0.75rem;
+        font-size: 1.25rem;
+        color: $text-color;
+    }
+}
+
+// Base Form Styles
+.form-container {
+
+    .employee-form {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+    }
+
+    .form-group {
+        display: flex;
+        flex-direction: column;
+        margin-bottom: 0;
+
+        label {
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+            color: $label-color;
+            font-size: 0.9rem;
+        }
+
+        input[type="text"],
+        input[type="email"],
+        input[type="password"],
+        input[type="tel"],
+        select {
+            width: 100%;
+            padding: $input-padding;
+            border: 1px solid $input-border-color;
+            border-radius: $border-radius;
+            font-size: $input-font-size;
+            line-height: 1.4;
+            box-sizing: border-box;
+            height: $input-height;
+            transition: border-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+
+            &:focus {
+                outline: none;
+                border-color: $input-focus-border-color;
+                box-shadow: 0 0 0 0.2rem rgba(red($primary-color), green($primary-color), blue($primary-color), 0.25);
+            }
+
+            &:disabled {
+                background-color: $light-gray;
+                cursor: not-allowed;
+            }
+        }
+
+        select {
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%23666' viewBox='0 0 16 16'%3E%3Cpath fill-rule='evenodd' d='M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708z'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 10px center;
+            padding-right: 30px;
+        }
+    }
+
+    .form-footer {
+        margin-top: 1.5rem;
+        display: flex;
+        justify-content: flex-end;
+        gap: 0.75rem;
+    }
+
+    .form-error-message {
+        color: $danger-color;
+        background-color: lighten($danger-color, 35%);
+        border: 1px solid lighten($danger-color, 20%);
+        padding: 0.75rem 1rem;
+        border-radius: $border-radius;
+        margin-bottom: 1rem;
+        font-size: 0.9rem;
+        display: flex;
+        align-items: center;
+
+        svg {
+            margin-right: 0.5rem;
+        }
+    }
+}
+
+// Base Button Styles (can be shared or overridden by global button styles if you have them)
+.btn {
+    display: inline-block;
+    font-weight: 600;
+    text-align: center;
+    vertical-align: middle;
+    cursor: pointer;
+    user-select: none;
+    background-color: transparent;
+    border: 1px solid transparent;
+    padding: 0.5rem 1rem;
+    font-size: $base-font-size * 0.9;
+    line-height: 1.5;
+    border-radius: $border-radius;
+    transition: color 0.15s ease-in-out, background-color 0.15s ease-in-out, border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+
+    svg {
+        margin-right: 0.35rem;
+    }
+
+    &:disabled {
+        opacity: 0.65;
+        cursor: not-allowed;
+    }
+
+    &.btn-primary {
+        color: #fff;
+        background-color: $primary-color;
+        border-color: $primary-color;
+
+        &:hover {
+            background-color: darken($primary-color, 10%);
+            border-color: darken($primary-color, 10%);
+        }
+    }
+
+    &.btn-secondary {
+        color: #fff;
+        background-color: $secondary-color;
+        border-color: $secondary-color;
+
+        &:hover {
+            background-color: darken($secondary-color, 10%);
+            border-color: darken($secondary-color, 10%);
+        }
+    }
+
+    &.btn-success {
+        color: #fff;
+        background-color: $success-color;
+        border-color: $success-color;
+
+        &:hover {
+            background-color: darken($success-color, 10%);
+            border-color: darken($success-color, 10%);
+        }
+    }
+
+    &.btn-danger {
+        color: #fff;
+        background-color: $danger-color;
+        border-color: $danger-color;
+
+        &:hover {
+            background-color: darken($danger-color, 10%);
+            border-color: darken($danger-color, 10%);
+        }
+    }
+
+    &.btn-warning {
+        color: $dark-gray;
+        background-color: $warning-color;
+        border-color: $warning-color;
+
+        &:hover {
+            background-color: darken($warning-color, 10%);
+            border-color: darken($warning-color, 10%);
+        }
+    }
+}
+
+// Account Information Display
+.account-info-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 1rem 1.5rem;
+    margin-bottom: 1.5rem;
+
+    .info-item {
+        text-align: left;
+        font-size: 0.95rem;
+        line-height: 1.5;
+
+        .info-label {
+            font-weight: 600;
+            color: $label-color;
+            margin-right: 8px;
+            display: inline-block;
+            min-width: 100px;
+        }
+
+        .info-value {
+            color: $text-color;
+        }
+
+        &.full-width {
+            grid-column: 1 / -1;
+        }
+    }
+}
+
+// Phone Input Specific Styles
+.form-container .phone-input-group {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+
+    .country-code-select {
+        flex-shrink: 0;
+        width: auto;
+        max-width: 130px;
+        padding: $input-padding;
+        padding-right: 30px;
+        border: 1px solid $input-border-color;
+        border-radius: $border-radius;
+        font-size: $input-font-size;
+        background-color: #fff;
+        cursor: pointer;
+        height: $input-height;
+        line-height: 1.4;
+        -webkit-appearance: none;
+        -moz-appearance: none;
+        appearance: none;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%23666' viewBox='0 0 16 16'%3E%3Cpath fill-rule='evenodd' d='M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708z'/%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: right 10px center;
+        transition: border-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+
+        &:focus {
+            outline: none;
+            border-color: $input-focus-border-color;
+            box-shadow: 0 0 0 0.2rem rgba($primary-color, 0.25);
+        }
+    }
+
+    input[type="tel"] {
+        flex-grow: 1;
+    }
+}
+
+// Password Input Specific Styles
+.form-container .styles_PasswordInputContainer {
+    position: relative;
+    display: flex;
+    align-items: center;
+    width: 100%;
+
+    input[type="password"],
+    input[type="text"].password-input-field {
+        flex-grow: 1;
+        padding-right: 45px !important;
+    }
+}
+
+.form-container .styles_PasswordToggleBtn {
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 30px;
+    height: 30px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: $label-color;
+    z-index: 2;
+
+    svg {
+        font-size: 1rem;
+    }
+
+    &:hover {
+        color: $dark-gray;
+    }
+
+    &:focus {
+        outline: none;
+    }
+}
+
+// Delete Confirmation Dialog
+.logout-confirm-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.6);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1100;
+}
+
+.logout-confirm-dialog {
+    background-color: #fafbfc;
+    padding: 1.75rem 1.25rem;
+    border-radius: 8px;
+    box-shadow: 0 4px 18px 0 rgba(30, 30, 30, 0.13);
+    text-align: center;
+    max-width: 420px;
+    width: 92%;
+
+    h4 {
+        margin-top: 0;
+        margin-bottom: 1rem;
+        color: $text-color;
+    }
+
+    p {
+        margin-bottom: 1.5rem;
+        color: $label-color;
+        line-height: 1.6;
+    }
+
+    .logout-confirm-actions {
+        display: flex;
+        justify-content: center;
+        gap: 1rem;
+    }
+}
+
+// Link Styled Like Button
+.link-like-button {
+    display: inline-block;
+    padding: 6px 12px;
+    font-size: 0.9em;
+    color: $primary-color;
+    text-decoration: none;
+    border: 1px solid $primary-color;
+    border-radius: $border-radius;
+    transition: background-color 0.2s, color 0.2s;
+
+    &:hover {
+        background-color: $primary-color;
+        color: #fff;
+        text-decoration: none;
+    }
+}
+
+// Styles for the Employer Details Subsection
+.employer-details-subsection {
+    margin-top: 2rem; // Add some space above this subsection
+    padding-top: 1.5rem; // Padding above the title
+    border-top: 1px solid $input-border-color; // A separator line
+
+    h4 {
+        font-size: 1.1rem; // Slightly smaller than the main section title
+        color: $label-color; // Use label color for subsection title
+        margin-bottom: 1rem; // Space below the subsection title
+        font-weight: 600;
+    }
+
+    // It will reuse .account-info-grid and .info-item styles
+}

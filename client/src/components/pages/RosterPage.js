@@ -111,6 +111,14 @@ const RosterPage = () => {
   );
   const [isLoading, setIsLoading] = useState(true); // Local loading state, primarily for rollout
 
+  // Find the Employee record for the logged-in user if their role is 'employee'
+  const loggedInEmployeeRecord = useMemo(() => {
+    if (user?.role === 'employee' && Array.isArray(employees) && user?._id) {
+      return employees.find(emp => emp.userId === user._id);
+    }
+    return null;
+  }, [employees, user]);
+
   const [showModal, setShowModal] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState(null);
   const [selectedDays, setSelectedDays] = useState([]);
@@ -196,30 +204,37 @@ const RosterPage = () => {
   }, [currentWeekStart, dispatch, employeeStatus]);
 
   // Event Handlers
-  // Navigates to the previous week
   const handlePrevWeek = () =>
     setCurrentWeekStart((prev) => addWeeks(prev, -1));
 
-  // Navigates to the next week, respecting maxAllowedWeek
   const handleNextWeek = () => {
     const nextWeek = addWeeks(currentWeekStart, 1);
     if (!isEqual(currentWeekStart, maxAllowedWeek)) {
         setCurrentWeekStart(nextWeek);
     }
   };
-
-  // Filters schedules for a specific day
-  const getSchedulesForDay = (day) => {
+  
+  const getSchedulesForDay = useCallback((day) => {
     const dayStr = format(day, 'yyyy-MM-dd');
-    return schedules.filter(
+    let daySchedules = schedules.filter(
       (s) => s.date && format(DateTime.fromISO(s.date).toJSDate(), 'yyyy-MM-dd') === dayStr
     );
-  };
+    if (user?.role === 'employee' && loggedInEmployeeRecord) {
+        daySchedules = daySchedules.filter(s => s.employee?._id === loggedInEmployeeRecord._id);
+    }
+    return daySchedules;
+  }, [schedules, user, loggedInEmployeeRecord]);
 
-  // Filters roles that have scheduled entries for a specific day
-  const getRolesForDay = (day) => {
+  const getRolesForDay = useCallback((day) => {
     const dayStr = format(day, 'yyyy-MM-dd');
-    return roles.filter(
+    let relevantRoles = roles;
+    if (user?.role === 'employee' && loggedInEmployeeRecord) {
+        relevantRoles = roles.filter(role =>
+            role.assignedEmployees &&
+            role.assignedEmployees.some(empId => (typeof empId === 'object' ? empId._id : empId) === loggedInEmployeeRecord._id)
+        );
+    }
+    return relevantRoles.filter(
       (role) =>
         role.schedule &&
         role.schedule.some(
@@ -231,7 +246,7 @@ const RosterPage = () => {
             entry.endTime.trim() !== ''
         )
     );
-  };
+  }, [roles, user, loggedInEmployeeRecord]);
 
   // Confirmation Modal Logic
   const handleConfirmAction = useCallback(() => {
@@ -484,22 +499,33 @@ const RosterPage = () => {
     }
   };
 
-  // Gets a comma-separated string of names for employees assigned to a role
-  const getAssignedEmployeeNames = (role) => {
-     if (!role.assignedEmployees || role.assignedEmployees.length === 0) return 'None';
-     return role.assignedEmployees
-       .map(emp => typeof emp === 'object' ? emp.name : employees.find(e => e._id === emp)?.name)
-       .filter(Boolean)
-       .join(', ') || 'None';
-   };
+  const getAssignedEmployeeNames = useCallback((role) => {
+    if (user?.role === 'employee' && loggedInEmployeeRecord) {
+        // Since getRolesForDay ensures this employee is assigned to this role,
+        // we can directly return their name for the "Assigned" field.
+        return loggedInEmployeeRecord.name;
+    }
+
+    // Employer view or if something went wrong with employee logic
+    if (!role.assignedEmployees || role.assignedEmployees.length === 0) return 'None';
+    return role.assignedEmployees
+        .map(emp => {
+            const empId = typeof emp === 'object' && emp !== null ? emp._id : emp;
+            const employeeDetail = employees.find(e => e._id === empId);
+            return employeeDetail ? employeeDetail.name : null;
+        })
+        .filter(Boolean)
+        .join(', ') || 'None';
+  }, [user, loggedInEmployeeRecord, employees]);
 
   // --- Render Logic ---
   // Determines if sidebars (Roles, Assign Shifts) should be visible
-  const canShowSidebars = isEqual(currentWeekStart, startOfWeek(new Date(), { weekStartsOn: 1 })) ||
+  const canShowSidebarsForDate = isEqual(currentWeekStart, startOfWeek(new Date(), { weekStartsOn: 1 })) ||
                           isEqual(currentWeekStart, addWeeks(startOfWeek(new Date(), { weekStartsOn: 1 }), 1));
 
+  const shouldDisplaySidebars = user?.role === 'employer' && canShowSidebarsForDate;
   // Determines if the "Rollout to Next Week" button should be enabled
-  const canRollout = (isEqual(currentWeekStart, startOfWeek(new Date(), { weekStartsOn: 1 })) ||
+  const canRollout = shouldDisplaySidebars && (isEqual(currentWeekStart, startOfWeek(new Date(), { weekStartsOn: 1 })) ||
                      isEqual(currentWeekStart, addWeeks(startOfWeek(new Date(), { weekStartsOn: 1 }), -1))) &&
                      user?.role === 'employer';
 
@@ -544,8 +570,8 @@ const RosterPage = () => {
       </div>
 
       {/* Main roster content area */}
-      <div className={`roster-body ${!canShowSidebars ? 'roster-body--center-content' : ''}`}>
-        {canShowSidebars && (
+      <div className={`roster-body ${!shouldDisplaySidebars ? 'roster-body--center-content' : ''}`}>
+        {shouldDisplaySidebars && (
           <aside className='roles-sidebar'>
             <div className='sidebar-header'>
               <p>Roles</p>
@@ -650,7 +676,7 @@ const RosterPage = () => {
         </div>
 
         {/* Sidebar for assigning shifts to employees */}
-         {canShowSidebars && (
+         {shouldDisplaySidebars && (
             <aside className='employees-sidebar'>
             <div className='sidebar-header'>
               <p>Assign Shifts</p>

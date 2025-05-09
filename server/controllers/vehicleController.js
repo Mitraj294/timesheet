@@ -3,15 +3,17 @@ import ExcelJS from 'exceljs';
 import nodemailer from 'nodemailer';
 import Vehicle from '../models/Vehicle.js';
 import VehicleReview from '../models/VehicleReview.js';
-import Employee from '../models/Employee.js';
+import Employee from '../models/Employee.js'; // Assuming Employee model is used for reviews
+import mongoose from 'mongoose';
 
 
-// @desc    Get all vehicles
+// @desc    Get all vehicles for the logged-in employer
 // @route   GET /api/vehicles
-// @access  Private (e.g., Authenticated users)
+// @access  Private (Employer Only)
 export const getVehicles = async (req, res) => {
   try {
-    const vehicles = await Vehicle.find().sort({ createdAt: -1 });
+    // req.user.id is available from the 'protect' and 'employerOnly' middleware
+    const vehicles = await Vehicle.find({ employerId: req.user.id }).sort({ createdAt: -1 });
     res.json(vehicles);
   } catch (err) {
     console.error('Error fetching vehicles:', err);
@@ -19,13 +21,18 @@ export const getVehicles = async (req, res) => {
   }
 };
 
-// @desc    Get a single vehicle by ID
+// @desc    Get a single vehicle by ID for the logged-in employer
 // @route   GET /api/vehicles/:id
-// @access  Private (e.g., Authenticated users)
+// @access  Private (Employer Only)
 export const getVehicleById = async (req, res) => {
   try {
-    const vehicle = await Vehicle.findById(req.params.id);
-    if (!vehicle) return res.status(404).json({ message: 'Vehicle not found' });
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+        return res.status(400).json({ message: 'Invalid vehicle ID format.' });
+    }
+    const vehicle = await Vehicle.findOne({ _id: req.params.id, employerId: req.user.id });
+    if (!vehicle) {
+      return res.status(404).json({ message: "Vehicle not found or not associated with this employer." });
+    }
     res.json(vehicle);
   } catch (err) {
     console.error('Error getting vehicle:', err);
@@ -33,44 +40,91 @@ export const getVehicleById = async (req, res) => {
   }
 };
 
-// @desc    Create a new vehicle
+// @desc    Create a new vehicle for the logged-in employer
 // @route   POST /api/vehicles
-// @access  Private (e.g., Admin/Manager)
+// @access  Private (Employer Only)
 export const createVehicle = async (req, res) => {
   try {
     const { name, hours, wofRego } = req.body;
 
     // Basic validation
-    if (!name) {
-        return res.status(400).json({ message: 'Vehicle name is required' });
+    if (!name || hours === undefined) { // Check for undefined as 0 is a valid hour
+      return res.status(400).json({ message: "Vehicle name and hours are required." });
+    }
+
+    const numericHours = Number(hours);
+    if (isNaN(numericHours) || numericHours < 0) {
+      return res.status(400).json({ message: "Hours must be a valid non-negative number." });
+    }
+
+    // Optional: Check if a vehicle with the same name already exists for this employer
+    const existingVehicle = await Vehicle.findOne({ name, employerId: req.user.id });
+    if (existingVehicle) {
+        return res.status(409).json({ message: `A vehicle named '${name}' already exists for this employer.`});
     }
 
     const vehicle = new Vehicle({
       name,
-      hours,
+      hours: numericHours,
       wofRego,
+      employerId: req.user.id, // Automatically associate with the logged-in employer
     });
 
     await vehicle.save();
     res.status(201).json(vehicle);
   } catch (err) {
     console.error('Error creating vehicle:', err);
-    // Check for potential duplicate key errors if name should be unique
-    if (err.code === 11000) {
-         return res.status(409).json({ message: 'Vehicle name already exists' });
+    if (err.name === 'ValidationError') {
+        return res.status(400).json({ message: err.message });
     }
     res.status(500).json({ message: 'Failed to create vehicle' });
   }
 };
 
-// @desc    Update a vehicle
+// @desc    Update a vehicle for the logged-in employer
 // @route   PUT /api/vehicles/:id
-// @access  Private (e.g., Admin/Manager)
+// @access  Private (Employer Only)
 export const updateVehicle = async (req, res) => {
   try {
-    const updated = await Vehicle.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true });
-    if (!updated) {        
-        return res.status(404).json({ message: 'Vehicle not found' });
+    const vehicleId = req.params.id;
+    if (!mongoose.Types.ObjectId.isValid(vehicleId)) {
+        return res.status(400).json({ message: 'Invalid vehicle ID format.' });
+    }
+    const { name, hours, wofRego } = req.body;
+
+    const updateFields = {};
+    if (name) updateFields.name = name;
+    if (hours !== undefined) {
+      const numericHours = Number(hours);
+      if (isNaN(numericHours) || numericHours < 0) {
+        return res.status(400).json({ message: "Hours must be a valid non-negative number." });
+      }
+      updateFields.hours = numericHours;
+    }
+    if (wofRego !== undefined) updateFields.wofRego = wofRego;
+
+    // Find the vehicle ensuring it belongs to the logged-in employer
+    const vehicle = await Vehicle.findOne({ _id: vehicleId, employerId: req.user.id });
+    if (!vehicle) {
+      return res.status(404).json({ message: "Vehicle not found or not associated with this employer." });
+    }
+
+    // If name is being changed, check for uniqueness within the employer's vehicles (excluding the current one)
+    if (name && name !== vehicle.name) {
+        const existingVehicleByName = await Vehicle.findOne({ name, employerId: req.user.id, _id: { $ne: vehicleId } });
+        if (existingVehicleByName) {
+          return res.status(409).json({ message: `Another vehicle named '${name}' already exists for this employer.` });
+        }
+    }
+
+    const updated = await Vehicle.findByIdAndUpdate(
+      vehicleId,
+      { $set: updateFields },
+      { new: true, runValidators: true }
+    );
+
+    if (!updated) { // Should not happen if findOne check passed, but good for safety
+        return res.status(404).json({ message: 'Vehicle not found during update.' });
     }
     res.json(updated);
   } catch (err) {
@@ -79,16 +133,21 @@ export const updateVehicle = async (req, res) => {
   }
 };
 
-// @desc    Delete a vehicle
+// @desc    Delete a vehicle for the logged-in employer
 // @route   DELETE /api/vehicles/:id
-// @access  Private (e.g., Admin/Manager)
+// @access  Private (Employer Only)
 export const deleteVehicle = async (req, res) => {
   try {
-    const deletedVehicle = await Vehicle.findByIdAndDelete(req.params.id);
-    if (!deletedVehicle) {
-        return res.status(404).json({ message: 'Vehicle not found for deletion' });
+    const vehicleId = req.params.id;
+    if (!mongoose.Types.ObjectId.isValid(vehicleId)) {
+        return res.status(400).json({ message: 'Invalid vehicle ID format.' });
     }
-    // IMPORTANT: Decide on handling associated reviews.
+
+    const deletedVehicle = await Vehicle.findOneAndDelete({ _id: vehicleId, employerId: req.user.id });
+    if (!deletedVehicle) {
+        return res.status(404).json({ message: 'Vehicle not found or not associated with this employer.' });
+    }
+    // IMPORTANT: Handling associated reviews.
     // Option 1: Delete associated reviews (uncomment if this is the desired behavior)
     // await VehicleReview.deleteMany({ vehicle: req.params.id });
     res.json({ message: 'Vehicle deleted successfully' });
@@ -100,9 +159,9 @@ export const deleteVehicle = async (req, res) => {
 
 // --- Vehicle Review Routes ---
 
-// @desc    Create a new vehicle review
+// @desc    Create a new vehicle review for a vehicle owned by the employer
 // @route   POST /api/vehicles/reviews
-// @access  Private (e.g., Authenticated users, Employees)
+// @access  Private (Employer Only or Employee if employeeId comes from req.user)
 export const createVehicleReview = async (req, res) => {
   try {
     const { vehicle, dateReviewed, employeeId, oilChecked, vehicleChecked, vehicleBroken, notes, hours } = req.body;
@@ -112,18 +171,20 @@ export const createVehicleReview = async (req, res) => {
         return res.status(400).json({ message: 'Missing required review fields (vehicle, dateReviewed, employeeId)' });
     }
 
-    // Check if referenced documents exist
-    const [existingVehicle, existingEmployee] = await Promise.all([
-        Vehicle.findById(vehicle),
-        Employee.findById(employeeId)
-    ]);
+    // Check if the vehicle exists and belongs to the employer
+    const vehicleToReview = await Vehicle.findOne({ _id: vehicle, employerId: req.user.id });
+    if (!vehicleToReview) {
+      return res.status(404).json({ message: 'Vehicle not found or not associated with this employer.' });
+    }
 
-    if (!existingVehicle) {
-      return res.status(404).json({ message: 'Vehicle not found for review' });
+    // Check if the employee exists and belongs to the employer
+    // (employeeId in req.body should be the _id of an Employee document)
+    const employeeForReview = await Employee.findOne({ _id: employeeId, employerId: req.user.id });
+    if (!employeeForReview) {
+      return res.status(404).json({ message: 'Employee not found or not associated with this employer.' });
     }
-    if (!existingEmployee) {
-      return res.status(404).json({ message: 'Employee not found for review' });
-    }
+    // If employeeId should be the logged-in user (if an employee is creating their own review)
+    // const employeeForReview = await Employee.findOne({ userId: req.user.id, employerId: req.user.id }); // if employeeId is from req.user
 
     const review = new VehicleReview({
       vehicle,
@@ -148,17 +209,16 @@ export const createVehicleReview = async (req, res) => {
   }
 };
 
-// @desc    Get all reviews for a specific vehicle by its ID
+// @desc    Get all reviews for a specific vehicle owned by the employer
 // @route   GET /api/vehicles/:vehicleId/reviews
-// @access  Private (e.g., Authenticated users)
+// @access  Private (Employer Only)
 export const getVehicleReviewsByVehicleId = async (req, res) => {
   try {
     const { vehicleId } = req.params;
 
-    // Validate if vehicle exists first
-    const vehicle = await Vehicle.findById(vehicleId).select('name wofRego'); // Only select needed fields
+    const vehicle = await Vehicle.findOne({ _id: vehicleId, employerId: req.user.id }).select('name wofRego');
     if (!vehicle) {
-      return res.status(404).json({ message: 'Vehicle not found' });
+      return res.status(404).json({ message: 'Vehicle not found or not associated with this employer.' });
     }
 
     const reviews = await VehicleReview.find({ vehicle: vehicleId })
@@ -172,15 +232,22 @@ export const getVehicleReviewsByVehicleId = async (req, res) => {
   }
 };
 
-// @desc    Get a single vehicle review by its ID
+// @desc    Get a single vehicle review by its ID, ensuring it's for a vehicle owned by the employer
 // @route   GET /api/vehicles/reviews/:reviewId
-// @access  Private (e.g., Authenticated users)
+// @access  Private (Employer Only)
 export const getReviewById = async (req, res) => {
   try {
     const { reviewId } = req.params;
     const review = await VehicleReview.findById(reviewId)
       .populate('vehicle', 'name wofRego')
       .populate('employeeId', 'name');
+
+    if (review && review.vehicle) {
+        const parentVehicle = await Vehicle.findById(review.vehicle._id);
+        if (!parentVehicle || parentVehicle.employerId.toString() !== req.user.id.toString()) {
+            return res.status(404).json({ message: 'Review not found or not associated with this employer.' });
+        }
+    }
 
     if (!review) return res.status(404).json({ message: 'Review not found' });
 
@@ -192,16 +259,14 @@ export const getReviewById = async (req, res) => {
 };
 
 
-// @desc    Get a vehicle along with all its reviews
+// @desc    Get a vehicle (owned by employer) along with all its reviews
 // @route   GET /api/vehicles/:vehicleId/with-reviews
-// @access  Private (e.g., Authenticated users)
-// TODO: This function is very similar to getVehicleReviewsByVehicleId. Evaluate if consolidation is possible or if distinct use cases justify both.
-// One difference is this returns the full vehicle object, while getVehicleReviewsByVehicleId returns selected vehicle fields.
+// @access  Private (Employer Only)
 export const getVehicleWithReviews = async (req, res) => {
   try {
     const { vehicleId } = req.params;
 
-    const vehicle = await Vehicle.findById(vehicleId);
+    const vehicle = await Vehicle.findOne({ _id: vehicleId, employerId: req.user.id });
     if (!vehicle) {
       return res.status(404).json({ message: 'Vehicle not found' });
     }
@@ -217,13 +282,20 @@ export const getVehicleWithReviews = async (req, res) => {
   }
 };
 
-// @desc    Update a vehicle review by its ID
+// @desc    Update a vehicle review by its ID, ensuring it's for a vehicle owned by the employer
 // @route   PUT /api/vehicles/reviews/:reviewId
-// @access  Private (e.g., Admin/Manager or original reviewer)
+// @access  Private (Employer Only)
 export const updateReview = async (req, res) => {
   try {
     const { reviewId } = req.params;
-    // Exclude potentially sensitive or immutable fields from req.body if necessary
+
+    const reviewToUpdate = await VehicleReview.findById(reviewId).populate('vehicle');
+    if (!reviewToUpdate || !reviewToUpdate.vehicle || reviewToUpdate.vehicle.employerId.toString() !== req.user.id.toString()) {
+        return res.status(404).json({ message: 'Review not found or not associated with this employer.' });
+    }
+
+    // Prevent changing vehicle/employee via this route.
+    // If employeeId can be changed, ensure the new employeeId also belongs to the employer.
     const { vehicle, employeeId, ...updateData } = req.body; // Prevent changing vehicle/employee via this route
 
     const updated = await VehicleReview.findByIdAndUpdate(reviewId, updateData, { new: true, runValidators: true })
@@ -240,12 +312,17 @@ export const updateReview = async (req, res) => {
 };
 
 
-// @desc    Delete a vehicle review by its ID
+// @desc    Delete a vehicle review by its ID, ensuring it's for a vehicle owned by the employer
 // @route   DELETE /api/vehicles/reviews/:reviewId
-// @access  Private (e.g., Admin/Manager or original reviewer)
+// @access  Private (Employer Only)
 export const deleteReview = async (req, res) => {
   try {
     const { reviewId } = req.params;
+
+    const reviewToDelete = await VehicleReview.findById(reviewId).populate('vehicle');
+    if (!reviewToDelete || !reviewToDelete.vehicle || reviewToDelete.vehicle.employerId.toString() !== req.user.id.toString()) {
+        return res.status(404).json({ message: 'Review not found or not associated with this employer.' });
+    }
 
     const deletedReview = await VehicleReview.findByIdAndDelete(reviewId);
     if (!deletedReview) {
@@ -271,7 +348,7 @@ const generateReviewFilename = (review, extension) => {
 
 // @desc    Download a single vehicle review report (PDF or Excel)
 // @route   GET /api/vehicles/reviews/:reviewId/download
-// @access  Private (e.g., Authenticated users)
+// @access  Private (Employer Only)
 export const downloadReviewReport = async (req, res) => {
   const { reviewId } = req.params;
   const { format = 'pdf' } = req.query; // Default to pdf
@@ -286,7 +363,8 @@ export const downloadReviewReport = async (req, res) => {
       .populate('employeeId', 'name');
     // TODO: REFACTOR_SINGLE_REVIEW_REPORT_GENERATION - Consider refactoring PDF and Excel generation into separate helper functions.
 
-    if (!review) {
+    // Check ownership
+    if (!review || !review.vehicle || review.vehicle.employerId.toString() !== req.user.id.toString()) {
       return res.status(404).json({ message: 'Review not found' });
     }
 
@@ -380,7 +458,7 @@ export const downloadReviewReport = async (req, res) => {
 
 // @desc    Send a single vehicle review report via email
 // @route   POST /api/vehicles/reviews/:reviewId/send-email
-// @access  Private (e.g., Authenticated users)
+// @access  Private (Employer Only)
 export const sendReviewReportByClient = async (req, res) => {
   const { reviewId } = req.params;
   let { email, format = 'pdf' } = req.body; // Default to pdf
@@ -399,7 +477,8 @@ export const sendReviewReportByClient = async (req, res) => {
     const review = await VehicleReview.findById(reviewId)
       .populate('vehicle', 'name wofRego')
       .populate('employeeId', 'name');
-    if (!review) {
+    // Check ownership
+    if (!review || !review.vehicle || review.vehicle.employerId.toString() !== req.user.id.toString()) {
       return res.status(404).json({ message: 'Review not found.' });
     }
 
@@ -477,7 +556,7 @@ export const sendReviewReportByClient = async (req, res) => {
 
 // @desc    Download a multi-review report for a specific vehicle (Excel only)
 // @route   GET /api/vehicles/:vehicleId/report/download
-// @access  Private (e.g., Authenticated users)
+// @access  Private (Employer Only)
 export const downloadVehicleReport = async (req, res) => {
   try {
     const { vehicleId } = req.params;
@@ -502,8 +581,10 @@ export const downloadVehicleReport = async (req, res) => {
         end.setHours(23, 59, 59, 999);
     }
 
-    const vehicle = await Vehicle.findById(vehicleId).lean(); // Use .lean() if not modifying
-    if (!vehicle) return res.status(404).json({ message: 'Vehicle not found' });
+    const vehicle = await Vehicle.findOne({ _id: vehicleId, employerId: req.user.id }).lean();
+    if (!vehicle) {
+        return res.status(404).json({ message: 'Vehicle not found or not associated with this employer.' });
+    }
 
     // Build query for reviews
     const reviewQuery = {
@@ -617,7 +698,7 @@ export const downloadVehicleReport = async (req, res) => {
 
 // @desc    Send a multi-review report for a specific vehicle via email (Excel only)
 // @route   POST /api/vehicles/:vehicleId/report/send-email
-// @access  Private (e.g., Authenticated users)
+// @access  Private (Employer Only)
 export const sendVehicleReportByEmail = async (req, res) => {
   try {
     const { vehicleId } = req.params;
@@ -633,8 +714,10 @@ export const sendVehicleReportByEmail = async (req, res) => {
     if (end && isNaN(end.getTime())) return res.status(400).json({ message: 'Invalid end date format.' });
     if (end) end.setHours(23, 59, 59, 999);
 
-    const vehicle = await Vehicle.findById(vehicleId).lean();
-    if (!vehicle) return res.status(404).json({ message: 'Vehicle not found' });
+    const vehicle = await Vehicle.findOne({ _id: vehicleId, employerId: req.user.id }).lean();
+    if (!vehicle) {
+        return res.status(404).json({ message: 'Vehicle not found or not associated with this employer.' });
+    }
 
     // Build query
     const reviewQuery = { vehicle: vehicleId };
@@ -754,7 +837,7 @@ export const sendVehicleReportByEmail = async (req, res) => {
 
 // @desc    Download a report for ALL vehicles and their reviews (Excel only)
 // @route   GET /api/vehicles/report/all/download
-// @access  Private (e.g., Admin/Manager)
+// @access  Private (Employer Only)
 export const downloadAllVehiclesReport = async (req, res) => {
   try {
     const { startDate, endDate } = req.query;
@@ -766,7 +849,7 @@ export const downloadAllVehiclesReport = async (req, res) => {
     if (end) end.setHours(23, 59, 59, 999);
 
     // Fetch all vehicles efficiently
-    const vehicles = await Vehicle.find().lean();
+    const vehicles = await Vehicle.find({ employerId: req.user.id }).lean();
     if (!vehicles || vehicles.length === 0) {
       return res.status(404).json({ message: 'No vehicles found in the system.' });
     }
@@ -881,7 +964,7 @@ export const downloadAllVehiclesReport = async (req, res) => {
 
 // @desc    Send a report for ALL vehicles and their reviews via email (Excel only)
 // @route   POST /api/vehicles/report/all/send-email
-// @access  Private (e.g., Admin/Manager)
+// @access  Private (Employer Only)
 export const sendAllVehiclesReportByEmail = async (req, res) => {
   try {
     const { startDate, endDate, email } = req.body;
@@ -900,7 +983,7 @@ export const sendAllVehiclesReportByEmail = async (req, res) => {
     const formattedEnd = end ? end.toLocaleDateString() : 'End';
 
     // Fetch all vehicles
-    const vehicles = await Vehicle.find().lean();
+    const vehicles = await Vehicle.find({ employerId: req.user.id }).lean();
     if (!vehicles || vehicles.length === 0) {
       return res.status(404).json({ message: 'No vehicles found. Email not sent.' });
     }

@@ -156,7 +156,7 @@ const AppContent = () => {
         <Route path="/vehicles/:vehicleId/review" element={<PrivateRoute><CreateOrUpdateVehicleReview /></PrivateRoute>} />
         <Route path="/vehicles/:vehicleId/reviews/:reviewId/edit" element={<PrivateRoute><CreateOrUpdateVehicleReview /></PrivateRoute>} />
         <Route path="/vehicles/reviews/:reviewId/view" element={<PrivateRoute><ViewReview /></PrivateRoute>} />
-        <Route path="/settings" element={<SettingsPage />} /> {/* Add Settings Route */}
+        <Route path="/settings" element={<PrivateRoute><SettingsPage /></PrivateRoute>} /> {/* Protect Settings Route */}
 
         {/* Catch-all for undefined routes - Redirects to dashboard */}
         <Route path="*" element={<Navigate to="/dashboard" replace />} />

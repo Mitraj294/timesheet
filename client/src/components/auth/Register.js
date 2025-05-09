@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate, useLocation, Link } from "react-router-dom";
 import { register, login, clearAuthError } from "../../redux/slices/authSlice";
-import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { FontAwesomeIcon, } from "@fortawesome/react-fontawesome";
 import { faEye, faEyeSlash, faUser, faEnvelope, faUserPlus, faSignInAlt, faGlobe, faPhone, faBuilding, faLock, faArrowLeft } from "@fortawesome/free-solid-svg-icons";
 import { parsePhoneNumberFromString, isValidPhoneNumber, getCountries, getCountryCallingCode } from 'libphonenumber-js';
 import { setAlert } from "../../redux/slices/alertSlice";
@@ -28,9 +28,17 @@ const Register = () => {
     phoneNumber: "",
     companyName: "",
   });
+  const [invitationFormData, setInvitationFormData] = useState({
+    prospectiveEmployeeName: initialName || "",
+    prospectiveEmployeeEmail: initialEmail || "",
+    companyName: "", // Company they want to join
+    companyEmail: "", // Email of the company/employer
+  });
   const [showPassword, setShowPassword] = useState(false);
   const [confirmPassword, setConfirmPassword] = useState("");
   const [countryCode, setCountryCode] = useState('IN');
+  const [isSubmittingInvitation, setIsSubmittingInvitation] = useState(false);
+
 
   // Effects
   useEffect(() => {
@@ -55,14 +63,23 @@ const Register = () => {
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData({ ...formData, [name]: value });
-    if (name === 'role' && step === 1 && value !== "") {
+    if (name === 'role' && step === 1 && value) {
       setStep(2);
+      // Pre-fill invitation form if name/email already exist from location state
+      if (value === 'employee') {
+        setInvitationFormData(prev => ({
+          ...prev,
+          prospectiveEmployeeName: formData.name || initialName || "",
+          prospectiveEmployeeEmail: formData.email || initialEmail || "",
+        }));
+      }
     }
   };
 
   const handleBack = () => {
     setStep(1);
     setFormData(prev => ({ ...prev, role: '' }));
+    // Optionally clear invitationFormData too
 };
 
   const handleSubmit = async (e) => {
@@ -103,6 +120,36 @@ const Register = () => {
     }
   };
 
+  const handleInvitationChange = (e) => {
+    const { name, value } = e.target;
+    setInvitationFormData({ ...invitationFormData, [name]: value });
+  };
+
+  const handleInvitationSubmit = async (e) => {
+    e.preventDefault();
+    dispatch(clearAuthError());
+    setIsSubmittingInvitation(true);
+    try {
+      // TODO: Ideally, create a Redux thunk for this API call in authSlice.js
+      const response = await fetch("/api/auth/request-invitation", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(invitationFormData),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.message || "Failed to send invitation request.");
+      }
+      dispatch(setAlert(data.message || "Invitation request sent successfully! The company will be notified.", "success"));
+      setInvitationFormData({ prospectiveEmployeeName: "", prospectiveEmployeeEmail: "", companyName: "", companyEmail: "" }); // Clear form
+      setStep(1); // Go back to role selection or a success message page
+    } catch (error) {
+      dispatch(setAlert(error.message || "An error occurred.", "danger"));
+    } finally {
+      setIsSubmittingInvitation(false);
+    }
+  };
+
   // Memoized Data
   const countryOptions = useMemo(() => {
     const countries = getCountries();
@@ -125,7 +172,7 @@ const Register = () => {
         <hr className="styles_Separator" />
         {step === 1 && (
           <div className="styles_LoginForm">
-            <div className="styles_InputGroup">
+            <div className="styles_InputGroup styles_RoleSelection">
               <label htmlFor="role">Select Your Role to Continue</label>
               <div className="styles_InputWithIcon">
                 <select id="role" name="role" value={formData.role} onChange={handleChange} disabled={loading}>
@@ -139,110 +186,151 @@ const Register = () => {
         )}
 
         {step === 2 && (
-          <form onSubmit={handleSubmit} className="styles_LoginForm">
-            <button type="button" onClick={handleBack} className="styles_BackButton" disabled={loading}>
-              <FontAwesomeIcon icon={faArrowLeft} /> Back
-            </button>
-            <p className="styles_SelectedRole">
-              Registering as: <strong>{formData.role === 'employee' ? '👤 Employee' : '🏢 Employer'}</strong>
-            </p>
-
-            <div className="styles_InputGroup">
-              <label htmlFor="name">Full Name*</label>
-              <div className="styles_InputWithIcon">
-                <input id="name" type="text" name="name" placeholder="Your Full Name" value={formData.name} onChange={handleChange} required disabled={loading} />
-                <FontAwesomeIcon icon={faUser} className="styles_InputIcon styles_InputIconRight" />
-              </div>
-            </div>
-            <div className="styles_InputGroup">
-              <label htmlFor="email">Email Address*</label>
-              <div className="styles_InputWithIcon">
-                <input id="email" type="email" name="email" placeholder="you@example.com" value={formData.email} onChange={handleChange} required disabled={loading} />
-                <FontAwesomeIcon icon={faEnvelope} className="styles_InputIcon styles_InputIconRight" />
-              </div>
-            </div>
+          <>
             {formData.role === 'employer' && (
-              <>
+              <form onSubmit={handleSubmit} className="styles_LoginForm">
+                <button type="button" onClick={handleBack} className="styles_BackButton" disabled={loading}>
+                  <FontAwesomeIcon icon={faArrowLeft} /> Back
+                </button>
+                <p className="styles_SelectedRole">
+                  Registering as: <strong>🏢 Employer</strong>
+                </p>
+
                 <div className="styles_InputGroup">
-                  <label htmlFor="country">Country</label>
+                  <label htmlFor="name">Full Name*</label>
                   <div className="styles_InputWithIcon">
-                    <input id="country" type="text" name="country" placeholder="Your Country" value={formData.country} onChange={handleChange} disabled={loading} />
-                    <FontAwesomeIcon icon={faGlobe} className="styles_InputIcon styles_InputIconRight" />
+                    <input id="name" type="text" name="name" placeholder="Your Full Name" value={formData.name} onChange={handleChange} required disabled={loading} />
+                    <FontAwesomeIcon icon={faUser} className="styles_InputIcon styles_InputIconRight" />
                   </div>
                 </div>
                 <div className="styles_InputGroup">
-                  <label htmlFor="phoneNumber">Phone Number</label>
+                  <label htmlFor="email">Email Address*</label>
                   <div className="styles_InputWithIcon">
-                  <div className="phone-input-group">
-                     <select
-                        name="countryCode"
-                        value={countryCode}
-                        onChange={(e) => setCountryCode(e.target.value)}
-                        className="country-code-select"
-                        disabled={loading}
-                        aria-label="Country Code"
-                      >
-                        {countryOptions.map(option => (
-                          <option key={option.value} value={option.value}>{option.label}</option>
-                        ))}
-                      </select>
-                    <input id="phoneNumber" type="tel" name="phoneNumber" placeholder="Enter phone number" value={formData.phoneNumber} onChange={handleChange} disabled={loading} />
+                    <input id="email" type="email" name="email" placeholder="you@example.com" value={formData.email} onChange={handleChange} required disabled={loading} />
+                    <FontAwesomeIcon icon={faEnvelope} className="styles_InputIcon styles_InputIconRight" />
                   </div>
-                    <FontAwesomeIcon icon={faPhone} className="styles_InputIcon styles_InputIconRight" />
+                </div>
+                <>
+                  <div className="styles_InputGroup">
+                    <label htmlFor="country">Country</label>
+                    <div className="styles_InputWithIcon">
+                      <input id="country" type="text" name="country" placeholder="Your Country" value={formData.country} onChange={handleChange} disabled={loading} />
+                      <FontAwesomeIcon icon={faGlobe} className="styles_InputIcon styles_InputIconRight" />
+                    </div>
+                  </div>
+                  <div className="styles_InputGroup">
+                    <label htmlFor="phoneNumber">Phone Number</label>
+                    <div className="styles_InputWithIcon">
+                    <div className="phone-input-group">
+                       <select
+                          name="countryCode"
+                          value={countryCode}
+                          onChange={(e) => setCountryCode(e.target.value)}
+                          className="country-code-select"
+                          disabled={loading}
+                          aria-label="Country Code"
+                        >
+                          {countryOptions.map(option => (
+                            <option key={option.value} value={option.value}>{option.label}</option>
+                          ))}
+                        </select>
+                      <input id="phoneNumber" type="tel" name="phoneNumber" placeholder="Enter phone number" value={formData.phoneNumber} onChange={handleChange} disabled={loading} />
+                    </div>
+                      <FontAwesomeIcon icon={faPhone} className="styles_InputIcon styles_InputIconRight" />
+                    </div>
+                  </div>
+                  <div className="styles_InputGroup">
+                    <label htmlFor="companyName">Company Name*</label>
+                    <div className="styles_InputWithIcon">
+                      <input id="companyName" type="text" name="companyName" placeholder="Your Company Name" value={formData.companyName} onChange={handleChange} required disabled={loading} />
+                      <FontAwesomeIcon icon={faBuilding} className="styles_InputIcon styles_InputIconRight" />
+                    </div>
+                  </div>
+                </>
+                <div className="styles_InputGroup">
+                  <label htmlFor="password">Password*</label>
+                  <div className="styles_PasswordInputContainer">
+                    <input
+                      id="password"
+                      type={showPassword ? "text" : "password"}
+                      name="password"
+                      placeholder="Password (min. 6 characters)"
+                      value={formData.password}
+                      onChange={handleChange}
+                      required
+                      minLength="6"
+                      disabled={loading}
+                    />
+                    <button type="button" onClick={() => setShowPassword(!showPassword)} className="styles_PasswordToggleBtn" disabled={loading}>
+                      <FontAwesomeIcon icon={showPassword ? faEyeSlash : faEye}  className="styles_InputIcon styles_InputIconRight" />
+                    </button>
                   </div>
                 </div>
                 <div className="styles_InputGroup">
-                  <label htmlFor="companyName">Company Name*</label>
+                  <label htmlFor="confirmPassword">Confirm Password*</label>
+                  <div className="styles_PasswordInputContainer">
+                    <input
+                      id="confirmPassword"
+                      type={showPassword ? "text" : "password"} // Link visibility to main password toggle
+                      name="confirmPassword"
+                      placeholder="Confirm Your Password"
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      required
+                      minLength="6"
+                      disabled={loading}
+                    />
+                     <FontAwesomeIcon icon={faLock} className="styles_InputIcon styles_InputIconRight" />
+                  </div>
+                </div>
+                <button type="submit" className="styles_Button" disabled={loading}>
+                  {loading ? "Signing Up..." : <><FontAwesomeIcon icon={faUserPlus} className="button-icon" /> Sign Up</>}
+                </button>
+              </form>
+            )}
+
+            {formData.role === 'employee' && (
+              <form onSubmit={handleInvitationSubmit} className="styles_LoginForm">
+                 <button type="button" onClick={handleBack} className="styles_BackButton" disabled={isSubmittingInvitation}>
+                  <FontAwesomeIcon icon={faArrowLeft} /> Back
+                </button>
+                <p className="styles_SelectedRole">
+                  Request to Join a Company as: <strong>👤 Employee</strong>
+                </p>
+                <div className="styles_InputGroup">
+                  <label htmlFor="prospectiveEmployeeName">Full Name*</label>
                   <div className="styles_InputWithIcon">
-                    <input id="companyName" type="text" name="companyName" placeholder="Your Company Name" value={formData.companyName} onChange={handleChange} required disabled={loading} />
+                    <input id="prospectiveEmployeeName" type="text" name="prospectiveEmployeeName" placeholder="Your Full Name" value={invitationFormData.prospectiveEmployeeName} onChange={handleInvitationChange} required disabled={isSubmittingInvitation} />
+                    <FontAwesomeIcon icon={faUser} className="styles_InputIcon styles_InputIconRight" />
+                  </div>
+                </div>
+                <div className="styles_InputGroup">
+                  <label htmlFor="prospectiveEmployeeEmail">Email Address*</label>
+                  <div className="styles_InputWithIcon">
+                    <input id="prospectiveEmployeeEmail" type="email" name="prospectiveEmployeeEmail" placeholder="Your Email Address" value={invitationFormData.prospectiveEmployeeEmail} onChange={handleInvitationChange} required disabled={isSubmittingInvitation} />
+                    <FontAwesomeIcon icon={faEnvelope} className="styles_InputIcon styles_InputIconRight" />
+                  </div>
+                </div>
+                <div className="styles_InputGroup">
+                  <label htmlFor="targetCompanyName">Company Name*</label>
+                  <div className="styles_InputWithIcon">
+                    <input id="targetCompanyName" type="text" name="companyName" placeholder="Company You Want to Join" value={invitationFormData.companyName} onChange={handleInvitationChange} required disabled={isSubmittingInvitation} />
                     <FontAwesomeIcon icon={faBuilding} className="styles_InputIcon styles_InputIconRight" />
                   </div>
                 </div>
-              </>
-            )}
-            <div className="styles_InputGroup">
-              <label htmlFor="password">Password*</label>
-              <div className="styles_PasswordInputContainer">
-                <input
-                  id="password"
-                  type={showPassword ? "text" : "password"}
-                  name="password"
-                  placeholder="Password (min. 6 characters)"
-                  value={formData.password}
-                  onChange={handleChange}
-                  required
-                  minLength="6"
-                  disabled={loading}
-                />
-                <button type="button" onClick={() => setShowPassword(!showPassword)} className="styles_PasswordToggleBtn" disabled={loading}>
-                  <FontAwesomeIcon icon={showPassword ? faEyeSlash : faEye}  className="styles_InputIcon styles_InputIconRight" />
-                </button>
-              </div>
-            </div>
-            {formData.role === 'employer' && (
-              <div className="styles_InputGroup">
-                <label htmlFor="confirmPassword">Confirm Password*</label>
-                <div className="styles_PasswordInputContainer">
-                  <input
-                    id="confirmPassword"
-                    type={showPassword ? "text" : "password"} // Link visibility to main password toggle
-                    name="confirmPassword"
-                    placeholder="Confirm Your Password"
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    required
-                    minLength="6"
-                    disabled={loading}
-                  />
-                   <FontAwesomeIcon icon={faLock} className="styles_InputIcon styles_InputIconRight" />
+                <div className="styles_InputGroup">
+                  <label htmlFor="targetCompanyEmail">Company Email Address*</label>
+                  <div className="styles_InputWithIcon">
+                    <input id="targetCompanyEmail" type="email" name="companyEmail" placeholder="Employer's Email Address" value={invitationFormData.companyEmail} onChange={handleInvitationChange} required disabled={isSubmittingInvitation} />
+                    <FontAwesomeIcon icon={faEnvelope} className="styles_InputIcon styles_InputIconRight" />
+                  </div>
                 </div>
-              </div>
+                <button type="submit" className="styles_Button" disabled={isSubmittingInvitation}>
+                  {isSubmittingInvitation ? "Sending Request..." : <><FontAwesomeIcon icon={faUserPlus} className="button-icon" /> Send Request</>}
+                </button>
+              </form>
             )}
-
-            <button type="submit" className="styles_Button" disabled={loading}>
-              {loading ? "Signing Up..." : <><FontAwesomeIcon icon={faUserPlus} className="button-icon" /> Sign Up</>}
-            </button>
-          </form>
+          </>
         )}
 
         <p className="styles_SignupPrompt">
@@ -260,5 +348,3 @@ const Register = () => {
   );
 };
 export default Register;
-
-

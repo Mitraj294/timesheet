@@ -4,8 +4,25 @@ import Employee from "../models/Employee.js";
 // @route   GET /api/employees
 // @access  Private (Or Public, depending on your app's requirements)
 export const getEmployees = async (req, res) => {
+  // req.user should be populated by your `protect` middleware
+  if (!req.user) {
+    return res.status(401).json({ message: "Not authorized, no user" });
+  }
+
   try {
-    const employees = await Employee.find();
+    let employees;
+    if (req.user.role === 'employer') {
+      // Employer gets all employees under their employerId
+      employees = await Employee.find({ employerId: req.user.id });
+    } else if (req.user.role === 'employee') {
+      // Employee gets their own employee record by matching their userId
+      const employeeRecord = await Employee.findOne({ userId: req.user.id })
+        .populate('employerId', 'name email companyName phoneNumber country'); // Populate employer details
+      employees = employeeRecord ? [employeeRecord] : [];
+    } else {
+      // For any other roles, or if the role is not 'employer' or 'employee'
+      return res.status(403).json({ message: "Access denied for this role." });
+    }
     res.json(employees);
   } catch (error) {
     console.error("Error fetching employees:", error);
@@ -17,9 +34,14 @@ export const getEmployees = async (req, res) => {
 // @route   POST /api/employees
 // @access  Private (Typically admin/employer role)
 export const addEmployee = async (req, res) => {
+  // req.user should be populated by your `protect` and `employerOnly` middleware
+  if (!req.user || req.user.role !== 'employer') {
+    return res.status(401).json({ message: "Not authorized or not an employer" });
+  }
+
   try {
     const { name, email, employeeCode, wage, isAdmin, overtime, expectedHours, holidayMultiplier, userId } = req.body;
-
+    
     if (!name || !email || !employeeCode || !wage) {
       return res.status(400).json({ message: "Name, Email, Employee Code, and Wage are required" });
     }
@@ -35,29 +57,43 @@ export const addEmployee = async (req, res) => {
       return res.status(400).json({ message: "Wage must be a positive number." });
     }
 
-    // Optional: Check if employeeCode is unique
-    // const existingEmployee = await Employee.findOne({ employeeCode });
-    // if (existingEmployee) {
-    //   return res.status(400).json({ message: "Employee code already exists." });
-    // }
+    // Check for global uniqueness of email and employeeCode as per schema
+    const existingEmployeeByEmail = await Employee.findOne({ email });
+    if (existingEmployeeByEmail) {
+      return res.status(409).json({ message: `An employee with the email '${email}' already exists.` });
+    }
+
+    const existingEmployeeByCode = await Employee.findOne({ employeeCode });
+    if (existingEmployeeByCode) {
+      return res.status(409).json({ message: `An employee with the code '${employeeCode}' already exists.` });
+    }
 
     const newEmployee = new Employee({
       name,
       email,
       employeeCode,
       wage: numericWage,
-      isAdmin: isAdmin || false, // Default isAdmin to false if not provided
-      overtime: overtime || false, // Default overtime to false
-      expectedHours: expectedHours || null, // Default to null or a sensible default
-      holidayMultiplier: holidayMultiplier || 1, // Default to 1 or a sensible default
-      userId // Save the linked userId (ensure this is intended and secure)
+      isAdmin: isAdmin ?? false,
+      overtime: overtime ?? false,
+      expectedHours: expectedHours ?? 40, // Use schema default if not provided or null
+      holidayMultiplier: holidayMultiplier ?? 1.5, // Use schema default if not provided or null
+      userId: userId || null, // Link to the employee's User document, if provided
+      employerId: req.user.id // Link to the employer's User document
     });
 
     await newEmployee.save();
     res.status(201).json(newEmployee);
   } catch (error) {
     console.error("Error adding employee:", error);
-    res.status(500).json({ message: "Error adding employee" });
+    if (error.code === 11000) { // MongoDB duplicate key error
+      let field = Object.keys(error.keyValue)[0];
+      field = field === 'employeeCode' ? 'Employee Code' : field.charAt(0).toUpperCase() + field.slice(1);
+      return res.status(409).json({ message: `${field} '${error.keyValue[Object.keys(error.keyValue)[0]]}' already exists.` });
+    }
+    if (error.name === 'ValidationError') {
+        return res.status(400).json({ message: error.message });
+    }
+    res.status(500).json({ message: "Server error while adding employee." });
   }
 };
 
@@ -66,7 +102,11 @@ export const addEmployee = async (req, res) => {
 // @route   PUT /api/employees/:id
 // @access  Private (Typically admin/employer role)
 export const updateEmployee = async (req, res) => {
+  if (!req.user || req.user.role !== 'employer') {
+    return res.status(401).json({ message: "Not authorized or not an employer" });
+  }
   try {
+    const employeeId = req.params.id;
     const { name, email, employeeCode, wage, isAdmin, overtime, expectedHours, holidayMultiplier } = req.body;
 
     // Prepare update object with only the fields intended for update
@@ -79,7 +119,13 @@ export const updateEmployee = async (req, res) => {
         }
         updateFields.email = email;
     }
-    if (employeeCode) updateFields.employeeCode = employeeCode; // Consider uniqueness check if updatable
+    if (employeeCode) {
+        // If employeeCode is being changed, ensure it's unique among other employees
+        // We need to fetch the employee first to compare against its current code if it's being changed.
+        // This check will be done after fetching the employee.
+        updateFields.employeeCode = employeeCode;
+    }
+
     if (wage !== undefined) {
         const numericWage = Number(wage);
         if (isNaN(numericWage) || numericWage <= 0) {
@@ -89,24 +135,56 @@ export const updateEmployee = async (req, res) => {
     }
     if (isAdmin !== undefined) updateFields.isAdmin = isAdmin;
     if (overtime !== undefined) updateFields.overtime = overtime;
-    if (expectedHours !== undefined) updateFields.expectedHours = expectedHours;
-    if (holidayMultiplier !== undefined) updateFields.holidayMultiplier = holidayMultiplier;
+    if (expectedHours !== undefined) {
+        const numExpectedHours = Number(expectedHours);
+        updateFields.expectedHours = isNaN(numExpectedHours) ? undefined : numExpectedHours; // Let Mongoose handle default if NaN
+    }
+    if (holidayMultiplier !== undefined) {
+        const numHolidayMultiplier = Number(holidayMultiplier);
+        updateFields.holidayMultiplier = isNaN(numHolidayMultiplier) ? undefined : numHolidayMultiplier; // Let Mongoose handle default if NaN
+    }
     // Note: userId is typically not updated. If it needs to be, handle with care.
+    // employerId should generally not be updatable by an employer directly on an existing employee.
+
+    // Ensure the employer can only update their own employees
+    const employee = await Employee.findOne({ _id: employeeId, employerId: req.user.id });
+    if (!employee) {
+      return res.status(404).json({ message: "Employee not found or not associated with this employer" });
+    }
+
+    // If email is being changed, ensure it's unique among other employees
+    if (updateFields.email && updateFields.email !== employee.email) {
+        const existingEmployeeByEmail = await Employee.findOne({ email: updateFields.email, _id: { $ne: employeeId } });
+        if (existingEmployeeByEmail) {
+            return res.status(409).json({ message: `An employee with the email '${updateFields.email}' already exists.` });
+        }
+    }
+    // If employeeCode is being changed, ensure it's unique among other employees
+    if (updateFields.employeeCode && updateFields.employeeCode !== employee.employeeCode) {
+        const existingEmployeeByCode = await Employee.findOne({ employeeCode: updateFields.employeeCode, _id: { $ne: employeeId } });
+        if (existingEmployeeByCode) {
+            return res.status(409).json({ message: `An employee with the code '${updateFields.employeeCode}' already exists.` });
+        }
+    }
 
     const updatedEmployee = await Employee.findByIdAndUpdate(
-      req.params.id,
+      employeeId,
       updateFields,
       { new: true, runValidators: true } // Returns updated document and runs schema validators
     );
 
-    if (!updatedEmployee) {
-      return res.status(404).json({ message: "Employee not found" });
-    }
-
     res.json(updatedEmployee);
   } catch (error) {
     console.error("Error updating employee:", error);
-    res.status(500).json({ message: "Error updating employee" });
+    if (error.code === 11000) { // MongoDB duplicate key error
+        let field = Object.keys(error.keyValue)[0];
+        field = field === 'employeeCode' ? 'Employee Code' : field.charAt(0).toUpperCase() + field.slice(1);
+        return res.status(409).json({ message: `${field} '${error.keyValue[Object.keys(error.keyValue)[0]]}' already exists.` });
+    }
+    if (error.name === 'ValidationError') {
+        return res.status(400).json({ message: error.message });
+    }
+    res.status(500).json({ message: "Server error while updating employee." });
   }
 };
 
@@ -114,11 +192,19 @@ export const updateEmployee = async (req, res) => {
 // @route   DELETE /api/employees/:id
 // @access  Private (Typically admin/employer role)
 export const deleteEmployee = async (req, res) => {
+  if (!req.user || req.user.role !== 'employer') {
+    return res.status(401).json({ message: "Not authorized or not an employer" });
+  }
   try {
-    const deletedEmployee = await Employee.findByIdAndDelete(req.params.id);
+    const employeeId = req.params.id;
+    // Ensure the employer can only delete their own employees
+    const deletedEmployee = await Employee.findOneAndDelete({ _id: employeeId, employerId: req.user.id });
+
     if (!deletedEmployee) {
-      return res.status(404).json({ message: "Employee not found" });
+      return res.status(404).json({ message: "Employee not found or not associated with this employer" });
     }
+    // TODO: Consider deleting the associated User record for the employee, or deactivating it.
+    // await User.findByIdAndDelete(deletedEmployee.userId);
     res.json({ message: "Employee deleted successfully" });
   } catch (error) {
     console.error("Error deleting employee:", error);

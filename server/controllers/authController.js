@@ -2,6 +2,8 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import crypto from 'crypto'; // Needed for token generation
 import User from "../models/User.js";
+import Employee from "../models/Employee.js"; // Import Employee model
+import Invitation from "../models/Invitation.js"; // Import the new Invitation model
 // --- IMPORTANT ---
 // Import your email sending utility (adjust path if necessary)
 import sendEmail from '../utils/sendEmail.js';
@@ -22,7 +24,7 @@ const USER_ROLES = {
 // @access  Public
 export const registerUser = async (req, res) => {
   try {
-    const { name, email, password, role, country, phoneNumber, companyName } = req.body;
+    const { name, email, password, role, country, phoneNumber, companyName, isInvited = false, employerId = null } = req.body;
 
     if (!name || !email || !password || !role ) {
       return res.status(400).json({ message: "Please provide name, email, password, and role" });
@@ -56,7 +58,12 @@ export const registerUser = async (req, res) => {
       role,
       country: country || '', 
       phoneNumber: phoneNumber || '',
+      // Company name is only for employers.
+      // If an employee is registered (e.g. by an employer or after invitation), companyName on User model is not typically set.
+      // The association is via Employee.employerId.
       companyName: role.toLowerCase() === USER_ROLES.EMPLOYER ? (companyName || '') : '', // companyName for employers only
+      // If this registration is part of an invitation approval, employerId might be passed.
+      // However, the Employee model's employerId is the primary link.
     });
 
     res.status(201).json({
@@ -69,6 +76,7 @@ export const registerUser = async (req, res) => {
         country: user.country,
         phoneNumber: user.phoneNumber,
         companyName: user.companyName,
+        // Do not send employerId here unless specifically needed for the response context
       },
       // token: generateToken(user._id, user.role) // Optional: immediate login token post-registration
     });
@@ -298,5 +306,304 @@ export const deleteAccount = async (req, res) => {
     } catch (error) {
         console.error("Error deleting account:", error);
         res.status(500).json({ message: "Server error during account deletion." });
+    }
+};
+
+// @desc    Check if a user exists by email
+// @route   POST /api/auth/check-user
+// @access  Private (e.g., for internal checks by an employer adding an employee)
+export const checkUserExists = async (req, res) => {
+    try {
+        const { email } = req.body;
+        if (!email) {
+            return res.status(400).json({ message: "Email is required." });
+        }
+        const user = await User.findOne({ email }).select('_id name email role'); // Select only necessary fields
+        if (user) {
+            return res.json({ exists: true, user });
+        } else {
+            return res.json({ exists: false });
+        }
+    } catch (error) {
+        console.error("Error checking user existence:", error);
+        res.status(500).json({ message: "Server error while checking user." });
+    }
+};
+
+// @desc    Prospective employee requests an invitation to join a company
+// @route   POST /api/auth/request-invitation
+// @access  Public
+export const requestCompanyInvitation = async (req, res) => {
+    try {
+        const { prospectiveEmployeeName, prospectiveEmployeeEmail, companyName, companyEmail } = req.body;
+
+        if (!prospectiveEmployeeName || !prospectiveEmployeeEmail || !companyName || !companyEmail) {
+            return res.status(400).json({ message: "All fields are required: your name, your email, company name, and company email." });
+        }
+
+        // Optional: Check if an invitation already exists for this email to this company
+        const existingInvitation = await Invitation.findOne({ prospectiveEmployeeEmail, companyEmail, status: 'pending' });
+        if (existingInvitation) {
+            return res.status(400).json({ message: "An invitation request for this email to this company is already pending." });
+        }
+
+        // Find the employer user by their email
+        const employerUser = await User.findOne({ email: companyEmail, role: USER_ROLES.EMPLOYER });
+        if (!employerUser) {
+            // Don't reveal if company email exists for security.
+            // You might send an email to `prospectiveEmployeeEmail` saying "request submitted, if company exists..."
+            // Or, for simplicity now, just inform that the request is logged.
+            // Log this attempt for admin review if needed.
+            console.warn(`Invitation request made to non-existent or non-employer company email: ${companyEmail}`);
+            // To the user, it might appear successful to prevent probing.
+            // However, a more direct feedback might be better UX depending on requirements.
+            // For now, let's assume we proceed to create an invitation even if employer isn't found immediately,
+            // and rely on employer to see it if their email matches. Or, reject if employer not found.
+            // Let's reject if employer not found for clarity.
+             return res.status(404).json({ message: "Employer with the provided company email not found or is not registered as an employer." });
+        }
+
+        const invitation = new Invitation({
+            prospectiveEmployeeName,
+            prospectiveEmployeeEmail,
+            companyName, // Store what user typed
+            companyEmail, // Store what user typed (employer's email)
+            employerId: employerUser._id, // Link to the found employer
+        });
+
+        await invitation.save();
+
+        // Notify the employer about the new invitation request
+        const employerNotificationSubject = `New Employee Invitation Request from ${prospectiveEmployeeName}`;
+        const employerNotificationHtml = `
+            <h1>New Employee Invitation Request</h1>
+            <p>Hello ${employerUser.name || 'Employer'},</p>
+            <p><b>${prospectiveEmployeeName}</b> (Email: ${prospectiveEmployeeEmail}) has requested to join your company, "${employerUser.companyName || companyName}".</p>
+            <p>You can review and manage this request in your employer dashboard.</p>
+            <p>Thank you,<br/>The Timesheet System</p>
+        `;
+        try {
+            await sendEmail({ to: employerUser.email, subject: employerNotificationSubject, html: employerNotificationHtml });
+        } catch (emailError) {
+            console.error(`Failed to send invitation request email to employer ${employerUser.email}:`, emailError);
+            // Continue even if email fails, as the invitation is already saved.
+        }
+
+        res.status(201).json({ message: "Invitation request submitted successfully. The company will be notified." });
+
+    } catch (error) {
+        console.error("Error requesting invitation:", error);
+        res.status(500).json({ message: "Server error while submitting invitation request." });
+    }
+};
+
+// @desc    Employer gets their pending invitations
+// @route   GET /api/auth/invitations/pending
+// @access  Private (Employer only)
+export const getPendingInvitations = async (req, res) => {
+    try {
+        if (req.user.role !== USER_ROLES.EMPLOYER) {
+            return res.status(403).json({ message: "Access denied." });
+        }
+        const invitations = await Invitation.find({ employerId: req.user.id, status: 'pending' })
+                                            .sort({ createdAt: -1 });
+        res.json(invitations);
+    } catch (error) {
+        console.error("Error fetching pending invitations:", error);
+        res.status(500).json({ message: "Server error fetching invitations." });
+    }
+};
+
+// @desc    Employer approves an invitation
+// @route   POST /api/auth/invitations/:invitationId/approve
+// @access  Private (Employer only)
+export const approveInvitation = async (req, res) => {
+    const { invitationId } = req.params;
+    const employer = req.user; // Logged-in employer from 'protect' middleware
+
+    try {
+        const invitation = await Invitation.findById(invitationId);
+
+        if (!invitation) {
+            return res.status(404).json({ message: "Invitation not found." });
+        }
+        if (invitation.status !== 'pending') {
+            return res.status(400).json({ message: `Invitation has already been ${invitation.status}.` });
+        }
+        if (invitation.employerId.toString() !== employer.id.toString()) {
+            return res.status(403).json({ message: "Access denied. You are not authorized to approve this invitation." });
+        }
+
+        const { prospectiveEmployeeEmail, prospectiveEmployeeName } = invitation;
+        let employeeUser;
+        let temporaryPassword = null;
+
+        // 1. Check for existing User or create a new one
+        const existingUser = await User.findOne({ email: prospectiveEmployeeEmail });
+
+        if (existingUser) {
+            // User exists. Check if they are already an employee of *any* company.
+            const existingEmployeeRecord = await Employee.findOne({ userId: existingUser._id });
+            if (existingEmployeeRecord) {
+                if (existingEmployeeRecord.employerId.toString() === employer.id.toString()) {
+                    // Already an employee of this company.
+                    // Mark invitation as approved, but no new records needed.
+                    invitation.status = 'approved';
+                    invitation.resolvedBy = employer._id;
+                    await invitation.save();
+                    return res.status(200).json({ message: "This user is already an employee of your company. Invitation marked as approved.", employee: existingEmployeeRecord });
+                } else {
+                    // Employee of another company. This is a conflict.
+                    return res.status(409).json({ message: "This user is already registered as an employee with another company." });
+                }
+            }
+            // User exists but is not an Employee yet (or not in our Employee table for some reason)
+            // Or user exists with a different role that can be converted/associated.
+            // We will use this existing user account.
+            employeeUser = existingUser;
+            if (employeeUser.role !== USER_ROLES.EMPLOYEE) {
+                // Optionally, update role if it's a generic user becoming an employee
+                // For now, we assume if user exists, their role is acceptable or already 'employee'
+                console.log(`User ${employeeUser.email} exists with role ${employeeUser.role}, will be linked as employee.`);
+            }
+        } else {
+            // User does not exist, create a new one
+            temporaryPassword = crypto.randomBytes(8).toString('hex');
+            employeeUser = new User({
+                name: prospectiveEmployeeName,
+                email: prospectiveEmployeeEmail,
+                password: temporaryPassword, // Pre-save hook in User model will hash this
+                role: USER_ROLES.EMPLOYEE,
+                // Add any other default fields for User model
+            });
+            await employeeUser.save();
+        }
+
+        // 2. Create Employee record
+        // Check if an Employee record already links this user to this employer (double check)
+        const existingEmployeeLink = await Employee.findOne({ userId: employeeUser._id, employerId: employer._id });
+        if (existingEmployeeLink) {
+             invitation.status = 'approved';
+             invitation.resolvedBy = employer._id;
+             await invitation.save();
+            return res.status(200).json({ message: "Employee record already exists for this user in your company. Invitation marked as approved.", employee: existingEmployeeLink });
+        }
+
+        const employeeCode = `EMP-${Date.now().toString().slice(-6)}`; // Generate a simple unique code
+
+        const newEmployee = new Employee({
+            name: prospectiveEmployeeName,
+            email: prospectiveEmployeeEmail, // Ensure this matches the User email
+            employeeCode,
+            wage: 0, // Employer should update this later
+            userId: employeeUser._id,
+            employerId: employer._id,
+            // Add other default fields from Employee model
+        });
+        await newEmployee.save();
+
+        // 3. Update Invitation status
+        invitation.status = 'approved';
+        invitation.resolvedBy = employer._id;
+        await invitation.save();
+
+        // 4. Notify Employee
+        let employeeNotificationSubject;
+        let employeeNotificationHtml;
+
+        if (temporaryPassword) {
+            console.log(`New user created. Email: ${prospectiveEmployeeEmail}, Temp Password: ${temporaryPassword}`);
+            employeeNotificationSubject = "Welcome to the Team! Your Timesheet Account is Ready";
+            employeeNotificationHtml = `
+                <h1>Welcome, ${prospectiveEmployeeName}!</h1>
+                <p>Your request to join <b>${employer.companyName || 'our company'}</b> has been approved.</p>
+                <p>A new account has been created for you. Please use the following credentials to log in:</p>
+                <p><b>Email:</b> ${prospectiveEmployeeEmail}</p>
+                <p><b>Temporary Password:</b> ${temporaryPassword}</p>
+                <p>We recommend changing your password after your first login.</p>
+                <p>Login at: <a href="${process.env.CLIENT_BASE_URL || 'http://localhost:3000'}">${process.env.CLIENT_BASE_URL || 'http://localhost:3000'}</a></p>
+                <p>Thank you,<br/>The ${employer.companyName || 'Company'} Team</p>
+            `;
+        } else {
+            console.log(`Existing user ${prospectiveEmployeeEmail} linked as employee.`);
+            employeeNotificationSubject = `You've been added to ${employer.companyName || 'a new company'}`;
+            employeeNotificationHtml = `
+                <h1>Hello ${prospectiveEmployeeName}!</h1>
+                <p>You have been successfully added as an employee to <b>${employer.companyName || 'our company'}</b>.</p>
+                <p>You can now log in using your existing credentials to access your timesheet and other company resources.</p>
+                <p>Login at: <a href="${process.env.CLIENT_BASE_URL || 'http://localhost:3000'}">${process.env.CLIENT_BASE_URL || 'http://localhost:3000'}</a></p>
+                <p>Thank you,<br/>The ${employer.companyName || 'Company'} Team</p>
+            `;
+        }
+
+        res.status(200).json({
+            message: "Invitation approved successfully. Employee created/linked.",
+            employee: newEmployee, // Send back the created employee record
+            user: { _id: employeeUser._id, email: employeeUser.email, name: employeeUser.name } // Send back some user info
+        });
+
+        // Send email after successful response to user to avoid delaying the response.
+        try {
+            await sendEmail({ to: prospectiveEmployeeEmail, subject: employeeNotificationSubject, html: employeeNotificationHtml });
+        } catch (emailError) {
+            console.error(`Failed to send approval email to employee ${prospectiveEmployeeEmail}:`, emailError);
+            // Log error, but the main operation was successful.
+        }
+
+    } catch (error) {
+        console.error("Error approving invitation:", error);
+        if (error.code === 11000) { // Duplicate key error
+            // This might happen if Employee.email or Employee.employeeCode has a unique constraint violated
+            return res.status(409).json({ message: "Failed to approve invitation due to a conflict. An employee with similar details might already exist.", details: error.message });
+        }
+        res.status(500).json({ message: "Server error while approving invitation." });
+    }
+};
+
+// @desc    Employer rejects an invitation
+// @route   POST /api/auth/invitations/:invitationId/reject
+// @access  Private (Employer only)
+export const rejectInvitation = async (req, res) => {
+    const { invitationId } = req.params;
+    const employer = req.user;
+
+    try {
+        const invitation = await Invitation.findById(invitationId);
+
+        if (!invitation) {
+            return res.status(404).json({ message: "Invitation not found." });
+        }
+        if (invitation.status !== 'pending') {
+            return res.status(400).json({ message: `Invitation has already been ${invitation.status}.` });
+        }
+        if (invitation.employerId.toString() !== employer.id.toString()) {
+            return res.status(403).json({ message: "Access denied. You are not authorized to reject this invitation." });
+        }
+
+        invitation.status = 'rejected';
+        invitation.resolvedBy = employer._id;
+        await invitation.save();
+
+        // Notify the prospective employee about the rejection
+        const rejectionSubject = `Update on your application to ${invitation.companyName}`;
+        const rejectionHtml = `
+            <h1>Hello ${invitation.prospectiveEmployeeName},</h1>
+            <p>Thank you for your interest in joining <b>${invitation.companyName}</b>.</p>
+            <p>We regret to inform you that your application has not been approved at this time.</p>
+            <p>We wish you the best in your job search.</p>
+            <p>Sincerely,<br/>The ${invitation.companyName} Team</p>
+        `;
+        try {
+            await sendEmail({ to: invitation.prospectiveEmployeeEmail, subject: rejectionSubject, html: rejectionHtml });
+        } catch (emailError) {
+            console.error(`Failed to send rejection email to ${invitation.prospectiveEmployeeEmail}:`, emailError);
+            // Log error, but the main operation was successful.
+        }
+
+        res.status(200).json({ message: "Invitation rejected successfully." });
+
+    } catch (error) {
+        console.error("Error rejecting invitation:", error);
+        res.status(500).json({ message: "Server error while rejecting invitation." });
     }
 };

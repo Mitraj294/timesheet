@@ -20,9 +20,12 @@ const getErrorMessage = (error) => {
 export const fetchClients = createAsyncThunk(
   'clients/fetchClients', // Action type prefix (e.g., 'clients/fetchClients/pending')
   async (_, { getState, rejectWithValue }) => { // Use rejectWithValue for standardized error handling
+    const { token } = getState().auth;
+    if (!token) {
+      return rejectWithValue('Not authorized, no token provided');
+    }
     try {
-      // Make the API call
-      const response = await axios.get(`${API_URL}/clients`);
+      const response = await axios.get(`${API_URL}/clients`, getAuthHeaders(token));
       // Return the data on success (this becomes action.payload in the fulfilled case)
       return response.data || []; // Ensure we always return an array, even if API returns null for no clients.
     } catch (error) {
