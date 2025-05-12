@@ -1,0 +1,152 @@
+// /home/digilab/timesheet/client/src/styles/ConfirmDeleteAccountPage.scss
+.confirm-delete-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 80vh; // Adjust as needed
+    padding: 20px;
+    background-color: #f4f6f8; // A light background color
+
+    &.error-page {
+        text-align: center;
+
+        .btn {
+            margin-top: 20px;
+        }
+
+        svg {
+            // Icon for error page
+            color: #dc3545; // Danger color
+            margin-bottom: 15px;
+        }
+    }
+
+    .confirm-delete-box {
+        background-color: #fff;
+        padding: 30px 40px;
+        border-radius: 8px;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        text-align: center;
+        max-width: 480px; // Slightly wider for better text flow
+        width: 100%;
+
+        .icon {
+            color: #dc3545; // Danger color for the trash icon
+            margin-bottom: 15px;
+        }
+
+        h2 {
+            margin-bottom: 10px;
+            color: #333;
+            font-size: 1.75rem;
+        }
+
+        p {
+            margin-bottom: 25px;
+            color: #555;
+            font-size: 0.95rem;
+            line-height: 1.6;
+
+            strong {
+                color: #c82333; // Emphasize warning
+            }
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+            text-align: left;
+
+            label {
+                display: block;
+                margin-bottom: 8px;
+                font-weight: 600;
+                color: #444;
+            }
+
+            .password-input-container {
+                position: relative;
+                display: flex;
+                align-items: center;
+
+                .input-icon {
+                    position: absolute;
+                    left: 12px;
+                    color: #aaa;
+                    z-index: 1; // Ensure icon is above input field background
+                }
+
+                input[type="password"],
+                input[type="text"] {
+                    width: 100%;
+                    padding: 10px 12px 10px 40px; // Make space for icon on the left
+                    border: 1px solid #ccc;
+                    border-radius: 5px;
+                    font-size: 1rem;
+                    box-sizing: border-box;
+                    height: 42px; // Standard height
+
+                    &:focus {
+                        border-color: #007bff;
+                        box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, .25);
+                        outline: none;
+                    }
+
+                    &:disabled {
+                        background-color: #e9ecef;
+                        cursor: not-allowed;
+                    }
+                }
+
+                .password-toggle {
+                    position: absolute;
+                    right: 1px;
+                    top: 1px;
+                    bottom: 1px;
+                    width: 40px;
+                    background: transparent;
+                    border: none;
+                    border-left: 1px solid #eee; // Subtle separator
+                    cursor: pointer;
+                    color: #777;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+
+                    &:hover {
+                        color: #333;
+                    }
+
+                    &:disabled {
+                        cursor: not-allowed;
+                        color: #aaa;
+                    }
+                }
+            }
+        }
+
+        // For page-specific errors not handled by global Alert
+        .form-error-message.page-specific-error {
+            color: #721c24;
+            background-color: #f8d7da;
+            border: 1px solid #f5c6cb;
+            padding: 0.75rem 1.25rem;
+            margin-bottom: 1rem;
+            border-radius: 0.25rem;
+            font-size: 0.9em;
+            text-align: left;
+
+            svg {
+                margin-right: 0.5rem;
+            }
+        }
+
+        .btn-danger.btn-block {
+            // Ensure block-level button
+            width: 100%;
+            padding: 12px;
+            font-size: 1.05rem;
+            font-weight: 600;
+        }
+    }
+}

@@ -200,6 +200,24 @@ export const requestAccountDeletionLink = createAsyncThunk(
     }
   }
 );
+
+// Thunk for confirming account deletion with token and password
+export const confirmAccountDeletion = createAsyncThunk(
+  'auth/confirmAccountDeletion',
+  async ({ token, password }, { dispatch, rejectWithValue }) => {
+    try {
+      // The backend endpoint will verify the token and password
+      const response = await axios.post(`${API_URL}/auth/confirm-delete-account/${token}`, { password });
+      // On successful deletion, the backend sends a success message.
+      // The user will be logged out by the component after this thunk fulfills.
+      return response.data; // e.g., { message: "Account deleted successfully." }
+    } catch (error) {
+      const message = getErrorMessage(error);
+      dispatch(setAlert(message, 'danger')); // Dispatch an alert with the error message
+      return rejectWithValue(message);
+    }
+  }
+);
 // Defines the authentication slice of the Redux state.
 const authSlice = createSlice({
   name: 'auth',
@@ -431,6 +449,20 @@ const authSlice = createSlice({
         // Success message is handled by the alert dispatched in the thunk
       })
       .addCase(requestAccountDeletionLink.rejected, (state, action) => {
+        state.isLoading = false;
+        state.error = action.payload; // Error message from rejectWithValue
+      })
+      // Confirm account deletion actions
+      .addCase(confirmAccountDeletion.pending, (state) => {
+        state.isLoading = true;
+        state.error = null;
+      })
+      .addCase(confirmAccountDeletion.fulfilled, (state, action) => {
+        state.isLoading = false;
+        // User will be logged out by the component.
+        // State related to user, token, isAuthenticated will be cleared by the logout action.
+      })
+      .addCase(confirmAccountDeletion.rejected, (state, action) => {
         state.isLoading = false;
         state.error = action.payload; // Error message from rejectWithValue
       });

@@ -39,6 +39,7 @@ import ViewReview from './components/pages/ViewReview';
 import CreateOrUpdateVehicleReview from "./components/pages/CreateOrUpdateVehicleReview";
 import SettingsPage from './components/pages/SettingsPage'; // Import SettingsPage
 
+import ConfirmDeleteAccountPage from './pages/ConfirmDeleteAccountPage'; // Import the new page
 import 'leaflet/dist/leaflet.css';
 
 
@@ -156,6 +157,7 @@ const AppContent = () => {
         <Route path="/vehicles/:vehicleId/review" element={<PrivateRoute><CreateOrUpdateVehicleReview /></PrivateRoute>} />
         <Route path="/vehicles/:vehicleId/reviews/:reviewId/edit" element={<PrivateRoute><CreateOrUpdateVehicleReview /></PrivateRoute>} />
         <Route path="/vehicles/reviews/:reviewId/view" element={<PrivateRoute><ViewReview /></PrivateRoute>} />
+        <Route path="/confirm-delete-account/:token" element={<ConfirmDeleteAccountPage />} /> {/* Add route for account deletion confirmation */}
         <Route path="/settings" element={<PrivateRoute><SettingsPage /></PrivateRoute>} /> {/* Protect Settings Route */}
 
         {/* Catch-all for undefined routes - Redirects to dashboard */}
