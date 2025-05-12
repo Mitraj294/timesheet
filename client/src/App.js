@@ -40,6 +40,7 @@ import CreateOrUpdateVehicleReview from "./components/pages/CreateOrUpdateVehicl
 import SettingsPage from './components/pages/SettingsPage'; // Import SettingsPage
 
 import ConfirmDeleteAccountPage from './components/pages/ConfirmDeleteAccountPage'; // Adjusted path
+import NotFoundPage from './components/pages/NotFoundPage'; // Import NotFoundPage
 import 'leaflet/dist/leaflet.css';
 
 
@@ -55,7 +56,13 @@ const PrivateRoute = ({ children }) => {
   if (isLoading) {
     // Optional: Return a loading spinner or null
     // Consider a more visually appealing loading state
-    return <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>Loading Authentication...</div>;
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', height: '100vh', backgroundColor: '#f4f6f8' }}>
+        {/* You can replace this with a proper spinner component */}
+        <div className="spinner" style={{ border: '4px solid rgba(0,0,0,.1)', width: '36px', height: '36px', borderRadius: '50%', borderLeftColor: '#09f' }}></div>
+        <p style={{ marginTop: '10px', color: '#333' }}>Loading Authentication...</p>
+      </div>
+    );
   }
 
   // Redirect to login if not authenticated and not loading
@@ -161,7 +168,7 @@ const AppContent = () => {
         <Route path="/settings" element={<PrivateRoute><SettingsPage /></PrivateRoute>} /> {/* Protect Settings Route */}
 
         {/* Catch-all for undefined routes - Redirects to dashboard */}
-        <Route path="*" element={<Navigate to="/dashboard" replace />} />
+        <Route path="*" element={<NotFoundPage />} />
 
       </Routes>
     </LayoutWrapper>
