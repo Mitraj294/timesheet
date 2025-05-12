@@ -12,7 +12,9 @@ import {
     getPendingInvitations,
     approveInvitation,
     rejectInvitation,
-    
+    checkProspectiveEmployee, // Import the new controller
+    requestAccountDeletionLink, // Import new controller
+    confirmAccountDeletion, // Import new controller
 } from "../controllers/authController.js";
 import User from "../models/User.js";
 // Import the authentication middleware
@@ -36,6 +38,7 @@ router.post("/check-user", checkUserExists); // Uses the controller function, ca
 // For now, let's assume it's used by employers adding employees, so protect + employerOnly is good.
 router.post('/check-user', protect, employerOnly, checkUserExists);
 
+router.post('/check-prospective-employee', checkProspectiveEmployee); // New public route
 // Invitation Routes
 router.post('/request-invitation', requestCompanyInvitation); // Public
 router.get('/invitations/pending', protect, employerOnly, getPendingInvitations); // Employer only
@@ -60,5 +63,11 @@ router.get('/me', protect, async (req, res) => {
 
 // DELETE /api/auth/me - Deletes the logged-in user's account (protected)
 router.delete('/me', protect, deleteAccount);
+
+// --- Secure Account Deletion Routes ---
+// POST /api/auth/request-deletion-link - User requests an email link to delete their account (protected)
+router.post('/request-deletion-link', protect, requestAccountDeletionLink);
+// POST /api/auth/confirm-delete-account/:token - User confirms deletion via email link and password (public, token verified)
+router.post('/confirm-delete-account/:token', confirmAccountDeletion);
 
 export default router;

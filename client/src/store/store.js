@@ -28,8 +28,27 @@ const store = configureStore({
     schedules: scheduleReducer,
 
   },
+  middleware: (getDefaultMiddleware) =>
+    getDefaultMiddleware({
+      serializableCheck: {
+        // Ignore these action types entirely
+        ignoredActions: [
+          'vehicleReviews/downloadReport/fulfilled',
+          'vehicles/downloadVehicleReport/fulfilled',
+          'vehicles/downloadAllVehiclesReport/fulfilled',
+          'clients/downloadClients/fulfilled',
+          'timesheets/downloadTimesheet/fulfilled',
+          'timesheets/downloadProjectTimesheet/fulfilled',
+          // Add any other action types that you know will carry non-serializable data like Blobs
+        ],
+        // Or, ignore specific paths in the action payload for all actions
+        // ignoredActionPaths: ['payload.blob', 'meta.arg'],
+        // Or, ignore specific paths in the state (less common for this issue)
+        // ignoredPaths: ['someSlice.nonSerializableField'],
+      },
+    }),
+  // Removed the extra comma here
   devTools: process.env.NODE_ENV !== "production",
 });
 
 export default store;
-

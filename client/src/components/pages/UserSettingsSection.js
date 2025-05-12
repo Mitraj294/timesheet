@@ -8,7 +8,7 @@ import {
  faEye, faEyeSlash, faPhone, faGlobe
 } from '@fortawesome/free-solid-svg-icons';
 
-import { selectAuthUser, changePassword, deleteAccount, logout, updateUserProfile, selectAuthError, selectIsAuthLoading, clearAuthError } from '../../redux/slices/authSlice';
+import { selectAuthUser, changePassword, requestAccountDeletionLink, logout, updateUserProfile, selectAuthError, selectIsAuthLoading, clearAuthError } from '../../redux/slices/authSlice'; // Changed deleteAccount to requestAccountDeletionLink
 import { selectEmployeeByUserId, fetchEmployees, selectEmployeeStatus } from '../../redux/slices/employeeSlice';
 import { setAlert } from '../../redux/slices/alertSlice';
 import Alert from '../layout/Alert';
@@ -38,10 +38,8 @@ const UserSettingsSection = () => {
     const [showNewPassword, setShowNewPassword] = useState(false);
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
-    // Local state for account deletion confirmation
-    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-    const [isDeletingAccount, setIsDeletingAccount] = useState(false);
-
+    // Local state for requesting account deletion link
+    const [isRequestingDeleteLink, setIsRequestingDeleteLink] = useState(false);
     // Local state for editing account information
     const [isEditingInfo, setIsEditingInfo] = useState(false);
     const [infoFormData, setInfoFormData] = useState({
@@ -205,29 +203,24 @@ const UserSettingsSection = () => {
         }
     };
 
-    const handleDeleteClick = () => {
-        setShowDeleteConfirm(true);
-    };
-
-    const cancelDelete = () => {
-        setShowDeleteConfirm(false);
-    };
-
-    const confirmDelete = async () => {
-        setIsDeletingAccount(true);
+    const handleRequestDeleteLink = async () => {
+        setIsRequestingDeleteLink(true);
         dispatch(clearAuthError());
-        try {
-            await dispatch(deleteAccount()).unwrap();
-            dispatch(setAlert('Account deleted successfully.', 'success'));
-            dispatch(logout());
-            navigate('/login');
+
+        try { // Dispatch the new thunk
+            await dispatch(requestAccountDeletionLink()).unwrap();
+            // The success alert ("A secure link has been sent...") will be dispatched from the thunk itself.
+            // You could add further UI changes here if needed, e.g.,
+            // disabling the button for a longer period or changing its text permanently.
         } catch (err) {
-            console.error("Account deletion failed:", err);
+            // The error alert is also handled within the thunk.
+            // You can log the error here or perform component-specific error handling if necessary.
+            console.error('Failed to request account deletion link from component:', err);
         } finally {
-            setIsDeletingAccount(false);
-            setShowDeleteConfirm(false);
+            setIsRequestingDeleteLink(false);
         }
     };
+
 
     const countryOptions = useMemo(() => {
         const countries = getCountries();
@@ -300,10 +293,10 @@ const UserSettingsSection = () => {
                             </button>
                             <button
                                 className="btn btn-danger"
-                                onClick={handleDeleteClick}
-                                disabled={isLoading || isDeletingAccount}
+                                onClick={handleRequestDeleteLink}
+                                disabled={isLoading || isRequestingDeleteLink}
                             >
-                                <FontAwesomeIcon icon={faTrashAlt} /> Delete Account
+                                {isRequestingDeleteLink ? <><FontAwesomeIcon icon={faSpinner} spin /> Sending Link...</> : <><FontAwesomeIcon icon={faTrashAlt} /> Delete Account</>}
                             </button>
                         </div>
                     </>
@@ -438,22 +431,6 @@ const UserSettingsSection = () => {
                     </div>
                 </form>
             </div>
-            )}
-
-            {/* Delete Account Confirmation Dialog */}
-            {showDeleteConfirm && (
-                <div className="logout-confirm-overlay">
-                  <div className="logout-confirm-dialog">
-                    <h4>Confirm Account Deletion</h4>
-                    <p>Are you sure you want to permanently delete your account? This action cannot be undone.</p>
-                    <div className="logout-confirm-actions">
-                      <button className="btn btn-secondary" onClick={cancelDelete} disabled={isDeletingAccount}>Cancel</button>
-                      <button className="btn btn-danger" onClick={confirmDelete} disabled={isDeletingAccount}>
-                        {isDeletingAccount ? <><FontAwesomeIcon icon={faSpinner} spin /> Deleting...</> : 'Delete My Account'}
-                      </button>
-                    </div>
-                  </div>
-                </div>
             )}
         </div>
     );

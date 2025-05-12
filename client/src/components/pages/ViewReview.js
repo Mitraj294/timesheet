@@ -95,8 +95,13 @@ const ViewReview = () => {
       dispatch(clearReviewReportStatus());
 
       try {
-        const resultAction = await dispatch(downloadReviewReport({ reviewId, format })).unwrap();
-        const { blob, filename } = resultAction;
+        // Dispatch the thunk and unwrap the result.
+        // The `unwrap()` method will return the fulfilled value or throw an error.
+        const { blob, filename } = await dispatch(downloadReviewReport({ reviewId, format })).unwrap();
+
+        // The warning occurs because the above line, when successful, dispatches
+        // an action like { type: 'vehicleReviews/downloadReport/fulfilled', payload: { blob, filename } }
+        // and the `blob` in the payload is non-serializable.
 
         if (blob) {
           const url = window.URL.createObjectURL(blob);
@@ -113,21 +118,22 @@ const ViewReview = () => {
           throw new Error('No data received for download.');
         }
       } catch (error) {
+        // Errors from unwrap() or other issues will be caught here.
+        // The error alert is handled by the useEffect watching reportError.
         console.error('Error downloading report:', error);
       }
     };
 
   // Handles sending the review report via email
-  const handleSendEmail = async () => {
+  const handleSendEmail = async (format) => {
     if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       dispatch(setAlert('Please enter a valid email address.', 'warning'));
       return;
     }
     dispatch(clearReviewReportStatus());
-
     try {
-      // Backend currently only supports PDF for single review email
-      await dispatch(sendReviewReportByClient({ reviewId, email, format: 'pdf' })).unwrap();
+      // Pass the selected format to the thunk
+      await dispatch(sendReviewReportByClient({ reviewId, email, format })).unwrap();
       setShowEmailPrompt(false);
       setEmail('');
       dispatch(setAlert(`Review report sent successfully to ${email}.`, 'success'));
@@ -219,7 +225,14 @@ const ViewReview = () => {
                 onClick={() => handleDownload('pdf')}
                 disabled={reportStatus === 'loading'}
               >
-                {reportStatus === 'loading' ? <FontAwesomeIcon icon={faSpinner} spin /> : 'Download'}
+                {reportStatus === 'loading' ? <FontAwesomeIcon icon={faSpinner} spin /> : 'Download PDF'}
+              </button>
+               <button // Added Excel download option
+                className='btn btn-success' // Different color for Excel
+                onClick={() => handleDownload('excel')}
+                disabled={reportStatus === 'loading'}
+              >
+                {reportStatus === 'loading' ? <FontAwesomeIcon icon={faSpinner} spin /> : 'Download Excel'}
               </button>
               <button
                 className='btn btn-secondary'
@@ -249,13 +262,24 @@ const ViewReview = () => {
             <div className='prompt-actions'>
               <button
                 className='btn btn-purple'
-                onClick={handleSendEmail}
+                onClick={() => handleSendEmail('pdf')}
                 disabled={reportStatus === 'loading' || !email || !/\S+@\S+\.\S+/.test(email)}
               >
                 {reportStatus === 'loading' ? (
-                  <><FontAwesomeIcon icon={faSpinner} spin /> Sending...</>
+                  <><FontAwesomeIcon icon={faSpinner} spin /> Sending PDF...</>
                 ) : (
-                  'Send Email'
+                  'Send as PDF'
+                )}
+              </button>
+              <button
+                className='btn btn-success' // Using success color like Excel download
+                onClick={() => handleSendEmail('excel')}
+                disabled={reportStatus === 'loading' || !email || !/\S+@\S+\.\S+/.test(email)}
+              >
+                {reportStatus === 'loading' ? (
+                  <><FontAwesomeIcon icon={faSpinner} spin /> Sending Excel...</>
+                ) : (
+                  'Send as Excel'
                 )}
               </button>
               <button

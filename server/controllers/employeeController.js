@@ -1,4 +1,10 @@
 import Employee from "../models/Employee.js";
+import Timesheet from "../models/Timesheet.js";
+import VehicleReview from "../models/VehicleReview.js";
+import Schedule from "../models/Schedule.js";
+import Role from "../models/Role.js";
+import User from "../models/User.js"; // For optional User deletion
+import mongoose from "mongoose"; // For transactions
 
 // @desc    Get all employees
 // @route   GET /api/employees
@@ -195,19 +201,68 @@ export const deleteEmployee = async (req, res) => {
   if (!req.user || req.user.role !== 'employer') {
     return res.status(401).json({ message: "Not authorized or not an employer" });
   }
-  try {
-    const employeeId = req.params.id;
-    // Ensure the employer can only delete their own employees
-    const deletedEmployee = await Employee.findOneAndDelete({ _id: employeeId, employerId: req.user.id });
 
-    if (!deletedEmployee) {
-      return res.status(404).json({ message: "Employee not found or not associated with this employer" });
+  const employeeId = req.params.id;
+  if (!mongoose.Types.ObjectId.isValid(employeeId)) {
+    return res.status(400).json({ message: "Invalid Employee ID format." });
+  }
+
+  const session = await mongoose.startSession();
+
+  try {
+    session.startTransaction();
+
+    // 1. Find the employee to ensure they exist and belong to the employer
+    const employeeToDelete = await Employee.findOne({ _id: employeeId, employerId: req.user.id }).session(session);
+
+    if (!employeeToDelete) {
+      await session.abortTransaction();
+      session.endSession();
+      return res.status(404).json({ message: "Employee not found or not associated with this employer." });
     }
-    // TODO: Consider deleting the associated User record for the employee, or deactivating it.
-    // await User.findByIdAndDelete(deletedEmployee.userId);
+
+    // 2. Delete associated Timesheets
+    await Timesheet.deleteMany({ employeeId: employeeId }, { session });
+    console.log(`Deleted timesheets for employee ${employeeId}`);
+
+    // 3. Delete associated VehicleReviews
+    await VehicleReview.deleteMany({ employeeId: employeeId }, { session });
+    console.log(`Deleted vehicle reviews for employee ${employeeId}`);
+
+    // 4. Delete associated Schedules (field name in Schedule model is 'employee')
+    await Schedule.deleteMany({ employee: employeeId }, { session });
+    console.log(`Deleted schedules for employee ${employeeId}`);
+
+    // 5. Remove employee from any assigned Roles
+    await Role.updateMany(
+      { assignedEmployees: employeeId },
+      { $pull: { assignedEmployees: employeeId } },
+      { session }
+    );
+    console.log(`Removed employee ${employeeId} from assigned roles`);
+
+    // 6. (CRITICAL CONSIDERATION) Delete the associated User record for the employee
+    // This is a destructive action. Uncomment and test thoroughly if this is desired.
+    // if (employeeToDelete.userId) {
+    //   await User.findByIdAndDelete(employeeToDelete.userId, { session });
+    //   console.log(`Deleted user account ${employeeToDelete.userId} associated with employee ${employeeId}`);
+    // }
+
+    // 7. Delete the Employee document itself
+    await Employee.findByIdAndDelete(employeeId, { session });
+    console.log(`Deleted employee ${employeeId}`);
+
+    await session.commitTransaction();
+    session.endSession();
+
     res.json({ message: "Employee deleted successfully" });
+
   } catch (error) {
+    if (session.inTransaction()) {
+      await session.abortTransaction();
+    }
+    session.endSession();
     console.error("Error deleting employee:", error);
-    res.status(500).json({ message: "Error deleting employee" });
+    res.status(500).json({ message: "Server error during employee deletion process.", error: error.message });
   }
 };

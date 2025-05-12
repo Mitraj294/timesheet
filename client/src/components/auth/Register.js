@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate, useLocation, Link } from "react-router-dom";
-import { register, login, clearAuthError } from "../../redux/slices/authSlice";
+import { register, login, clearAuthError, checkProspectiveEmployee, selectProspectiveEmployeeCheck, clearProspectiveEmployeeCheck } from "../../redux/slices/authSlice";
 import { FontAwesomeIcon, } from "@fortawesome/react-fontawesome";
 import { faEye, faEyeSlash, faUser, faEnvelope, faUserPlus, faSignInAlt, faGlobe, faPhone, faBuilding, faLock, faArrowLeft } from "@fortawesome/free-solid-svg-icons";
 import { parsePhoneNumberFromString, isValidPhoneNumber, getCountries, getCountryCallingCode } from 'libphonenumber-js';
@@ -15,7 +15,8 @@ const Register = () => {
   const location = useLocation();
 
   // State
-  const { isAuthenticated, error, loading } = useSelector((state) => state.auth);
+  const { isAuthenticated, error: authApiError, loading } = useSelector((state) => state.auth);
+  const prospectiveEmployeeCheck = useSelector(selectProspectiveEmployeeCheck);
   const { email: initialEmail, name: initialName } = location.state || {};
 
   const [step, setStep] = useState(1);
@@ -43,6 +44,7 @@ const Register = () => {
   // Effects
   useEffect(() => {
     dispatch(clearAuthError());
+    dispatch(clearProspectiveEmployeeCheck()); // Clear check on mount
     return () => {
         dispatch(clearAuthError());
     };
@@ -54,10 +56,19 @@ const Register = () => {
     }
   }, [isAuthenticated, navigate]);
   useEffect(() => {
-    if (error) {
-      dispatch(setAlert(error, 'danger'));
+    if (authApiError) {
+      dispatch(setAlert(authApiError, 'danger'));
     }
-  }, [error, dispatch]);
+  }, [authApiError, dispatch]);
+
+  useEffect(() => {
+    if (prospectiveEmployeeCheck.status === 'succeeded' && prospectiveEmployeeCheck.result && !prospectiveEmployeeCheck.result.canProceed) {
+        dispatch(setAlert(prospectiveEmployeeCheck.result.message, 'warning'));
+    } else if (prospectiveEmployeeCheck.status === 'failed' && prospectiveEmployeeCheck.error) {
+        const errorMessage = typeof prospectiveEmployeeCheck.error === 'string' ? prospectiveEmployeeCheck.error : prospectiveEmployeeCheck.error?.message || 'Failed to verify email.';
+        dispatch(setAlert(errorMessage, 'danger'));
+    }
+}, [prospectiveEmployeeCheck, dispatch]);
 
   // Handlers
   const handleChange = (e) => {
@@ -116,7 +127,7 @@ const Register = () => {
         navigate('/login', { state: { email } });
       }
     } catch (registerError) {
-      console.error("Registration failed:", registerError);
+      dispatch(setAlert('Registration failed. Please try again.', 'danger'));
     }
   };
 
@@ -125,11 +136,29 @@ const Register = () => {
     setInvitationFormData({ ...invitationFormData, [name]: value });
   };
 
+  const handleProspectiveEmailBlur = () => {
+    if (formData.role === 'employee' && invitationFormData.prospectiveEmployeeEmail) {
+      if (!/\S+@\S+\.\S+/.test(invitationFormData.prospectiveEmployeeEmail)) {
+        dispatch(setAlert('Invalid email format.', 'warning'));
+        dispatch(clearProspectiveEmployeeCheck());
+        return;
+      }
+      dispatch(checkProspectiveEmployee({ email: invitationFormData.prospectiveEmployeeEmail }));
+    } else {
+      dispatch(clearProspectiveEmployeeCheck()); 
+    }
+  };
+
   const handleInvitationSubmit = async (e) => {
     e.preventDefault();
     dispatch(clearAuthError());
     setIsSubmittingInvitation(true);
     try {
+      if (prospectiveEmployeeCheck.result && !prospectiveEmployeeCheck.result.canProceed) {
+        dispatch(setAlert(prospectiveEmployeeCheck.result.message || "Cannot proceed with this email. It's already associated with an active employee.", 'warning'));
+        setIsSubmittingInvitation(false);
+        return;
+      }
       // TODO: Ideally, create a Redux thunk for this API call in authSlice.js
       const response = await fetch("/api/auth/request-invitation", {
         method: "POST",
@@ -307,7 +336,7 @@ const Register = () => {
                 <div className="styles_InputGroup">
                   <label htmlFor="prospectiveEmployeeEmail">Email Address*</label>
                   <div className="styles_InputWithIcon">
-                    <input id="prospectiveEmployeeEmail" type="email" name="prospectiveEmployeeEmail" placeholder="Your Email Address" value={invitationFormData.prospectiveEmployeeEmail} onChange={handleInvitationChange} required disabled={isSubmittingInvitation} />
+                    <input id="prospectiveEmployeeEmail" type="email" name="prospectiveEmployeeEmail" placeholder="Your Email Address" value={invitationFormData.prospectiveEmployeeEmail} onChange={handleInvitationChange} onBlur={handleProspectiveEmailBlur} required disabled={isSubmittingInvitation || prospectiveEmployeeCheck.status === 'loading'} />
                     <FontAwesomeIcon icon={faEnvelope} className="styles_InputIcon styles_InputIconRight" />
                   </div>
                 </div>
@@ -325,8 +354,14 @@ const Register = () => {
                     <FontAwesomeIcon icon={faEnvelope} className="styles_InputIcon styles_InputIconRight" />
                   </div>
                 </div>
-                <button type="submit" className="styles_Button" disabled={isSubmittingInvitation}>
-                  {isSubmittingInvitation ? "Sending Request..." : <><FontAwesomeIcon icon={faUserPlus} className="button-icon" /> Send Request</>}
+                {prospectiveEmployeeCheck.status === 'loading' && <p className="styles_InfoText">Checking email...</p>}
+                <button 
+                  type="submit" 
+                  className="styles_Button" 
+                  disabled={isSubmittingInvitation || prospectiveEmployeeCheck.status === 'loading' || (prospectiveEmployeeCheck.result && !prospectiveEmployeeCheck.result.canProceed)}
+                >
+                  {isSubmittingInvitation ? "Sending Request..." : 
+                   (prospectiveEmployeeCheck.status === 'loading' ? "Verifying..." : <><FontAwesomeIcon icon={faUserPlus} className="button-icon" /> Send Request</>)}
                 </button>
               </form>
             )}

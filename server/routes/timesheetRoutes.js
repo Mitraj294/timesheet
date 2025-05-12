@@ -36,11 +36,11 @@ router.get('/employee/:employeeId', protect, getTimesheetsByEmployee);
 router.get('/client/:clientId', protect, getTimesheetsByClient);
 
 // Download and email general timesheet reports
-router.post('/download', protect, downloadTimesheets);
-router.post('/send', protect, sendTimesheetEmail);
+router.post('/download', protect, employerOnly, downloadTimesheets);
+router.post('/send', protect, employerOnly, sendTimesheetEmail);
 
 // Download and email project-specific timesheet reports
-router.post('/download/project', protect, downloadProjectTimesheets);
-router.post('/send-email/project', protect, sendProjectTimesheetEmail);
+router.post('/download/project', protect, employerOnly, downloadProjectTimesheets);
+router.post('/send-email/project', protect, employerOnly, sendProjectTimesheetEmail);
 
 export default router;

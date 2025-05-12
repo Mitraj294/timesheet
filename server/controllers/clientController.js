@@ -204,66 +204,56 @@ export const getClientProjects = async (req, res) => {
 // @access  Private (Employer Only)
 export const downloadClients = async (req, res) => {
   try {
+    const employerId = req.user.id;
+
     // 1. Get all clients for the logged-in employer
-    const employerClients = await Client.find({ employerId: req.user.id }).select('_id name');
+    const employerClients = await Client.find({ employerId }).select('_id name').lean();
     if (!employerClients.length) {
       return res.status(404).json({ message: 'No clients found for this employer to generate a report.' });
     }
     const employerClientIds = employerClients.map(client => client._id);
 
-    // 2. Fetch timesheets only for those clients
-    const timesheets = await Timesheet.find({ clientId: { $in: employerClientIds } })
-      .populate('employeeId')
-      .populate('projectId')
-      .populate('clientId');
+    // 2. Get all employees for the logged-in employer
+    const employerEmployees = await Employee.find({ employerId }).select('_id name').lean();
+    // No need to check if employerEmployees is empty here, as clients might exist without employees having timesheets yet.
+    const employerEmployeeIds = employerEmployees.map(emp => emp._id);
 
-    if (!timesheets.length) {
-      return res.status(404).json({ message: 'No timesheet data found to generate a report.' });
-    }
+    // 3. Fetch all projects for these clients
+    const clientProjects = await Project.find({ clientId: { $in: employerClientIds } }).select('_id name clientId').lean();
 
-    const dataMap = {};
+    // 4. Fetch all relevant timesheets:
+    // Timesheets for projects of the employer's clients, AND by employees of this employer.
+    const relevantTimesheets = await Timesheet.find({
+      clientId: { $in: employerClientIds }, // Timesheets for the employer's clients
+      projectId: { $in: clientProjects.map(p => p._id) }, // Timesheets for projects of those clients
+      employeeId: { $in: employerEmployeeIds } // Timesheets by employees of this employer
+    })
+    .populate('employeeId', 'name')
+    .populate('projectId', 'name')
+    .populate('clientId', 'name')
+    .sort({ date: 1, startTime: 1 })
+    .lean();
 
-    timesheets.forEach((ts) => {
-      const clientId = ts.clientId?._id?.toString();
-      const projectId = ts.projectId?._id?.toString();
-      const employeeId = ts.employeeId?._id?.toString();
+    // Group timesheets by clientId, then projectId, then employeeId for efficient lookup
+    const timesheetsGrouped = relevantTimesheets.reduce((acc, ts) => {
+        const clientIdStr = ts.clientId?._id?.toString();
+        const projectIdStr = ts.projectId?._id?.toString();
+        const employeeIdStr = ts.employeeId?._id?.toString();
 
-      // Skip if essential linked data is missing
-      if (!clientId || !projectId || !employeeId) return;
+        if (!clientIdStr || !projectIdStr || !employeeIdStr) return acc;
 
-      if (!dataMap[clientId]) {
-        dataMap[clientId] = {
-          name: ts.clientId.name,
-          projects: {},
-        };
-      }
-
-      if (!dataMap[clientId].projects[projectId]) {
-        dataMap[clientId].projects[projectId] = {
-          name: ts.projectId.name,
-          employees: {},
-        };
-      }
-
-      if (!dataMap[clientId].projects[projectId].employees[employeeId]) {
-        dataMap[clientId].projects[projectId].employees[employeeId] = {
-          name: ts.employeeId.name,
-          timesheets: [],
-        };
-      }
-
-      dataMap[clientId].projects[projectId].employees[employeeId].timesheets.push(ts);
-    });
-
-    // If dataMap is empty after processing (e.g., all timesheets lacked linked info)
-    if (Object.keys(dataMap).length === 0) {
-      return res.status(404).json({ message: 'No valid timesheet entries to build the report.' });
-    }
+        acc[clientIdStr] = acc[clientIdStr] || {};
+        acc[clientIdStr][projectIdStr] = acc[clientIdStr][projectIdStr] || {};
+        acc[clientIdStr][projectIdStr][employeeIdStr] = acc[clientIdStr][projectIdStr][employeeIdStr] || [];
+        acc[clientIdStr][projectIdStr][employeeIdStr].push(ts);
+        return acc;
+    }, {});
 
     const workbook = new ExcelJS.Workbook();
+    workbook.creator = "Timesheet App";
     const worksheet = workbook.addWorksheet('Clients Timesheets');
 
-    worksheet.addRow([
+    const headerRow = worksheet.addRow([
       'Client',
       'Project',
       'Employee',
@@ -271,24 +261,32 @@ export const downloadClients = async (req, res) => {
       'Day',
       'Start Time',
       'End Time',
-      'Lunch Break',
+      'Lunch', // Shortened
       'Leave Type',
       'Hours',
       'Notes',
     ]);
+    headerRow.font = { bold: true };
+    headerRow.alignment = { vertical: 'middle', horizontal: 'center' };
+    headerRow.fill = {
+        type: 'pattern',
+        pattern:'solid',
+        fgColor:{argb:'FFD3D3D3'} // Light Gray
+    };
+    headerRow.border = { bottom: { style: 'thin' } };
 
     worksheet.columns = [
-      { width: 20 },
-      { width: 25 },
-      { width: 25 },
-      { width: 15 },
-      { width: 15 },
-      { width: 15 },
-      { width: 15 },
-      { width: 20 },
-      { width: 15 },
-      { width: 10 },
-      { width: 30 },
+      { header: 'Client', key: 'clientNameCol', width: 25 },
+      { header: 'Project', key: 'projectNameCol', width: 25 },
+      { header: 'Employee', key: 'employeeNameCol', width: 25 },
+      { header: 'Date', key: 'dateCol', width: 15, style: { numFmt: 'dd/mm/yyyy' } },
+      { header: 'Day', key: 'dayCol', width: 15 },
+      { header: 'Start Time', key: 'startTimeCol', width: 15 },
+      { header: 'End Time', key: 'endTimeCol', width: 15 },
+      { header: 'Lunch', key: 'lunchCol', width: 10 },
+      { header: 'Leave Type', key: 'leaveTypeCol', width: 15 },
+      { header: 'Hours', key: 'hoursCol', width: 10, style: { numFmt: '0.00' } },
+      { header: 'Notes', key: 'notesCol', width: 30 }
     ];
 
     const formatTimeOnly = (isoString) => {
@@ -312,58 +310,93 @@ export const downloadClients = async (req, res) => {
       return isNaN(date.getTime()) ? '' : format(date, 'EEEE');
     };
 
-    for (const clientId in dataMap) {
-      const client = dataMap[clientId];
-      worksheet.addRow([client.name]); // Client Header
-
+    employerClients.forEach(clientDoc => {
+      const clientRow = worksheet.addRow([clientDoc.name]);
+      clientRow.font = { bold: true, size: 14 };
+      worksheet.mergeCells(clientRow.number, 1, clientRow.number, worksheet.columns.length);
+      clientRow.getCell(1).alignment = { horizontal: 'left', vertical: 'middle' };
       let clientTotalHours = 0;
 
-      for (const projectId in client.projects) {
-        const project = client.projects[projectId];
-        worksheet.addRow(['', project.name]); // Project Header
+      const projectsForThisClient = clientProjects.filter(p => p.clientId.toString() === clientDoc._id.toString());
 
-        let projectTotalHours = 0;
+      if (projectsForThisClient.length === 0) {
+        worksheet.addRow(['', 'No projects for this client.']);
+      } else {
+        projectsForThisClient.forEach(projectDoc => {
+          const projectRow = worksheet.addRow(['', projectDoc.name]);
+          projectRow.font = { bold: true, size: 12 };
+          worksheet.mergeCells(projectRow.number, 2, projectRow.number, worksheet.columns.length);
+          projectRow.getCell(2).alignment = { horizontal: 'left', vertical: 'middle' };
+          let projectTotalHours = 0;
 
-        for (const employeeId in project.employees) {
-          const employee = project.employees[employeeId];
-          worksheet.addRow(['', '', employee.name]); // Employee Header
+          let projectHasTimesheetsByEmployerEmployees = false;
+          employerEmployees.forEach(employeeDoc => {
+            const timesheetsForEmployeeProject = timesheetsGrouped[clientDoc._id.toString()]?.[projectDoc._id.toString()]?.[employeeDoc._id.toString()] || [];
 
-          employee.timesheets.forEach((ts) => {
-            worksheet.addRow([
-              '',
-              '',
-              '',
-              formatDateOnly(ts.date),
-              formatDayOnly(ts.date),
-              formatTimeOnly(ts.startTime),
-              formatTimeOnly(ts.endTime),
-              ts.lunchBreak ? `Yes (${ts.lunchDuration || 0} min)` : 'No',
-              ts.leaveType || '',
-              ts.totalHours?.toFixed(2) || '',
-              ts.notes || '',
-            ]);
-
-            projectTotalHours += ts.totalHours || 0;
-            clientTotalHours += ts.totalHours || 0;
+            if (timesheetsForEmployeeProject.length > 0) {
+              projectHasTimesheetsByEmployerEmployees = true;
+              timesheetsForEmployeeProject.forEach((ts, index) => {
+                worksheet.addRow([
+                  '', // Client column blank
+                  '', // Project column blank
+                  index === 0 ? employeeDoc.name : '', // Employee name only on first entry for this employee/project
+                  formatDateOnly(ts.date),
+                  formatDayOnly(ts.date),
+                  formatTimeOnly(ts.startTime),
+                  formatTimeOnly(ts.endTime),
+                  ts.lunchBreak === 'Yes' ? (ts.lunchDuration || '00:00') : '',
+                  ts.leaveType === 'None' ? '' : (ts.leaveType || ''),
+                  ts.totalHours?.toFixed(2) || '0.00',
+                  ts.notes || '',
+                ]);
+                projectTotalHours += ts.totalHours || 0;
+              });
+            }
           });
-        }
 
-        worksheet.addRow(['', `${project.name} Total Hours:`, '', '', '', '', '', '', '', projectTotalHours.toFixed(2)]);
-        worksheet.addRow([]);
+          if (!projectHasTimesheetsByEmployerEmployees && employerEmployees.length > 0) {
+            // If there are employees for this employer, but none logged time for this specific project
+            worksheet.addRow(['', '', 'No timesheet entries for this project by your employees.']);
+          } else if (employerEmployees.length === 0) {
+            // If the employer has no employees at all
+             worksheet.addRow(['', '', 'No employees assigned to this employer.']);
+          }
+
+          const projectTotalRow = worksheet.addRow(['', `Project: ${projectDoc.name} - Total Hours:`, '', '', '', '', '', '', '', projectTotalHours.toFixed(2)]);
+          projectTotalRow.font = { bold: true };
+          clientTotalHours += projectTotalHours;
+          worksheet.addRow([]); // Spacer after project total
+        });
       }
 
-      worksheet.addRow([`${client.name} Total Hours:`, '', '', '', '', '', '', '', '', clientTotalHours.toFixed(2)]);
-      worksheet.addRow([]);
-    }
+      // Client Total Hours Row
+      const clientTotalLabel = `Client: ${clientDoc.name} - Total Hours:`;
+      const clientTotalRow = worksheet.addRow([clientTotalLabel, '', '', '', '', '', '', '', '', clientTotalHours.toFixed(2)]);
+      clientTotalRow.font = { bold: true }; // Just bold
+
+      // Merge cells for the label to span from column A to I (1 to 9)
+      worksheet.mergeCells(clientTotalRow.number, 1, clientTotalRow.number, 9); 
+      clientTotalRow.getCell(1).alignment = { horizontal: 'left' }; // Align label to the right of merged cell
+      // The value is in the 10th cell (key 'hoursCol' if using keys, or by index)
+      clientTotalRow.getCell(10).alignment = { horizontal: 'left' }; // Align total hours value
+      worksheet.addRow([]); // Spacer after client total
+    });
 
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-    res.setHeader('Content-Disposition', 'attachment; filename=clients-timesheets.xlsx');
+    const filename = `Client_Timesheet_Report_${format(new Date(), 'yyyyMMdd_HHmmss')}.xlsx`;
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
 
     await workbook.xlsx.write(res);
     res.end();
 
   } catch (error) {
     console.error('Excel download error:', error);
-    res.status(500).json({ message: 'Failed to generate Excel file' });
+    if (!res.headersSent) { // Check if headers were already sent
+        res.status(500).json({ message: `Failed to generate Excel file: ${error.message}` });
+    } else {
+        // If headers are sent, we can't send a JSON error, but we should log and end the response.
+        console.error("Headers already sent, could not send JSON error response for Excel generation.");
+        res.end();
+    }
   }
 };

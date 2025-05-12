@@ -340,120 +340,123 @@ export const deleteReview = async (req, res) => {
 
 // Helper function to generate filename
 const generateReviewFilename = (review, extension) => {
-    const vehicleName = review.vehicle?.name?.replace(/\s+/g, '_') || 'UnknownVehicle';
-    const employeeName = review.employeeId?.name?.replace(/\s+/g, '_') || 'UnknownEmployee';
-    const reviewDate = review.dateReviewed ? new Date(review.dateReviewed).toISOString().split('T')[0] : 'UnknownDate';
-    return `Review_${vehicleName}_${employeeName}_${reviewDate}.${extension}`;
+  const vehicleName = review.vehicle?.name?.replace(/\s+/g, '_') || 'UnknownVehicle';
+  const employeeName = review.employeeId?.name?.replace(/\s+/g, '_') || 'UnknownEmployee';
+  const reviewDate = review.dateReviewed ? new Date(review.dateReviewed).toISOString().split('T')[0] : 'UnknownDate';
+  return `Review_${vehicleName}_${employeeName}_${reviewDate}.${extension}`;
 };
 
 // @desc    Download a single vehicle review report (PDF or Excel)
 // @route   GET /api/vehicles/reviews/:reviewId/download
 // @access  Private (Employer Only)
 export const downloadReviewReport = async (req, res) => {
-  const { reviewId } = req.params;
-  const { format = 'pdf' } = req.query; // Default to pdf
+const { reviewId } = req.params;
+const { format = 'pdf' } = req.query; // Default to pdf
 
-  if (!['pdf', 'excel'].includes(format)) {
-      return res.status(400).json({ message: 'Invalid format. Use "pdf" or "excel".' });
+if (!['pdf', 'excel'].includes(format)) {
+    return res.status(400).json({ message: 'Invalid format. Use "pdf" or "excel".' });
+}
+
+try {
+  // Find the review and populate related vehicle and employee data
+  const review = await VehicleReview.findById(reviewId)
+    .populate('vehicle', 'name wofRego employerId') // Populate vehicle and include employerId for the check
+    .populate('employeeId', 'name');
+
+  // Check ownership: Ensure the review exists, is linked to a vehicle,
+  // the vehicle has an employerId, and that employerId matches the logged-in user's ID.
+  if (!review || !review.vehicle || !review.vehicle.employerId || review.vehicle.employerId.toString() !== req.user.id.toString()) {
+    // If any of these conditions are not met, the review is not found or not owned by this employer.
+    return res.status(404).json({ message: 'Review not found' });
   }
 
-  try {
-    const review = await VehicleReview.findById(reviewId)
-      .populate('vehicle', 'name wofRego')
-      .populate('employeeId', 'name');
-    // TODO: REFACTOR_SINGLE_REVIEW_REPORT_GENERATION - Consider refactoring PDF and Excel generation into separate helper functions.
+  // Proceed with report generation as the review is found and owned by the employer
+  const filename = generateReviewFilename(review, format === 'pdf' ? 'pdf' : 'xlsx');
 
-    // Check ownership
-    if (!review || !review.vehicle || review.vehicle.employerId.toString() !== req.user.id.toString()) {
-      return res.status(404).json({ message: 'Review not found' });
-    }
+  if (format === 'pdf') {
+    const doc = new PDFDocument({ margin: 50 });
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(filename)}"`);
+    doc.pipe(res);
 
-    const filename = generateReviewFilename(review, format === 'pdf' ? 'pdf' : 'xlsx');
+    // PDF Formatting (using review and populated data)
+    doc.fontSize(16).font('Helvetica-Bold').text('Vehicle Review Report', { align: 'center' });
+    doc.moveDown(2);
 
-    if (format === 'pdf') {
-      const doc = new PDFDocument({ margin: 50 });
-      res.setHeader('Content-Type', 'application/pdf');
-      res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(filename)}"`);
-      doc.pipe(res);
+    doc.fontSize(12).font('Helvetica-Bold');
+    doc.text(`Vehicle: `, { continued: true }).font('Helvetica').text(`${review.vehicle?.name || 'N/A'}`);
+    doc.text(`WOF/Rego: `, { continued: true }).font('Helvetica').text(`${review.vehicle?.wofRego || 'N/A'}`); // Display as string
+    doc.moveDown(0.5);
+    doc.text(`Date Reviewed: `, { continued: true }).font('Helvetica').text(`${review.dateReviewed ? new Date(review.dateReviewed).toLocaleDateString() : 'N/A'}`);
+    doc.text(`Employee: `, { continued: true }).font('Helvetica').text(`${review.employeeId?.name || 'N/A'}`);
+    doc.moveDown(0.5);
+    doc.text(`Hours Used: `, { continued: true }).font('Helvetica').text(`${review.hours ?? 'N/A'}`); // Use nullish coalescing
+    doc.moveDown(1);
+    doc.font('Helvetica-Bold').text('Checks:');
+    doc.font('Helvetica');
+    doc.list([
+        `Oil Checked: ${review.oilChecked ? 'Yes' : 'No'}`,
+        `Vehicle Checked: ${review.vehicleChecked ? 'Yes' : 'No'}`,
+        `Vehicle Broken: ${review.vehicleBroken ? 'Yes' : 'No'}`
+    ], { bulletRadius: 2 });
+    doc.moveDown(1);
+    doc.font('Helvetica-Bold').text('Notes:');
+    doc.font('Helvetica').text(review.notes || 'N/A', { width: 410, align: 'justify' }); // Use available width
 
-      // PDF Formatting
-      doc.fontSize(16).font('Helvetica-Bold').text('Vehicle Review Report', { align: 'center' });
-      doc.moveDown(2);
+    doc.end();
+  } else { // Excel format
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet('Review Report');
 
-      doc.fontSize(12).font('Helvetica-Bold');
-      doc.text(`Vehicle: `, { continued: true }).font('Helvetica').text(`${review.vehicle?.name || 'N/A'}`);
-      doc.text(`WOF/Rego: `, { continued: true }).font('Helvetica').text(`${review.vehicle?.wofRego || 'N/A'}`);
-      doc.moveDown(0.5);
-      doc.text(`Date Reviewed: `, { continued: true }).font('Helvetica').text(`${review.dateReviewed ? new Date(review.dateReviewed).toLocaleDateString() : 'N/A'}`);
-      doc.text(`Employee: `, { continued: true }).font('Helvetica').text(`${review.employeeId?.name || 'N/A'}`);
-      doc.moveDown(0.5);
-      doc.text(`Hours Used: `, { continued: true }).font('Helvetica').text(`${review.hours ?? 'N/A'}`); // Use nullish coalescing
-      doc.moveDown(1);
-      doc.font('Helvetica-Bold').text('Checks:');
-      doc.font('Helvetica');
-      doc.list([
-          `Oil Checked: ${review.oilChecked ? 'Yes' : 'No'}`,
-          `Vehicle Checked: ${review.vehicleChecked ? 'Yes' : 'No'}`,
-          `Vehicle Broken: ${review.vehicleBroken ? 'Yes' : 'No'}`
-      ], { bulletRadius: 2 });
-      doc.moveDown(1);
-      doc.font('Helvetica-Bold').text('Notes:');
-      doc.font('Helvetica').text(review.notes || 'N/A', { width: 410, align: 'justify' }); // Use available width
+    // Add Title
+    worksheet.mergeCells('A1:B1');
+    worksheet.getCell('A1').value = 'Vehicle Review Report';
+    worksheet.getCell('A1').font = { bold: true, size: 16 };
+    worksheet.getCell('A1').alignment = { horizontal: 'center' };
+    worksheet.addRow([]); // Spacer row
 
-      doc.end();
-    } else { // Excel format
-      const workbook = new ExcelJS.Workbook();
-      const worksheet = workbook.addWorksheet('Review Report');
+    worksheet.columns = [
+      { header: 'Field', key: 'field', width: 25 },
+      { header: 'Value', key: 'value', width: 50 },
+    ];
 
-      // Add Title
-      worksheet.mergeCells('A1:B1');
-      worksheet.getCell('A1').value = 'Vehicle Review Report';
-      worksheet.getCell('A1').font = { bold: true, size: 16 };
-      worksheet.getCell('A1').alignment = { horizontal: 'center' };
-      worksheet.addRow([]); // Spacer row
+    // Add rows with review data
+    const data = [
+      { field: 'Vehicle', value: review.vehicle?.name || 'N/A' },
+      { field: 'WOF/Rego', value: review.vehicle?.wofRego || 'N/A' }, // Display as string
+      { field: 'Date Reviewed', value: review.dateReviewed ? new Date(review.dateReviewed).toLocaleDateString() : 'N/A' },
+      { field: 'Employee', value: review.employeeId?.name || 'N/A' },
+      { field: 'Hours Used', value: review.hours ?? 'N/A' },
+      { field: 'Oil Checked', value: review.oilChecked ? 'Yes' : 'No' },
+      { field: 'Vehicle Checked', value: review.vehicleChecked ? 'Yes' : 'No' },
+      { field: 'Vehicle Broken', value: review.vehicleBroken ? 'Yes' : 'No' },
+      { field: 'Notes', value: review.notes || 'N/A' },
+    ];
+    worksheet.addRows(data);
 
-      worksheet.columns = [
-        { header: 'Field', key: 'field', width: 25 },
-        { header: 'Value', key: 'value', width: 50 },
-      ];
+    worksheet.getRow(3).font = { bold: true }; // Header row is now row 3
+    worksheet.getRow(3).alignment = { vertical: 'middle' };
+    worksheet.eachRow({ includeEmpty: false }, function(row, rowNumber) {
+      if (rowNumber > 3) { // Start after header row
+        row.getCell('B').alignment = { wrapText: true, vertical: 'top' };
+      }
+    });
 
-      // Add rows with review data
-      const data = [
-        { field: 'Vehicle', value: review.vehicle?.name || 'N/A' },
-        { field: 'WOF/Rego', value: review.vehicle?.wofRego || 'N/A' },
-        { field: 'Date Reviewed', value: review.dateReviewed ? new Date(review.dateReviewed).toLocaleDateString() : 'N/A' },
-        { field: 'Employee', value: review.employeeId?.name || 'N/A' },
-        { field: 'Hours Used', value: review.hours ?? 'N/A' },
-        { field: 'Oil Checked', value: review.oilChecked ? 'Yes' : 'No' },
-        { field: 'Vehicle Checked', value: review.vehicleChecked ? 'Yes' : 'No' },
-        { field: 'Vehicle Broken', value: review.vehicleBroken ? 'Yes' : 'No' },
-        { field: 'Notes', value: review.notes || 'N/A' },
-      ];
-      worksheet.addRows(data);
-
-      worksheet.getRow(3).font = { bold: true }; // Header row is now row 3
-      worksheet.getRow(3).alignment = { vertical: 'middle' };
-      worksheet.eachRow({ includeEmpty: false }, function(row, rowNumber) {
-        if (rowNumber > 3) { // Start after header row
-          row.getCell('B').alignment = { wrapText: true, vertical: 'top' };
-        }
-      });
-
-      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-      res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(filename)}"`);
-      const buffer = await workbook.xlsx.writeBuffer();
-      res.send(buffer);
-    }
-  } catch (error) {
-    console.error('Error generating single review report:', error);
-    // Avoid sending JSON response if headers might have been partially sent
-    if (!res.headersSent) {
-        res.status(500).json({ message: 'Internal server error generating report' });
-    } else {
-        console.error("Headers already sent, could not send error JSON response.");
-        res.end(); // End the response if possible
-    }
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(filename)}"`);
+    const buffer = await workbook.xlsx.writeBuffer();
+    res.send(buffer);
   }
+} catch (error) {
+  console.error('Error generating single review report:', error);
+  console.error('Error details:', error.message, error.stack); // Log more details
+  if (!res.headersSent) {
+      res.status(500).json({ message: 'Internal server error generating report' });
+  } else {
+      console.error("Headers already sent, could not send error JSON response.");
+      res.end(); // End the response if possible
+  }
+}
 };
 
 // @desc    Send a single vehicle review report via email
@@ -466,16 +469,14 @@ export const sendReviewReportByClient = async (req, res) => {
   if (!email) {
     return res.status(400).json({ message: 'Email address is required.' });
   }
-  if (format === 'excel') {
-    // Note: This restriction was in the original code. If Excel is now supported, this check can be removed.
-    return res.status(400).json({ message: 'Excel format is temporarily unavailable for sending single reviews. Please use PDF format for now.' });
+  // Validate format
+  if (!['pdf', 'excel'].includes(format)) {
+    return res.status(400).json({ message: 'Invalid format specified. Use "pdf" or "excel".' });
   }
-  format = 'pdf'; // Ensure only PDF is processed
-  // TODO: REFACTOR_SINGLE_REVIEW_REPORT_GENERATION - Use the same refactored PDF generation helper as in downloadReviewReport.
   try {
     // Load the review, vehicle and employee data
     const review = await VehicleReview.findById(reviewId)
-      .populate('vehicle', 'name wofRego')
+      .populate('vehicle', 'name wofRego employerId') // Include employerId for ownership check
       .populate('employeeId', 'name');
     // Check ownership
     if (!review || !review.vehicle || review.vehicle.employerId.toString() !== req.user.id.toString()) {
@@ -483,7 +484,7 @@ export const sendReviewReportByClient = async (req, res) => {
     }
 
     let buffer;
-    let filename = generateReviewFilename(review, 'pdf'); // Always PDF
+    let filename = generateReviewFilename(review, format === 'excel' ? 'xlsx' : 'pdf');
     let contentType;
     const subject = `Vehicle Review Report: ${review.vehicle?.name || 'N/A'} (${new Date(review.dateReviewed).toLocaleDateString()})`;
     const textBody = `Please find attached the ${format.toUpperCase()} review report for vehicle "${review.vehicle?.name || 'N/A'}" reviewed by ${review.employeeId?.name || 'N/A'} on ${new Date(review.dateReviewed).toLocaleDateString()}.`;
@@ -502,7 +503,7 @@ export const sendReviewReportByClient = async (req, res) => {
         doc.moveDown(2);
         doc.fontSize(12).font('Helvetica-Bold');
         doc.text(`Vehicle: `, { continued: true }).font('Helvetica').text(`${review.vehicle?.name || 'N/A'}`);
-        doc.text(`WOF/Rego: `, { continued: true }).font('Helvetica').text(`${review.vehicle?.wofRego || 'N/A'}`);
+        doc.text(`WOF/Rego: `, { continued: true }).font('Helvetica').text(`${review.vehicle?.wofRego || 'N/A'}`); // Display as string
         doc.moveDown(0.5);
         doc.text(`Date Reviewed: `, { continued: true }).font('Helvetica').text(`${review.dateReviewed ? new Date(review.dateReviewed).toLocaleDateString() : 'N/A'}`);
         doc.text(`Employee: `, { continued: true }).font('Helvetica').text(`${review.employeeId?.name || 'N/A'}`);
@@ -522,7 +523,38 @@ export const sendReviewReportByClient = async (req, res) => {
 
         doc.end();
       });
-    } // Excel logic is effectively removed by the check above
+    } else { // Excel format
+      contentType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+      const workbook = new ExcelJS.Workbook();
+      const worksheet = workbook.addWorksheet('Review Report');
+
+      worksheet.mergeCells('A1:B1');
+      worksheet.getCell('A1').value = 'Vehicle Review Report';
+      worksheet.getCell('A1').font = { bold: true, size: 16 };
+      worksheet.getCell('A1').alignment = { horizontal: 'center' };
+      worksheet.addRow([]); 
+
+      worksheet.columns = [
+        { header: 'Field', key: 'field', width: 25 },
+        { header: 'Value', key: 'value', width: 50 },
+      ];
+      const data = [
+        { field: 'Vehicle', value: review.vehicle?.name || 'N/A' },
+        { field: 'WOF/Rego', value: review.vehicle?.wofRego || 'N/A' },
+        { field: 'Date Reviewed', value: review.dateReviewed ? new Date(review.dateReviewed).toLocaleDateString() : 'N/A' },
+        { field: 'Employee', value: review.employeeId?.name || 'N/A' },
+        { field: 'Hours Used', value: review.hours ?? 'N/A' },
+        { field: 'Oil Checked', value: review.oilChecked ? 'Yes' : 'No' },
+        { field: 'Vehicle Checked', value: review.vehicleChecked ? 'Yes' : 'No' },
+        { field: 'Vehicle Broken', value: review.vehicleBroken ? 'Yes' : 'No' },
+        { field: 'Notes', value: review.notes || 'N/A' },
+      ];
+      worksheet.addRows(data);
+      worksheet.getRow(3).font = { bold: true };
+      worksheet.getRow(3).alignment = { vertical: 'middle' };
+      worksheet.getCell('B9').alignment = { wrapText: true, vertical: 'top' }; // Assuming Notes is the 9th data item (row 3 + 7 = 10, cell B10)
+      buffer = await workbook.xlsx.writeBuffer();
+    }
 
     // Send email with attachment
     const transporter = nodemailer.createTransport({
@@ -550,7 +582,8 @@ export const sendReviewReportByClient = async (req, res) => {
     res.status(200).json({ message: 'Review report sent successfully via email.' });
   } catch (error) {
     console.error('Error sending review report by email:', error);
-    res.status(500).json({ message: 'Failed to send review report via email.' });
+    console.error('Error details:', error.message, error.stack); // Log more details
+    res.status(500).json({ message: `Failed to send review report via email: ${error.message}` });
   }
 };
 
@@ -622,7 +655,7 @@ export const downloadVehicleReport = async (req, res) => {
     const summaryDataRow = summarySheet.addRow([
       vehicle.name || 'N/A',
       vehicle.hours ?? 'N/A', // Use current hours from vehicle model
-      vehicle.wofRego ? new Date(vehicle.wofRego).toLocaleDateString() : 'N/A', // Format date if exists
+      vehicle.wofRego || 'N/A', // Display as string, not formatted date
     ]);
     summaryDataRow.eachCell(cell => cell.alignment = { horizontal: 'center' });
 
@@ -756,7 +789,7 @@ export const sendVehicleReportByEmail = async (req, res) => {
     const summaryDataRow = summarySheet.addRow([
       vehicle.name || 'N/A',
       vehicle.hours ?? 'N/A',
-      vehicle.wofRego ? new Date(vehicle.wofRego).toLocaleDateString() : 'N/A',
+      vehicle.wofRego || 'N/A', // Display as string, not formatted date
     ]);
     summaryDataRow.eachCell(cell => cell.alignment = { horizontal: 'center' });
     summarySheet.columns.forEach(column => {
@@ -787,7 +820,7 @@ export const sendVehicleReportByEmail = async (req, res) => {
       historySheet.addRow({
         date: r.dateReviewed ? new Date(r.dateReviewed).toLocaleDateString() : 'N/A',
         employee: r.employeeId?.name || 'N/A',
-        hours: r.hours ?? 'N/A',
+        hours: r.hours ?? 'N/A', // Hours recorded *during* the review
         oilChecked: r.oilChecked ? 'Yes' : 'No',
         vehicleChecked: r.vehicleChecked ? 'Yes' : 'No',
         vehicleBroken: r.vehicleBroken ? 'Yes' : 'No',
@@ -829,7 +862,8 @@ export const sendVehicleReportByEmail = async (req, res) => {
 
   } catch (error) {
     console.error('Error sending vehicle report email:', error);
-    res.status(500).json({ message: 'Failed to send vehicle report email.' });
+    console.error('Error details:', error.message, error.stack); // Log more details
+    res.status(500).json({ message: `Failed to send review report via email: ${error.message}` }); // Send error message to frontend
   }
 };
 
@@ -864,19 +898,6 @@ export const downloadAllVehiclesReport = async (req, res) => {
         if (end) reviewQueryBase.dateReviewed.$lte = end;
     }
 
-    // Fetch all relevant reviews in one go
-    const allReviews = await VehicleReview.find(reviewQueryBase)
-        .sort({ vehicle: 1, dateReviewed: -1 }) // Sort by vehicle for easier grouping if needed, then by date
-        .populate('employeeId', 'name')
-        .lean();
-
-    // Group reviews by vehicleId for easier access
-    const reviewsByVehicleId = allReviews.reduce((acc, review) => {
-        const vehicleIdString = review.vehicle.toString();
-        if (!acc[vehicleIdString]) acc[vehicleIdString] = [];
-        acc[vehicleIdString].push(review);
-        return acc;
-    }, {});
 
     const workbook = new ExcelJS.Workbook();
     workbook.creator = 'Vehicle Management System';
@@ -884,60 +905,38 @@ export const downloadAllVehiclesReport = async (req, res) => {
     const mainSheet = workbook.addWorksheet('All Vehicles Report');
 
     // Define columns once for the main sheet
+    // Columns should only reflect Vehicle model fields
     const columns = [
         { header: 'Vehicle Name', key: 'vehicleName', width: 25 },
-        { header: 'Date Reviewed', key: 'date', width: 15 },
-        { header: 'Employee Name', key: 'employee', width: 25 },
-        { header: 'Hours Recorded', key: 'hours', width: 15 },
-        { header: 'Oil Checked', key: 'oilChecked', width: 15 },
-        { header: 'Vehicle Checked', key: 'vehicleChecked', width: 18 },
-        { header: 'Vehicle Broken', key: 'vehicleBroken', width: 18 },
-        { header: 'Notes', key: 'notes', width: 40 },
-        { header: 'Vehicle WOF/Rego', key: 'wofRego', width: 15 }, // Added WOF/Rego date
+        { header: 'Current Hours', key: 'hours', width: 15 },
+        { header: 'WOF/Rego Due', key: 'wofRego', width: 15 },
     ];
     mainSheet.columns = columns;
     mainSheet.getRow(1).font = { bold: true, name: 'Calibri' };
-    mainSheet.getRow(1).alignment = { vertical: 'middle' };
-
-    let hasReviews = false; // Flag to check if any reviews were found
+    mainSheet.getRow(1).alignment = { vertical: 'middle', horizontal: 'center' };
 
     // Loop through vehicles and use pre-fetched reviews
     for (const vehicle of vehicles) {
-      const reviewsForThisVehicle = reviewsByVehicleId[vehicle._id.toString()] || [];
-
-      if (reviewsForThisVehicle.length > 0) {
-          hasReviews = true;
-          // Sort reviews for this specific vehicle by date again if needed, though already sorted globally
-          reviewsForThisVehicle.sort((a, b) => new Date(b.dateReviewed) - new Date(a.dateReviewed));
-
-          reviewsForThisVehicle.forEach((review) => {
-            mainSheet.addRow({
-              vehicleName: vehicle.name || 'N/A',
-              date: review.dateReviewed ? new Date(review.dateReviewed).toLocaleDateString() : 'N/A',
-              employee: review.employeeId?.name || 'N/A',
-              hours: review.hours ?? 'N/A',
-              oilChecked: review.oilChecked ? 'Yes' : 'No',
-              vehicleChecked: review.vehicleChecked ? 'Yes' : 'No',
-              vehicleBroken: review.vehicleBroken ? 'Yes' : 'No',
-              notes: review.notes || '',
-              wofRego: vehicle.wofRego ? new Date(vehicle.wofRego).toLocaleDateString() : 'N/A',
-            });
-          });
-      }
+        // Add a row for each vehicle using only vehicle data, as per the defined columns
+        mainSheet.addRow({
+            vehicleName: vehicle.name || 'N/A',
+            hours: vehicle.hours ?? 'N/A',
+            wofRego: vehicle.wofRego || 'N/A', // Display as string, not formatted date
+        });
     }
     // TODO: REFACTOR_EXCEL_ALL_VEHICLES - Consider refactoring the workbook generation into a helper function.
     // This helper would return an ExcelJS.Workbook instance.
 
     // Handle case where no reviews were found for any vehicle in the range
-    if (!hasReviews) {
-        mainSheet.mergeCells('A2:I2'); // Merge across all columns
-        mainSheet.getCell('A2').value = 'No reviews found for any vehicle in the specified date range.';
-        mainSheet.getCell('A2').alignment = { horizontal: 'center' };
-        mainSheet.getCell('A2').font = { italic: true };
-    } else {
-         // Apply wrap text to notes column if there's data
-         mainSheet.getColumn('notes').alignment = { wrapText: true, vertical: 'top' };
-    }
+    // This message is no longer relevant as we are not reporting on reviews
+    // If no vehicles were found, we return 404 earlier.
+    // If vehicles were found but no reviews, the sheet will just list vehicles.
+
+    // Apply alignment to header cells
+    mainSheet.getRow(1).eachCell(cell => {
+        cell.alignment = { horizontal: 'center', vertical: 'middle' };
+        cell.font = { bold: true };
+    }); 
 
 
     // --- Send the file ---
@@ -974,7 +973,7 @@ export const sendAllVehiclesReportByEmail = async (req, res) => {
     }
 
     const start = startDate ? new Date(startDate) : null;
-    const end = endDate ? new Date(endDate) : null;
+    const end = endDate ? new Date(endDate) : null; // Corrected: was $lte = start
     if (start && isNaN(start.getTime())) return res.status(400).json({ error: 'Invalid start date format.' });
     if (end && isNaN(end.getTime())) return res.status(400).json({ error: 'Invalid end date format.' });
     if (end) end.setHours(23, 59, 59, 999);
@@ -1015,14 +1014,9 @@ export const sendAllVehiclesReportByEmail = async (req, res) => {
     // TODO: REFACTOR_EXCEL_ALL_VEHICLES - Use the same refactored helper as in downloadAllVehiclesReport.
     const columns = [
         { header: 'Vehicle Name', key: 'vehicleName', width: 25 },
-        { header: 'Date Reviewed', key: 'date', width: 15 },
-        { header: 'Employee Name', key: 'employee', width: 25 },
-        { header: 'Hours Recorded', key: 'hours', width: 15 },
-        { header: 'Oil Checked', key: 'oilChecked', width: 15 },
-        { header: 'Vehicle Checked', key: 'vehicleChecked', width: 18 },
-        { header: 'Vehicle Broken', key: 'vehicleBroken', width: 18 },
-        { header: 'Notes', key: 'notes', width: 40 },
-        { header: 'Vehicle WOF/Rego', key: 'wofRego', width: 15 },
+        { header: 'Current Hours', key: 'hours', width: 15 }, // Changed from 'Date Reviewed'
+        { header: 'WOF/Rego Due', key: 'wofRego', width: 15 }, // Changed from 'Employee Name'
+        // Removed review-specific columns
     ];
     const workbook = new ExcelJS.Workbook();
     workbook.creator = 'Vehicle Management System';
@@ -1030,39 +1024,23 @@ export const sendAllVehiclesReportByEmail = async (req, res) => {
     const mainSheet = workbook.addWorksheet('All Vehicles Report');
     mainSheet.columns = columns;
     mainSheet.getRow(1).font = { bold: true, name: 'Calibri' };
-    mainSheet.getRow(1).alignment = { vertical: 'middle' };
+    mainSheet.getRow(1).alignment = { vertical: 'middle', horizontal: 'center' };
 
-    let hasReviews = false;
 
     for (const vehicle of vehicles) {
-      const reviews = reviewsByVehicleId[vehicle._id.toString()] || [];
-      // Ensure reviews are sorted by date for this vehicle if the global sort wasn't sufficient for per-vehicle ordering
-      reviews.sort((a, b) => new Date(b.dateReviewed) - new Date(a.dateReviewed));
-
-
-      if (reviews.length > 0) {
-          hasReviews = true;
-          reviews.forEach((review) => {
-            mainSheet.addRow({
-              vehicleName: vehicle.name || 'N/A',
-              date: review.dateReviewed ? new Date(review.dateReviewed).toLocaleDateString() : 'N/A',
-              employee: review.employeeId?.name || 'N/A',
-              hours: review.hours ?? 'N/A',
-              oilChecked: review.oilChecked ? 'Yes' : 'No',
-              vehicleChecked: review.vehicleChecked ? 'Yes' : 'No',
-              vehicleBroken: review.vehicleBroken ? 'Yes' : 'No',
-              notes: review.notes || '',
-              wofRego: vehicle.wofRego ? new Date(vehicle.wofRego).toLocaleDateString() : 'N/A',
-            });
-          });
-      }
+      // We are only reporting vehicle data, not iterating through reviews for this report type
+      mainSheet.addRow({
+        vehicleName: vehicle.name || 'N/A',
+        hours: vehicle.hours ?? 'N/A',
+        wofRego: vehicle.wofRego || 'N/A', // Display as string
+      });
     }
+    
+    mainSheet.getRow(1).eachCell(cell => { // Style header row
+        cell.alignment = { horizontal: 'center', vertical: 'middle' };
+        cell.font = { bold: true };
+    });
 
-    if (!hasReviews) {
-      return res.status(404).json({ message: 'No reviews found for any vehicle in the specified date range. Email not sent.' });
-    }
-
-    mainSheet.getColumn('notes').alignment = { wrapText: true, vertical: 'top' };
 
     // --- Write to buffer and Send Email ---
     const buffer = await workbook.xlsx.writeBuffer();

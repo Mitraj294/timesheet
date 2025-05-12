@@ -16,6 +16,7 @@ const RESET_TOKEN_EXPIRY_MS = RESET_TOKEN_EXPIRY_MINUTES * 60 * 1000;
 const USER_ROLES = {
   EMPLOYER: 'employer',
   EMPLOYEE: 'employee',
+  ADMIN: 'admin' // Assuming admin role might be used, ensure User model enum supports it if active
   // Add other roles as needed
 };
 
@@ -298,7 +299,9 @@ export const deleteAccount = async (req, res) => {
             return res.status(401).json({ message: "Incorrect password. Account deletion failed." });
         }
 
-        await User.findByIdAndDelete(userId);
+        // Use user.remove() to trigger 'pre' remove hooks in the User model (e.g., for deleting associated Employee records)
+        // await User.findByIdAndDelete(userId); // Old way
+        await user.remove(); // New way, triggers hooks
         console.log(`User ${userId} deleted successfully.`); // Log deletion
         // TODO: Add logic here to delete associated data (e.g., Employee record, Timesheets, Reviews) if necessary
 
@@ -330,6 +333,47 @@ export const checkUserExists = async (req, res) => {
     }
 };
 
+// @desc    Check if a prospective employee's email is already in use as an active employee
+// @route   POST /api/auth/check-prospective-employee
+// @access  Public
+export const checkProspectiveEmployee = async (req, res) => {
+    try {
+        const { email } = req.body;
+        if (!email) {
+            return res.status(400).json({ message: "Email is required." });
+        }
+
+        const user = await User.findOne({ email }).select('_id');
+        if (!user) {
+            // Email is not registered at all, so they can proceed to request an invitation.
+            return res.json({ canProceed: true, userExists: false, isEmployee: false, message: "Email is available." });
+        }
+
+        // User exists, now check if they are an Employee
+        const employee = await Employee.findOne({ userId: user._id }).select('_id employerId');
+        if (employee) {
+            // User exists AND is an employee
+            return res.status(409).json({ // 409 Conflict is appropriate
+                canProceed: false,
+                userExists: true,
+                isEmployee: true,
+                message: "This email is already an active employee. Please log in or ask your new employer to invite you."
+            });
+        }
+
+        // User exists but is NOT an employee (e.g., an employer, or a user whose Employee record was deleted)
+        return res.json({
+            canProceed: true, // They can request an invitation
+            userExists: true,
+            isEmployee: false,
+            message: "This email is already registered. You can proceed to request an invitation." // Or a more nuanced message
+        });
+    } catch (error) {
+        console.error("Error in checkProspectiveEmployee:", error);
+        res.status(500).json({ message: "Server error while checking email status." });
+    }
+};
+
 // @desc    Prospective employee requests an invitation to join a company
 // @route   POST /api/auth/request-invitation
 // @access  Public
@@ -340,6 +384,19 @@ export const requestCompanyInvitation = async (req, res) => {
         if (!prospectiveEmployeeName || !prospectiveEmployeeEmail || !companyName || !companyEmail) {
             return res.status(400).json({ message: "All fields are required: your name, your email, company name, and company email." });
         }
+
+        // Server-side check: Prevent invitation request if email is already an active employee
+        const existingUserForProspective = await User.findOne({ email: prospectiveEmployeeEmail }).select('_id');
+        if (existingUserForProspective) {
+            const existingEmployeeRecord = await Employee.findOne({ userId: existingUserForProspective._id }).select('_id');
+            if (existingEmployeeRecord) {
+                return res.status(409).json({ // 409 Conflict
+                    message: "This email is already an active employee. An invitation cannot be requested."
+                });
+            }
+        }
+        // End server-side check
+
 
         // Optional: Check if an invitation already exists for this email to this company
         const existingInvitation = await Invitation.findOne({ prospectiveEmployeeEmail, companyEmail, status: 'pending' });
@@ -606,4 +663,98 @@ export const rejectInvitation = async (req, res) => {
         console.error("Error rejecting invitation:", error);
         res.status(500).json({ message: "Server error while rejecting invitation." });
     }
+};
+
+// @desc    Request an account deletion link via email
+// @route   POST /api/auth/request-deletion-link
+// @access  Private (Requires authentication)
+export const requestAccountDeletionLink = async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id); // req.user.id from 'protect' middleware
+
+    if (!user) {
+      return res.status(404).json({ message: 'User not found.' });
+    }
+
+    const deleteToken = crypto.randomBytes(32).toString('hex');
+
+    user.deleteAccountToken = crypto
+      .createHash('sha256')
+      .update(deleteToken)
+      .digest('hex');
+    // Set token to expire in, for example, 10 minutes
+    user.deleteAccountTokenExpires = Date.now() + 10 * 60 * 1000;
+
+    await user.save({ validateBeforeSave: false }); // Save the token and expiry
+
+    // Construct the deletion URL (ensure CLIENT_BASE_URL is set in .env)
+    const clientBaseUrl = process.env.CLIENT_BASE_URL || 'http://localhost:3000';
+    const deletionUrl = `${clientBaseUrl}/confirm-delete-account/${deleteToken}`; // Raw token in URL
+
+    const emailMessage = `
+      <p>You are receiving this email because you (or someone else) have requested the deletion of your account for the Timesheet App.</p>
+      <p>Please click on the following link, or paste it into your browser to complete the process:</p>
+      <p><a href="${deletionUrl}" clicktracking=off>${deletionUrl}</a></p>
+      <p>This link will expire in 10 minutes.</p>
+      <p>If you did not request this, please ignore this email and your account will remain safe.</p>
+    `;
+
+    await sendEmail({
+      to: user.email,
+      subject: 'Account Deletion Request - Timesheet App',
+      html: emailMessage,
+    });
+
+    res.status(200).json({ message: `A secure link to delete your account has been sent to ${user.email}. Please check your inbox.` });
+
+  } catch (error) {
+    console.error('Error in requestAccountDeletionLink:', error);
+    // Attempt to clear token fields if an error occurs after they might have been set
+    if (req.user && req.user.id) {
+        try {
+            const userToClean = await User.findById(req.user.id);
+            if (userToClean) {
+                userToClean.deleteAccountToken = undefined;
+                userToClean.deleteAccountTokenExpires = undefined;
+                await userToClean.save({ validateBeforeSave: false });
+            }
+        } catch (cleanupError) {
+            console.error('Error cleaning up deletion token fields:', cleanupError);
+        }
+    }
+    res.status(500).json({ message: 'Error sending account deletion email. Please try again.' });
+  }
+};
+
+// @desc    Confirm account deletion using a token and password
+// @route   POST /api/auth/confirm-delete-account/:token
+// @access  Public (Relies on token for security)
+export const confirmAccountDeletion = async (req, res) => {
+  try {
+    const hashedToken = crypto.createHash('sha256').update(req.params.token).digest('hex');
+    const { password } = req.body;
+
+    const user = await User.findOne({
+      deleteAccountToken: hashedToken,
+      deleteAccountTokenExpires: { $gt: Date.now() },
+    });
+
+    if (!user) {
+      return res.status(400).json({ message: 'Deletion token is invalid or has expired.' });
+    }
+
+    if (!password || !(await user.matchPassword(password))) { // Assumes user.matchPassword method exists
+      return res.status(401).json({ message: 'Incorrect password. Account deletion failed.' });
+    }
+
+    // If User model has a pre-remove hook to delete associated Employee, it will be triggered.
+    // await User.findByIdAndDelete(user._id); // Old way
+    await user.remove(); // New way, triggers 'remove' middleware in User model
+
+    res.status(200).json({ message: 'Your account has been successfully deleted.' });
+
+  } catch (error) {
+    console.error('Error in confirmAccountDeletion:', error);
+    res.status(500).json({ message: 'Error deleting account. Please try again.' });
+  }
 };

@@ -73,8 +73,8 @@ const ManageInvitations = () => {
       if (token) {
         config.headers['Authorization'] = `Bearer ${token}`;
       }
-      // For POST requests, the third argument is data (null in this case), fourth is config
-      const res = await axios.post(`${API_BASE_URL}/auth/invitations/${invitationId}/${action}`, null, config);
+      // For POST requests, send an empty object {} if no data is needed but JSON is expected.
+      const res = await axios.post(`${API_BASE_URL}/auth/invitations/${invitationId}/${action}`, {}, config);
       dispatch(setAlert(res.data.message, 'success'));
       // Refresh invitations after action
       fetchPendingInvitations();

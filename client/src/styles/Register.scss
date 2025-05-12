@@ -266,6 +266,13 @@
     }
 }
 
+.styles_InfoText {
+    font-size: 0.85em;
+    color: #666;
+    margin-top: -0.5rem; // Adjust as needed to position it below the input
+    margin-bottom: 0.5rem;
+}
+
 // Phone Input Group - Specific to Register Employer Step
 .phone-input-group {
     display: flex;

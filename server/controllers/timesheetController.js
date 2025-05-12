@@ -3,6 +3,8 @@ import ExcelJS from 'exceljs';
 import mongoose from "mongoose";
 import moment from "moment-timezone"; // Keep for report formatting consistency for now
 import nodemailer from "nodemailer";
+import Employee from "../models/Employee.js"; // Import Employee model
+import Project from "../models/Project.js"; // Import Project model
 import dotenv from "dotenv";
 dotenv.config();
 
@@ -434,39 +436,6 @@ const formatDataForReport = (timesheets, defaultTimezone = 'UTC') => {
     });
 };
 
-// buildWorkbook function remains the same
-const buildWorkbook = (groupedData, columns) => {
-    const workbook = new ExcelJS.Workbook();
-    const ws = workbook.addWorksheet('Timesheets');
-    ws.columns = columns;
-
-    ws.getRow(1).font = { bold: true };
-    ws.getRow(1).alignment = { vertical: 'middle', horizontal: 'center' };
-    ws.getRow(1).fill = {
-        type: 'pattern',
-        pattern:'solid',
-        fgColor:{argb:'FFD3D3D3'}
-    };
-    ws.getRow(1).border = {
-        bottom: { style: 'thin' }
-    };
-
-    Object.entries(groupedData).forEach(([groupName, entries]) => {
-        entries.forEach((entry, index) => {
-            const rowData = { ...entry };
-            const groupKeyColumn = columns.find(col => col.key === 'groupKey');
-            if (groupKeyColumn) {
-                rowData[groupKeyColumn.key] = index === 0 ? groupName : '';
-            }
-            ws.addRow(rowData);
-        });
-        if (Object.keys(groupedData).length > 1) {
-             ws.addRow({});
-        }
-    });
-    return workbook;
-};
-
 // standardReportColumns remains the same
 const standardReportColumns = [
       { header: 'Full Name', key: 'employee', width: 25 },
@@ -486,8 +455,9 @@ const standardReportColumns = [
 
 // handleReportAction function remains the same
 const handleReportAction = async (req, res, isDownload, groupBy) => {
-  const action = isDownload ? 'download' : 'send';
-  const { email, employeeIds = [], projectIds = [], startDate, endDate, timezone = 'UTC' } = req.body;
+  const actionType = isDownload ? 'download' : 'send'; // Renamed to avoid conflict with action variable if any
+  const { email, employeeIds: requestedEmployeeIdsParam = [], projectIds = [], startDate, endDate, timezone = 'UTC' } = req.body;
+  const employerId = req.user.id; // Get employerId from authenticated user
 
   if (!isDownload && (!email || !/\S+@\S+\.\S+/.test(email))) {
       return res.status(400).json({ message: 'Valid recipient email is required for sending.' });
@@ -498,17 +468,47 @@ const handleReportAction = async (req, res, isDownload, groupBy) => {
   }
 
   try {
+    let employeesOfEmployer;
+    // Determine the list of employee IDs to filter by, ALWAYS scoped to the employer
+    if (requestedEmployeeIdsParam && requestedEmployeeIdsParam.length > 0) {
+        // If specific employee IDs are requested, validate they belong to the employer
+        const validRequestedIds = requestedEmployeeIdsParam.filter(id => mongoose.Types.ObjectId.isValid(id));
+        employeesOfEmployer = await Employee.find({
+            _id: { $in: validRequestedIds },
+            employerId: employerId // Crucial: ensure requested employees belong to this employer
+        }).select('_id').lean();
+    } else {
+        // If no specific employees are requested, get all employees for this employer
+        employeesOfEmployer = await Employee.find({ employerId: employerId }).select('_id').lean();
+    }
+
+    const finalEmployeeIds = employeesOfEmployer.map(emp => emp._id);
+
+    if (finalEmployeeIds.length === 0) {
+        return res.status(404).json({ message: "No employees found for this employer matching the criteria." });
+    }
+    // Fetch full employee data for use in reports
+    const employeesData = await Employee.find({ _id: { $in: finalEmployeeIds } })
+                                        .select('name wage expectedHours')
+                                        .lean();
+    const employeeMap = new Map(employeesData.map(emp => [emp._id.toString(), emp]));
+
+    let projectDetailsMap = new Map(); // Initialize projectDetailsMap here
     const filter = {};
     const filterIds = (ids) => ids.filter(id => mongoose.Types.ObjectId.isValid(id));
 
-    if (groupBy === 'employee' && Array.isArray(employeeIds) && employeeIds.length > 0) {
-        const validIds = filterIds(employeeIds);
-        if (validIds.length > 0) filter.employeeId = { $in: validIds };
-        else return res.status(400).json({ message: 'No valid employee IDs provided for filtering.' });
+    // Always filter by the employer's employees
+    filter.employeeId = { $in: finalEmployeeIds };
+
+    // Additional filtering based on groupBy and other parameters
+    if (groupBy === 'employee') {
+        // The filter.employeeId is already correctly set by finalEmployeeIds.
+        // If specific employees were requested, finalEmployeeIds respects that.
+        // If no specific employees were requested, finalEmployeeIds includes all employer's employees.
     } else if (groupBy === 'project' && Array.isArray(projectIds) && projectIds.length > 0) {
         const validIds = filterIds(projectIds);
-        if (validIds.length > 0) filter.projectId = { $in: validIds };
-        else return res.status(400).json({ message: 'No valid project IDs provided for filtering.' });
+        if (validIds.length > 0) filter.projectId = { $in: validIds }; // employeeId filter is already applied
+        else return res.status(400).json({ message: 'No valid project IDs provided for project filtering.' });
     }
     if (startDate && moment(startDate, 'YYYY-MM-DD', true).isValid()) {
         filter.date = { ...filter.date, $gte: startDate };
@@ -532,25 +532,105 @@ const handleReportAction = async (req, res, isDownload, groupBy) => {
       return res.status(404).json({ message: "No timesheets found matching the specified filters." });
     }
 
-    const formattedData = formatDataForReport(timesheets, reportTimezone);
+    const workbook = new ExcelJS.Workbook();
+    workbook.creator = "Timesheet App";
+    const ws = workbook.addWorksheet(groupBy === 'project' ? 'Project Timesheets' : 'Employee Timesheets');
+    ws.columns = standardReportColumns; // Use the existing columns
 
-    const groupedData = formattedData.reduce((acc, entry) => {
-      const groupKey = entry[groupBy] || `Unknown ${groupBy}`;
-      (acc[groupKey] = acc[groupKey] || []).push(entry);
-      return acc;
-    }, {});
+    ws.getRow(1).font = { bold: true, alignment: { vertical: 'middle', horizontal: 'center' }, fill: { type: 'pattern', pattern:'solid', fgColor:{argb:'FFD3D3D3'} }, border: { bottom: { style: 'thin' } }};
 
-    const columns = standardReportColumns.map(col =>
-        col.key === groupBy
-            ? { ...col, key: 'groupKey', header: groupBy.charAt(0).toUpperCase() + groupBy.slice(1) }
-            : col
-    );
+    if (groupBy === 'project') {
+        // Create a map of projects from the fetched timesheets or requested projectIds
+        // projectDetailsMap is already initialized above
+        if (projectIds && projectIds.length > 0) {
+            const validProjectIds = filterIds(projectIds);
+            const projectsFromDb = await Project.find({ _id: { $in: validProjectIds } }).select('name').lean();
+            projectsFromDb.forEach(p => projectDetailsMap.set(p._id.toString(), p.name));
+        } else { // If no specific projects requested, derive from timesheets (if any)
+            timesheets.forEach(ts => {
+                if (ts.projectId && !projectDetailsMap.has(ts.projectId._id.toString())) {
+                    projectDetailsMap.set(ts.projectId._id.toString(), ts.projectId.name);
+                }
+            });
+        }
 
-    const workbook = buildWorkbook(groupedData, columns);
+        if (projectDetailsMap.size === 0) {
+             return res.status(404).json({ message: "No projects found for the report criteria." });
+        }
+
+        projectDetailsMap.forEach((projectName, currentProjectIdString) => {
+            const projectHeaderRow = ws.addRow([projectName]);
+            projectHeaderRow.font = { bold: true, size: 14 };
+            ws.mergeCells(projectHeaderRow.number, 1, projectHeaderRow.number, standardReportColumns.length);
+            projectHeaderRow.getCell(1).alignment = { horizontal: 'center' };
+            ws.addRow([]); // Blank row after project header
+
+            employeesData.forEach(employee => {
+                const employeeTimesheetsForProject = timesheets.filter(
+                    ts => ts.employeeId._id.toString() === employee._id.toString() &&
+                          ts.projectId?._id.toString() === currentProjectIdString
+                );
+
+                const formattedEmployeeTimesheets = formatDataForReport(employeeTimesheetsForProject, reportTimezone);
+                let employeeProjectTotalHours = 0;
+                let employeeProjectTotalIncome = 0;
+
+                if (formattedEmployeeTimesheets.length > 0) {
+                    formattedEmployeeTimesheets.forEach((entry, index) => {
+                        const rowData = {};
+                        standardReportColumns.forEach(col => { rowData[col.key] = entry[col.key]; });
+                        rowData.employee = index === 0 ? employee.name : '';
+                        ws.addRow(rowData);
+                        employeeProjectTotalHours += parseFloat(entry.totalHours || 0);
+                        employeeProjectTotalIncome += parseFloat(entry.totalHours || 0) * (employee.wage || 0);
+                    });
+                } else {
+                    const emptyRowData = {};
+                    standardReportColumns.forEach(col => { emptyRowData[col.key] = (col.key === 'employee') ? employee.name : ''; });
+                    ws.addRow(emptyRowData);
+                }
+
+                // Add summary rows for the employee for this project
+                const summaryExpected = {}; standardReportColumns.forEach(col => summaryExpected[col.key] = '');
+                summaryExpected.leaveType = 'EXPECTED'; summaryExpected.totalHours = employee.expectedHours !== undefined ? String(employee.expectedHours) : '0';
+                ws.addRow(summaryExpected);
+
+                const summaryOvertime = {}; standardReportColumns.forEach(col => summaryOvertime[col.key] = '');
+                summaryOvertime.leaveType = 'OVERTIME'; summaryOvertime.totalHours = '0';
+                ws.addRow(summaryOvertime);
+
+                const summaryTotalHours = {}; standardReportColumns.forEach(col => summaryTotalHours[col.key] = '');
+                summaryTotalHours.notes = 'TOTAL HOURS'; summaryTotalHours.totalHours = employeeProjectTotalHours.toFixed(2);
+                ws.addRow(summaryTotalHours);
+
+                const summaryTotalIncome = {}; standardReportColumns.forEach(col => summaryTotalIncome[col.key] = '');
+                summaryTotalIncome.notes = 'TOTAL INCOME EARNED'; summaryTotalIncome.totalHours = `$${employeeProjectTotalIncome.toFixed(2)}`;
+                ws.addRow(summaryTotalIncome);
+                ws.addRow([]); // Blank row after each employee's summary
+            });
+            ws.addRow([]); // Extra blank row after each project section
+        });
+
+    } else { // Default to 'employee' grouping or other groupings if ever introduced
+        const formattedData = formatDataForReport(timesheets, reportTimezone);
+        const groupedData = formattedData.reduce((acc, entry) => {
+            const groupKey = entry[groupBy] || `Unknown ${groupBy}`; // 'employee' or 'project'
+            (acc[groupKey] = acc[groupKey] || []).push(entry);
+            return acc;
+        }, {});
+        populateWorksheetForEmployeeGrouping(groupedData, ws);
+    }
+
     const buffer = await workbook.xlsx.writeBuffer();
 
-    const groupNames = Object.keys(groupedData);
-    const nameLabel = groupNames.length === 1 ? groupNames[0] : `Multiple_${groupBy}s`;
+    // Filename generation needs to be robust
+    let nameLabel = `${groupBy.charAt(0).toUpperCase() + groupBy.slice(1)}_Report`;
+    if (groupBy === 'project' && projectIds && projectIds.length === 1 && projectDetailsMap.has(projectIds[0])) {
+        nameLabel = projectDetailsMap.get(projectIds[0]);
+    } else if (groupBy === 'employee' && finalEmployeeIds.length === 1 && employeeMap.has(finalEmployeeIds[0].toString())) {
+        nameLabel = employeeMap.get(finalEmployeeIds[0].toString()).name;
+    }
+
     const startLabel = startDate ? moment(startDate, 'YYYY-MM-DD').format('YYYYMMDD') : 'Start';
     const endLabel = endDate ? moment(endDate, 'YYYY-MM-DD').format('YYYYMMDD') : 'End';
     const sanitize = (str) => String(str).replace(/[^a-zA-Z0-9_-]/g, '_');
@@ -586,8 +666,9 @@ const handleReportAction = async (req, res, isDownload, groupBy) => {
       }
     }
   } catch (error) {
-    console.error(`[Server Report] Exception during ${action} process:`, error);
-    return res.status(500).json({ message: `Failed to ${isDownload ? 'generate report' : 'send email'}: ${error.message}` });
+    console.error(`[Server Report] Exception during ${actionType} process:`, error);
+    return res.status(500).json({ message: `Failed to ${actionType} report: ${error.message}` });
+
   }
 };
 
@@ -610,3 +691,23 @@ export const downloadProjectTimesheets = (req, res) => handleReportAction(req, r
 // @route   POST /api/timesheets/report/email/project
 // @access  Private (e.g., Employer)
 export const sendProjectTimesheetEmail = (req, res) => handleReportAction(req, res, false, 'project');
+
+// Populates the worksheet for employee-grouped data
+const populateWorksheetForEmployeeGrouping = (groupedByEmployeeName, ws) => {
+    // ws.columns is already set to standardReportColumns
+    Object.entries(groupedByEmployeeName).forEach(([employeeName, entries]) => {
+        entries.forEach((entry, index) => {
+            const rowValues = {};
+            // Map entryData to the keys defined in standardReportColumns
+            standardReportColumns.forEach(col => {
+                rowValues[col.key] = entry[col.key];
+            });
+            // Override the employee name for grouping display
+            rowValues.employee = (index === 0) ? employeeName : '';
+            ws.addRow(rowValues);
+        });
+        if (Object.keys(groupedByEmployeeName).length > 1 && entries.length > 0) { // Add spacer if multiple employees and current employee had entries
+            ws.addRow({}); // Add a blank row as a spacer
+        }
+    });
+};

@@ -1,5 +1,6 @@
 // /home/digilab/timesheet/client/src/redux/slices/authSlice.js
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
+import { setAlert } from './alertSlice'; // Import setAlert
 import axios from 'axios';
 
 const API_URL = process.env.REACT_APP_API_URL || 'https://timesheet-c4mj.onrender.com/api';
@@ -163,6 +164,42 @@ export const resetPassword = createAsyncThunk(
   }
 );
 
+// Thunk for checking prospective employee email status
+export const checkProspectiveEmployee = createAsyncThunk(
+  'auth/checkProspectiveEmployee',
+  async (emailData, { rejectWithValue }) => {
+    try {
+      const response = await axios.post(`${API_URL}/auth/check-prospective-employee`, emailData);
+      return response.data; // Expected: { canProceed: bool, userExists: bool, isEmployee: bool, message: string }
+    } catch (error) {
+      const errorData = error.response?.data || { message: 'Failed to check email status.' };
+      return rejectWithValue(errorData);
+    }
+  }
+);
+
+// Thunk for requesting account deletion link
+// This will call the backend to send an email with a secure link.
+export const requestAccountDeletionLink = createAsyncThunk(
+  'auth/requestDeletionLink',
+  async (_, { dispatch, rejectWithValue }) => {
+    const token = localStorage.getItem('token'); // Or getState().auth.token
+    if (!token) {
+        return rejectWithValue('Authentication required to request account deletion.');
+    }
+    try {
+      // The backend endpoint will use the authenticated user's details
+      const response = await axios.post(`${API_URL}/auth/request-deletion-link`, {}, getAuthHeaders(token));
+      // Dispatch an alert with the success message from the backend
+      dispatch(setAlert(response.data.message || 'Account deletion link sent. Please check your email.', 'success', 10000));
+      return response.data;
+    } catch (error) {
+      const message = getErrorMessage(error);
+      dispatch(setAlert(message, 'danger')); // Dispatch an alert with the error message
+      return rejectWithValue(message);
+    }
+  }
+);
 // Defines the authentication slice of the Redux state.
 const authSlice = createSlice({
   name: 'auth',
@@ -172,6 +209,12 @@ const authSlice = createSlice({
     isAuthenticated: !!localStorage.getItem('token'), // True if token exists
     isLoading: !!localStorage.getItem('token'), // Start loading if token exists, to validate it
     error: null, // Stores any authentication-related error messages
+    // State for prospective employee email check
+    prospectiveEmployeeCheck: {
+      status: 'idle', // 'idle' | 'loading' | 'succeeded' | 'failed'
+      error: null,    // Error message from check
+      result: null,   // { canProceed, userExists, isEmployee, message }
+    },
   },
   reducers: {
     // Handles user logout: clears user data, token, and resets auth flags.
@@ -182,6 +225,11 @@ const authSlice = createSlice({
       state.isAuthenticated = false;
       state.isLoading = false;
       state.error = null;
+      state.prospectiveEmployeeCheck = { // Reset this on logout too
+        status: 'idle',
+        error: null,
+        result: null,
+      };
     },
     // Sets authentication state (typically after successful login/token load).
     setAuth: (state, action) => {
@@ -208,7 +256,11 @@ const authSlice = createSlice({
     // Clears any existing auth error.
     clearAuthError: (state) => {
       state.error = null;
-    }
+    },
+    // Clears prospective employee check state
+    clearProspectiveEmployeeCheck: (state) => {
+      state.prospectiveEmployeeCheck = { status: 'idle', error: null, result: null };
+    },
   },
   // Handles actions dispatched by async thunks (e.g., login, register).
   extraReducers: (builder) => {
@@ -354,12 +406,39 @@ const authSlice = createSlice({
       .addCase(resetPassword.rejected, (state, action) => {
         state.isLoading = false;
         state.error = action.payload;
+      })
+      // Check prospective employee email
+      .addCase(checkProspectiveEmployee.pending, (state) => {
+        state.prospectiveEmployeeCheck = { status: 'loading', error: null, result: null };
+      })
+      .addCase(checkProspectiveEmployee.fulfilled, (state, action) => {
+        state.prospectiveEmployeeCheck = { status: 'succeeded', error: null, result: action.payload };
+      })
+      .addCase(checkProspectiveEmployee.rejected, (state, action) => {
+        state.prospectiveEmployeeCheck = { 
+          status: 'failed', 
+          error: action.payload?.message || 'Error checking email.', 
+          result: action.payload // Store the full payload which might include canProceed: false
+        };
+      })
+      // Request account deletion link actions
+      .addCase(requestAccountDeletionLink.pending, (state) => {
+        state.isLoading = true; // You might want a specific loading state, e.g., state.isRequestingDeletionLinkLoading
+        state.error = null;
+      })
+      .addCase(requestAccountDeletionLink.fulfilled, (state, action) => {
+        state.isLoading = false;
+        // Success message is handled by the alert dispatched in the thunk
+      })
+      .addCase(requestAccountDeletionLink.rejected, (state, action) => {
+        state.isLoading = false;
+        state.error = action.payload; // Error message from rejectWithValue
       });
   },
 });
 
 // Export synchronous actions for use in components or other thunks.
-export const { logout, setAuth, setAuthLoading, setAuthError, clearAuthError } = authSlice.actions;
+export const { logout, setAuth, setAuthLoading, setAuthError, clearAuthError, clearProspectiveEmployeeCheck } = authSlice.actions;
 
 // Export the reducer to be included in the store.
 export default authSlice.reducer;
@@ -371,3 +450,4 @@ export const selectAuthUser = (state) => state.auth.user;
 export const selectAuthToken = (state) => state.auth.token;
 export const selectIsAuthLoading = (state) => state.auth.isLoading;
 export const selectAuthError = (state) => state.auth.error;
+export const selectProspectiveEmployeeCheck = (state) => state.auth.prospectiveEmployeeCheck;

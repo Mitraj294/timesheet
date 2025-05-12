@@ -110,7 +110,7 @@ export const downloadVehicleReport = createAsyncThunk(
         responseType: 'blob',
         params: { startDate, endDate } // Send dates as query params
       };
-      const response = await axios.get(`${API_URL}/vehicles/${vehicleId}/download-report`, config);
+      const response = await axios.get(`${API_URL}/vehicles/${vehicleId}/report/download`, config);
       const contentDisposition = response.headers['content-disposition'];
       let filename = `vehicle_${vehicleId}_report.xlsx`;
       if (contentDisposition) {
@@ -137,7 +137,7 @@ export const sendVehicleReportByEmail = createAsyncThunk(
       const { token } = getState().auth;
       if (!token) return rejectWithValue('Authentication required.');
       const body = { startDate, endDate, email };
-      await axios.post(`${API_URL}/vehicles/report/email/${vehicleId}`, body, getAuthHeaders(token));
+      await axios.post(`${API_URL}/vehicles/${vehicleId}/report/send-email`, body, getAuthHeaders(token));
       return { email }; // Return email for success message
     } catch (error) {
       return rejectWithValue(getErrorMessage(error));
@@ -158,7 +158,7 @@ export const downloadAllVehiclesReport = createAsyncThunk(
         responseType: 'blob',
         params: { startDate, endDate }
       };
-      const response = await axios.get(`${API_URL}/vehicles/download/all`, config);
+      const response = await axios.get(`${API_URL}/vehicles/report/all/download`, config);
       const contentDisposition = response.headers['content-disposition'];
       let filename = `all_vehicles_report.xlsx`;
       if (contentDisposition) {
@@ -184,7 +184,7 @@ export const sendAllVehiclesReportByEmail = createAsyncThunk(
       const { token } = getState().auth;
       if (!token) return rejectWithValue('Authentication required.');
       const body = { startDate, endDate, email };
-      await axios.post(`${API_URL}/vehicles/send-report`, body, getAuthHeaders(token));
+      await axios.post(`${API_URL}/vehicles/report/all/send-email`, body, getAuthHeaders(token));
       return { email };
     } catch (error) {
       return rejectWithValue(getErrorMessage(error));

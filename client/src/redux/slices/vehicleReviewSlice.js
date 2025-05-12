@@ -121,7 +121,7 @@ export const downloadReviewReport = createAsyncThunk(
         if (filenameMatch && filenameMatch[1]) filename = decodeURIComponent(filenameMatch[1]);
       }
       return { blob: response.data, filename };
-    } catch (error) {
+    } catch (error) { // The original response.data (the Blob) is available on error.response.data
         if (error.response?.data instanceof Blob && error.response?.data.type.includes('json')) {
             try { const errorJson = JSON.parse(await error.response.data.text()); return rejectWithValue(errorJson.message || 'Failed to download report'); } catch (parseError) {}
         }
@@ -129,18 +129,18 @@ export const downloadReviewReport = createAsyncThunk(
     }
   }
 );
-
+// The fulfilled payload will now be { blob: Blob, filename: string }
 // Sends a single review report (as PDF) via email. Requires authentication.
 // params.reviewId: ID of the review.
 // params.email: Recipient's email address.
 export const sendReviewReportByClient = createAsyncThunk(
   'vehicleReviews/sendReport',
-  async ({ reviewId, email /*, format */ }, { getState, rejectWithValue }) => { // format is no longer needed
+  async ({ reviewId, email, format = 'pdf' }, { getState, rejectWithValue }) => { // Added format
     try {
       const { token } = getState().auth;
       if (!token) return rejectWithValue('Authentication required.');
-      const body = { email }; // Only email is needed, format is handled as PDF by backend
-      await axios.post(`${API_URL}/vehicles/reviews/report/email/${reviewId}`, body, getAuthHeaders(token));
+      const body = { email, format }; // Pass format to the backend
+      await axios.post(`${API_URL}/vehicles/reviews/${reviewId}/send-email`, body, getAuthHeaders(token)); // URL is correct
       return { email };
     } catch (error) {
       return rejectWithValue(getErrorMessage(error));
