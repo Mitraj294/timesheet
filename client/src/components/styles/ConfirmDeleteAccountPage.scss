@@ -1,4 +1,4 @@
-// /home/digilab/timesheet/client/src/styles/ConfirmDeleteAccountPage.scss
+/* /home/digilab/timesheet/client/src/styles/ConfirmDeleteAccountPage.scss */
 .confirm-delete-container {
     display: flex;
     flex-direction: column;
@@ -85,17 +85,19 @@
                     font-size: 1rem;
                     box-sizing: border-box;
                     height: 42px; // Standard height
+                }
 
-                    &:focus {
-                        border-color: #007bff;
-                        box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, .25);
-                        outline: none;
-                    }
+                input[type="password"]:focus,
+                input[type="text"]:focus {
+                    border-color: #007bff;
+                    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, .25);
+                    outline: none;
+                }
 
-                    &:disabled {
-                        background-color: #e9ecef;
-                        cursor: not-allowed;
-                    }
+                input[type="password"]:disabled,
+                input[type="text"]:disabled {
+                    background-color: #e9ecef;
+                    cursor: not-allowed;
                 }
 
                 .password-toggle {

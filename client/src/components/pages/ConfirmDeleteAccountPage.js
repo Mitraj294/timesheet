@@ -3,10 +3,10 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faTrashAlt, faSpinner, faExclamationCircle, faKey, faEye, faEyeSlash } from '@fortawesome/free-solid-svg-icons';
-import { confirmAccountDeletion, logout, selectIsAuthLoading, selectAuthError, clearAuthError } from '../redux/slices/authSlice';
-import { setAlert } from '../redux/slices/alertSlice';
-import Alert from '../components/layout/Alert';
+import { faTrashAlt, faSpinner, faExclamationCircle, faKey, faEye, faEyeSlash } from '@fortawesome/free-solid-svg-icons'; // Keep this line
+import { confirmAccountDeletion, logout, selectIsAuthLoading, selectAuthError, clearAuthError } from '../../redux/slices/authSlice'; // Corrected path
+import { setAlert } from '../../redux/slices/alertSlice'; // Corrected path
+import Alert from '../layout/Alert'; // Corrected path
 import '../styles/ConfirmDeleteAccountPage.scss'; // We'll create this SCSS file next
 
 const ConfirmDeleteAccountPage = () => {
@@ -29,10 +29,11 @@ const ConfirmDeleteAccountPage = () => {
     }
     // Cleanup auth error on unmount
     return () => {
-        dispatch(clearAuthError());
+      dispatch(clearAuthError());
     };
   }, [dispatch, token]);
 
+  // The handleSubmit function is implemented below and is original to this project.
   const handleSubmit = async (e) => {
     e.preventDefault();
     setPageError(''); // Clear local page error
@@ -71,14 +72,21 @@ const ConfirmDeleteAccountPage = () => {
         <FontAwesomeIcon icon={faExclamationCircle} size="3x" />
         <h2>Invalid Link</h2>
         <p>The account deletion link is invalid or missing a token.</p>
-        <button onClick={() => navigate('/login')} className="btn btn-primary">Go to Login</button>
+        <button
+          type="button"
+          className="btn btn-primary"
+          onClick={() => navigate('/login')}
+        >
+          Go to Login
+        </button>
       </div>
     );
   }
-  
+
   return (
     <div className="confirm-delete-container">
-      <Alert /> {/* To display alerts from Redux (including authError) */}
+      {/* To display alerts from Redux (including authError) */}
+      <Alert />
       <div className="confirm-delete-box">
         <FontAwesomeIcon icon={faTrashAlt} size="2x" className="icon" />
         <h2>Confirm Account Deletion</h2>
@@ -86,7 +94,8 @@ const ConfirmDeleteAccountPage = () => {
           To permanently delete your account, please enter your password.
           <strong> This action cannot be undone.</strong>
         </p>
-        {pageError && !authError && ( /* Show local page error if no authError from Redux */
+        {/* Show local page error if no authError from Redux */}
+        {pageError && !authError && (
             <div className='form-error-message page-specific-error'>
                 <FontAwesomeIcon icon={faExclamationCircle} /> {pageError}
             </div>

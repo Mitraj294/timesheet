@@ -39,8 +39,7 @@ import ViewReview from './components/pages/ViewReview';
 import CreateOrUpdateVehicleReview from "./components/pages/CreateOrUpdateVehicleReview";
 import SettingsPage from './components/pages/SettingsPage'; // Import SettingsPage
 
-import ConfirmDeleteAccountPage from './components/pages/ConfirmDeleteAccountPage'; // Ensure this path is correct
-import NotFoundPage from './components/pages/NotFoundPage'; // Import NotFoundPage
+import ConfirmDeleteAccountPage from './components/pages/ConfirmDeleteAccountPage'; // Import ConfirmDeleteAccountPage
 import 'leaflet/dist/leaflet.css';
 
 
@@ -167,8 +166,7 @@ const AppContent = () => {
         <Route path="/confirm-delete-account/:token" element={<ConfirmDeleteAccountPage />} /> {/* Add route for account deletion confirmation */}
         <Route path="/settings" element={<PrivateRoute><SettingsPage /></PrivateRoute>} /> {/* Protect Settings Route */}
 
-        {/* Catch-all for undefined routes - Redirects to dashboard */}
-        <Route path="*" element={<NotFoundPage />} />
+
 
       </Routes>
     </LayoutWrapper>
