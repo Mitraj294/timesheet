@@ -39,7 +39,7 @@ import ViewReview from './components/pages/ViewReview';
 import CreateOrUpdateVehicleReview from "./components/pages/CreateOrUpdateVehicleReview";
 import SettingsPage from './components/pages/SettingsPage'; // Import SettingsPage
 
-import ConfirmDeleteAccountPage from './components/pages/ConfirmDeleteAccountPage'; // Adjusted path
+import ConfirmDeleteAccountPage from './components/pages/ConfirmDeleteAccountPage'; // Ensure this path is correct
 import NotFoundPage from './components/pages/NotFoundPage'; // Import NotFoundPage
 import 'leaflet/dist/leaflet.css';
 
