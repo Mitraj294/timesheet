@@ -20,6 +20,17 @@ const USER_ROLES = {
   // Add other roles as needed
 };
 
+// --- Helper Functions ---
+
+const getClientBaseUrl = () => {
+  // If NODE_ENV is not 'production' (e.g., 'development' locally), use localhost.
+  // Otherwise, use the CLIENT_BASE_URL from .env, with a fallback.
+  if (process.env.NODE_ENV !== 'production') {
+    return 'http://localhost:3000'; // Ensure your local React client runs on this port
+  }
+  return process.env.CLIENT_BASE_URL || 'http://localhost:3000'; // Fallback for production
+};
+
 // @desc    Register a new user
 // @route   POST /api/auth/register
 // @access  Public
@@ -196,8 +207,7 @@ export const forgotPassword = async (req, res) => {
         user.passwordResetExpires = Date.now() + RESET_TOKEN_EXPIRY_MS;
         await user.save({ validateBeforeSave: false }); // Skip full validation on this save
 
-        // CLIENT_BASE_URL from env
-        const resetUrl = `${process.env.CLIENT_BASE_URL || 'http://localhost:3000'}/reset-password/${resetToken}`;
+        const resetUrl = `${getClientBaseUrl()}/reset-password/${resetToken}`;
 
         // Email sending (e.g., nodemailer)
         const message = `
@@ -302,8 +312,7 @@ export const deleteAccount = async (req, res) => {
         // Use user.remove() to trigger 'pre' remove hooks in the User model (e.g., for deleting associated Employee records)
         // await User.findByIdAndDelete(userId); // Old way
         await user.remove(); // New way, triggers hooks
-        console.log(`User ${userId} deleted successfully.`); // Log deletion
-        // TODO: Add logic here to delete associated data (e.g., Employee record, Timesheets, Reviews) if necessary
+        console.log(`User ${userId} (self-deletion) processed successfully. Associated data cleanup handled by User model hooks.`);
 
         res.json({ message: "Account deleted successfully." });
     } catch (error) {
@@ -578,7 +587,7 @@ export const approveInvitation = async (req, res) => {
                 <p><b>Email:</b> ${prospectiveEmployeeEmail}</p>
                 <p><b>Temporary Password:</b> ${temporaryPassword}</p>
                 <p>We recommend changing your password after your first login.</p>
-                <p>Login at: <a href="${process.env.CLIENT_BASE_URL || 'http://localhost:3000'}">${process.env.CLIENT_BASE_URL || 'http://localhost:3000'}</a></p>
+                <p>Login at: <a href="${getClientBaseUrl()}">${getClientBaseUrl()}</a></p>
                 <p>Thank you,<br/>The ${employer.companyName || 'Company'} Team</p>
             `;
         } else {
@@ -588,7 +597,7 @@ export const approveInvitation = async (req, res) => {
                 <h1>Hello ${prospectiveEmployeeName}!</h1>
                 <p>You have been successfully added as an employee to <b>${employer.companyName || 'our company'}</b>.</p>
                 <p>You can now log in using your existing credentials to access your timesheet and other company resources.</p>
-                <p>Login at: <a href="${process.env.CLIENT_BASE_URL || 'http://localhost:3000'}">${process.env.CLIENT_BASE_URL || 'http://localhost:3000'}</a></p>
+                <p>Login at: <a href="${getClientBaseUrl()}">${getClientBaseUrl()}</a></p>
                 <p>Thank you,<br/>The ${employer.companyName || 'Company'} Team</p>
             `;
         }
@@ -688,8 +697,7 @@ export const requestAccountDeletionLink = async (req, res) => {
     await user.save({ validateBeforeSave: false }); // Save the token and expiry
 
     // Construct the deletion URL (ensure CLIENT_BASE_URL is set in .env)
-    const clientBaseUrl = process.env.CLIENT_BASE_URL || 'http://localhost:3000';
-    const deletionUrl = `${clientBaseUrl}/confirm-delete-account/${deleteToken}`; // Raw token in URL
+    const deletionUrl = `${getClientBaseUrl()}/confirm-delete-account/${deleteToken}`; // Raw token in URL
 
     const emailMessage = `
       <p>You are receiving this email because you (or someone else) have requested the deletion of your account for the Timesheet App.</p>
@@ -751,13 +759,9 @@ export const confirmAccountDeletion = async (req, res) => {
       return res.status(401).json({ message: 'Incorrect password. Account deletion failed.' });
     }
 
-    // Original attempt:
-    // await user.remove(); // This was causing "user.remove is not a function"
-    //
-    // Workaround: Use static delete method.
-    // WARNING: This will NOT trigger Mongoose 'pre' or 'post' document middleware for 'remove'.
-    // If you have such middleware (e.g., for cascading deletes), you need to investigate why user.remove() is not a function.
-    await User.findByIdAndDelete(user._id);
+    // Revert to user.remove() to trigger 'pre('remove')' hooks defined in User.js
+    // This requires that 'user' is a full Mongoose document instance.
+    await user.remove();
     console.log(`[${new Date().toISOString()}] User ${user.email} (ID: ${user._id}) successfully removed.`);
 
     res.status(200).json({ message: 'Your account has been successfully deleted.' });

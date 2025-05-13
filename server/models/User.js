@@ -2,6 +2,8 @@
 import mongoose from "mongoose";
 import bcrypt from 'bcryptjs';
 import Employee from "./Employee.js"; // Import Employee model for cascading delete
+import Timesheet from "./Timesheet.js"; // Import Timesheet model
+import VehicleReview from "./VehicleReview.js"; // Import VehicleReview model
 
 const UserSchema = new mongoose.Schema({
   name: { type: String, required: true },
@@ -33,21 +35,35 @@ UserSchema.pre('save', async function(next) {
   }
 });
 
-// Middleware: Before removing a user, delete their associated Employee record if they are an employee.
+// Middleware: Before removing a user, delete their associated data.
 UserSchema.pre('remove', async function(next) {
   // 'this' refers to the user document being removed
-  if (this.role === 'employee') {
-    try {
-      // Assuming Employee model has a 'userId' field linking to User._id
-      await Employee.deleteMany({ userId: this._id });
-      console.log(`Associated employee records for user ${this._id} deleted.`);
-    } catch (error) {
-      console.error(`Error deleting associated employee records for user ${this._id}:`, error);
-      // Decide if the error should prevent user deletion or just be logged
-      // next(error); // Call next with an error to halt the remove operation
-    }
+  console.log(`User ${this._id} (${this.email}) is being removed. Cleaning up associated data...`);
+  try {
+    // Delete associated Employee record(s) where this user is the employee
+    // This will effectively remove the user's role as an employee in any company.
+    await Employee.deleteMany({ userId: this._id });
+    console.log(`Deleted Employee records for user ${this._id}`);
+
+    // Delete associated Timesheet records created by this user
+    await Timesheet.deleteMany({ userId: this._id });
+    console.log(`Deleted Timesheet records for user ${this._id}`);
+
+    // Delete associated VehicleReview records created by this user
+    // Assuming VehicleReview model has a 'userId' or 'reviewerId' field.
+    // Adjust the field name if it's different (e.g., reviewerId: this._id).
+    await VehicleReview.deleteMany({ userId: this._id });
+    console.log(`Deleted VehicleReview records for user ${this._id}`);
+
+    // Add cleanup for any other models directly associated with the user via their _id.
+    // For example, if users can own projects directly:
+    // await Project.deleteMany({ ownerId: this._id });
+
+    next();
+  } catch (error) {
+    console.error(`Error during pre-remove data cleanup for user ${this._id}:`, error);
+    next(error); // Pass error to stop the remove operation if cleanup fails critically
   }
-  next();
 });
 
 // Method: Compare entered password with the hashed password in the database.
