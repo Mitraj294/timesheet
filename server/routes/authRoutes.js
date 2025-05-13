@@ -4,7 +4,6 @@ import {
     registerUser,
     loginUser,
     changePassword,
-    deleteAccount,
     forgotPassword, // Import new controller
     resetPassword  , // Import new controller
     checkUserExists,
@@ -57,9 +56,6 @@ router.get('/me', protect, async (req, res) => {
     res.status(500).send('Server Error');
   }
 });
-
-// DELETE /api/auth/me - Deletes the logged-in user's account (protected)
-router.delete('/me', protect, deleteAccount);
 
 // --- Secure Account Deletion Routes ---
 // POST /api/auth/request-deletion-link - User requests an email link to delete their account (protected)

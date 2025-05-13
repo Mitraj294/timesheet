@@ -2,8 +2,10 @@
 import mongoose from "mongoose";
 import Employee from "../models/Employee.js";
 import Role from "../models/Role.js";
-// Timesheet, VehicleReview, Schedule, and User models are not directly manipulated here for deletion
-// as that's handled by Employee.js pre('remove') hook or authController.js for User deletion.
+import User from "../models/User.js"; // Import User model
+import Timesheet from "../models/Timesheet.js"; // Import Timesheet model
+import VehicleReview from "../models/VehicleReview.js"; // Import VehicleReview model
+import Schedule from "../models/Schedule.js"; // Import Schedule model
 
 // @desc    Get all employees or a specific employee for the logged-in user
 // @route   GET /api/employees
@@ -180,15 +182,17 @@ export const deleteEmployee = async (req, res) => {
     return res.status(400).json({ message: "Invalid Employee ID format." });
   }
 
-  const session = await mongoose.startSession();
+  let session; // Declare session outside try so it's accessible in finally
   try {
+    session = await mongoose.startSession();
     session.startTransaction();
+    console.log(`[employeeController.deleteEmployee] Starting transaction for employee ${employeeId}`);
 
     const employeeToDelete = await Employee.findOne({ _id: employeeId, employerId: req.user.id }).session(session);
 
     if (!employeeToDelete) {
       await session.abortTransaction();
-      session.endSession();
+      session.endSession(); // End session after abort
       return res.status(404).json({ message: "Employee not found or not associated with this employer." });
     }
 
@@ -200,24 +204,53 @@ export const deleteEmployee = async (req, res) => {
     );
     console.log(`[employeeController.deleteEmployee] Removed employee ${employeeId} from assigned roles.`);
 
-    // The User account associated with this employee is NOT deleted here by default.
-    // This is generally the desired behavior for direct employee deletion.
+    // Store userId before deleting employee, to delete the associated User account
+    const userIdToDelete = employeeToDelete.userId;
 
-    // Call .remove() on the instance to trigger Employee.js pre('remove') hook.
-    // This hook will handle deletion of Timesheets, VehicleReviews, Schedules.
-    await employeeToDelete.remove({ session }); 
-    console.log(`[employeeController.deleteEmployee] Employee ${employeeId} removal process initiated (hooks will run).`);
+    // 2. Explicitly delete Timesheets, VehicleReviews, and Schedules for this employee
+    await Timesheet.deleteMany({ employeeId: employeeToDelete._id }, { session });
+    console.log(`[employeeController.deleteEmployee] Deleted Timesheets for employee ${employeeToDelete._id}.`);
+    
+    await VehicleReview.deleteMany({ employeeId: employeeToDelete._id }, { session });
+    console.log(`[employeeController.deleteEmployee] Deleted VehicleReviews for employee ${employeeToDelete._id}.`);
+    
+    await Schedule.deleteMany({ employee: employeeToDelete._id }, { session });
+    console.log(`[employeeController.deleteEmployee] Deleted Schedules for employee ${employeeToDelete._id}.`);
 
+    // 3. Delete the Employee record itself
+    await Employee.findByIdAndDelete(employeeToDelete._id, { session });
+    console.log(`[employeeController.deleteEmployee] Deleted employee record ${employeeToDelete._id}.`);
+
+    // 4. Now, delete the associated User account if a userId was linked
+    if (userIdToDelete) {
+      const userAccountToDelete = await User.findById(userIdToDelete).session(session);
+      if (userAccountToDelete) {
+        // Using findByIdAndDelete as pre('remove') hooks are no longer used for this cascade.
+        await User.findByIdAndDelete(userAccountToDelete._id, { session });
+        console.log(`[employeeController.deleteEmployee] Deleted associated User account ${userIdToDelete}.`);
+      } else {
+        console.warn(`[employeeController.deleteEmployee] No User account found for userId ${userIdToDelete} to delete.`);
+      }
+    } else {
+      console.log(`[employeeController.deleteEmployee] No userId linked to employee ${employeeId}, skipping User account deletion.`);
+    }
+    
     await session.commitTransaction();
-    res.json({ message: "Employee deleted successfully." });
+    console.log(`[employeeController.deleteEmployee] Transaction committed for employee ${employeeId}.`);
+    res.json({ message: "Employee and all associated data deleted successfully." });
 
   } catch (error) {
-    if (session.inTransaction()) {
+    // Check if session exists and is in transaction before trying to abort
+    if (session && session.inTransaction()) {
       await session.abortTransaction();
+      console.log(`[employeeController.deleteEmployee] Transaction aborted for employee ${employeeId} due to error.`);
     }
     console.error("[employeeController.deleteEmployee] Error deleting employee:", error);
     res.status(500).json({ message: "Server error during employee deletion process.", error: error.message });
   } finally {
-    session.endSession();
+    if (session) {
+      session.endSession();
+      console.log(`[employeeController.deleteEmployee] Session ended for employee ${employeeId}.`);
+    }
   }
 };

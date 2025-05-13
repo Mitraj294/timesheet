@@ -3,10 +3,10 @@ import jwt from "jsonwebtoken";
 import mongoose from "mongoose"; // Import mongoose for instanceof check
 import crypto from 'crypto'; // Needed for token generation
 import User from "../models/User.js";
-import Employee from "../models/Employee.js"; // Import Employee model
-import Timesheet from "../models/Timesheet.js"; // Import Timesheet model
-import VehicleReview from "../models/VehicleReview.js"; // Import VehicleReview model
-import Schedule from "../models/Schedule.js"; // Import Schedule model
+import Employee from "../models/Employee.js"; 
+import Timesheet from "../models/Timesheet.js"; 
+import VehicleReview from "../models/VehicleReview.js"; 
+import Schedule from "../models/Schedule.js"; 
 import Invitation from "../models/Invitation.js"; // Import the new Invitation model
 // --- IMPORTANT ---
 // Import your email sending utility (adjust path if necessary)
@@ -291,37 +291,6 @@ export const resetPassword = async (req, res) => {
     } catch (error) {
         console.error("Error in reset password:", error);
         res.status(500).json({ message: "Server error during password reset." });
-    }
-};
-
-// @desc    Delete user account
-// @route   DELETE /api/auth/deleteaccount
-// @access  Private (Requires authentication and password confirmation)
-export const deleteAccount = async (req, res) => {
-    try {
-        const userId = req.user.id; // userId from protect middleware
-
-        const user = await User.findById(userId);
-        if (!user) {
-            // User should exist if protect middleware ran
-            return res.status(404).json({ message: "User not found." });
-        }
-
-        // Optional: password verification for delete
-        const { password } = req.body; // Password confirmation for delete
-        if (!password || !(await user.matchPassword(password))) { // user.matchPassword()
-            return res.status(401).json({ message: "Incorrect password. Account deletion failed." });
-        }
-
-        // Use user.remove() to trigger 'pre' remove hooks in the User model (e.g., for deleting associated Employee records)
-        // await User.findByIdAndDelete(userId); // Old way
-        await user.remove(); // New way, triggers hooks
-        console.log(`User ${userId} (self-deletion) processed successfully. Associated data cleanup handled by User model hooks.`);
-
-        res.json({ message: "Account deleted successfully." });
-    } catch (error) {
-        console.error("Error deleting account:", error);
-        res.status(500).json({ message: "Server error during account deletion." });
     }
 };
 
@@ -742,11 +711,14 @@ export const requestAccountDeletionLink = async (req, res) => {
 // @route   POST /api/auth/confirm-delete-account/:token
 // @access  Public (Relies on token for security)
 export const confirmAccountDeletion = async (req, res) => {
+  const { token } = req.params;
+  let session; // Declare session outside try so it's accessible in finally
+
   try {
-    const hashedToken = crypto.createHash('sha256').update(req.params.token).digest('hex');
+    const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
     const { password } = req.body;
 
-    console.log(`[${new Date().toISOString()}] Confirming account deletion for token (param): ${req.params.token}`);
+    console.log(`[authController.confirmAccountDeletion] Attempting to confirm account deletion for token (param): ${token}`);
 
     const user = await User.findOne({
       deleteAccountToken: hashedToken,
@@ -754,78 +726,71 @@ export const confirmAccountDeletion = async (req, res) => {
     });
 
     if (!user) {
-      console.warn(`[${new Date().toISOString()}] Account deletion: Token invalid or expired. Hashed token used for search: ${hashedToken}`);
+      console.warn(`[authController.confirmAccountDeletion] Token invalid or expired. Hashed token used for search: ${hashedToken}`);
       return res.status(400).json({ message: 'Deletion token is invalid or has expired.' });
     }
 
     // --- DEBUGGING LOG ---
     // Log the type and structure of the user object.
-    console.log(`[DEBUG] User object found in confirmAccountDeletion. Type: ${typeof user}, IsMongooseModel: ${user instanceof mongoose.Model}`);
+    console.log(`[authController.confirmAccountDeletion] User found: ${user._id}. Verifying password.`);
     // For more detail, you could log the object itself, but be mindful of sensitive data in logs.
     // console.log('[DEBUG] User object details:', JSON.stringify(user, null, 2)); // Be cautious with this in production
     // --- END DEBUGGING LOG ---
 
     if (!password || !(await user.matchPassword(password))) { // Assumes user.matchPassword method exists
-      console.warn(`[${new Date().toISOString()}] Account deletion: Incorrect password for user ${user.email}`);
+      console.warn(`[authController.confirmAccountDeletion] Incorrect password for user ${user.email}`);
       return res.status(401).json({ message: 'Incorrect password. Account deletion failed.' });
     }
 
-    // Diagnostic: Re-fetch the user to ensure a fresh Mongoose document instance
-    const freshUser = await User.findById(user._id);
-    if (!freshUser) {
-      // This should not happen if the previous checks passed, but good to be safe
-      console.error(`[CRITICAL] User ${user._id} disappeared before final deletion attempt.`);
-      return res.status(404).json({ message: 'User to be deleted was not found. Please try again.' });
-    }
-
     // --- Direct Deletion Logic within a Transaction ---
-    const session = await mongoose.startSession();
-    try {
-      session.startTransaction();
-      console.log(`[authController.confirmAccountDeletion] Starting transaction for user ${freshUser._id}`);
+    session = await mongoose.startSession();
+    session.startTransaction();
+    console.log(`[authController.confirmAccountDeletion] Transaction started for user ${user._id}`);
 
       // 1. Find associated Employee records for the user
-      const employeesToDelete = await Employee.find({ userId: freshUser._id }).session(session);
+    const employeesToDelete = await Employee.find({ userId: user._id }).session(session);
 
       if (employeesToDelete.length > 0) {
-        console.log(`[authController.confirmAccountDeletion] Found ${employeesToDelete.length} employee record(s) for user ${freshUser._id}.`);
+      console.log(`[authController.confirmAccountDeletion] Found ${employeesToDelete.length} employee record(s) for user ${user._id}.`);
         for (const emp of employeesToDelete) {
-          console.log(`[authController.confirmAccountDeletion] Initiating removal of employee ${emp._id} and its associated data (via Employee model hook)...`);
-          // Calling .remove() on the Employee instance will trigger the Employee.js pre('remove') hook,
-          // which handles deletion of Timesheets, VehicleReviews, and Schedules.
-          await emp.remove({ session }); 
-          console.log(`[authController.confirmAccountDeletion] Employee ${emp._id} removal process completed (hooks should have run).`);
+        console.log(`[authController.confirmAccountDeletion] Deleting data for employee ${emp._id}...`);
+          // Explicitly delete Timesheets, VehicleReviews, and Schedules for this employee
+          await Timesheet.deleteMany({ employeeId: emp._id }, { session });
+          console.log(`[authController.confirmAccountDeletion] Deleted Timesheets for employee ${emp._id}.`);
+          await VehicleReview.deleteMany({ employeeId: emp._id }, { session });
+          console.log(`[authController.confirmAccountDeletion] Deleted VehicleReviews for employee ${emp._id}.`);
+          await Schedule.deleteMany({ employee: emp._id }, { session });
+          console.log(`[authController.confirmAccountDeletion] Deleted Schedules for employee ${emp._id}.`);
+
+          // Then delete the Employee record itself
+          await Employee.findByIdAndDelete(emp._id, { session });
+        console.log(`[authController.confirmAccountDeletion] Deleted employee record ${emp._id}.`);
         }
       } else {
-        console.log(`[authController.confirmAccountDeletion] No employee records found for user ${freshUser._id}.`);
+      console.log(`[authController.confirmAccountDeletion] No employee records found for user ${user._id}.`);
       }
 
       // 2. Finally, delete the User record
-      // Using findByIdAndDelete here because the main cascading logic (to Employee and its dependents)
-      // has been explicitly handled above by calling emp.remove().
-      // The User.js pre('remove') hook is now minimal and won't be relied upon for this cascade.
-      await User.findByIdAndDelete(freshUser._id, { session });
-      console.log(`[authController.confirmAccountDeletion] User ${freshUser.email} (ID: ${freshUser._id}) deleted.`);
+      // Using findByIdAndDelete as pre('remove') hooks are no longer used for this cascade.
+    await User.findByIdAndDelete(user._id, { session });
+    console.log(`[authController.confirmAccountDeletion] User ${user.email} (ID: ${user._id}) document deleted.`);
       
       await session.commitTransaction();
-      console.log(`[authController.confirmAccountDeletion] Transaction committed for user ${freshUser._id}.`);
-    } catch (directDeleteError) {
-      if (session.inTransaction()) {
-        await session.abortTransaction();
-      }
-      console.error(`[authController.confirmAccountDeletion] Error during direct deletion cascade for user ${freshUser._id}:`, directDeleteError);
-      throw directDeleteError; // Re-throw to be caught by the outer catch block, which sends 500
-    } finally {
-      session.endSession();
-    }
-    // --- End Direct Deletion Logic ---
-    console.log(`[${new Date().toISOString()}] User ${user.email} (ID: ${user._id}) and associated data removal process completed by controller.`);
-
+    console.log(`[authController.confirmAccountDeletion] Transaction committed for user ${user._id}.`);
+    
     res.status(200).json({ message: 'Your account has been successfully deleted.' });
 
   } catch (error) {
-    // Log the full error object for detailed diagnostics
-    console.error(`[${new Date().toISOString()}] Critical error in confirmAccountDeletion for token (param): ${req.params.token}. Error:`, error);
+    console.error(`[authController.confirmAccountDeletion] Critical error for token (param): ${token}. Error:`, error);
+    if (session && session.inTransaction()) {
+        await session.abortTransaction();
+      console.log(`[authController.confirmAccountDeletion] Transaction aborted for token (param): ${token}.`);
+      }
     res.status(500).json({ message: 'An internal server error occurred while deleting the account. Please try again.' });
+  } finally {
+    if (session) {
+      session.endSession();
+      console.log(`[authController.confirmAccountDeletion] Session ended for token (param): ${token}.`);
+    }
   }
 };

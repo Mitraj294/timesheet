@@ -18,8 +18,8 @@ const UserSchema = new mongoose.Schema({
   createdAt: { type: Date, default: Date.now },
   passwordResetToken: { type: String },
   passwordResetExpires: { type: Date },
-  deleteAccountToken: { type: String },
-  deleteAccountTokenExpires: { type: Date },
+  deleteAccountToken: { type: String },      // Added for account deletion flow
+  deleteAccountTokenExpires: { type: Date }, // Added for account deletion flow
 });
 
 // Pre-save hook for hashing password
@@ -37,17 +37,7 @@ UserSchema.pre('save', async function(next) {
   }
 });
 
-// This pre('remove') hook is now simplified.
-// The explicit deletion of associated Employee records (and their dependent data)
-// when a User account is deleted via ConfirmDeleteAccountPage
-// will be handled directly in the authController.js.
-// This hook will still run if user.remove() or user.deleteOne() is called on an instance.
-UserSchema.pre('remove', async function(next) {
-  console.log(`[User.pre('remove')] User ${this._id} (${this.email}) is being removed. Any User-specific pre-remove logic (not Employee cascade) would go here.`);
-  // If there's any other cleanup specific to the User model itself (not cascading to Employee),
-  // it could be added here. For now, it's just a log.
-  next();
-});
+// No pre('remove') hook here for cascading deletes, as controllers will handle this explicitly.
 
 // Method to check password
 UserSchema.methods.matchPassword = async function(enteredPassword) {
