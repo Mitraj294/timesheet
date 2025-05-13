@@ -40,10 +40,6 @@ export const getEmployees = async (req, res) => {
 // @route   POST /api/employees
 // @access  Private (Typically admin/employer role)
 export const addEmployee = async (req, res) => {
-  // req.user should be populated by your `protect` and `employerOnly` middleware
-  if (!req.user || req.user.role !== 'employer') {
-    return res.status(401).json({ message: "Not authorized or not an employer" });
-  }
 
   try {
     const { name, email, employeeCode, wage, isAdmin, overtime, expectedHours, holidayMultiplier, userId } = req.body;
@@ -221,29 +217,30 @@ export const deleteEmployee = async (req, res) => {
       return res.status(404).json({ message: "Employee not found or not associated with this employer." });
     }
 
-    // 2. Delete associated Timesheets
-    await Timesheet.deleteMany({ employeeId: employeeId }, { session });
-    console.log(`Deleted timesheets for employee ${employeeId}`);
+    // The Employee model's pre('remove') hook will now handle deletion of:
+    // - Timesheets
+    // - VehicleReviews
+    // - Schedules
+    // So, explicit deletion of these from the controller is no longer needed if using employeeToDelete.remove().
 
-    // 3. Delete associated VehicleReviews
-    await VehicleReview.deleteMany({ employeeId: employeeId }, { session });
-    console.log(`Deleted vehicle reviews for employee ${employeeId}`);
-
-    // 4. Delete associated Schedules (field name in Schedule model is 'employee')
-    await Schedule.deleteMany({ employee: employeeId }, { session });
-    console.log(`Deleted schedules for employee ${employeeId}`);
-
-    // 5. Remove employee from any assigned Roles
+    // Remove employee from any assigned Roles (This is specific business logic, keep in controller)
     await Role.updateMany(
       { assignedEmployees: employeeId },
       { $pull: { assignedEmployees: employeeId } },
       { session }
     );
-    console.log(`Removed employee ${employeeId} from assigned roles`);
+    console.log(`[employeeController] Removed employee ${employeeId} from assigned roles`);
 
     // 6. (CRITICAL CONSIDERATION) Delete the associated User record for the employee
     // This is a destructive action. Uncomment and test thoroughly if this is desired.
     // if (employeeToDelete.userId) {
+    //   const userAccountToDelete = await User.findById(employeeToDelete.userId).session(session);
+    //   if (userAccountToDelete) {
+    //     await userAccountToDelete.remove({ session }); // This will trigger User's pre('remove') hook
+    //     console.log(`[employeeController] Initiated deletion of user account ${employeeToDelete.userId} associated with employee ${employeeId}`);
+    //   } else {
+    //     console.warn(`[employeeController] User account ${employeeToDelete.userId} not found for employee ${employeeId}, cannot delete.`);
+    //   }
     //   await User.findByIdAndDelete(employeeToDelete.userId, { session });
     //   console.log(`Deleted user account ${employeeToDelete.userId} associated with employee ${employeeId}`);
     // }

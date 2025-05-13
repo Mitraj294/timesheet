@@ -100,15 +100,16 @@ export const loadUserFromToken = createAsyncThunk(
         if (!token) {
             return null; // No token, nothing to load
         }
-        dispatch(setAuthLoading()); // Set loading state while we validate the token
+        // Import setAuthLoading, setAuth, setAuthError from this file itself, so no change needed here.
+        dispatch(authSlice.actions.setAuthLoading()); // Set loading state while we validate the token
         try {
             // Verify token by fetching user data
             const response = await axios.get(`${API_URL}/auth/me`, getAuthHeaders(token));
-            dispatch(setAuth({ user: response.data, token })); // Update auth state with user and token
+            dispatch(authSlice.actions.setAuth({ user: response.data, token })); // Update auth state with user and token
             return response.data; // User data
         } catch (error) {
              console.error("AuthSlice: Token validation failed:", getErrorMessage(error));
-             dispatch(setAuthError(getErrorMessage(error))); // Set error state, clears token
+             dispatch(authSlice.actions.setAuthError(getErrorMessage(error))); // Set error state, clears token
              return rejectWithValue(getErrorMessage(error));
         }
     }
@@ -218,6 +219,43 @@ export const confirmAccountDeletion = createAsyncThunk(
     }
   }
 );
+
+// Thunk for requesting a company invitation
+export const requestCompanyInvitation = createAsyncThunk(
+  'auth/requestCompanyInvitation',
+  async (invitationData, { dispatch, rejectWithValue }) => {
+    try {
+      const response = await axios.post(`${API_URL}/auth/request-invitation`, invitationData);
+      // Dispatch an alert with the success message from the backend
+      dispatch(setAlert(response.data.message || 'Invitation request submitted successfully.', 'success', 7000));
+      return response.data;
+    } catch (error) {
+      const message = getErrorMessage(error);
+      dispatch(setAlert(message, 'danger')); // Dispatch an alert with the error message
+      return rejectWithValue(message);
+    }
+  }
+);
+
+// Thunk for checking if a user exists by email (for employer use)
+export const checkUserByEmailForEmployer = createAsyncThunk(
+  'auth/checkUserByEmailForEmployer',
+  async (emailData, { getState, rejectWithValue }) => {
+    const { token } = getState().auth; // Get token from Redux state
+    if (!token) {
+      // This should ideally not happen if the UI is only accessible to logged-in employers
+      return rejectWithValue('Authentication required to check user.');
+    }
+    try {
+      // The backend route is /api/auth/check-user
+      const response = await axios.post(`${API_URL}/auth/check-user`, emailData, getAuthHeaders(token));
+      return response.data; // Expected: { exists: true/false, user: {...} } or { exists: false }
+    } catch (error) {
+      const message = getErrorMessage(error);
+      return rejectWithValue(message);
+    }
+  }
+);
 // Defines the authentication slice of the Redux state.
 const authSlice = createSlice({
   name: 'auth',
@@ -233,6 +271,18 @@ const authSlice = createSlice({
       error: null,    // Error message from check
       result: null,   // { canProceed, userExists, isEmployee, message }
     },
+    // State for employer's check user by email
+    employerCheckUser: {
+      status: 'idle', // 'idle' | 'loading' | 'succeeded' | 'failed'
+      error: null,
+      result: null,   // { exists: true/false, user: {...} }
+    },
+    // State for company invitation request
+    companyInvitationRequest: {
+      status: 'idle', // 'idle' | 'loading' | 'succeeded' | 'failed'
+      error: null,
+      message: null,
+    }
   },
   reducers: {
     // Handles user logout: clears user data, token, and resets auth flags.
@@ -247,6 +297,16 @@ const authSlice = createSlice({
         status: 'idle',
         error: null,
         result: null,
+      };
+      state.employerCheckUser = { // Reset this on logout too
+        status: 'idle',
+        error: null,
+        result: null,
+      };
+      state.companyInvitationRequest = { // Reset this on logout too
+        status: 'idle',
+        error: null,
+        message: null,
       };
     },
     // Sets authentication state (typically after successful login/token load).
@@ -279,6 +339,10 @@ const authSlice = createSlice({
     clearProspectiveEmployeeCheck: (state) => {
       state.prospectiveEmployeeCheck = { status: 'idle', error: null, result: null };
     },
+    // Clears employer's check user state
+    clearEmployerCheckUser: (state) => {
+      state.employerCheckUser = { status: 'idle', error: null, result: null };
+    }
   },
   // Handles actions dispatched by async thunks (e.g., login, register).
   extraReducers: (builder) => {
@@ -465,12 +529,34 @@ const authSlice = createSlice({
       .addCase(confirmAccountDeletion.rejected, (state, action) => {
         state.isLoading = false;
         state.error = action.payload; // Error message from rejectWithValue
+      })
+      // Check user by email for employer actions
+      .addCase(checkUserByEmailForEmployer.pending, (state) => {
+        state.employerCheckUser = { status: 'loading', error: null, result: null };
+      })
+      .addCase(checkUserByEmailForEmployer.fulfilled, (state, action) => {
+        state.employerCheckUser = { status: 'succeeded', error: null, result: action.payload };
+      })
+      .addCase(checkUserByEmailForEmployer.rejected, (state, action) => {
+        state.employerCheckUser = { status: 'failed', error: action.payload, result: null };
+      });
+      // Request company invitation actions
+      builder.addCase(requestCompanyInvitation.pending, (state) => {
+        state.companyInvitationRequest = { status: 'loading', error: null, message: null };
+      })
+      .addCase(requestCompanyInvitation.fulfilled, (state, action) => {
+        state.companyInvitationRequest = { status: 'succeeded', error: null, message: action.payload.message };
+      })
+      .addCase(requestCompanyInvitation.rejected, (state, action) => {
+        state.companyInvitationRequest = { status: 'failed', error: action.payload, message: null };
       });
   },
 });
 
 // Export synchronous actions for use in components or other thunks.
-export const { logout, setAuth, setAuthLoading, setAuthError, clearAuthError, clearProspectiveEmployeeCheck } = authSlice.actions;
+export const {
+  logout, setAuth, setAuthLoading, setAuthError, clearAuthError, clearProspectiveEmployeeCheck, clearEmployerCheckUser
+} = authSlice.actions;
 
 // Export the reducer to be included in the store.
 export default authSlice.reducer;
@@ -483,3 +569,5 @@ export const selectAuthToken = (state) => state.auth.token;
 export const selectIsAuthLoading = (state) => state.auth.isLoading;
 export const selectAuthError = (state) => state.auth.error;
 export const selectProspectiveEmployeeCheck = (state) => state.auth.prospectiveEmployeeCheck;
+export const selectEmployerCheckUser = (state) => state.auth.employerCheckUser; // Selector for the new state
+export const selectCompanyInvitationRequest = (state) => state.auth.companyInvitationRequest; // Selector for invitation request state

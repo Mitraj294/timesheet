@@ -11,14 +11,13 @@ import {
   selectEmployeeError
 } from '../../redux/slices/employeeSlice';
 import { setAlert } from '../../redux/slices/alertSlice';
-import { register } from '../../redux/slices/authSlice'; // Used for creating a user account for the employee
+import { register, checkUserByEmailForEmployer } from '../../redux/slices/authSlice'; // Import thunks
 import Alert from '../layout/Alert';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
   faUserPlus,
   faUserEdit,
   faSpinner,
-  faExclamationCircle,
   faSave,
   faTimes,
 } from '@fortawesome/free-solid-svg-icons';
@@ -26,7 +25,7 @@ import '../../styles/Forms.scss';
 
 const API_URL = process.env.REACT_APP_API_URL || 'https://timesheet-slpc.onrender.com/api';
 
-const EmployeeForm = () => {
+const EmployeeForm = () => { // NOSONAR
   const { id } = useParams();
   const navigate = useNavigate();
   const dispatch = useDispatch();
@@ -131,7 +130,6 @@ const EmployeeForm = () => {
       return;
     }
 
-    let userCheckData = { exists: false }; // Declare userCheckData outside the if block
     let employeeData = {
       ...formData,
       wage: parseFloat(formData.wage),
@@ -144,50 +142,43 @@ const EmployeeForm = () => {
     try {
       // If creating a new employee, first check if a user account with this email exists
       if (!isEditMode) {
-        const userCheckResponse = await fetch(`${API_URL}/auth/check-user`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email: formData.email }),
-        });
+        // Use the thunk to check user existence (this sends employer's auth token)
+        const userCheckAction = await dispatch(
+          checkUserByEmailForEmployer({ email: formData.email })
+        ).unwrap(); // unwrap() will throw if rejected
 
-        if (!userCheckResponse.ok) {
-            const errorData = await userCheckResponse.json();
-            throw new Error(errorData.message || 'Failed to check user existence.');
-        }
-        userCheckData = await userCheckResponse.json(); // Assign value here
+        const userCheckData = userCheckAction; // { exists: true/false, user: data }
 
         if (!userCheckData.exists) {
           // If user doesn't exist, create a new user account for them
           const tempPassword = '123456'; // Default temporary password
-          const registerResponse = await fetch(`${API_URL}/auth/register`, { // Consider using dispatch(register(...))
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
+          // Use the register thunk
+          const registerAction = await dispatch(
+            register({
               name: formData.name,
               email: formData.email,
               password: tempPassword, // Use preset password
               role: 'employee',
-            }),
-          });
-          if (!registerResponse.ok) {
-            const errorData = await registerResponse.json();
-            throw new Error(errorData.message || 'Failed to register employee as a user.');
-          }
-          const registeredUser = await registerResponse.json();
+            })
+          ).unwrap(); // unwrap() will throw if rejected
+
+          const registeredUser = registerAction; // Contains { message, user (if returned), token (if returned) }
+
           if (!registeredUser.user || !registeredUser.user._id) {
             throw new Error('Invalid response from registration. No user ID received.');
           }
           employeeData.userId = registeredUser.user._id;
+        } else if (userCheckData.exists && userCheckData.user?._id) {
+          // User exists, link this new employee record to the existing user ID
+          employeeData.userId = userCheckData.user._id;
         }
       }
 
       if (isEditMode) {
+        // userId is not typically part of employeeData for update unless you intend to re-link
         await dispatch(updateEmployee({ id, employeeData })).unwrap();
         dispatch(setAlert('Employee updated successfully!', 'success'));
       } else {
-        if (!employeeData.userId && userCheckData.exists) {
-           console.warn("User exists but wasn't linked during creation. Manual linking might be needed or fetch user ID.");
-        }
         await dispatch(addEmployee(employeeData)).unwrap();
         dispatch(setAlert(`Employee added & User account created! Temporary password is '123456'. Advise user to change it.`, 'success', 10000));
       }
@@ -196,10 +187,11 @@ const EmployeeForm = () => {
 
     } catch (rejectedValueOrSerializedError) {
       console.error(`Error ${isEditMode ? 'updating' : 'adding'} employee:`, rejectedValueOrSerializedError);
-      const message = typeof rejectedValueOrSerializedError === 'string'
-          ? rejectedValueOrSerializedError
-          : rejectedValueOrSerializedError?.message || `Failed to ${isEditMode ? 'update' : 'add'} employee.`;
-      setError(message); // Set local error state
+      // unwrap() returns the rejected action's payload or throws an error with that payload.
+      // The payload is typically the error message string from rejectWithValue.
+      const message = rejectedValueOrSerializedError?.message || // For actual Error objects
+                      (typeof rejectedValueOrSerializedError === 'string' ? rejectedValueOrSerializedError : null) || // For string payloads
+                      `Failed to ${isEditMode ? 'update' : 'add'} employee.`;
       dispatch(setAlert(message, 'danger')); // Show submission error via Alert
     } // No finally block needed if using Redux status
   };

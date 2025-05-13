@@ -38,30 +38,17 @@ UserSchema.pre('save', async function(next) {
 // Middleware: Before removing a user, delete their associated data.
 UserSchema.pre('remove', async function(next) {
   // 'this' refers to the user document being removed
-  console.log(`User ${this._id} (${this.email}) is being removed. Cleaning up associated data...`);
+  console.log(`[User.pre('remove')] User ${this._id} (${this.email}) is being removed. Attempting to delete associated Employee record...`);
   try {
     // Delete associated Employee record(s) where this user is the employee
     // This will effectively remove the user's role as an employee in any company.
-    await Employee.deleteMany({ userId: this._id });
-    console.log(`Deleted Employee records for user ${this._id}`);
-
-    // Delete associated Timesheet records created by this user
-    await Timesheet.deleteMany({ userId: this._id });
-    console.log(`Deleted Timesheet records for user ${this._id}`);
-
-    // Delete associated VehicleReview records created by this user
-    // Assuming VehicleReview model has a 'userId' or 'reviewerId' field.
-    // Adjust the field name if it's different (e.g., reviewerId: this._id).
-    await VehicleReview.deleteMany({ userId: this._id });
-    console.log(`Deleted VehicleReview records for user ${this._id}`);
-
-    // Add cleanup for any other models directly associated with the user via their _id.
-    // For example, if users can own projects directly:
-    // await Project.deleteMany({ ownerId: this._id });
+    // The Employee model's pre('remove') hook will handle deletion of Timesheets and VehicleReviews.
+    const employeeDeleteResult = await Employee.deleteMany({ userId: this._id });
+    console.log(`[User.pre('remove')] Employee.deleteMany result for user ${this._id}: ${JSON.stringify(employeeDeleteResult)}`);
 
     next();
   } catch (error) {
-    console.error(`Error during pre-remove data cleanup for user ${this._id}:`, error);
+    console.error(`[User.pre('remove')] Error deleting associated Employee records for user ${this._id}:`, error);
     next(error); // Pass error to stop the remove operation if cleanup fails critically
   }
 });
