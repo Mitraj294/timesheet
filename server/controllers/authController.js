@@ -414,11 +414,13 @@ export const requestCompanyInvitation = async (req, res) => {
 
         // Notify the employer about the new invitation request
         const employerNotificationSubject = `New Employee Invitation Request from ${prospectiveEmployeeName}`;
+        const loginUrl = `${getClientBaseUrl()}/login`; // Generate login URL
         const employerNotificationHtml = `
             <h1>New Employee Invitation Request</h1>
             <p>Hello ${employerUser.name || 'Employer'},</p>
             <p><b>${prospectiveEmployeeName}</b> (Email: ${prospectiveEmployeeEmail}) has requested to join your company, "${employerUser.companyName || companyName}".</p>
-            <p>You can review and manage this request in your employer dashboard.</p>
+            <p>Please log in to your employer dashboard to review and manage this request:</p>
+            <p><a href="${loginUrl}" clicktracking=off>${loginUrl}</a></p>
             <p>Thank you,<br/>The Timesheet System</p>
         `;
         try {
