@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate, useLocation, Link } from "react-router-dom";
-import { register, login, clearAuthError, checkProspectiveEmployee, selectProspectiveEmployeeCheck, clearProspectiveEmployeeCheck } from "../../redux/slices/authSlice";
+import { register, login, clearAuthError, checkProspectiveEmployee, selectProspectiveEmployeeCheck, clearProspectiveEmployeeCheck, requestCompanyInvitation } from "../../redux/slices/authSlice"; // Added requestCompanyInvitation
 import { FontAwesomeIcon, } from "@fortawesome/react-fontawesome";
 import { faEye, faEyeSlash, faUser, faEnvelope, faUserPlus, faSignInAlt, faGlobe, faPhone, faBuilding, faLock, faArrowLeft } from "@fortawesome/free-solid-svg-icons";
 import { parsePhoneNumberFromString, isValidPhoneNumber, getCountries, getCountryCallingCode } from 'libphonenumber-js';
@@ -159,21 +159,16 @@ const Register = () => {
         setIsSubmittingInvitation(false);
         return;
       }
-      // TODO: Ideally, create a Redux thunk for this API call in authSlice.js
-      const response = await fetch("/api/auth/request-invitation", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(invitationFormData),
-      });
-      const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data.message || "Failed to send invitation request.");
-      }
-      dispatch(setAlert(data.message || "Invitation request sent successfully! The company will be notified.", "success"));
+      // Dispatch the requestCompanyInvitation thunk
+      await dispatch(requestCompanyInvitation(invitationFormData)).unwrap();
+      // Success alert is handled within the thunk
       setInvitationFormData({ prospectiveEmployeeName: "", prospectiveEmployeeEmail: "", companyName: "", companyEmail: "" }); // Clear form
       setStep(1); // Go back to role selection or a success message page
     } catch (error) {
-      dispatch(setAlert(error.message || "An error occurred.", "danger"));
+      // Error alert is handled within the thunk if it uses rejectWithValue and dispatches setAlert
+      // If not, you might need to dispatch an alert here based on the error.
+      // The thunk already dispatches setAlert on error.
+      console.error("Error submitting invitation request from component:", error);
     } finally {
       setIsSubmittingInvitation(false);
     }
