@@ -779,8 +779,7 @@ export const confirmAccountDeletion = async (req, res) => {
     // Use deleteOne() as it's an alias for remove() on instances and should trigger hooks.
     // If this still fails, the issue is very deep.
     await freshUser.deleteOne();
-    // If the error was specifically "user.remove is not a function", you could also try freshUser.remove() here.
-    console.log(`[${new Date().toISOString()}] User ${user.email} (ID: ${user._id}) successfully removed.`);
+    console.log(`[${new Date().toISOString()}] User ${user.email} (ID: ${user._id}) removal process initiated by controller (hooks will run).`);
 
     res.status(200).json({ message: 'Your account has been successfully deleted.' });
 

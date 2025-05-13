@@ -47,7 +47,7 @@ const store = configureStore({
         // ignoredPaths: ['someSlice.nonSerializableField'],
       },
     }),
-  // Removed the extra comma here
+
   devTools: process.env.NODE_ENV !== "production",
 });
 
