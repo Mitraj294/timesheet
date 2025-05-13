@@ -29,15 +29,12 @@ router.post("/register", registerUser);
 router.post("/login", loginUser);
 // POST /api/auth/forgot-password - Initiates password reset
 router.post("/forgot-password", forgotPassword);
-// PUT /api/auth/reset-password/:token - Resets password using token
+// POST /api/auth/reset-password/:token - Resets password using token (Note: PUT is fine, POST is also common)
 router.put("/reset-password/:token", resetPassword);
-// POST /api/auth/check-user - Checks if a user exists by email (Public)
-router.post("/check-user", checkUserExists); // Uses the controller function, can be public or protected based on needs.
 // If it needs protection: router.post("/check-user", protect, checkUserExists);
 // If employer only: router.post("/check-user", protect, employerOnly, checkUserExists);
 // For now, let's assume it's used by employers adding employees, so protect + employerOnly is good.
 router.post('/check-user', protect, employerOnly, checkUserExists);
-
 router.post('/check-prospective-employee', checkProspectiveEmployee); // New public route
 // Invitation Routes
 router.post('/request-invitation', requestCompanyInvitation); // Public

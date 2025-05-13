@@ -41,6 +41,7 @@ import SettingsPage from './components/pages/SettingsPage'; // Import SettingsPa
 
 import ConfirmDeleteAccountPage from './components/pages/ConfirmDeleteAccountPage'; // Import ConfirmDeleteAccountPage
 import 'leaflet/dist/leaflet.css';
+// import NotFoundPage from './components/pages/NotFoundPage'; // 1. Create and uncomment this for 404 handling
 
 
 import "./styles/App.css";
@@ -132,7 +133,7 @@ const AppContent = () => {
         <Route path="/clients/create" element={<PrivateRoute><CreateClient /></PrivateRoute>} />
         <Route path="/clients/update/:id" element={<PrivateRoute><CreateClient /></PrivateRoute>} />
         <Route path="/clients/view/:clientId" element={<PrivateRoute><ViewClient /></PrivateRoute>} />
-        <Route path="/clients/view/:clientId/project/:projectId" element={<ViewProject />} />
+        <Route path="/clients/view/:clientId/project/:projectId" element={<PrivateRoute><ViewProject /></PrivateRoute>} /> {/* 2. Consider if this needs PrivateRoute for consistency */}
         <Route path="/clients/:clientId/create-project" element={<PrivateRoute><CreateProject /></PrivateRoute>} />
         <Route path="/clients/:clientId/projects/update/:projectId" element={<PrivateRoute><CreateProject /></PrivateRoute>} />
         <Route path="/clients/:clientId/projects/view/:projectId" element={<PrivateRoute><ViewProject /></PrivateRoute>} />
@@ -167,7 +168,7 @@ const AppContent = () => {
         <Route path="/settings" element={<PrivateRoute><SettingsPage /></PrivateRoute>} /> {/* Protect Settings Route */}
 
         {/* Catch-all for undefined routes - Renders NotFoundPage */}
-        {/* <Route path="*" element={<NotFoundPage />} /> */} {/* Or remove this line entirely if not needed */}
+        {/* <Route path="*" element={<NotFoundPage />} /> */} {/* 3. Uncomment this. Consider <PrivateRoute><NotFoundPage /></PrivateRoute> if it's an authenticated 404 page */}
       </Routes>
     </LayoutWrapper>
   );
