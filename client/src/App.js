@@ -166,8 +166,8 @@ const AppContent = () => {
         <Route path="/confirm-delete-account/:token" element={<ConfirmDeleteAccountPage />} /> {/* Add route for account deletion confirmation */}
         <Route path="/settings" element={<PrivateRoute><SettingsPage /></PrivateRoute>} /> {/* Protect Settings Route */}
 
-
-
+        {/* Catch-all for undefined routes - Renders NotFoundPage */}
+        {/* <Route path="*" element={<NotFoundPage />} /> */} {/* Or remove this line entirely if not needed */}
       </Routes>
     </LayoutWrapper>
   );

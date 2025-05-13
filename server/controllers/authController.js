@@ -734,27 +734,33 @@ export const confirmAccountDeletion = async (req, res) => {
     const hashedToken = crypto.createHash('sha256').update(req.params.token).digest('hex');
     const { password } = req.body;
 
+    console.log(`[${new Date().toISOString()}] Confirming account deletion for token (param): ${req.params.token}`);
+
     const user = await User.findOne({
       deleteAccountToken: hashedToken,
       deleteAccountTokenExpires: { $gt: Date.now() },
     });
 
     if (!user) {
+      console.warn(`[${new Date().toISOString()}] Account deletion: Token invalid or expired. Hashed token used for search: ${hashedToken}`);
       return res.status(400).json({ message: 'Deletion token is invalid or has expired.' });
     }
 
     if (!password || !(await user.matchPassword(password))) { // Assumes user.matchPassword method exists
+      console.warn(`[${new Date().toISOString()}] Account deletion: Incorrect password for user ${user.email}`);
       return res.status(401).json({ message: 'Incorrect password. Account deletion failed.' });
     }
 
     // If User model has a pre-remove hook to delete associated Employee, it will be triggered.
     // await User.findByIdAndDelete(user._id); // Old way
     await user.remove(); // New way, triggers 'remove' middleware in User model
+    console.log(`[${new Date().toISOString()}] User ${user.email} (ID: ${user._id}) successfully removed.`);
 
     res.status(200).json({ message: 'Your account has been successfully deleted.' });
 
   } catch (error) {
-    console.error('Error in confirmAccountDeletion:', error);
-    res.status(500).json({ message: 'Error deleting account. Please try again.' });
+    // Log the full error object for detailed diagnostics
+    console.error(`[${new Date().toISOString()}] Critical error in confirmAccountDeletion for token (param): ${req.params.token}. Error:`, error);
+    res.status(500).json({ message: 'An internal server error occurred while deleting the account. Please try again.' });
   }
 };
