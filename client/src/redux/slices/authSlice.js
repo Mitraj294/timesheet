@@ -3,7 +3,7 @@ import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import { setAlert } from './alertSlice'; // Import setAlert
 import axios from 'axios';
 
-const API_URL = process.env.REACT_APP_API_URL || 'https://timesheet-c4mj.onrender.com/api';
+const API_URL = process.env.REACT_APP_API_URL || 'https://timesheet-slpc.onrender.com/api';
 
 // Helper to get authorization headers
 // Just a small utility to keep the header creation consistent.
