@@ -1,5 +1,6 @@
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
+import mongoose from "mongoose"; // Import mongoose for instanceof check
 import crypto from 'crypto'; // Needed for token generation
 import User from "../models/User.js";
 import Employee from "../models/Employee.js"; // Import Employee model
@@ -753,6 +754,13 @@ export const confirmAccountDeletion = async (req, res) => {
       console.warn(`[${new Date().toISOString()}] Account deletion: Token invalid or expired. Hashed token used for search: ${hashedToken}`);
       return res.status(400).json({ message: 'Deletion token is invalid or has expired.' });
     }
+
+    // --- DEBUGGING LOG ---
+    // Log the type and structure of the user object.
+    console.log(`[DEBUG] User object found in confirmAccountDeletion. Type: ${typeof user}, IsMongooseModel: ${user instanceof mongoose.Model}`);
+    // For more detail, you could log the object itself, but be mindful of sensitive data in logs.
+    // console.log('[DEBUG] User object details:', JSON.stringify(user, null, 2)); // Be cautious with this in production
+    // --- END DEBUGGING LOG ---
 
     if (!password || !(await user.matchPassword(password))) { // Assumes user.matchPassword method exists
       console.warn(`[${new Date().toISOString()}] Account deletion: Incorrect password for user ${user.email}`);
