@@ -767,9 +767,19 @@ export const confirmAccountDeletion = async (req, res) => {
       return res.status(401).json({ message: 'Incorrect password. Account deletion failed.' });
     }
 
-    // Revert to user.remove() to trigger 'pre('remove')' hooks defined in User.js
-    // This requires that 'user' is a full Mongoose document instance.
-    await user.remove();
+    // Diagnostic: Re-fetch the user to ensure a fresh Mongoose document instance
+    const freshUser = await User.findById(user._id);
+    if (!freshUser) {
+      // This should not happen if the previous checks passed, but good to be safe
+      console.error(`[CRITICAL] User ${user._id} disappeared before final deletion attempt.`);
+      return res.status(404).json({ message: 'User to be deleted was not found. Please try again.' });
+    }
+
+    // Attempt deletion on the freshly fetched document
+    // Use deleteOne() as it's an alias for remove() on instances and should trigger hooks.
+    // If this still fails, the issue is very deep.
+    await freshUser.deleteOne();
+    // If the error was specifically "user.remove is not a function", you could also try freshUser.remove() here.
     console.log(`[${new Date().toISOString()}] User ${user.email} (ID: ${user._id}) successfully removed.`);
 
     res.status(200).json({ message: 'Your account has been successfully deleted.' });
