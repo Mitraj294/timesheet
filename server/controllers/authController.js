@@ -4,6 +4,9 @@ import mongoose from "mongoose"; // Import mongoose for instanceof check
 import crypto from 'crypto'; // Needed for token generation
 import User from "../models/User.js";
 import Employee from "../models/Employee.js"; // Import Employee model
+import Timesheet from "../models/Timesheet.js"; // Import Timesheet model
+import VehicleReview from "../models/VehicleReview.js"; // Import VehicleReview model
+import Schedule from "../models/Schedule.js"; // Import Schedule model
 import Invitation from "../models/Invitation.js"; // Import the new Invitation model
 // --- IMPORTANT ---
 // Import your email sending utility (adjust path if necessary)
@@ -775,11 +778,48 @@ export const confirmAccountDeletion = async (req, res) => {
       return res.status(404).json({ message: 'User to be deleted was not found. Please try again.' });
     }
 
-    // Attempt deletion on the freshly fetched document
-    // Use deleteOne() as it's an alias for remove() on instances and should trigger hooks.
-    // If this still fails, the issue is very deep.
-    await freshUser.deleteOne();
-    console.log(`[${new Date().toISOString()}] User ${user.email} (ID: ${user._id}) removal process initiated by controller (hooks will run).`);
+    // --- Direct Deletion Logic within a Transaction ---
+    const session = await mongoose.startSession();
+    try {
+      session.startTransaction();
+      console.log(`[authController.confirmAccountDeletion] Starting transaction for user ${freshUser._id}`);
+
+      // 1. Find associated Employee records for the user
+      const employeesToDelete = await Employee.find({ userId: freshUser._id }).session(session);
+
+      if (employeesToDelete.length > 0) {
+        console.log(`[authController.confirmAccountDeletion] Found ${employeesToDelete.length} employee record(s) for user ${freshUser._id}.`);
+        for (const emp of employeesToDelete) {
+          console.log(`[authController.confirmAccountDeletion] Initiating removal of employee ${emp._id} and its associated data (via Employee model hook)...`);
+          // Calling .remove() on the Employee instance will trigger the Employee.js pre('remove') hook,
+          // which handles deletion of Timesheets, VehicleReviews, and Schedules.
+          await emp.remove({ session }); 
+          console.log(`[authController.confirmAccountDeletion] Employee ${emp._id} removal process completed (hooks should have run).`);
+        }
+      } else {
+        console.log(`[authController.confirmAccountDeletion] No employee records found for user ${freshUser._id}.`);
+      }
+
+      // 2. Finally, delete the User record
+      // Using findByIdAndDelete here because the main cascading logic (to Employee and its dependents)
+      // has been explicitly handled above by calling emp.remove().
+      // The User.js pre('remove') hook is now minimal and won't be relied upon for this cascade.
+      await User.findByIdAndDelete(freshUser._id, { session });
+      console.log(`[authController.confirmAccountDeletion] User ${freshUser.email} (ID: ${freshUser._id}) deleted.`);
+      
+      await session.commitTransaction();
+      console.log(`[authController.confirmAccountDeletion] Transaction committed for user ${freshUser._id}.`);
+    } catch (directDeleteError) {
+      if (session.inTransaction()) {
+        await session.abortTransaction();
+      }
+      console.error(`[authController.confirmAccountDeletion] Error during direct deletion cascade for user ${freshUser._id}:`, directDeleteError);
+      throw directDeleteError; // Re-throw to be caught by the outer catch block, which sends 500
+    } finally {
+      session.endSession();
+    }
+    // --- End Direct Deletion Logic ---
+    console.log(`[${new Date().toISOString()}] User ${user.email} (ID: ${user._id}) and associated data removal process completed by controller.`);
 
     res.status(200).json({ message: 'Your account has been successfully deleted.' });
 

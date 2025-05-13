@@ -1,9 +1,11 @@
 // /home/digilab/timesheet/server/models/User.js
 import mongoose from "mongoose";
 import bcrypt from 'bcryptjs';
-import Employee from "./Employee.js"; // Import Employee model
-import Timesheet from "./Timesheet.js"; // Not directly used in this hook anymore
-import VehicleReview from "./VehicleReview.js"; // Not directly used in this hook anymore
+// Employee model is not directly needed here for cascading delete anymore,
+// as authController will handle finding employees.
+// However, if there are other parts of User model logic that might need Employee, keep it.
+// For now, assuming it's not strictly needed for this simplified hook.
+// import Employee from "./Employee.js"; 
 
 const UserSchema = new mongoose.Schema({
   name: { type: String, required: true },
@@ -20,7 +22,9 @@ const UserSchema = new mongoose.Schema({
   deleteAccountTokenExpires: { type: Date },
 });
 
+// Pre-save hook for hashing password
 UserSchema.pre('save', async function(next) {
+  // Only hash the password if it has been modified (or is new)
   if (!this.isModified('password')) {
     return next();
   }
@@ -29,34 +33,23 @@ UserSchema.pre('save', async function(next) {
     this.password = await bcrypt.hash(this.password, salt);
     next();
   } catch (error) {
-    next(error);
+    next(error); // Pass errors to Mongoose
   }
 });
 
-// Middleware: Before removing a user, find and remove their associated Employee records.
-// This will, in turn, trigger the Employee model's pre('remove') hook.
+// This pre('remove') hook is now simplified.
+// The explicit deletion of associated Employee records (and their dependent data)
+// when a User account is deleted via ConfirmDeleteAccountPage
+// will be handled directly in the authController.js.
+// This hook will still run if user.remove() or user.deleteOne() is called on an instance.
 UserSchema.pre('remove', async function(next) {
-  console.log(`[User.pre('remove')] User ${this._id} (${this.email}) is being removed. Finding associated Employee records to trigger their removal...`);
-  try {
-    const employees = await Employee.find({ userId: this._id });
-
-    if (employees.length > 0) {
-      console.log(`[User.pre('remove')] Found ${employees.length} employee record(s) for user ${this._id}. Initiating their removal...`);
-      for (const employee of employees) {
-        // Calling .remove() on the instance triggers the Employee's pre('remove') hook
-        await employee.remove(); 
-        console.log(`[User.pre('remove')] Removal process initiated for employee ${employee._id} linked to user ${this._id}.`);
-      }
-    } else {
-      console.log(`[User.pre('remove')] No employee records found for user ${this._id}.`);
-    }
-    next();
-  } catch (error) {
-    console.error(`[User.pre('remove')] Error during cascading delete of Employee records for user ${this._id}:`, error);
-    next(error);
-  }
+  console.log(`[User.pre('remove')] User ${this._id} (${this.email}) is being removed. Any User-specific pre-remove logic (not Employee cascade) would go here.`);
+  // If there's any other cleanup specific to the User model itself (not cascading to Employee),
+  // it could be added here. For now, it's just a log.
+  next();
 });
 
+// Method to check password
 UserSchema.methods.matchPassword = async function(enteredPassword) {
   return await bcrypt.compare(enteredPassword, this.password);
 };
