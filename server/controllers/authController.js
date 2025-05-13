@@ -751,9 +751,13 @@ export const confirmAccountDeletion = async (req, res) => {
       return res.status(401).json({ message: 'Incorrect password. Account deletion failed.' });
     }
 
-    // If User model has a pre-remove hook to delete associated Employee, it will be triggered.
-    // await User.findByIdAndDelete(user._id); // Old way
-    await user.remove(); // New way, triggers 'remove' middleware in User model
+    // Original attempt:
+    // await user.remove(); // This was causing "user.remove is not a function"
+    //
+    // Workaround: Use static delete method.
+    // WARNING: This will NOT trigger Mongoose 'pre' or 'post' document middleware for 'remove'.
+    // If you have such middleware (e.g., for cascading deletes), you need to investigate why user.remove() is not a function.
+    await User.findByIdAndDelete(user._id);
     console.log(`[${new Date().toISOString()}] User ${user.email} (ID: ${user._id}) successfully removed.`);
 
     res.status(200).json({ message: 'Your account has been successfully deleted.' });
