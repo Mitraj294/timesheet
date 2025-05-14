@@ -755,14 +755,14 @@ export const confirmAccountDeletion = async (req, res) => {
       if (employeesToDelete.length > 0) {
       console.log(`[authController.confirmAccountDeletion] Found ${employeesToDelete.length} employee record(s) for user ${user._id}.`);
         for (const emp of employeesToDelete) {
-        console.log(`[authController.confirmAccountDeletion] Deleting data for employee ${emp._id}...`);
+        console.log(`[authController.confirmAccountDeletion] Processing employee ${emp._id} for user ${user._id}.`);
           // Explicitly delete Timesheets, VehicleReviews, and Schedules for this employee
-          await Timesheet.deleteMany({ employeeId: emp._id }, { session });
-          console.log(`[authController.confirmAccountDeletion] Deleted Timesheets for employee ${emp._id}.`);
-          await VehicleReview.deleteMany({ employeeId: emp._id }, { session });
-          console.log(`[authController.confirmAccountDeletion] Deleted VehicleReviews for employee ${emp._id}.`);
-          await Schedule.deleteMany({ employee: emp._id }, { session });
-          console.log(`[authController.confirmAccountDeletion] Deleted Schedules for employee ${emp._id}.`);
+          // await Timesheet.deleteMany({ employeeId: emp._id }, { session });
+          // console.log(`[authController.confirmAccountDeletion] Commented out: Deleting Timesheets for employee ${emp._id}.`);
+          // await VehicleReview.deleteMany({ employeeId: emp._id }, { session });
+          // console.log(`[authController.confirmAccountDeletion] Commented out: Deleting VehicleReviews for employee ${emp._id}.`);
+          // await Schedule.deleteMany({ employee: emp._id }, { session });
+          // console.log(`[authController.confirmAccountDeletion] Commented out: Deleting Schedules for employee ${emp._id}.`);
 
           // Then delete the Employee record itself
           await Employee.findByIdAndDelete(emp._id, { session });

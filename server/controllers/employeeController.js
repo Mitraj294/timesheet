@@ -208,14 +208,14 @@ export const deleteEmployee = async (req, res) => {
     const userIdToDelete = employeeToDelete.userId;
 
     // 2. Explicitly delete Timesheets, VehicleReviews, and Schedules for this employee
-    await Timesheet.deleteMany({ employeeId: employeeToDelete._id }, { session });
-    console.log(`[employeeController.deleteEmployee] Deleted Timesheets for employee ${employeeToDelete._id}.`);
+    // await Timesheet.deleteMany({ employeeId: employeeToDelete._id }, { session });
+    // console.log(`[employeeController.deleteEmployee] Commented out: Deleting Timesheets for employee ${employeeToDelete._id}.`);
     
-    await VehicleReview.deleteMany({ employeeId: employeeToDelete._id }, { session });
-    console.log(`[employeeController.deleteEmployee] Deleted VehicleReviews for employee ${employeeToDelete._id}.`);
+    // await VehicleReview.deleteMany({ employeeId: employeeToDelete._id }, { session });
+    // console.log(`[employeeController.deleteEmployee] Commented out: Deleting VehicleReviews for employee ${employeeToDelete._id}.`);
     
-    await Schedule.deleteMany({ employee: employeeToDelete._id }, { session });
-    console.log(`[employeeController.deleteEmployee] Deleted Schedules for employee ${employeeToDelete._id}.`);
+    // await Schedule.deleteMany({ employee: employeeToDelete._id }, { session });
+    // console.log(`[employeeController.deleteEmployee] Commented out: Deleting Schedules for employee ${employeeToDelete._id}.`);
 
     // 3. Delete the Employee record itself
     await Employee.findByIdAndDelete(employeeToDelete._id, { session });

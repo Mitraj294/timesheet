@@ -217,7 +217,10 @@ const RosterPage = () => {
   const getSchedulesForDay = useCallback((day) => {
     const dayStr = format(day, 'yyyy-MM-dd');
     let daySchedules = schedules.filter(
-      (s) => s.date && format(DateTime.fromISO(s.date).toJSDate(), 'yyyy-MM-dd') === dayStr
+      (s) =>
+        s.date &&
+        format(DateTime.fromISO(s.date).toJSDate(), 'yyyy-MM-dd') === dayStr &&
+        s.employee // Ensure the employee field is populated (not null)
     );
     if (user?.role === 'employee' && loggedInEmployeeRecord) {
         daySchedules = daySchedules.filter(s => s.employee?._id === loggedInEmployeeRecord._id);

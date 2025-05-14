@@ -297,38 +297,55 @@
 
     // Styles for General Timesheet Navigation (Timesheet.js)
     &.general-timesheet-nav {
+        // Desktop: Use Grid for true centering of the middle element
+        // This overrides display:flex from .timesheet-navigation-bar
+        display: grid;
+        grid-template-columns: auto 1fr auto; // Left item, Middle flexible, Right item
+        // align-items: center; // Inherited from .timesheet-navigation-bar
+        // gap: 15px; // Inherited from .timesheet-navigation-bar
+
         .period-display {
-            flex: 1 0 auto; // Grow, don't shrink from content, base on content
-            justify-content: flex-start; // Align to the left
-            order: 1;
-            text-align: center;
+            // order: 1; // Not needed for grid if source order is correct
+            justify-self: start; // Align item to the start of its grid cell
+            // margin-right: auto; // Not needed for grid
+            // flex-shrink: 0; // Grid handles sizing differently
             padding: 0 10px;
             box-sizing: border-box;
         }
 
         .navigation-controls {
-            flex: 2 0 auto; // Allow to grow more, don't shrink, base on content
-            justify-content: center; // Center this whole block
-            order: 2;
+            // order: 2; // Not needed for grid
+            justify-self: center; // Center this entire block in its grid cell
+            // display: flex; justify-content: center; // These remain to center its children
+            // flex-grow: 1; // Not needed for grid
             gap: 10px;
             box-sizing: border-box;
         }
 
         .create-timesheet-link {
-            flex: 0 0 auto; // Don't grow, don't shrink, size to content
-            order: 3;
-            justify-content: flex-end; // Align to the right
+            // order: 3; // Not needed for grid
+            justify-self: end; // Align item to the end of its grid cell
+            // margin-left: auto; // Not needed for grid
+            // flex-shrink: 0; // Grid handles sizing differently
             box-sizing: border-box;
         }
 
         @media (max-width: 768px) {
-
             // When items stack
+            // Mobile: Revert to flex column for stacking or use single-column grid
+            display: flex;
+            flex-direction: column;
+            align-items: center; // Center items horizontally in the flex column
+            grid-template-columns: none; // Clear grid columns if switching from grid
+
             .period-display,
             .navigation-controls,
             .create-timesheet-link {
+                justify-self: auto; // Reset grid property
                 flex-basis: 100%; // Each takes full width
                 justify-content: center; // Center content when stacked
+                margin-left: 0; // Reset auto margins
+                margin-right: 0; // Reset auto margins
                 margin-bottom: 10px;
 
                 &:last-child {
@@ -344,52 +361,81 @@
 
     // Styles for Project Specific Navigation (ProjectTimesheet.js)
     &.project-specific-nav {
+        // Desktop: Use Grid for layout
+        // This overrides display:flex from .timesheet-navigation-bar
+        display: grid;
+        grid-template-columns: auto 1fr auto; // Columns for period, controls, create-link
+        grid-template-rows: auto auto; // Row 1 for project selector, Row 2 for other nav items
+        // gap: 15px; // Inherited from .timesheet-navigation-bar, applies between rows and columns
+
         .project-selector-container {
-            order: 1;
-            flex: 1 1 100%; // Always full width on its own line
+            grid-column: 1 / -1; // Span all columns
+            grid-row: 1; // First row
+            // flex: 1 1 100%; // Not needed for grid
+            // order: 1; // Not needed for grid
             min-width: 200px;
             margin-bottom: 15px; // Space below project selector
             box-sizing: border-box;
         }
 
         .period-display {
-            flex: 1 0 auto;
-            justify-content: flex-start;
-            order: 2; // Comes after project selector
-            text-align: center;
+            grid-column: 1 / 2; // First column in the second row
+            grid-row: 2;
+            justify-self: start; // Align item to the start of its grid cell
+            // text-align: center; // Overridden by justify-self
+            // flex: 1 0 auto; // Not needed for grid
+            // order: 2; // Not needed for grid
             padding: 0 10px;
             box-sizing: border-box;
         }
 
         .navigation-controls {
-            flex: 2 0 auto;
-            justify-content: center;
-            order: 3; // After period display
+            grid-column: 2 / 3; // Second (flexible) column in the second row
+            grid-row: 2;
+            justify-self: center; // Center this entire block in its grid cell
+            // display: flex; justify-content: center; // These remain to center its children
+            // flex: 2 0 auto; // Not needed for grid
+            // order: 3; // Not needed for grid
             gap: 10px;
             box-sizing: border-box;
         }
 
         .create-timesheet-link {
-            flex: 0 0 auto; // Don't grow, don't shrink, size to content
-            order: 4; // Last item in the row
-            justify-content: flex-end;
+            grid-column: 3 / 4; // Third column in the second row
+            grid-row: 2;
+            justify-self: end; // Align item to the end of its grid cell
+            // flex: 0 0 auto; // Not needed for grid
+            // order: 4; // Not needed for grid
             box-sizing: border-box;
         }
 
         @media (max-width: 992px) {
+            // Mobile: Revert to flex column for stacking
+            display: flex;
+            flex-direction: column;
+            align-items: center; // Center items horizontally in the flex column
+            grid-template-columns: none; // Clear grid columns
+            grid-template-rows: none; // Clear grid rows
 
-            // Stacking for period, controls, create link
+            .project-selector-container,
             .period-display,
             .navigation-controls,
             .create-timesheet-link {
-                flex-basis: 100%; // Each takes full width when stacked
-                justify-content: center;
+                grid-column: auto; // Reset grid property
+                grid-row: auto; // Reset grid property
+                justify-self: auto; // Reset grid property
+                flex-basis: 100%; // Each takes full width
+                justify-content: center; // Center content when stacked
+                margin-left: 0; // Reset auto margins
+                margin-right: 0; // Reset auto margins
                 margin-bottom: 10px;
 
                 &:last-child {
                     margin-bottom: 0;
                 }
             }
+
+            // .project-selector-container specific margin-bottom is already handled
         }
     }
 
@@ -441,6 +487,17 @@
             width: 100%;
             background-color: white;
             cursor: pointer;
+
+            // Styles for react-select instance used as view-type-dropdown
+            &.react-select__control {
+                min-height: 38px; // Match existing height
+                height: 38px;
+                border: 1px solid #ced4da;
+
+                &:hover {
+                    border-color: #86b7fe;
+                }
+            }
         }
     }
 
@@ -450,6 +507,16 @@
         box-sizing: border-box;
         white-space: nowrap;
         text-decoration: none; // Ensure link looks like button
+    }
+
+    // Specific styling for the view type react-select instance
+    .view-type-select-instance {
+        .react-select__control {
+            height: 38px;
+            min-height: 38px;
+            font-size: 0.9rem; // Match dropdown
+            border-color: #ced4da; // Match dropdown
+        }
     }
 }
 
@@ -857,6 +924,12 @@
                 margin-bottom: 10px; // Add space if prev/next wrap below
             }
 
+            .view-type-select-instance .react-select__control {
+                // Ensure it behaves well when stacked
+                font-size: 0.9rem; // Keep consistent
+            }
+
+
             .nav-button {
                 order: 2; // Prev/Next buttons come second
                 flex: 1 1 40%; // Allow them to share space
@@ -945,6 +1018,11 @@
         .navigation-controls .view-type-dropdown {
             font-size: 0.85rem;
             height: 34px;
+        }
+
+        .view-type-select-instance .react-select__control {
+            height: 34px;
+            min-height: 34px;
         }
 
         // Reduce margins between stacked items

@@ -37,8 +37,6 @@ UserSchema.pre('save', async function(next) {
   }
 });
 
-// No pre('remove') hook here for cascading deletes, as controllers will handle this explicitly.
-
 // Method to check password
 UserSchema.methods.matchPassword = async function(enteredPassword) {
   return await bcrypt.compare(enteredPassword, this.password);

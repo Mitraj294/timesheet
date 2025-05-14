@@ -70,27 +70,6 @@ export const changePassword = createAsyncThunk(
     }
 );
 
-// Thunk for deleting user account
-// Requires user to be authenticated.
-export const deleteAccount = createAsyncThunk(
-    'auth/deleteAccount',
-    async (_, { getState, rejectWithValue }) => {
-        const { token } = getState().auth;
-        if (!token) {
-            return rejectWithValue('Authentication required.');
-        }
-        try {
-            // Backend might require password confirmation for deletion,
-            // if so, it would be passed in the `data` field of the axios config.
-            const response = await axios.delete(`${API_URL}/auth/me`, getAuthHeaders(token));
-            return response.data; // Usually a success message
-        } catch (error) {
-            const message = getErrorMessage(error);
-            return rejectWithValue(message);
-        }
-    }
-);
-
 // Thunk to load user data if a token exists in localStorage
 // This is typically called when the app initializes to check for an existing session.
 export const loadUserFromToken = createAsyncThunk(
@@ -287,9 +266,9 @@ const authSlice = createSlice({
   reducers: {
     // Handles user logout: clears user data, token, and resets auth flags.
     logout: (state) => {
-      localStorage.removeItem('token');
+     
       state.user = null;
-      state.token = null;
+     
       state.isAuthenticated = false;
       state.isLoading = false;
       state.error = null;
@@ -375,11 +354,17 @@ const authSlice = createSlice({
       .addCase(register.fulfilled, (state, action) => {
         state.isLoading = false;
         if (action.payload.token) { // If registration also logs the user in
+            // This is for direct user self-registration
             state.isAuthenticated = true;
             state.user = action.payload.user;
             state.token = action.payload.token;
-        } else { // If registration requires separate login
-            state.isAuthenticated = false;
+            localStorage.setItem('token', action.payload.token);
+        } else { 
+            // This case is when an employer registers a new employee.
+            // The employer's auth state (isAuthenticated, user, token) should NOT change.
+            // The new employee user is created, but the employer remains logged in.
+            // Preserve the current authentication state of the employer.
+            // No change needed to state.isAuthenticated, state.user, or state.token here.
         }
         state.error = null;
       })
@@ -388,8 +373,9 @@ const authSlice = createSlice({
         state.error = action.payload;
         state.isAuthenticated = false;
         state.user = null;
-        state.token = null;
-        localStorage.removeItem('token'); // Clean up on registration failure
+        // Do not clear the employer's token if their attempt to register an employee fails.
+        // state.token = null; 
+        // localStorage.removeItem('token'); 
       })
       // Load user from token actions
       .addCase(loadUserFromToken.pending, (state) => {
@@ -420,23 +406,6 @@ const authSlice = createSlice({
         state.error = null; // Clear any previous errors
       })
       .addCase(changePassword.rejected, (state, action) => {
-        state.isLoading = false;
-        state.error = action.payload;
-      })
-      // Delete account actions
-      .addCase(deleteAccount.pending, (state) => {
-        state.isLoading = true;
-        state.error = null;
-      })
-      .addCase(deleteAccount.fulfilled, (state, action) => {
-        localStorage.removeItem('token'); // Account deleted, log user out
-        state.user = null;
-        state.token = null;
-        state.isAuthenticated = false;
-        state.isLoading = false;
-        state.error = null;
-      })
-      .addCase(deleteAccount.rejected, (state, action) => {
         state.isLoading = false;
         state.error = action.payload;
       })

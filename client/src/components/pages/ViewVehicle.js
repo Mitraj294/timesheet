@@ -230,10 +230,19 @@ const ViewVehicle = () => {
   };
 
   // Filters the review history based on the search term (employee name)
-  const filteredHistory = vehicleHistory.filter((entry) => {
-    const employeeName = entry.employeeId?.name?.toLowerCase() || '';
-    return employeeName.includes(search.toLowerCase());
-  });
+  const filteredHistory = useMemo(() => {
+    return vehicleHistory
+      .filter(entry => {
+        // Ensure the employeeId object exists and has a name property.
+        // This will filter out reviews where the employee might have been deleted
+        // or if the employeeId was not properly populated.
+        return entry.employeeId && typeof entry.employeeId.name === 'string' && entry.employeeId.name.trim() !== '';
+      })
+      .filter((entry) => {
+        const employeeName = entry.employeeId.name.toLowerCase(); // Safe to access .name directly due to the previous filter
+        return employeeName.includes(search.toLowerCase());
+      });
+  }, [vehicleHistory, search]);
 
   // Defines the CSS grid column layout for the reviews table
   const gridColumns = '1fr 1.5fr 1.5fr 0.8fr 0.8fr 0.8fr 0.8fr 1.2fr';

@@ -667,6 +667,13 @@ const handleDownload = useCallback(async () => {
   const selectedEmployeeOption = useMemo(() =>
       employeeOptions.find(e => e.value === selectedEmployee) || null
   , [employeeOptions, selectedEmployee]);
+
+  const viewTypeOptions = useMemo(() => [
+    { value: 'Daily', label: 'View by Daily' },
+    { value: 'Weekly', label: 'View by Weekly' },
+    { value: 'Fortnightly', label: 'View by Fortnightly' },
+    { value: 'Monthly', label: 'View by Monthly' },
+  ], []);
   // Render
   return (
     <div className='project-timesheet-container timesheet-page'>
@@ -758,12 +765,17 @@ const handleDownload = useCallback(async () => {
             <span>Prev {periodLabel}</span>
           </button>
           <div className='view-type-select-wrapper'>
-            <select id='viewType' value={viewType} onChange={(e) => setViewType(e.target.value)} className='view-type-dropdown' aria-label="Select View Type">
-              <option value='Daily'>View by Daily</option>
-              <option value='Weekly'>View by Weekly</option>
-              <option value='Fortnightly'>View by Fortnightly</option>
-              <option value='Monthly'>View by Monthly</option>
-            </select>
+            <Select
+              inputId='viewTypeProject' // Ensure unique ID if on same page as other timesheet
+              options={viewTypeOptions}
+              value={viewTypeOptions.find(option => option.value === viewType)}
+              onChange={option => setViewType(option ? option.value : 'Weekly')}
+              className="react-select-container view-type-select-instance" // Use same class as Timesheet.js
+              classNamePrefix="react-select"
+              aria-label="Select View Type"
+              isSearchable={false}
+              isDisabled={isLoading}
+            />
           </div>
           <button className='nav-button btn btn-blue' onClick={handleNext} aria-label={`Next ${periodLabel}`}>
              <span>Next {periodLabel}</span>
