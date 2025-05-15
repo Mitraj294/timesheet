@@ -14,6 +14,7 @@ import {
     checkProspectiveEmployee, // Import the new controller
     requestAccountDeletionLink, // Import new controller
     confirmAccountDeletion, // Import new controller
+    verifyCurrentUserPassword, // Import the new controller for password verification
 } from "../controllers/authController.js";
 import User from "../models/User.js";
 // Import the authentication middleware
@@ -62,5 +63,8 @@ router.get('/me', protect, async (req, res) => {
 router.post('/request-deletion-link', protect, requestAccountDeletionLink);
 // POST /api/auth/confirm-delete-account/:token - User confirms deletion via email link and password (public, token verified)
 router.post('/confirm-delete-account/:token', confirmAccountDeletion);
+
+// POST /api/auth/verify-password - Verifies the current user's password (protected)
+router.post('/verify-password', protect, verifyCurrentUserPassword);
 
 export default router;

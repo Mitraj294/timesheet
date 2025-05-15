@@ -25,9 +25,6 @@ const EmployerSettingSchema = new mongoose.Schema({
   timestamps: true, // Adds createdAt and updatedAt timestamps
 });
 
-// Ensure that the employerId is indexed for faster lookups
-EmployerSettingSchema.index({ employerId: 1 });
-
 const EmployerSetting = mongoose.model('EmployerSetting', EmployerSettingSchema);
 
 export default EmployerSetting;

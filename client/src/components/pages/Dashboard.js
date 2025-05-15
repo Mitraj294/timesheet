@@ -17,6 +17,8 @@ import {
   faBriefcase,
   faSpinner,
   faSignOutAlt,
+  faBuildingUser, // New icon for Client Hours
+  faDiagramProject // New icon for Project Hours
 } from "@fortawesome/free-solid-svg-icons";
 import Alert from "../layout/Alert";
 import Chart from "chart.js/auto";
@@ -314,8 +316,11 @@ const Dashboard = () => {
   // Memoized summary calculations for "All Employees" view (employer only)
   const totalHoursAllPeriodSummary = useMemo(() => filteredAllCurrentTimesheets.reduce((acc, sheet) => acc + (parseFloat(sheet.totalHours) || 0), 0), [filteredAllCurrentTimesheets]);
   const avgHoursAllPeriodSummary = useMemo(() => {
-       const numberOfEmployeesInvolved = new Set(filteredAllCurrentTimesheets.map(ts => ts.employeeId?._id || ts.employeeId)).size;
-       return numberOfEmployeesInvolved > 0 ? (totalHoursAllPeriodSummary / numberOfEmployeesInvolved) : 0;
+       // Changed to: Total hours / Number of unique employees who logged time in the period
+       const numberOfEmployeesWhoWorked = new Set(
+           filteredAllCurrentTimesheets.map(t => t.employeeId?._id || t.employeeId)
+       ).size;
+       return numberOfEmployeesWhoWorked > 0 ? (totalHoursAllPeriodSummary / numberOfEmployeesWhoWorked) : 0;
    }, [totalHoursAllPeriodSummary, filteredAllCurrentTimesheets]);
 
   // Memoized summary calculations for selected/logged-in employee view
@@ -367,7 +372,17 @@ const Dashboard = () => {
   const projectsWorked = useMemo(() => new Set(filteredCurrentTimesheets.map((t) => t.projectId?._id || t.projectId).filter(Boolean)).size, [filteredCurrentTimesheets]);
   const clientsWorked = useMemo(() => new Set(filteredCurrentTimesheets.map((t) => t.clientId?._id || t.clientId).filter(Boolean)).size, [filteredCurrentTimesheets]);
 
-  // Memoized options for the client filter dropdown in the "Hours by Project" card
+  // Memoized calculation for total hours spent on entries with a Client ID (for summary card)
+  const totalClientHours = useMemo(() => {
+    const total = filteredCurrentTimesheets.filter(t => t.clientId).reduce((acc, sheet) => acc + (parseFloat(sheet.totalHours) || 0), 0);
+    return convertDecimalToTime(total);
+  }, [filteredCurrentTimesheets]);
+
+  // Memoized calculation for total hours spent on entries with a Project ID (for summary card)
+  const totalProjectHours = useMemo(() => {
+    const total = filteredCurrentTimesheets.filter(t => t.projectId).reduce((acc, sheet) => acc + (parseFloat(sheet.totalHours) || 0), 0);
+    return convertDecimalToTime(total);
+  }, [filteredCurrentTimesheets]);
   const projectCardClientOptions = useMemo(() => {
     if (!filteredCurrentTimesheets.length) return [{ value: "All", label: "All Clients" }];
     const clients = new Map();
@@ -395,11 +410,17 @@ const Dashboard = () => {
     });
   }, [filteredCurrentTimesheets, selectedProjectClient]);
 
-  // Memoized total hours for the "Hours by Project" card based on filtered timesheets
+  // Memoized total hours for the "Hours by Project" PIE CHART's own total display (sum of projects under selected client)
   const projectCardTotalHours = useMemo(() => {
     const total = projectCardFilteredTimesheets.reduce((acc, sheet) => acc + (parseFloat(sheet.totalHours) || 0), 0);
-    return convertDecimalToTime(total);
+    return total > 0 ? convertDecimalToTime(total) : "00:00"; // Show 00:00 if no hours
   }, [projectCardFilteredTimesheets]);
+
+  // New Memoized calculation for total hours spent on entries with BOTH a Client ID and a Project ID (for pie chart card totals)
+  const totalClientAndProjectHours = useMemo(() => {
+    const total = filteredCurrentTimesheets.filter(t => t.clientId && t.projectId).reduce((acc, sheet) => acc + (parseFloat(sheet.totalHours) || 0), 0);
+    return convertDecimalToTime(total);
+  }, [filteredCurrentTimesheets]);
 
   // Memoized data for the main bar chart (hours comparison)
   const { labels, currentData, previousData, thisPeriodLabel, lastPeriodLabel, currentBarSpecificLabels, previousBarSpecificLabels } = useMemo(() => {
@@ -476,7 +497,10 @@ const Dashboard = () => {
   const clientChartData = useMemo(() => {
     if (showLoading || combinedError || !filteredCurrentTimesheets.length) return { labels: [], data: [] };
     const hoursByClient = groupBy("clientId", filteredCurrentTimesheets);
-    const data = Object.values(hoursByClient).map(item => item.totalHours);
+    // Filter out entries where clientId is null or undefined before creating chart data
+    const validClientTimesheets = filteredCurrentTimesheets.filter(t => t.clientId); // This is for the PIE SLICES
+    const hoursByValidClient = groupBy("clientId", validClientTimesheets);
+    const data = Object.values(hoursByValidClient).map(item => item.totalHours);
     const labels = Object.values(hoursByClient).map(item => item.name);
     return { labels, data };
   }, [filteredCurrentTimesheets, showLoading, combinedError]);
@@ -485,8 +509,11 @@ const Dashboard = () => {
   const projectChartData = useMemo(() => {
     if (showLoading || combinedError || !projectCardFilteredTimesheets.length) return { labels: [], data: [] };
     const hoursByProject = groupBy("projectId", projectCardFilteredTimesheets);
-    const data = Object.values(hoursByProject).map(item => item.totalHours);
-    const labels = Object.values(hoursByProject).map(item => item.name);
+    // Filter out entries where projectId is null or undefined - This is for the PIE SLICES
+    const validProjectTimesheets = projectCardFilteredTimesheets.filter(t => t.projectId); 
+    const hoursByValidProject = groupBy("projectId", validProjectTimesheets);
+    const data = Object.values(hoursByValidProject).map(item => item.totalHours);
+    const labels = Object.values(hoursByValidProject).map(item => item.name);
     return { labels, data };
   }, [projectCardFilteredTimesheets, showLoading, combinedError]);
 
@@ -688,9 +715,7 @@ const Dashboard = () => {
               <div className="summary-content">
                 <h3>{displayAvgHours}</h3>
                 <p>
-                  {(user?.role === 'employer' && selectedEmployee.value === "All")
-                    ? `Avg. Employee Hours (${viewType.label.split(' ')[2]})`
-                    : `Avg. Daily Hours Worked`}
+                  Avg. Daily Hours Worked
                 </p>
               </div>
             </div>
@@ -726,6 +751,21 @@ const Dashboard = () => {
                     <p>Projects Worked</p>
                   </div>
                 </div>
+                {/* New Summary Cards for Client and Project Hours */}
+                <div className="summary-card">
+                  <FontAwesomeIcon icon={faBuildingUser} className="summary-icon client-hours" />
+                  <div className="summary-content">
+                    <h3>{totalClientHours}</h3>
+                    <p>Total Client Hours</p>
+                  </div>
+                </div>
+                <div className="summary-card">
+                  <FontAwesomeIcon icon={faDiagramProject} className="summary-icon project-hours" />
+                  <div className="summary-content">
+                    <h3>{totalProjectHours}</h3>
+                    <p>Total Project Hours</p>
+                  </div>
+                </div>
               </>
             ) : null}
           </div>
@@ -741,7 +781,7 @@ const Dashboard = () => {
             <div className="chart-card">
               <h4>Hours Spent on Clients ({viewType.label.split(' ')[2]})</h4>
               <div className="chart-total">
-                Total: <span>{displayTotalHours}</span>
+                Total Client Hours: <span>{totalClientHours}</span> {/* Use totalClientHours for this card */}
               </div>
 
               <div className="client-chart-spacer"></div>
@@ -752,7 +792,7 @@ const Dashboard = () => {
             <div className="chart-card">
               <h4>Hours Spent on Projects ({viewType.label.split(' ')[2]})</h4>
                <div className="chart-total">
-                 Total: <span>{projectCardTotalHours}</span>
+                 Total Project Hours: <span>{totalProjectHours}</span> {/* Changed to use totalProjectHours from summary card */}
               </div>
               <div className="select-container project-card-client-select">
                 <Select

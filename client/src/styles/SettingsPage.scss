@@ -245,12 +245,8 @@ $placeholder-text-size: 1.05rem;
 }
 
 // Specific styles for the vehicle settings content (if any beyond .settings-section)
-.vehicle-settings-content {
-    // Example: if the select needs to be a specific width only in this section
-    // #showVehiclesTabSelect {
-    //   max-width: 300px; 
-    // }
-}
+/* .vehicle-settings-content removed because it was empty. 
+   Add styles here if needed in the future. */
 
 // --- Modal Styles (for other modals like delete confirmation) ---
 .logout-confirm-overlay {

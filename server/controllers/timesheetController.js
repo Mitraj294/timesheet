@@ -37,10 +37,10 @@ const calculateTotalHours = (startTime, endTime, lunchBreak, lunchDuration) => {
 // buildTimesheetData function remains the same
 const buildTimesheetData = (body) => {
   const {
-    employeeId, clientId, projectId,
+    employeeId, clientId, projectId, // These can be undefined, null, or a string from req.body
     date,
     startTime, endTime,
-    lunchBreak, lunchDuration, leaveType,
+    lunchBreak, lunchDuration, leaveType, // leaveType can be undefined
     notes, description, hourlyWage,
     timezone
   } = body;
@@ -52,18 +52,24 @@ const buildTimesheetData = (body) => {
       console.warn(`[Server Build] Invalid or missing timezone received: '${timezone}'. Falling back to UTC.`);
   }
 
-  const isWorkDay = leaveType === "None";
+  // Determine if it's a work day. Handles undefined leaveType as a work day.
+  const isWorkDay = !leaveType || leaveType === "None";
 
-  if (isWorkDay) {
-      if (!employeeId || !mongoose.Types.ObjectId.isValid(employeeId)) throw new Error("Invalid Employee ID");
-      if (!clientId || !mongoose.Types.ObjectId.isValid(clientId)) throw new Error("Invalid Client ID");
-      if (!projectId || !mongoose.Types.ObjectId.isValid(projectId)) throw new Error("Invalid Project ID");
+  // Core Validations
+  if (!employeeId || !mongoose.Types.ObjectId.isValid(employeeId)) {
+      throw new Error("Invalid or missing Employee ID");
   }
-
   if (!date || !moment(date, "YYYY-MM-DD", true).isValid()) {
       throw new Error(`Invalid or missing Date string (YYYY-MM-DD format required): '${date}'`);
   }
-  const dateString = date;
+
+  // Validate optional clientId and projectId ONLY if they are provided as non-empty strings
+  if (clientId && typeof clientId === 'string' && clientId.trim() !== '' && !mongoose.Types.ObjectId.isValid(clientId)) {
+      throw new Error("Invalid Client ID format provided. Must be a valid ObjectId if not empty.");
+  }
+  if (projectId && typeof projectId === 'string' && projectId.trim() !== '' && !mongoose.Types.ObjectId.isValid(projectId)) {
+      throw new Error("Invalid Project ID format provided. Must be a valid ObjectId if not empty.");
+  }
 
   let utcStartTime = null;
   if (isWorkDay && startTime) {
@@ -95,20 +101,36 @@ const buildTimesheetData = (body) => {
 
   const finalData = {
     employeeId,
-    clientId: isWorkDay ? clientId : null,
-    projectId: isWorkDay ? projectId : null,
-    date: dateString, // Should be YYYY-MM-DD
-    startTime: utcStartTime, // UTC Date object or null
-    endTime: utcEndTime, // UTC Date object or null
-    lunchBreak: isWorkDay ? lunchBreak : "No",
-    lunchDuration: isWorkDay && lunchBreak === 'Yes' ? lunchDuration : "00:00",
-    leaveType,
+    // If clientId/projectId is an empty string or not provided (undefined), it becomes null.
+    // Otherwise, use the provided value (Mongoose will validate if it's a valid ObjectId string).
+    clientId: (isWorkDay && clientId && typeof clientId === 'string' && clientId.trim() !== '') ? clientId : null,
+    projectId: (isWorkDay && projectId && typeof projectId === 'string' && projectId.trim() !== '') ? projectId : null,
+    date: date, // Use the validated date string
+    startTime: utcStartTime,
+    endTime: utcEndTime,
+    lunchBreak: isWorkDay ? (lunchBreak || 'No') : "No", // Default to 'No' if undefined for work day
+    lunchDuration: isWorkDay && (lunchBreak === 'Yes') ? (lunchDuration || "00:30") : "00:00", // Default for work day or if leave
+    leaveType: leaveType || "None", // Default to "None" if undefined
     totalHours: calculatedTotalHours,
     notes: isWorkDay ? (notes || "") : "",
     description: !isWorkDay ? (description || "") : "",
-    hourlyWage: hourlyWage || 0,
+    hourlyWage: parseFloat(hourlyWage) || 0, // Ensure it's a number
     timezone: userTimezone
   };
+
+  // If it's a leave entry, explicitly nullify/reset work-specific fields
+  if (!isWorkDay) {
+      finalData.clientId = null;
+      finalData.projectId = null;
+      finalData.startTime = null;
+      finalData.endTime = null;
+      finalData.lunchBreak = "No";
+      finalData.lunchDuration = "00:00"; // Align with model default or leave policy
+      finalData.notes = "";
+      // totalHours for leave might be handled differently (e.g., based on leaveType duration)
+      // but for this model, it's often 0 for the work part.
+      finalData.totalHours = 0;
+  }
 
   return finalData;
 };

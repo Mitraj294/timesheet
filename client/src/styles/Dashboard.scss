@@ -456,3 +456,25 @@ $breakpoint-sm: 576px;
         }
     }
 }
+
+// Add to your /home/digilab/timesheet/client/src/styles/Dashboard.scss
+
+.summary-card {
+    // ... existing styles ...
+
+    .summary-icon {
+        // ... existing styles ...
+
+        &.client-hours {
+            // New class for client hours icon
+            background-color: rgba(255, 193, 7, 0.2); // Example: Light yellow
+            color: #ffc107; // Example: Yellow
+        }
+
+        &.project-hours {
+            // New class for project hours icon
+            background-color: rgba(108, 117, 125, 0.2); // Example: Light gray
+            color: #6c757d; // Example: Gray
+        }
+    }
+}

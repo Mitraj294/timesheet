@@ -5,45 +5,54 @@ import axios from 'axios';
 
 const API_URL = process.env.REACT_APP_API_URL || 'https://timesheet-slpc.onrender.com/api';
 
-// Helper to get authorization headers
-// Just a small utility to keep the header creation consistent.
+// Helper to get authorization headers (less needed now with default headers)
 const getAuthHeaders = (token) => ({
   headers: { Authorization: `Bearer ${token}` },
 });
 
 // Helper to extract a user-friendly error message
-// Tries to get the message from a few common places in an error object.
 const getErrorMessage = (error) => {
   return error.response?.data?.message || error.response?.data?.error || error.message || 'An unexpected error occurred';
 };
 
+// Helper to normalize user data, ensuring 'id' property exists
+const normalizeUserData = (userData) => {
+  if (!userData) return null;
+  // Ensure 'id' property exists, using '_id' if 'id' is not directly present
+  return { ...userData, id: userData.id || userData._id };
+};
+
+
 // Thunk for user login
-// Handles the async request to the login endpoint.
 export const login = createAsyncThunk(
   'auth/login',
   async (credentials, { rejectWithValue }) => {
     try {
       const response = await axios.post(`${API_URL}/auth/login`, credentials);
-      localStorage.setItem('token', response.data.token); // Store token on successful login
-      return response.data; // This will be the action.payload if fulfilled
+      localStorage.setItem('token', response.data.token);
+      // Set Axios default header immediately after successful login
+      axios.defaults.headers.common['Authorization'] = `Bearer ${response.data.token}`;
+      return { ...response.data, user: normalizeUserData(response.data.user) }; // Normalize user data
     } catch (error) {
       const message = getErrorMessage(error);
-      return rejectWithValue(message); // This will be action.payload if rejected
+      return rejectWithValue(message);
     }
   }
 );
 
 // Thunk for user registration
-// Handles the async request to the register endpoint.
 export const register = createAsyncThunk(
   'auth/register',
   async (userData, { rejectWithValue }) => {
     try {
       const response = await axios.post(`${API_URL}/auth/register`, userData);
       if (response.data.token) {
-         localStorage.setItem('token', response.data.token); // Store token if registration also logs in
+         localStorage.setItem('token', response.data.token);
+         // Set Axios default header if registration also logs in
+         axios.defaults.headers.common['Authorization'] = `Bearer ${response.data.token}`;
       }
-      return response.data;
+      // Normalize user data if present in the response (e.g., if registration also logs in)
+      return response.data.user ? { ...response.data, user: normalizeUserData(response.data.user) } : response.data;
     } catch (error) {
       const message = getErrorMessage(error);
       return rejectWithValue(message);
@@ -52,17 +61,17 @@ export const register = createAsyncThunk(
 );
 
 // Thunk for changing user password
-// Requires user to be authenticated.
 export const changePassword = createAsyncThunk(
     'auth/changePassword',
     async (passwordData, { getState, rejectWithValue }) => {
-        const { token } = getState().auth; // Need the current user's token
+        const { token } = getState().auth;
         if (!token) {
             return rejectWithValue('Authentication required.');
         }
         try {
+            // Use default header, no need for getAuthHeaders here if default is set
             const response = await axios.put(`${API_URL}/auth/change-password`, passwordData, getAuthHeaders(token));
-            return response.data; // Usually a success message
+            return response.data;
         } catch (error) {
             const message = getErrorMessage(error);
             return rejectWithValue(message);
@@ -71,31 +80,33 @@ export const changePassword = createAsyncThunk(
 );
 
 // Thunk to load user data if a token exists in localStorage
-// This is typically called when the app initializes to check for an existing session.
 export const loadUserFromToken = createAsyncThunk(
     'auth/loadUserFromToken',
     async (_, { dispatch, rejectWithValue }) => {
         const token = localStorage.getItem('token');
         if (!token) {
-            return null; // No token, nothing to load
+            // If no token, just resolve null, setAuthError will handle state reset
+            dispatch(authSlice.actions.setAuthError('No authentication token found.'));
+            return rejectWithValue('No authentication token found.');
         }
-        // Import setAuthLoading, setAuth, setAuthError from this file itself, so no change needed here.
-        dispatch(authSlice.actions.setAuthLoading()); // Set loading state while we validate the token
+        // Set the default Authorization header for subsequent requests like /api/auth/me
+        axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+        dispatch(authSlice.actions.setAuthLoading());
         try {
-            // Verify token by fetching user data
-            const response = await axios.get(`${API_URL}/auth/me`, getAuthHeaders(token));
-            dispatch(authSlice.actions.setAuth({ user: response.data, token })); // Update auth state with user and token
-            return response.data; // User data
+            const response = await axios.get(`${API_URL}/auth/me`); // Uses default header now
+            const normalizedUser = normalizeUserData(response.data); // Normalize user data
+            dispatch(authSlice.actions.setAuth({ user: normalizedUser, token }));
+            return normalizedUser;
         } catch (error) {
              console.error("AuthSlice: Token validation failed:", getErrorMessage(error));
-             dispatch(authSlice.actions.setAuthError(getErrorMessage(error))); // Set error state, clears token
+             // Dispatch setAuthError to clear state and token
+             dispatch(authSlice.actions.setAuthError(getErrorMessage(error)));
              return rejectWithValue(getErrorMessage(error));
         }
     }
 );
 
 // Thunk for updating user profile information
-// Requires user to be authenticated.
 export const updateUserProfile = createAsyncThunk(
   'auth/updateProfile',
   async (userData, { getState, rejectWithValue }) => {
@@ -104,9 +115,9 @@ export const updateUserProfile = createAsyncThunk(
         return rejectWithValue('Authentication required.');
     }
     try {
-      // Endpoint for updating profile, e.g., name, email (if allowed), country, phone, companyName
+      // Use default header
       const response = await axios.put(`${API_URL}/users/profile`, userData, getAuthHeaders(token));
-      return response.data; // Updated user data
+      return normalizeUserData(response.data); // Normalize updated user data
     } catch (err) {
       const message = getErrorMessage(err);
       return rejectWithValue(message);
@@ -115,13 +126,12 @@ export const updateUserProfile = createAsyncThunk(
 );
 
 // Thunk for initiating password reset process (forgot password)
-// User provides their email.
 export const forgotPassword = createAsyncThunk(
   'auth/forgotPassword',
   async (emailData, { rejectWithValue }) => {
     try {
       const response = await axios.post(`${API_URL}/auth/forgot-password`, emailData);
-      return response.data; // Usually a success message
+      return response.data;
     } catch (err) {
       const message = getErrorMessage(err);
       return rejectWithValue(message);
@@ -130,13 +140,12 @@ export const forgotPassword = createAsyncThunk(
 );
 
 // Thunk for resetting password using a token (received via email link)
-// User provides the reset token and their new password.
 export const resetPassword = createAsyncThunk(
   'auth/resetPassword',
   async ({ token, newPassword }, { rejectWithValue }) => {
     try {
       const response = await axios.put(`${API_URL}/auth/reset-password/${token}`, { newPassword });
-      return response.data; // Usually a success message
+      return response.data;
     } catch (err) {
       const message = getErrorMessage(err);
       return rejectWithValue(message);
@@ -150,7 +159,7 @@ export const checkProspectiveEmployee = createAsyncThunk(
   async (emailData, { rejectWithValue }) => {
     try {
       const response = await axios.post(`${API_URL}/auth/check-prospective-employee`, emailData);
-      return response.data; // Expected: { canProceed: bool, userExists: bool, isEmployee: bool, message: string }
+      return response.data;
     } catch (error) {
       const errorData = error.response?.data || { message: 'Failed to check email status.' };
       return rejectWithValue(errorData);
@@ -159,23 +168,21 @@ export const checkProspectiveEmployee = createAsyncThunk(
 );
 
 // Thunk for requesting account deletion link
-// This will call the backend to send an email with a secure link.
 export const requestAccountDeletionLink = createAsyncThunk(
   'auth/requestDeletionLink',
   async (_, { dispatch, rejectWithValue }) => {
-    const token = localStorage.getItem('token'); // Or getState().auth.token
+    const token = localStorage.getItem('token');
     if (!token) {
         return rejectWithValue('Authentication required to request account deletion.');
     }
     try {
-      // The backend endpoint will use the authenticated user's details
+      // Use default header
       const response = await axios.post(`${API_URL}/auth/request-deletion-link`, {}, getAuthHeaders(token));
-      // Dispatch an alert with the success message from the backend
       dispatch(setAlert(response.data.message || 'Account deletion link sent. Please check your email.', 'success', 10000));
       return response.data;
     } catch (error) {
       const message = getErrorMessage(error);
-      dispatch(setAlert(message, 'danger')); // Dispatch an alert with the error message
+      dispatch(setAlert(message, 'danger'));
       return rejectWithValue(message);
     }
   }
@@ -186,14 +193,11 @@ export const confirmAccountDeletion = createAsyncThunk(
   'auth/confirmAccountDeletion',
   async ({ token, password }, { dispatch, rejectWithValue }) => {
     try {
-      // The backend endpoint will verify the token and password
       const response = await axios.post(`${API_URL}/auth/confirm-delete-account/${token}`, { password });
-      // On successful deletion, the backend sends a success message.
-      // The user will be logged out by the component after this thunk fulfills.
-      return response.data; // e.g., { message: "Account deleted successfully." }
+      return response.data;
     } catch (error) {
       const message = getErrorMessage(error);
-      dispatch(setAlert(message, 'danger')); // Dispatch an alert with the error message
+      dispatch(setAlert(message, 'danger'));
       return rejectWithValue(message);
     }
   }
@@ -205,12 +209,11 @@ export const requestCompanyInvitation = createAsyncThunk(
   async (invitationData, { dispatch, rejectWithValue }) => {
     try {
       const response = await axios.post(`${API_URL}/auth/request-invitation`, invitationData);
-      // Dispatch an alert with the success message from the backend
       dispatch(setAlert(response.data.message || 'Invitation request submitted successfully.', 'success', 7000));
       return response.data;
     } catch (error) {
       const message = getErrorMessage(error);
-      dispatch(setAlert(message, 'danger')); // Dispatch an alert with the error message
+      dispatch(setAlert(message, 'danger'));
       return rejectWithValue(message);
     }
   }
@@ -220,114 +223,101 @@ export const requestCompanyInvitation = createAsyncThunk(
 export const checkUserByEmailForEmployer = createAsyncThunk(
   'auth/checkUserByEmailForEmployer',
   async (emailData, { getState, rejectWithValue }) => {
-    const { token } = getState().auth; // Get token from Redux state
+    const { token } = getState().auth;
     if (!token) {
-      // This should ideally not happen if the UI is only accessible to logged-in employers
       return rejectWithValue('Authentication required to check user.');
     }
     try {
-      // The backend route is /api/auth/check-user
+      // Use default header
       const response = await axios.post(`${API_URL}/auth/check-user`, emailData, getAuthHeaders(token));
-      return response.data; // Expected: { exists: true/false, user: {...} } or { exists: false }
+      // Normalize user data if present in the response
+      return response.data.user ? { ...response.data, user: normalizeUserData(response.data.user) } : response.data;
     } catch (error) {
       const message = getErrorMessage(error);
       return rejectWithValue(message);
     }
   }
 );
-// Defines the authentication slice of the Redux state.
+
 const authSlice = createSlice({
   name: 'auth',
   initialState: {
-    user: null, // Stores the logged-in user object
-    token: localStorage.getItem('token') || null, // Retrieves token from localStorage on initial load
-    isAuthenticated: !!localStorage.getItem('token'), // True if token exists
-    isLoading: !!localStorage.getItem('token'), // Start loading if token exists, to validate it
-    error: null, // Stores any authentication-related error messages
-    // State for prospective employee email check
+    user: null,
+    token: localStorage.getItem('token') || null,
+    isAuthenticated: !!localStorage.getItem('token'),
+    isLoading: !!localStorage.getItem('token'),
+    error: null, // General auth error
+    isTabletViewUnlocked: false, // New state flag
     prospectiveEmployeeCheck: {
-      status: 'idle', // 'idle' | 'loading' | 'succeeded' | 'failed'
-      error: null,    // Error message from check
-      result: null,   // { canProceed, userExists, isEmployee, message }
-    },
-    // State for employer's check user by email
-    employerCheckUser: {
-      status: 'idle', // 'idle' | 'loading' | 'succeeded' | 'failed'
+      status: 'idle',
       error: null,
-      result: null,   // { exists: true/false, user: {...} }
+      result: null,
     },
-    // State for company invitation request
+    employerCheckUser: {
+      status: 'idle',
+      error: null,
+      result: null,
+    },
     companyInvitationRequest: {
-      status: 'idle', // 'idle' | 'loading' | 'succeeded' | 'failed'
+      status: 'idle',
       error: null,
       message: null,
     }
   },
   reducers: {
-    // Handles user logout: clears user data, token, and resets auth flags.
     logout: (state) => {
-      localStorage.removeItem('token'); // **CRUCIAL: Remove token from storage**
-      delete axios.defaults.headers.common['Authorization']; // Remove auth header
+      localStorage.removeItem('token');
+      delete axios.defaults.headers.common['Authorization'];
       state.user = null;
       state.token = null;
       state.isAuthenticated = false;
       state.isLoading = false;
       state.error = null;
-      state.prospectiveEmployeeCheck = { // Reset this on logout too
-        status: 'idle',
-        error: null,
-        result: null,
-      };
-      state.employerCheckUser = { // Reset this on logout too
-        status: 'idle',
-        error: null,
-        result: null,
-      };
-      state.companyInvitationRequest = { // Reset this on logout too
-        status: 'idle',
-        error: null,
-        message: null,
-      };
+      state.isTabletViewUnlocked = false; // Reset on logout
+      state.prospectiveEmployeeCheck = { status: 'idle', error: null, result: null };
+      state.employerCheckUser = { status: 'idle', error: null, result: null };
+      state.companyInvitationRequest = { status: 'idle', error: null, message: null };
     },
-    // Sets authentication state (typically after successful login/token load).
     setAuth: (state, action) => {
-        state.user = action.payload.user;
+        state.user = normalizeUserData(action.payload.user); // Normalize user data
         state.token = action.payload.token;
+        // Ensure Axios default header is set whenever auth state is definitively set
+        // This is crucial if setAuth is called from places other than thunks that already set it.
+        axios.defaults.headers.common['Authorization'] = `Bearer ${action.payload.token}`;
         state.isAuthenticated = true;
         state.isLoading = false;
         state.error = null;
     },
-    // Sets loading state, usually before an async auth operation.
     setAuthLoading: (state) => {
         state.isLoading = true;
-        state.error = null; // Clear previous errors when starting a new loading state
+        state.error = null;
     },
-    // Sets error state and clears authentication details (e.g., on token validation failure).
     setAuthError: (state, action) => {
         state.isLoading = false;
         state.error = action.payload;
-        localStorage.removeItem('token'); // Important: remove invalid token
+        localStorage.removeItem('token');
         state.user = null;
         state.token = null;
+        delete axios.defaults.headers.common['Authorization']; // Ensure header is cleared on auth error too
+        state.isTabletViewUnlocked = false; // Reset on auth error
         state.isAuthenticated = false;
     },
-    // Clears any existing auth error.
     clearAuthError: (state) => {
       state.error = null;
     },
-    // Clears prospective employee check state
     clearProspectiveEmployeeCheck: (state) => {
       state.prospectiveEmployeeCheck = { status: 'idle', error: null, result: null };
     },
-    // Clears employer's check user state
     clearEmployerCheckUser: (state) => {
       state.employerCheckUser = { status: 'idle', error: null, result: null };
+    },
+    // New action to set the tablet view unlocked state
+    setTabletViewUnlocked: (state, action) => {
+      state.isTabletViewUnlocked = action.payload;
     }
   },
-  // Handles actions dispatched by async thunks (e.g., login, register).
   extraReducers: (builder) => {
     builder
-      // Login actions
       .addCase(login.pending, (state) => {
         state.isLoading = true;
         state.error = null;
@@ -335,97 +325,76 @@ const authSlice = createSlice({
       .addCase(login.fulfilled, (state, action) => {
         state.isLoading = false;
         state.isAuthenticated = true;
-        state.user = action.payload.user; // Backend should return all necessary user fields
+        state.user = action.payload.user; // Already normalized by the thunk
         state.token = action.payload.token;
         state.error = null;
       })
       .addCase(login.rejected, (state, action) => {
         state.isLoading = false;
-        state.error = action.payload; // Error message from rejectWithValue
+        state.error = action.payload;
         state.isAuthenticated = false;
         state.user = null;
         state.token = null;
-        localStorage.removeItem('token'); // Clean up on login failure
+        localStorage.removeItem('token');
       })
-      // Register actions
       .addCase(register.pending, (state) => {
         state.isLoading = true;
         state.error = null;
       })
       .addCase(register.fulfilled, (state, action) => {
         state.isLoading = false;
-        if (action.payload.token) { // If registration also logs the user in
-            // This is for direct user self-registration
+        if (action.payload.token) {
             state.isAuthenticated = true;
-            state.user = action.payload.user;
+            state.user = action.payload.user; // Already normalized by the thunk if present
             state.token = action.payload.token;
             localStorage.setItem('token', action.payload.token);
-        } else { 
-            // This case is when an employer registers a new employee.
-            // The employer's auth state (isAuthenticated, user, token) should NOT change.
-            // The new employee user is created, but the employer remains logged in.
-            // Preserve the current authentication state of the employer.
-            // No change needed to state.isAuthenticated, state.user, or state.token here.
         }
         state.error = null;
       })
       .addCase(register.rejected, (state, action) => {
         state.isLoading = false;
         state.error = action.payload;
-        state.isAuthenticated = false;
-        state.user = null;
-        // Do not clear the employer's token if their attempt to register an employee fails.
-        // state.token = null; 
-        // localStorage.removeItem('token'); 
+        // Keep existing auth state if employer registration fails
+        // state.isAuthenticated = false;
+        // state.user = null;
       })
-      // Load user from token actions
       .addCase(loadUserFromToken.pending, (state) => {
-        // isLoading is managed by the setAuthLoading action dispatched within the thunk
+        // isLoading is managed by setAuthLoading
       })
       .addCase(loadUserFromToken.fulfilled, (state, action) => {
-        // If no token was found, or validation failed early, action.payload might be null.
-        // Successful load is handled by setAuth action dispatched within the thunk.
-        if (action.payload === null) {
-            state.isLoading = false; // Ensure loading stops if no token was processed
+        // Handled by setAuth if successful, or setAuthError if failed within the thunk
+        if (action.payload === null && !state.error) { // Only set isLoading if no token and no prior error
+            state.isLoading = false;
         }
       })
       .addCase(loadUserFromToken.rejected, (state, action) => {
-        // Error state is managed by setAuthError action dispatched within the thunk
+        // Handled by setAuthError within the thunk
       })
-      // Change password actions
       .addCase(changePassword.pending, (state) => {
         state.isLoading = true;
         state.error = null;
       })
       .addCase(changePassword.fulfilled, (state, action) => {
         state.isLoading = false;
-        // For security, log user out after password change, requiring re-login.
         localStorage.removeItem('token');
         state.user = null;
         state.token = null;
         state.isAuthenticated = false;
-        state.error = null; // Clear any previous errors
+        state.error = null;
       })
       .addCase(changePassword.rejected, (state, action) => {
         state.isLoading = false;
         state.error = action.payload;
       })
-      // Update user profile actions
       .addCase(updateUserProfile.pending, (state) => {
         state.isLoading = true;
         state.error = null;
       })
       .addCase(updateUserProfile.fulfilled, (state, action) => {
         state.isLoading = false;
-        if (action.payload) { // Ensure payload exists
-          state.user = { // Merge existing user data with updated fields
-            ...state.user,
-            name: action.payload.name,
-            email: action.payload.email, // Assuming email can be updated
-            country: action.payload.country,
-            phoneNumber: action.payload.phoneNumber,
-            companyName: action.payload.companyName, // This will be undefined/null if not an employer
-          };
+        if (action.payload) {
+          // action.payload is already normalized user data
+          state.user = { ...state.user, ...action.payload };
         }
         state.error = null;
       })
@@ -433,33 +402,30 @@ const authSlice = createSlice({
         state.isLoading = false;
         state.error = action.payload;
       })
-      // Forgot password actions
       .addCase(forgotPassword.pending, (state) => {
         state.isLoading = true;
         state.error = null;
       })
       .addCase(forgotPassword.fulfilled, (state, action) => {
         state.isLoading = false;
-        state.error = null; // Success message handled by UI via setAlert
+        state.error = null;
       })
       .addCase(forgotPassword.rejected, (state, action) => {
         state.isLoading = false;
         state.error = action.payload;
       })
-      // Reset password actions
       .addCase(resetPassword.pending, (state) => {
         state.isLoading = true;
         state.error = null;
       })
       .addCase(resetPassword.fulfilled, (state, action) => {
         state.isLoading = false;
-        state.error = null; // Success message handled by UI via setAlert
+        state.error = null;
       })
       .addCase(resetPassword.rejected, (state, action) => {
         state.isLoading = false;
         state.error = action.payload;
       })
-      // Check prospective employee email
       .addCase(checkProspectiveEmployee.pending, (state) => {
         state.prospectiveEmployeeCheck = { status: 'loading', error: null, result: null };
       })
@@ -467,50 +433,44 @@ const authSlice = createSlice({
         state.prospectiveEmployeeCheck = { status: 'succeeded', error: null, result: action.payload };
       })
       .addCase(checkProspectiveEmployee.rejected, (state, action) => {
-        state.prospectiveEmployeeCheck = { 
-          status: 'failed', 
-          error: action.payload?.message || 'Error checking email.', 
-          result: action.payload // Store the full payload which might include canProceed: false
+        state.prospectiveEmployeeCheck = {
+          status: 'failed',
+          error: action.payload?.message || 'Error checking email.',
+          result: action.payload
         };
       })
-      // Request account deletion link actions
       .addCase(requestAccountDeletionLink.pending, (state) => {
-        state.isLoading = true; // You might want a specific loading state, e.g., state.isRequestingDeletionLinkLoading
+        state.isLoading = true;
         state.error = null;
       })
       .addCase(requestAccountDeletionLink.fulfilled, (state, action) => {
         state.isLoading = false;
-        // Success message is handled by the alert dispatched in the thunk
       })
       .addCase(requestAccountDeletionLink.rejected, (state, action) => {
         state.isLoading = false;
-        state.error = action.payload; // Error message from rejectWithValue
+        state.error = action.payload;
       })
-      // Confirm account deletion actions
       .addCase(confirmAccountDeletion.pending, (state) => {
         state.isLoading = true;
         state.error = null;
       })
       .addCase(confirmAccountDeletion.fulfilled, (state, action) => {
         state.isLoading = false;
-        // User will be logged out by the component.
-        // State related to user, token, isAuthenticated will be cleared by the logout action.
       })
       .addCase(confirmAccountDeletion.rejected, (state, action) => {
         state.isLoading = false;
-        state.error = action.payload; // Error message from rejectWithValue
+        state.error = action.payload;
       })
-      // Check user by email for employer actions
       .addCase(checkUserByEmailForEmployer.pending, (state) => {
         state.employerCheckUser = { status: 'loading', error: null, result: null };
       })
       .addCase(checkUserByEmailForEmployer.fulfilled, (state, action) => {
+        // action.payload is already normalized if user exists
         state.employerCheckUser = { status: 'succeeded', error: null, result: action.payload };
       })
       .addCase(checkUserByEmailForEmployer.rejected, (state, action) => {
         state.employerCheckUser = { status: 'failed', error: action.payload, result: null };
       });
-      // Request company invitation actions
       builder.addCase(requestCompanyInvitation.pending, (state) => {
         state.companyInvitationRequest = { status: 'loading', error: null, message: null };
       })
@@ -523,21 +483,18 @@ const authSlice = createSlice({
   },
 });
 
-// Export synchronous actions for use in components or other thunks.
 export const {
-  logout, setAuth, setAuthLoading, setAuthError, clearAuthError, clearProspectiveEmployeeCheck, clearEmployerCheckUser
+  logout, setAuth, setAuthLoading, setAuthError, clearAuthError, clearProspectiveEmployeeCheck, clearEmployerCheckUser, setTabletViewUnlocked // Export the new action
 } = authSlice.actions;
 
-// Export the reducer to be included in the store.
 export default authSlice.reducer;
 
-// Selectors to access parts of the auth state from components.
-// These help keep components decoupled from the exact state structure.
 export const selectIsAuthenticated = (state) => state.auth.isAuthenticated;
 export const selectAuthUser = (state) => state.auth.user;
 export const selectAuthToken = (state) => state.auth.token;
 export const selectIsAuthLoading = (state) => state.auth.isLoading;
 export const selectAuthError = (state) => state.auth.error;
 export const selectProspectiveEmployeeCheck = (state) => state.auth.prospectiveEmployeeCheck;
-export const selectEmployerCheckUser = (state) => state.auth.employerCheckUser; // Selector for the new state
-export const selectCompanyInvitationRequest = (state) => state.auth.companyInvitationRequest; // Selector for invitation request state
+export const selectEmployerCheckUser = (state) => state.auth.employerCheckUser;
+export const selectCompanyInvitationRequest = (state) => state.auth.companyInvitationRequest;
+export const selectIsTabletViewUnlocked = (state) => state.auth.isTabletViewUnlocked; // New selector

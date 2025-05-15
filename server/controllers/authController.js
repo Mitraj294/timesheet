@@ -796,3 +796,53 @@ export const confirmAccountDeletion = async (req, res) => {
     }
   }
 };
+
+// @desc    Verify current user's password
+// @route   POST /api/auth/verify-password
+// @access  Private (Requires authentication)
+export const verifyCurrentUserPassword = async (req, res) => {
+  try {
+    const { userId, password } = req.body; // userId from request body, password to verify
+
+    if (!userId || !password) {
+      return res.status(400).json({ success: false, message: "User ID and password are required." });
+    }
+
+    const authenticatedUser = req.user; // User making the request (e.g., employer)
+
+    // Scenario 1: User is verifying their own password (e.g., employer unlocking tablet view or exiting)
+    if (authenticatedUser.id === userId) {
+      // Proceed as before
+    }
+    // Scenario 2: Authenticated user (employer) is verifying an employee's password
+    else if (authenticatedUser.role === USER_ROLES.EMPLOYER) {
+      // Check if the 'userId' from the body belongs to an employee of this employer
+      const employeeRecord = await Employee.findOne({ userId: userId, employerId: authenticatedUser.id });
+      if (!employeeRecord) {
+        return res.status(403).json({ success: false, message: "Forbidden: You are not authorized to verify this user's password." });
+      }
+      // If employee found and belongs to this employer, verification can proceed for 'userId'
+    }
+    // Scenario 3: Unauthorized attempt
+    else {
+        return res.status(403).json({ success: false, message: "Forbidden: User ID mismatch." });
+    }
+
+    const userToVerify = await User.findById(userId).select('+password'); // User whose password is to be verified
+
+    if (!userToVerify) {
+      return res.status(404).json({ success: false, message: "User not found." });
+    }
+
+    const isMatch = await bcrypt.compare(password, userToVerify.password);
+
+    if (isMatch) {
+      return res.status(200).json({ success: true, message: "Password verified." });
+    } else {
+      return res.status(401).json({ success: false, message: "Incorrect password." });
+    }
+  } catch (error) {
+    console.error("Error verifying password:", error);
+    res.status(500).json({ success: false, message: "Server error during password verification." });
+  }
+};

@@ -43,6 +43,7 @@ import ViewVehicle from "./components/pages/ViewVehicle";
 import ViewReview from './components/pages/ViewReview';
 import CreateOrUpdateVehicleReview from "./components/pages/CreateOrUpdateVehicleReview";
 import SettingsPage from './components/setting/SettingsPage';
+import TabletView from './components/pages/TabletView'; // Import TabletView
 
 import ConfirmDeleteAccountPage from './components/pages/ConfirmDeleteAccountPage';
 import 'leaflet/dist/leaflet.css';
@@ -165,6 +166,7 @@ const AppContent = () => {
         <Route path="/vehicles/reviews/:reviewId/view" element={<PrivateRoute><ViewReview /></PrivateRoute>} />
         
         <Route path="/confirm-delete-account/:token" element={<ConfirmDeleteAccountPage />} />
+        <Route path="/tablet-view" element={<PrivateRoute><TabletView /></PrivateRoute>} /> {/* Add the new Tablet View route */}
         <Route path="/settings" element={<PrivateRoute><SettingsPage /></PrivateRoute>} />
 
         {/* <Route path="*" element={<NotFoundPage />} /> */}

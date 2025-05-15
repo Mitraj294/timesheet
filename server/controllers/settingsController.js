@@ -12,21 +12,33 @@ const getErrorMessage = (error) => {
 // @route   GET /api/settings/employer
 // @access  Private (Employer Only)
 export const getEmployerSettings = async (req, res) => {
-  // req.user should be available from the 'protect' middleware
-  if (!req.user || req.user.role !== 'employer') {
-    return res.status(403).json({ message: 'Access denied.' });
+  if (!req.user) {
+    return res.status(401).json({ message: 'Not authorized, no token' });
+  }
+
+  let targetEmployerId;
+
+  if (req.user.role === 'employer') {
+    targetEmployerId = req.user.id;
+  } else if (req.user.role === 'employee') {
+    // Assuming the employee's user object (req.user) has an employerId field
+    // This field should be populated during login or available in the JWT payload.
+    targetEmployerId = req.user.employerId; 
+    if (!targetEmployerId) {
+      console.error(`[settingsController] Employer ID not found for employee ${req.user.id}.`);
+      return res.status(400).json({ message: 'Employer ID not found for this employee.' });
+    }
+  } else {
+    return res.status(403).json({ message: 'User role not permitted to access settings.' });
   }
 
   try {
-    // Find the settings for the logged-in employer (req.user.id)
-    let settings = await EmployerSetting.findOne({ employerId: req.user.id });
+    let settings = await EmployerSetting.findOne({ employerId: targetEmployerId });
 
-    // If settings don't exist, return default settings
     if (!settings) {
-      console.log(`[settingsController] No settings found for employer ${req.user.id}. Creating and returning defaults.`);
-      // Create new settings with default values
+      console.log(`[settingsController] No settings found for employer ${targetEmployerId}. Creating and returning defaults.`);
       const defaultSettings = {
-        employerId: req.user.id,
+        employerId: targetEmployerId, // Associate default settings with the correct employerId
         showVehiclesTabInSidebar: true, 
         tabletViewRecordingType: 'Automatically Record',
         tabletViewPasswordRequired: false,
@@ -35,8 +47,7 @@ export const getEmployerSettings = async (req, res) => {
       await settings.save();
       return res.json(settings);
     }
-
-    console.log(`[settingsController] Settings found for employer ${req.user.id}. Returning settings.`);
+    console.log(`[settingsController] Settings found for employer ${targetEmployerId}. Returning settings.`);
     res.json(settings);
 
   } catch (error) {

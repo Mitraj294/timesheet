@@ -343,10 +343,10 @@ const CreateTimesheet = () => {
     if (isLeave) {
       if (!dataToValidate.description.trim()) return 'Leave Description is required.';
     } else {
-      if (!dataToValidate.clientId) return 'Client is required.';
-      if (!dataToValidate.projectId) return 'Project is required.';
       if (!dataToValidate.startTime) return 'Start Time is required.';
       if (!dataToValidate.endTime) return 'End Time is required.';
+      // Client and Project are now optional for general entries.
+      // They will be present if source === 'projectTimesheet' due to pre-filling.
       if (!/^\d{2}:\d{2}$/.test(dataToValidate.startTime) || !/^\d{2}:\d{2}$/.test(dataToValidate.endTime)) {
         return 'Invalid Start or End Time format (HH:MM).';
       }
@@ -425,6 +425,14 @@ const CreateTimesheet = () => {
       const startTimeUTC = !currentIsLeaveSelected ? localTimeToUtcISO(finalFormData.startTime) : null;
       const endTimeUTC = !currentIsLeaveSelected ? localTimeToUtcISO(finalFormData.endTime) : null;
 
+      // Explicitly check if start/end times are null for work entries after conversion
+      // This guards against potential issues in time conversion or validation bypass
+      if (!currentIsLeaveSelected && (!startTimeUTC || !endTimeUTC)) {
+          setError("Start and End times are required for work entries.");
+          dispatch(setAlert("Start and End times are required for work entries.", "warning"));
+          return; // Stop submission
+      }
+
       if (!currentIsLeaveSelected && (finalFormData.startTime && !startTimeUTC || finalFormData.endTime && !endTimeUTC)) {
           setError("Failed to convert start or end time for saving. Check date/time inputs and timezone.");
           dispatch(setAlert("Failed to convert start or end time. Check inputs.", "danger"));
@@ -435,22 +443,42 @@ const CreateTimesheet = () => {
                              ? finalFormData.timezone
                              : Intl.DateTimeFormat().resolvedOptions().timeZone;
 
+      // Initialize requestData with common fields
       const requestData = {
         employeeId: finalFormData.employeeId,
-        clientId: !currentIsLeaveSelected ? finalFormData.clientId : null,
-        projectId: !currentIsLeaveSelected ? finalFormData.projectId : null,
         date: finalFormData.date,
-        startTime: startTimeUTC,
-        endTime: endTimeUTC,
-        lunchBreak: !currentIsLeaveSelected ? finalFormData.lunchBreak : 'No',
-        lunchDuration: !currentIsLeaveSelected && finalFormData.lunchBreak === 'Yes' ? finalFormData.lunchDuration : '00:30',
+        startTime: startTimeUTC, // Already null if currentIsLeaveSelected is true
+        endTime: endTimeUTC,     // Already null if currentIsLeaveSelected is true
         leaveType: finalFormData.leaveType,
-        description: currentIsLeaveSelected ? finalFormData.description : "",
-        notes: !currentIsLeaveSelected ? finalFormData.notes : "",
         hourlyWage: parseFloat(finalFormData.hourlyWage) || 0,
-        totalHours: finalFormData.totalHours, // Use the totalHours from finalFormData
+        totalHours: finalFormData.totalHours,
         timezone: timezoneToSend,
       };
+
+      if (currentIsLeaveSelected) {
+        requestData.description = finalFormData.description;
+        // For leave entries, clientId and projectId are null.
+        // Other fields get their leave-specific defaults.
+        requestData.clientId = null;
+        requestData.projectId = null;
+        requestData.lunchBreak = 'No';
+        requestData.lunchDuration = '00:00'; // Model default is 00:00
+        requestData.notes = ""; // Or rely on model default ''
+      } else {
+        // Work Entry
+        requestData.notes = finalFormData.notes;
+        requestData.lunchBreak = finalFormData.lunchBreak;
+        requestData.lunchDuration = finalFormData.lunchBreak === 'Yes' ? finalFormData.lunchDuration : '00:00'; // Model default is 00:00
+
+        // Only add clientId and projectId if they are actual values (not empty strings)
+        // If they are empty strings, they will be omitted, and Mongoose default 'null' will apply.
+        if (finalFormData.clientId && finalFormData.clientId !== '') {
+          requestData.clientId = finalFormData.clientId;
+        }
+        if (finalFormData.projectId && finalFormData.projectId !== '') {
+          requestData.projectId = finalFormData.projectId;
+        }
+      }
 
       if (isEditing) {
         await dispatch(updateTimesheet({ id: timesheetIdForEdit, timesheetData: requestData })).unwrap();
@@ -589,15 +617,15 @@ const CreateTimesheet = () => {
               {source !== 'projectTimesheet' && (
                 <>
                   <div className='form-group'>
-                    <label htmlFor='clientId'><FontAwesomeIcon icon={faBuilding} /> Client*</label>
-                    <select id='clientId' name='clientId' value={formData.clientId || ''} onChange={handleChange} required={!isLeaveSelected} disabled={isLoading}>
+                    <label htmlFor='clientId'><FontAwesomeIcon icon={faBuilding} /> Client</label>
+                    <select id='clientId' name='clientId' value={formData.clientId || ''} onChange={handleChange} disabled={isLoading}>
                       <option value=''>-- Select Client --</option>
                       {clients.map((c) => (<option key={c._id} value={c._id}>{c.name}</option>))}
                     </select>
                   </div>
                   <div className='form-group'>
-                    <label htmlFor='projectId'><FontAwesomeIcon icon={faProjectDiagram} /> Project*</label>
-                    <select id='projectId' name='projectId' value={formData.projectId || ''} onChange={handleChange} required={!isLeaveSelected} disabled={isLoading || isProjectLoading || !formData.clientId}>
+                    <label htmlFor='projectId'><FontAwesomeIcon icon={faProjectDiagram} /> Project</label>
+                    <select id='projectId' name='projectId' value={formData.projectId || ''} onChange={handleChange} disabled={isLoading || isProjectLoading || !formData.clientId}>
                       <option value=''>{isProjectLoading ? 'Loading projects...' : (!formData.clientId ? 'Select Client First' : '-- Select Project --')}</option>
                       {filteredProjects.map((p) => (<option key={p._id} value={p._id}>{p.name}</option>))}
                     </select>

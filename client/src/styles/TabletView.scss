@@ -1,0 +1,591 @@
+// /home/digilab/timesheet/client/src/styles/TabletView.scss
+
+// --- Common Page Wrapper for TabletView ---
+.tv-page-wrapper {
+    width: 100%;
+    padding: clamp(1rem, 2vw, 1.5rem);
+    max-width: 1400px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    min-height: calc(100vh - 60px); // Adjust 60px if your navbar height is different
+    box-sizing: border-box;
+    font-family: 'Segoe UI', sans-serif; // Example font, match your app's font
+
+    &.modal-open-background {
+        // If you want to affect the main page content when a modal is open (e.g., blur it)
+        // filter: blur(3px); // Example
+    }
+
+}
+
+// --- Breadcrumb Styles ---
+.tv-breadcrumbs-container {
+    margin-bottom: 1.5rem;
+    padding: 0.5rem 0;
+
+    .tv-page-title {
+        font-size: 1.75rem;
+        font-weight: 700;
+        color: #333;
+        margin: 0 0 0.25rem 0;
+    }
+
+    .tv-breadcrumbs-links {
+        display: flex;
+        align-items: center;
+        font-size: 0.9rem;
+        color: #6c757d;
+
+        .tv-breadcrumb-link-wrapper {
+            display: flex;
+            align-items: center;
+        }
+
+        .tv-breadcrumb-link {
+            color: #007bff;
+            text-decoration: none;
+
+            &:hover {
+                text-decoration: underline;
+            }
+        }
+
+        .tv-breadcrumb-separator {
+            margin: 0 0.5rem;
+            color: #6c757d;
+            font-weight: 700;
+        }
+
+        .tv-breadcrumb-current-page {
+            color: #495057;
+        }
+    }
+}
+
+// --- Password Prompt Specific Styles ---
+.tv-password-prompt-container {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    flex-grow: 1;
+    width: 100%;
+}
+
+// Card style for initial password prompt AND modal content
+.tv-card {
+    background: white;
+    padding: 2rem 2.5rem;
+    border-radius: 8px;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.12);
+    max-width: 420px;
+    width: 100%;
+    text-align: center;
+    box-sizing: border-box;
+}
+
+.tv-card-heading {
+    font-size: 1.25rem;
+    font-weight: 700;
+    margin-bottom: 1.5rem;
+    color: #333;
+}
+
+.tv-form {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+}
+
+.tv-input-margin-bottom {
+    margin-bottom: 0.5rem;
+}
+
+.input-container {
+    // This is a more generic class, used by password prompt
+    position: relative;
+    display: flex;
+    align-items: center;
+    width: 100%;
+}
+
+.form-input {
+    // Base input style, used by password prompt and extended by tv-input
+    width: 100%;
+    padding: 0.85rem 1rem;
+    border: 1px solid #ced4da;
+    border-radius: 4px;
+    font-size: 1rem;
+    box-sizing: border-box;
+    transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+
+    &:focus {
+        border-color: #80bdff;
+        outline: 0;
+        box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+    }
+}
+
+.password-input-container {
+    @extend .input-container;
+
+    .form-input {
+        padding-right: 40px;
+    }
+
+    .toggle-password-icon {
+        position: absolute;
+        right: 12px;
+        color: #6c757d;
+        cursor: pointer;
+        z-index: 2;
+    }
+}
+
+.tv-button-group {
+    margin-top: 1rem;
+}
+
+.button-tablet {
+    // Base button style for tablet view
+    padding: 0.85rem 1.5rem;
+    font-size: 1rem;
+    font-weight: 600;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out, opacity 0.15s ease-in-out;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5em;
+    text-decoration: none;
+    color: white;
+    width: 100%;
+
+    &:disabled {
+        background-color: #adb5bd;
+        cursor: not-allowed;
+        opacity: 0.65;
+    }
+
+    &:not(:disabled):hover {
+        opacity: 0.85;
+    }
+}
+
+.button-proceed.button-violet {
+    @extend .button-tablet;
+    background-color: #6f42c1;
+
+    &:not(:disabled):hover {
+        background-color: darken(#6f42c1, 8%);
+    }
+}
+
+.button-proceed.button-green {
+    // Used by Log Time Modal button via @extend
+    @extend .button-tablet;
+    background-color: #28a745;
+
+    &:not(:disabled):hover {
+        background-color: darken(#28a745, 8%);
+    }
+}
+
+// --- Verified View Styles ---
+.tv-main-content-card {
+    background-color: #ffffff;
+    padding: 1.5rem;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.07);
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    width: 100%;
+    flex-grow: 1;
+}
+
+.tv-top-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid #e9ecef;
+
+    .search-input-container {
+        @extend .input-container;
+        flex-grow: 1;
+        max-width: 350px;
+
+        .form-input {
+            // This refers to the base .form-input
+            padding-right: 35px;
+        }
+
+        .search-icon {
+            position: absolute;
+            right: 10px;
+            color: #6c757d;
+        }
+    }
+}
+
+.button-exit.button-text-red {
+    @extend .button-tablet;
+    background-color: transparent;
+    color: #dc3545;
+    padding: 0.65rem 1rem;
+    width: auto;
+
+    &:not(:disabled):hover {
+        background-color: rgba(220, 53, 69, 0.08);
+        color: darken(#dc3545, 10%);
+    }
+}
+
+.tv-employee-grid {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 0;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    overflow: hidden;
+
+    .tv-grid-column {
+        padding: 0.85rem 1.25rem;
+        text-align: left;
+        border-bottom: 1px solid #e9ecef;
+
+        &.tv-grid-header {
+            font-weight: 600;
+            background-color: #f0eaff;
+            color: #495057;
+            border-bottom: 1px solid #d1c4e9;
+
+            &:first-child {
+                border-right: 1px solid #d1c4e9;
+            }
+        }
+
+        &:nth-child(odd):not(.tv-grid-header) {
+            border-right: 1px solid #e9ecef;
+        }
+
+        &:nth-child(even):not(.tv-grid-header) {
+            text-align: center;
+        }
+
+        &:nth-last-child(1),
+        &:nth-last-child(2) {
+            border-bottom: none;
+        }
+    }
+}
+
+.button-sign-in.button-text-green {
+    @extend .button-tablet;
+    background-color: transparent;
+    color: #28a745;
+    padding: 0.5rem 1rem;
+    font-size: 0.9rem;
+    min-width: 90px;
+    width: auto;
+
+    &:not(:disabled):hover {
+        background-color: rgba(40, 167, 69, 0.08);
+        color: darken(#28a745, 10%);
+    }
+}
+
+.error-text {
+    color: #dc3545;
+    font-size: 0.875rem;
+    text-align: left;
+    margin-top: 0.25rem;
+    padding-left: 0.25rem;
+}
+
+.loading-text,
+.tv-no-results {
+    text-align: center;
+    color: #6c757d;
+    font-style: italic;
+    padding: 2rem 1rem;
+}
+
+.tv-no-results {
+    grid-column: 1 / -1;
+}
+
+// --- Styles for Modals (Exit Password, Employee Password, Log Time) ---
+.modal-overlay {
+    // Base overlay style
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.4);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1050;
+    backdrop-filter: blur(3px);
+}
+
+.modal-content {
+    // Base modal content wrapper (used by Employee Password Modal)
+    display: flex;
+    flex-direction: column;
+    max-height: 90vh;
+    overflow: hidden;
+}
+
+.modal-header {
+    // Base modal header (used by Employee Password Modal)
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-bottom: 0.5rem;
+
+    .modal-close-button {
+        // Base close button style
+        background: none;
+        border: none;
+        font-size: 1.25rem;
+        color: #6c757d;
+        cursor: pointer;
+        padding: 0.25rem;
+        line-height: 1;
+
+        &:hover {
+            color: #343a40;
+        }
+    }
+}
+
+.modal-body {
+    // Base modal body (used by Employee Password Modal)
+    overflow-y: auto;
+}
+
+// --- Log Time Modal Specific Styles (Refactored) ---
+.tv-modal-overlay {
+    // Specific overlay for Log Time Modal if needed, otherwise remove if .modal-overlay is sufficient
+    @extend .modal-overlay;
+}
+
+.tv-modal.tv-modal-sm {
+    // Modal box for Log Time
+    @extend .tv-card; // Inherit base card styling
+    max-width: 450px;
+    min-width: 300px;
+    width: 90%;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.tv-modal-title {
+    @extend .tv-card-heading; // Inherit base card heading style
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-bottom: 1rem;
+    margin-bottom: 0.5rem;
+    border-bottom: 1px solid #e9ecef;
+    // Text styles (formerly from complex classes)
+    font-size: 1.25rem; // from styles_Text___heading___xxs__GKKzO
+    font-weight: 700; // from styles_Text___heading___xxs__GKKzO
+    color: #333; // from styles_Text___n___0__288bs
+}
+
+.tv-modal-close-button {
+    @extend .modal-close-button; // Inherit base close button style
+}
+
+.tv-modal-close-icon {
+    // Specific to the close icon within the modal
+    font-size: 1rem;
+}
+
+.tv-modal-content {
+    padding: 0.5rem 1rem;
+    overflow-y: auto;
+    max-height: 60vh;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.tv-input-container,
+// Container for input/select + label + icon
+.tv-textarea-container {
+    // Container for textarea + label + icon
+    position: relative;
+    display: flex;
+    flex-direction: column;
+
+    .tv-input,
+    // Actual input/select element
+    .tv-textarea {
+        // Actual textarea element
+        @extend .form-input; // Inherit base form input styles
+        order: 2; // Input below label for floating effect
+        padding-top: 1.5rem; // Make more space for label
+        padding-bottom: 0.75rem;
+
+        &.tv-input-with-icon,
+        // Modifier for inputs/textareas with an icon
+        &.tv-textarea-with-icon {
+            padding-left: 2.5rem; // Make space for icon
+        }
+
+        &:disabled,
+        &.tv-input-disabled {
+            // Modifier for disabled state
+            background-color: #e9ecef;
+            cursor: not-allowed;
+        }
+    }
+
+    .tv-textarea {
+        // Specifics for textarea
+        min-height: 80px;
+        resize: vertical;
+    }
+
+    .tv-input-label,
+    // Label text for inputs/selects
+    .tv-textarea-label {
+        // Label text for textareas
+        position: absolute;
+        top: 1rem;
+        left: 0.75rem; // Aligned with icon padding
+        font-size: 1rem; // from styles_Text___body___md__6riP4
+        color: #6c757d;
+        font-weight: 500; // from styles_Text___n___500__3UEGt
+        pointer-events: none;
+        transition: all 0.2s ease-out;
+        order: 1;
+        background-color: white;
+        padding: 0 0.25rem;
+
+        &.tv-input-label-active,
+        // Active state (e.g., on focus or has value)
+        &:has(+ .tv-input:not(:placeholder-shown):not([type="time"]):not(select)),
+        // If input has value (excluding time/select)
+        &:has(+ .tv-textarea:not(:placeholder-shown)),
+        // If textarea has value
+        &:has(+ .tv-input:focus),
+        // If input is focused
+        &:has(+ .tv-textarea:focus) {
+            // If textarea is focused
+            top: 0.25rem;
+            font-size: 0.75rem;
+            color: #495057;
+        }
+
+        // Specific for icon version
+        &:has(+ .tv-input.tv-input-with-icon),
+        &:has(+ .tv-textarea.tv-textarea-with-icon) {
+            left: 2.5rem; // Align with input/textarea text if icon present
+        }
+    }
+
+    // Special handling for time inputs and selects as :placeholder-shown doesn't work well
+    .tv-input[type="time"]+.tv-input-label,
+    select.tv-input+.tv-input-label {
+        // If it's a select or time input, always float the label
+        top: 0.25rem;
+        font-size: 0.75rem;
+        color: #495057;
+    }
+
+
+    .tv-input-icon,
+    // Icon for inputs
+    .tv-textarea-icon {
+        // Icon for textareas
+        position: absolute;
+        left: 0.75rem;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #6c757d;
+        order: 0;
+        margin-top: 0.3rem; // Adjust to align with input text after label moves
+    }
+}
+
+.tv-mt-1 {
+    // Margin top utility
+    margin-top: 1rem;
+}
+
+.tv-checkbox-input {
+    margin-right: 0.5rem;
+    vertical-align: middle;
+}
+
+.tv-checkbox-label {
+    font-size: 0.9rem;
+    color: #333;
+    vertical-align: middle;
+    cursor: pointer;
+}
+
+.tv-modal-footer {
+    padding-top: 1.5rem;
+    border-top: 1px solid #e9ecef;
+    margin-top: 1rem;
+    text-align: right;
+
+    .tv-button.tv-button-primary.tv-button-green {
+        // Specific button in footer
+        @extend .button-tablet; // Base tablet button
+        @extend .button-proceed; // Proceed variant (might define color or specific padding)
+        @extend .button-green; // Green color variant
+        width: auto;
+        min-width: 120px;
+    }
+}
+
+// Style for the error message within the modal
+.modal-content .error-text,
+// For modals using .modal-content (like EmployeePasswordModal)
+.tv-modal-content .error-text {
+    // For Log Time Modal
+    text-align: center;
+    margin-top: 0.5rem;
+    margin-bottom: 0;
+    color: #dc3545;
+    font-size: 0.875rem;
+}
+
+// Styles for the Log Time Summary section (added in a previous step)
+.log-time-summary {
+    padding: 0.75rem 1rem;
+    background-color: #f8f9fa;
+    border-top: 1px solid #e9ecef;
+    border-bottom: 1px solid #e9ecef;
+    margin-top: 1rem;
+
+    p {
+        margin-bottom: 0.5rem;
+        font-size: 0.9rem;
+    }
+
+    ul {
+        list-style-type: none;
+        padding-left: 0;
+        font-size: 0.85rem;
+
+        li {
+            margin-bottom: 0.25rem;
+        }
+    }
+}

@@ -9,7 +9,8 @@ const router = express.Router();
 // @route   GET /api/settings/employer
 // @desc    Get settings for the logged-in employer
 // @access  Private (Employer Only)
-router.get('/employer', protect, employerOnly, getEmployerSettings);
+// Changed: Now accessible by any authenticated user (protect), controller will handle role logic.
+router.get('/employer', protect, getEmployerSettings);
 
 // @route   PUT /api/settings/employer
 // @desc    Update settings for the logged-in employer
