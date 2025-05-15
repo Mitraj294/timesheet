@@ -4,7 +4,8 @@ import { removeAlert } from '../../redux/slices/alertSlice';
 import '../../styles/Alerts.scss';
 
 const Alert = () => {
-  const alerts = useSelector(state => state.alerts);
+  // Corrected selector to use 'state.alert' instead of 'state.alerts'
+  const alerts = useSelector(state => state.alert); 
   const dispatch = useDispatch();
 
   // Effect to automatically remove alerts after their specified timeout
@@ -12,7 +13,7 @@ const Alert = () => {
     const timers = alerts.map((alert) => {
       if (!alert || !alert.id || typeof alert.timeout !== 'number' || alert.timeout <= 0) {
         console.warn("Alert.js: Invalid alert object or timeout found:", alert);
-        return null; // Skip this one, don't want to crash the UI for a bad alert
+        return null; 
       }
       return setTimeout(() => {
         dispatch(removeAlert(alert.id));
@@ -20,14 +21,19 @@ const Alert = () => {
     });
 
       // Cleanup: clear any active timers when the component unmounts or the alerts array changes
-      return () => {
-        timers.forEach(timerId => timerId && clearTimeout(timerId));
-      };
+    return () => {
+      timers.forEach(timerId => {
+        if (timerId) {
+          clearTimeout(timerId);
+        }
+      });
+    };
   }, [alerts, dispatch]);
 
   return (
     <div className="alert-container">
-      {alerts.map(alert => {
+      {/* Ensure alerts is an array before mapping */}
+      {Array.isArray(alerts) && alerts.map(alert => { 
         // Basic check to ensure the alert object is somewhat valid before trying to render
         if (!alert || !alert.id) {
            console.error("Alert.js: Invalid alert object found during render:", alert);

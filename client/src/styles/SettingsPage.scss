@@ -1,27 +1,27 @@
 // /home/digilab/timesheet/client/src/styles/SettingsPage.scss
 
-// --- Theme Variables ---
-$primary-color: #4A5568; // A cool, professional gray for active items
-$secondary-color: #6c757d; // Secondary accents, default icon colors
-$text-color-dark: #212529; // For main titles and important text
-$text-color-medium: #495057; // For general text and labels
-$text-color-light: #6c757d; // For placeholder text or less important info
-$text-color-on-active: #ffffff; // Text color on active/primary backgrounds
+// --- Theme Variables (ensure these are defined or adjust as needed) ---
+$primary-color: #4A5568;
+$secondary-color: #6c757d;
+$text-color-dark: #212529;
+$text-color-medium: #495057;
+$text-color-light: #6c757d;
+$text-color-on-active: #ffffff;
 
-$background-page: #f7fafc; // A very light gray for the overall page background
-$background-panel: #ffffff; // Background for sidebar and content panels
-$background-hover: #e2e8f0; // A lighter gray for hover state for menu items
+$background-page: #f7fafc;
+$background-panel: #ffffff;
+$background-hover: #e2e8f0;
 
-$border-color-soft: #dee2e6; // Soft borders for separation
-$border-color-strong: #ced4da; // Stronger borders if needed
+$border-color-soft: #dee2e6;
+$border-color-strong: #ced4da;
 
-$panel-border-radius: 8px; // Consistent border radius for panels
-$item-border-radius: 6px; // Border radius for interactive items like menu links
+$panel-border-radius: 8px;
+$item-border-radius: 6px;
 $panel-box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05),
-    0 1px 2px rgba(0, 0, 0, 0.03); // Softer shadow
+    0 1px 2px rgba(0, 0, 0, 0.03);
 
 // --- Layout & Spacing Variables ---
-$navbar-height: 70px;
+$navbar-height: 70px; // Example value
 $settings-page-padding: 1.5rem;
 $panel-gap: 1.5rem;
 
@@ -39,7 +39,7 @@ $menu-item-icon-font-size: 1.1em;
 $content-panel-padding: 2rem;
 
 // --- Placeholder Specific Variables ---
-$placeholder-icon-color: $primary-color; // Use the new primary color for placeholder icon
+$placeholder-icon-color: $primary-color;
 $placeholder-icon-size: 3rem;
 $placeholder-title-color: $text-color-dark;
 $placeholder-title-size: 1.65rem;
@@ -52,7 +52,7 @@ $placeholder-text-size: 1.05rem;
     gap: $panel-gap;
     padding: $settings-page-padding;
     background-color: $background-page;
-    min-height: calc(100vh - #{$navbar-height}); // Ensure SCSS variable interpolation
+    min-height: calc(100vh - #{$navbar-height});
 }
 
 // --- Navigation Panel (Left Side) ---
@@ -93,7 +93,7 @@ $placeholder-text-size: 1.05rem;
 
             .menu-item-icon {
                 margin-right: $menu-item-icon-margin-right;
-                width: 20px; // Fixed width for alignment
+                width: 20px;
                 text-align: center;
                 font-size: $menu-item-icon-font-size;
                 color: $secondary-color;
@@ -102,7 +102,7 @@ $placeholder-text-size: 1.05rem;
 
             &:hover {
                 background-color: $background-hover;
-                color: darken($primary-color, 10%); // Darken the primary color slightly on hover for text
+                color: darken($primary-color, 10%);
 
                 .menu-item-icon {
                     color: darken($primary-color, 10%);
@@ -113,7 +113,7 @@ $placeholder-text-size: 1.05rem;
                 background-color: $primary-color;
                 color: $text-color-on-active;
                 font-weight: 600;
-                box-shadow: 0 3px 6px rgba(darken($primary-color, 15%), 0.22); // Slightly more pronounced shadow for active
+                box-shadow: 0 3px 6px rgba(darken($primary-color, 15%), 0.22);
 
                 .menu-item-icon {
                     color: $text-color-on-active;
@@ -133,13 +133,13 @@ $placeholder-text-size: 1.05rem;
     overflow-y: auto;
 }
 
-// --- Placeholder Section Styles (intended to be used within .settings-content-panel) ---
+// --- Placeholder Section Styles ---
 .settings-placeholder-content {
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    height: 100%; // Aims to fill the content panel if it's the only content
+    height: 100%;
     text-align: center;
     color: $placeholder-text-color;
 
@@ -168,13 +168,143 @@ $placeholder-text-size: 1.05rem;
     }
 }
 
+// --- Styles for specific settings sections (like VehicleSettingsSection, UserSettingsSection) ---
+.settings-section {
+    h3 {
+        font-size: 1.5rem;
+        color: $text-color-dark;
+        margin-top: 0;
+        margin-bottom: 1.5rem;
+        padding-bottom: 0.75rem;
+        border-bottom: 1px solid $border-color-soft;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+
+    p {
+        color: $text-color-medium;
+        line-height: 1.6;
+        margin-bottom: 1.5rem;
+    }
+
+    .settings-form {
+        .form-group {
+            margin-bottom: 1.5rem;
+
+            label {
+                display: block;
+                font-weight: 600;
+                color: $text-color-medium;
+                margin-bottom: 0.5rem;
+            }
+
+            .form-control,
+            select {
+                // This rule styles the <select> and other .form-control elements
+                width: 100%;
+                padding: 0.65rem 0.75rem;
+                font-size: 0.95rem;
+                line-height: 1.5;
+                color: $text-color-dark;
+                background-color: #fff;
+                background-clip: padding-box;
+                border: 1px solid $border-color-strong;
+                border-radius: $item-border-radius;
+                transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+                // For a more native select appearance, you might remove -webkit-appearance and related background properties
+                // Or, to customize the arrow, you'd add them back with a custom SVG.
+                // For simplicity and consistency with text inputs, the current styling is often preferred.
+
+                &:focus {
+                    border-color: lighten($primary-color, 20%);
+                    outline: 0;
+                    box-shadow: 0 0 0 0.2rem rgba($primary-color, 0.25);
+                }
+
+                &:disabled {
+                    background-color: $background-hover;
+                    opacity: 0.7;
+                }
+            }
+
+            .form-text {
+                font-size: 0.8rem;
+                color: $text-color-light;
+                margin-top: 0.25rem;
+            }
+        }
+
+        .form-footer {
+            margin-top: 2rem;
+            display: flex;
+            justify-content: flex-start;
+            gap: 0.75rem;
+        }
+    }
+}
+
+// Specific styles for the vehicle settings content (if any beyond .settings-section)
+.vehicle-settings-content {
+    // Example: if the select needs to be a specific width only in this section
+    // #showVehiclesTabSelect {
+    //   max-width: 300px; 
+    // }
+}
+
+// --- Modal Styles (for other modals like delete confirmation) ---
+.logout-confirm-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1050;
+}
+
+.logout-confirm-dialog {
+    background-color: #fff;
+    padding: 25px 30px;
+    border-radius: 8px;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+    text-align: center;
+    max-width: 400px;
+    width: 90%;
+
+    h4 {
+        margin-top: 0;
+        margin-bottom: 15px;
+        font-size: 1.3rem;
+        color: #333;
+    }
+
+    p {
+        margin-bottom: 20px;
+        font-size: 1rem;
+        color: #555;
+    }
+
+    .logout-confirm-actions {
+        display: flex;
+        justify-content: center;
+        gap: 10px;
+        flex-wrap: wrap;
+
+        .btn {
+            min-width: 100px;
+        }
+    }
+}
+
 // --- Responsive Adjustments ---
 @media (max-width: 992px) {
-
-    // Tablet and smaller
     .settings-page-container {
         flex-direction: column;
-        padding: $settings-page-padding / 1.5; // Reduce padding on smaller screens
+        padding: $settings-page-padding / 1.5;
     }
 
     .settings-navigation-panel {
@@ -185,8 +315,6 @@ $placeholder-text-size: 1.05rem;
 }
 
 @media (max-width: 768px) {
-
-    // Mobile
     .settings-navigation-panel {
         padding: $nav-panel-padding / 1.2;
 
@@ -197,7 +325,6 @@ $placeholder-text-size: 1.05rem;
         }
 
         .settings-menu-item {
-            // Apply scaling to each component of the padding
             padding: (nth($menu-item-padding, 1) * 0.9) (nth($menu-item-padding, 2) * 0.9);
 
             span {
@@ -225,6 +352,61 @@ $placeholder-text-size: 1.05rem;
 
         p {
             font-size: $placeholder-text-size * 0.95;
+        }
+    }
+}
+
+// --- Styles for Simple Card Layout (used by VehicleSettingsSection.js) ---
+.simple-card {
+    background: white;
+    padding: 2rem;
+    border-radius: 8px;
+    max-width: 400px; // Or adjust as needed, e.g., 100% within its container
+    margin: 0 auto; // Centers the card if its container allows
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+
+    h2 {
+        // Targets h2 within .simple-card
+        margin-top: 0; // Good practice to reset top margin for headings in cards
+        margin-bottom: 1.5rem;
+        font-size: 24px; // As per your request
+        font-weight: 600; // As per your request
+        color: $text-color-dark; // Using theme variable for consistency
+    }
+
+    // Scoping form-group and form-control within .simple-card
+    // if these styles are specific to this card type.
+    // If they are meant to be global, they can be outside.
+    // For now, assuming they are part of the .simple-card styling.
+    .form-group {
+        margin-bottom: 1.5rem; // As per your request
+    }
+
+    .form-control {
+        // This will style the select in VehicleSettingsSection
+        width: 100%;
+        padding: 0.5rem; // As per your request
+        font-size: 16px; // As per your request
+        border: 1px solid $border-color-strong; // Using theme variable
+        border-radius: $item-border-radius; // Using theme variable
+        // Add other standard form control styles if needed (e.g., focus, background)
+    }
+
+    // Styles for .btn-primary when used within .simple-card
+    // This will apply to the <button className="btn btn-primary">
+    // The base .btn styles will provide flex, etc. This adds specific appearance.
+    .btn.btn-primary {
+        // Making it more specific to override/combine with general .btn if needed
+        background-color: #a78bfa; // As per your request (violet/purple)
+        color: white;
+        padding: 0.5rem 1.5rem; // As per your request
+        border: none; // Overrides default .btn border
+        border-radius: 6px; // As per your request
+        cursor: pointer;
+
+        // Add hover/active states if desired
+        &:hover {
+            background-color: darken(#a78bfa, 10%);
         }
     }
 }

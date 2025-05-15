@@ -7,8 +7,7 @@ import { faTrashAlt, faSpinner, faExclamationCircle, faKey, faEye, faEyeSlash } 
 import { confirmAccountDeletion, logout, selectIsAuthLoading, selectAuthError, clearAuthError } from '../../redux/slices/authSlice'; // Corrected path
 import { setAlert } from '../../redux/slices/alertSlice'; // Corrected path
 import Alert from '../layout/Alert'; // Corrected path
-import '../styles/ConfirmDeleteAccountPage.scss'; // We'll create this SCSS file next
-
+import '../../styles/ConfirmDeleteAccountPage.scss';
 const ConfirmDeleteAccountPage = () => {
   const { token } = useParams();
   const navigate = useNavigate();

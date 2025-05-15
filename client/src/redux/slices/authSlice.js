@@ -266,9 +266,10 @@ const authSlice = createSlice({
   reducers: {
     // Handles user logout: clears user data, token, and resets auth flags.
     logout: (state) => {
-     
+      localStorage.removeItem('token'); // **CRUCIAL: Remove token from storage**
+      delete axios.defaults.headers.common['Authorization']; // Remove auth header
       state.user = null;
-     
+      state.token = null;
       state.isAuthenticated = false;
       state.isLoading = false;
       state.error = null;

@@ -26,8 +26,8 @@ export const fetchReviewsByVehicleId = createAsyncThunk(
       if (!token) return rejectWithValue('Authentication required.');
       // Endpoint might be /api/vehicles/vehicle/:vehicleId/reviews
       const response = await axios.get(`${API_URL}/vehicles/vehicle/${vehicleId}/reviews`, getAuthHeaders(token));
-      // Assuming the response includes vehicle info and reviews array: { vehicle: {...}, reviews: [...] }
-      return response.data.reviews || []; // Return only the reviews array
+      // The backend controller getVehicleReviewsByVehicleId sends the array directly.
+      return response.data || []; // Return the array directly
     } catch (error) {
       return rejectWithValue(getErrorMessage(error));
     }
@@ -38,7 +38,7 @@ export const fetchReviewsByVehicleId = createAsyncThunk(
 // reviewId: The ID of the review.
 export const fetchReviewById = createAsyncThunk(
   'vehicleReviews/fetchById',
-  async (reviewId, { getState, rejectWithValue }) => {
+    async (reviewId, { getState, rejectWithValue }) => { 
     try {
       const { token } = getState().auth;
       if (!token) return rejectWithValue('Authentication required.');
@@ -54,11 +54,15 @@ export const fetchReviewById = createAsyncThunk(
 // reviewData: Data for the new review.
 export const createVehicleReview = createAsyncThunk(
   'vehicleReviews/create',
-  async (reviewData, { getState, rejectWithValue }) => {
+    async ({ vehicleId, ...reviewData }, { getState, rejectWithValue }) => {
     try {
       const { token } = getState().auth;
       if (!token) return rejectWithValue('Authentication required.');
-      const response = await axios.post(`${API_URL}/vehicles/reviews`, reviewData, getAuthHeaders(token));
+      if (!vehicleId) {
+        return rejectWithValue('Vehicle ID is required to add a review.');
+      }
+      // Construct the correct URL with vehicleId
+      const response = await axios.post(`${API_URL}/vehicles/${vehicleId}/reviews`, reviewData, getAuthHeaders(token));
       return response.data;
     } catch (error) {
       return rejectWithValue(getErrorMessage(error));
@@ -71,11 +75,11 @@ export const createVehicleReview = createAsyncThunk(
 // params.reviewData: New data for the review.
 export const updateVehicleReview = createAsyncThunk(
   'vehicleReviews/update',
-  async ({ reviewId, reviewData }, { getState, rejectWithValue }) => {
+    async ({ reviewId, reviewData }, { getState, rejectWithValue }) => { // Removed unused vehicleId from parameters
     try {
       const { token } = getState().auth;
       if (!token) return rejectWithValue('Authentication required.');
-      const response = await axios.put(`${API_URL}/vehicles/reviews/${reviewId}`, reviewData, getAuthHeaders(token));
+         const response = await axios.put(`${API_URL}/vehicles/reviews/${reviewId}`, reviewData, getAuthHeaders(token));
       return response.data;
     } catch (error) {
       return rejectWithValue(getErrorMessage(error));

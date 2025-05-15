@@ -231,26 +231,30 @@ const Vehicles = () => {
               <FontAwesomeIcon icon={faPlus} /> Create Vehicle
             </Link>
           )}
-          <button
-            className='btn btn-purple'
-            onClick={toggleSendReport}
-            aria-expanded={showSendReport}
-            aria-controls="send-report-options"
-          >
-            <FontAwesomeIcon icon={faPaperPlane} /> Send Report
-          </button>
-          <button
-            className='btn btn-danger'
-            onClick={toggleDownloadReport}
-            aria-expanded={showDateRangePicker}
-            aria-controls="download-report-options"
-          >
-            <FontAwesomeIcon icon={faDownload} /> Download Report
-          </button>
+          {user?.role === 'employer' && ( // Conditionally render Send and Download buttons
+            <>
+              <button
+                className='btn btn-purple'
+                onClick={toggleSendReport}
+                aria-expanded={showSendReport}
+                aria-controls="send-report-options"
+              >
+                <FontAwesomeIcon icon={faPaperPlane} /> Send Report
+              </button>
+              <button
+                className='btn btn-danger'
+                onClick={toggleDownloadReport}
+                aria-expanded={showDateRangePicker}
+                aria-controls="download-report-options"
+              >
+                <FontAwesomeIcon icon={faDownload} /> Download Report
+              </button>
+            </>
+          )}
         </div>
       </div>
 
-      {showSendReport && (
+      {user?.role === 'employer' && showSendReport && ( // Also conditional here
         <div id="send-report-options" className='report-options-container send-report-container'>
           <h4>Send Vehicle Report</h4>
           {/* Errors for send operation are handled by the global Alert component via Redux state */}
@@ -305,7 +309,7 @@ const Vehicles = () => {
         </div>
       )}
 
-      {showDateRangePicker && (
+      {user?.role === 'employer' && showDateRangePicker && ( // Also conditional here
         <div id="download-report-options" className='report-options-container download-date-range'>
           <h4>Download Vehicle Report</h4>
           {/* Errors for download operation are handled by the global Alert component via Redux state */}
@@ -337,7 +341,7 @@ const Vehicles = () => {
             />
           </div>
           <button
-            className='btn btn-download-report'
+            className='btn btn-download-report' // Consider changing to btn-danger or a consistent report button style
             onClick={handleDownloadReport}
             disabled={reportStatus === 'loading'}
           >

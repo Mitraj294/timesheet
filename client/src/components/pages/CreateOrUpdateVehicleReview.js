@@ -39,7 +39,11 @@ import Alert from '../layout/Alert';
 import '../../styles/Forms.scss';
 
 const CreateOrUpdateVehicleReview = () => {
+  // const params = useParams(); 
+  // console.log('[CreateOrUpdateVehicleReview] Raw params from useParams():', params);
   const { vehicleId, reviewId } = useParams();
+  // console.log('[CreateOrUpdateVehicleReview] Destructured params - vehicleId:', vehicleId, 'reviewId:', reviewId);
+
   const navigate = useNavigate();
   const isEditMode = Boolean(reviewId);
 
@@ -59,6 +63,7 @@ const CreateOrUpdateVehicleReview = () => {
   const dispatch = useDispatch();
 
   // Redux state selectors
+  const { user } = useSelector((state) => state.auth || {}); // Get user from auth state
   const vehicle = useSelector(selectVehicleByIdState);
   const vehicleFetchStatus = useSelector(selectVehicleFetchStatus);
   const vehicleFetchError = useSelector(selectVehicleFetchError);
@@ -108,11 +113,15 @@ const CreateOrUpdateVehicleReview = () => {
     if (vehicleId && (!vehicle || vehicle._id !== vehicleId)) {
       dispatch(fetchVehicleById(vehicleId));
     }
-    if (employeeFetchStatus === 'idle' || !employees || employees.length === 0) {
-      dispatch(fetchEmployees());
+    // Fetch all employees ONLY if the user is not an employee (i.e., employer needs to select)
+    if (user?.role !== 'employee') {
+      if (employeeFetchStatus === 'idle' || !employees || employees.length === 0) {
+        dispatch(fetchEmployees());
+      }
     }
     // Fetch review data if in edit mode and it's not already loaded or is incorrect
     if (isEditMode && reviewId) {
+      // Ensure employeeId is not reset if editing
       if (!currentReview || currentReview._id !== reviewId) {
          dispatch(fetchReviewById(reviewId));
        }
@@ -120,7 +129,8 @@ const CreateOrUpdateVehicleReview = () => {
       // Reset form and review state for create mode
       setFormData(prev => ({
         dateReviewed: new Date().toISOString().split('T')[0], // Keep date default
-        employeeId: '',
+        // Pre-fill employeeId if logged-in user is an employee and has an employeeProfileId
+        employeeId: (user?.role === 'employee' && user?.employeeProfileId) ? user.employeeProfileId : '',
         oilChecked: false,
         vehicleChecked: false,
         vehicleBroken: false,
@@ -134,7 +144,7 @@ const CreateOrUpdateVehicleReview = () => {
     return () => {
       dispatch(clearReviewOperationStatus());
     };
-  }, [vehicleId, reviewId, isEditMode, dispatch]);
+  }, [vehicleId, reviewId, isEditMode, dispatch, vehicle, currentReview, employeeFetchStatus, employees, user]);
 
   // Sets default hours from the vehicle data when creating a new review
   useEffect(() => {
@@ -189,34 +199,87 @@ const CreateOrUpdateVehicleReview = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    // console.log('[handleSubmit] Start. vehicleId from component scope:', vehicleId, 'reviewId from component scope:', reviewId);
+
+    // Clear previous states
     setFormError(null);
     dispatch(clearReviewOperationStatus());
 
     const validationError = validateForm();
+    
+    // Most critical check: Is the identifier 'vehicleId' even known here?
+    // typeof is safe to use even if vehicleId was somehow not declared in this scope.
+    if (typeof vehicleId === 'undefined') {
+      // console.error('[handleSubmit] CRITICAL: typeof vehicleId is "undefined". This indicates a major issue with variable scope or declaration from useParams.');
+      dispatch(setAlert('Critical error: Vehicle ID context is lost. Cannot submit.', 'danger'));
+      setFormError('A critical error occurred with the Vehicle ID. Please refresh or contact support.');
+      return;
+    }
+
+    // Check if vehicleId has a falsy value (e.g., it's undefined, null, or an empty string from URL)
+    // This check comes AFTER the typeof check to ensure vehicleId is at least a declared variable.
+    if (!vehicleId) { 
+      // console.error('[handleSubmit] Error: vehicleId is falsy (e.g., undefined, null, empty string). Value:', vehicleId, '. Cannot submit review.');
+      dispatch(setAlert('Vehicle ID is missing or invalid. Cannot submit review.', 'danger'));
+      setFormError('Vehicle ID is missing or invalid. Operation cannot proceed.');
+      return;
+    }
+
     if (validationError) {
+      // console.warn('[handleSubmit] Validation Error:', validationError);
       dispatch(setAlert(validationError, 'warning'));
       setFormError(validationError);
       return;
     }
-
-    const payload = {
-      ...formData,
-      vehicle: vehicleId,
-      hours: parseFloat(formData.hours),
-    };
-
     try {
-      if (isEditMode && reviewId) {
-        await dispatch(updateVehicleReview({ reviewId, reviewData: payload })).unwrap();
-        dispatch(setAlert('Review updated successfully!', 'success'));
-      } else {
-        await dispatch(createVehicleReview(payload)).unwrap();
-        dispatch(setAlert('Review created successfully!', 'success'));
+      // Prepare the main body of the review data
+      const reviewDataForBody = {
+        ...formData,
+        hours: parseFloat(formData.hours),
+      };
+
+      // Logic for dateReviewed (conditionally removing it if editing and it's the default today's date)
+      if (isEditMode && reviewDataForBody.dateReviewed === new Date().toISOString().split('T')[0]) {
+        // This logic might need adjustment based on backend requirements.
+        // If the backend expects dateReviewed for updates, don't delete it.
+        // If sending today's date is fine, remove this block.
+        // delete reviewDataForBody.dateReviewed; 
+      } else if (!isEditMode && !reviewId) { 
+        // This block is for create mode.
+        // formData.dateReviewed is already part of reviewDataForBody.
+        // No specific action needed here unless there's a special case for create mode date.
       }
-      navigate(`/vehicles/view/${vehicleId}`);
+
+      // console.log('[handleSubmit] Submitting. Mode:', isEditMode ? 'edit' : 'create', 'Review ID:', reviewId, 'Vehicle ID for URL:', vehicleId);
+      // console.log('[handleSubmit] Payload for request body:', reviewDataForBody);
+
+      let operationSuccessful = false;
+      let successMessage = '';
+
+      if (isEditMode && reviewId) {
+        // The current `updateVehicleReview` thunk expects `reviewId` and `reviewData`.
+        await dispatch(updateVehicleReview({ reviewId, reviewData: reviewDataForBody })).unwrap();
+        operationSuccessful = true;
+        successMessage = 'Review updated successfully!';
+      } else {
+        // For create, the thunk expects { vehicleId, ...reviewData }
+        // vehicleId (from useParams) is for the URL, reviewDataForBody is for the request body.
+        await dispatch(createVehicleReview({ vehicleId: vehicleId, ...reviewDataForBody })).unwrap();
+        operationSuccessful = true;
+        successMessage = 'Review created successfully!';
+      }
+
+      if (operationSuccessful) {
+        dispatch(setAlert(successMessage, 'success'));
+        navigate(-1); // Go back to the previous page
+      }
     } catch (err) {
-      console.error('Error submitting review:', err);
-      dispatch(setAlert(err?.message || 'Failed to save review.', 'danger'));
+      console.error('Error submitting review:', err); // Keep a general error log
+      // console.error('[handleSubmit] err.message:', err.message); 
+      // console.error('[handleSubmit] err.name:', err.name); 
+      const errorMessage = err.payload?.message || err.message || 'Failed to save review. Please try again.';
+      dispatch(setAlert(errorMessage, 'danger'));
+      setFormError(errorMessage);
     }
   };
 
@@ -350,25 +413,39 @@ const CreateOrUpdateVehicleReview = () => {
               />
             </div>
 
-            <div className='form-group'>
-              <label htmlFor='employeeId'>Employee*</label>
-              <select
-                id='employeeId'
-                name='employeeId'
-                required
-                value={formData.employeeId}
-                onChange={handleChange}
-                disabled={isSaving || employeeFetchStatus === 'loading'}
-              >
-                <option value=''>-- Select Employee --</option>
-                {Array.isArray(employees) && employees.map((employee) => (
-                  <option key={employee._id} value={employee._id}>
-                    {employee.name}
-                  </option>
-                ))}
-              </select>
-              {employeeFetchStatus === 'loading' && <FontAwesomeIcon icon={faSpinner} spin style={{ marginLeft: '10px' }}/>}
-            </div>
+            {user?.role === 'employee' ? (
+              <div className='form-group'>
+                <label htmlFor='employeeNameDisplay'>Employee</label>
+                <input
+                  type='text'
+                  id='employeeNameDisplay'
+                  value={user.name || 'Current User'} // Display user's name from auth state
+                  readOnly
+                  disabled
+                  className='form-control-plaintext' // Optional: for styling as plain text
+                />
+              </div>
+            ) : (
+              <div className='form-group'>
+                <label htmlFor='employeeId'>Employee*</label>
+                <select
+                  id='employeeId'
+                  name='employeeId'
+                  required
+                  value={formData.employeeId}
+                  onChange={handleChange}
+                  disabled={isSaving || employeeFetchStatus === 'loading'}
+                >
+                  <option value=''>-- Select Employee --</option>
+                  {Array.isArray(employees) && employees.map((employee) => (
+                    <option key={employee._id} value={employee._id}>
+                      {employee.name}
+                    </option>
+                  ))}
+                </select>
+                {user?.role !== 'employee' && employeeFetchStatus === 'loading' && <FontAwesomeIcon icon={faSpinner} spin style={{ marginLeft: '10px' }}/>}
+              </div>
+            )}
 
             <div className='form-group'>
               <label htmlFor='hours'>Hours*</label>

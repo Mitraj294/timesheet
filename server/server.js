@@ -19,6 +19,7 @@ import roleRoutes from "./routes/roleRoutes.js";
 import scheduleRoutes from "./routes/scheduleRoutes.js";
 import vehicleRoutes from "./routes/vehicleRoutes.js";
 import userRoutes from './routes/userRoutes.js'; 
+import settingsRoutes from './routes/settingsRoutes.js'; // Import the new settings routes
 
 const app = express();
 
@@ -59,6 +60,7 @@ app.use(`${BASE_API_URL}/roles`, roleRoutes);
 app.use(`${BASE_API_URL}/schedules`, scheduleRoutes);
 app.use(`${BASE_API_URL}/vehicles`, vehicleRoutes);
 app.use(`${BASE_API_URL}/users`, userRoutes); // Mount userRoutes consistently
+app.use(`${BASE_API_URL}/settings`, settingsRoutes); // Mount the new settings routes
 // Root Route
 app.get("/", (req, res) => {
   res.send("TimeSheet Backend is Running...");

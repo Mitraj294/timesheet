@@ -1,3 +1,4 @@
+// /home/digilab/timesheet/server/controllers/vehicleController.js
 import PDFDocument from 'pdfkit';
 import ExcelJS from 'exceljs';
 import nodemailer from 'nodemailer';
@@ -7,13 +8,35 @@ import Employee from '../models/Employee.js'; // Assuming Employee model is used
 import mongoose from 'mongoose';
 
 
-// @desc    Get all vehicles for the logged-in employer
+// @desc    Get all vehicles for the logged-in user (employer sees their own, employee sees their employer's)
 // @route   GET /api/vehicles
-// @access  Private (Employer Only)
+// @access  Private
 export const getVehicles = async (req, res) => {
   try {
-    // req.user.id is available from the 'protect' and 'employerOnly' middleware
-    const vehicles = await Vehicle.find({ employerId: req.user.id }).sort({ createdAt: -1 });
+    let vehicles = [];
+    const loggedInUserId = req.user.id; // From 'protect' middleware
+    const loggedInUserRole = req.user.role;
+
+    if (loggedInUserRole === 'employer') {
+      // Employer sees all vehicles they own
+      vehicles = await Vehicle.find({ employerId: loggedInUserId }).sort({ createdAt: -1 });
+      console.log(`[vehicleController.getVehicles] Employer ${loggedInUserId} is fetching their vehicles. Found: ${vehicles.length}`);
+    } else if (loggedInUserRole === 'employee') {
+      // Employee sees all vehicles belonging to THEIR employer
+      const employeeRecord = await Employee.findOne({ userId: loggedInUserId }).select('employerId');
+      if (employeeRecord && employeeRecord.employerId) {
+        vehicles = await Vehicle.find({ employerId: employeeRecord.employerId }).sort({ createdAt: -1 });
+        console.log(`[vehicleController.getVehicles] Employee ${loggedInUserId} (Employer: ${employeeRecord.employerId}) is fetching vehicles. Found: ${vehicles.length}`);
+      } else {
+        console.log(`[vehicleController.getVehicles] Employee ${loggedInUserId} has no associated employerId or employee record. Returning empty list.`);
+        // No employer found for this employee, so they see no vehicles
+        vehicles = [];
+      }
+    } else {
+      // Handle other roles or scenarios if necessary, or deny access
+      console.log(`[vehicleController.getVehicles] User role ${loggedInUserRole} not explicitly handled for vehicle listing. Returning empty list.`);
+      return res.status(403).json({ message: "Access denied for this role." });
+    }
     res.json(vehicles);
   } catch (err) {
     console.error('Error fetching vehicles:', err);
@@ -21,18 +44,37 @@ export const getVehicles = async (req, res) => {
   }
 };
 
-// @desc    Get a single vehicle by ID for the logged-in employer
+// @desc    Get a single vehicle by ID
 // @route   GET /api/vehicles/:id
-// @access  Private (Employer Only)
+// @access  Private
 export const getVehicleById = async (req, res) => {
   try {
     if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
         return res.status(400).json({ message: 'Invalid vehicle ID format.' });
     }
-    const vehicle = await Vehicle.findOne({ _id: req.params.id, employerId: req.user.id });
-    if (!vehicle) {
-      return res.status(404).json({ message: "Vehicle not found or not associated with this employer." });
+    // Fetch the vehicle by ID without filtering by user/employer initially
+    const vehicle = await Vehicle.findById(req.params.id);
+
+    // --- Access Control Check ---
+    let employeeRecord = null;
+    if (req.user.role === 'employee') {
+        employeeRecord = await Employee.findOne({ userId: req.user.id }).select('employerId');
+        if (!employeeRecord || !employeeRecord.employerId) {
+            // Employee record not found or no employerId, deny access
+            return res.status(403).json({ message: "Access denied. Employee record not found or incomplete." });
+        }
     }
+
+    // Allow access if user is the employer who owns the vehicle
+    const isEmployerOwner = vehicle && vehicle.employerId.toString() === req.user.id.toString();
+    const isEmployeeOfOwner = req.user.role === 'employee' && employeeRecord && vehicle && vehicle.employerId.toString() === employeeRecord.employerId.toString();
+
+    if (!isEmployerOwner && !isEmployeeOfOwner) {
+        // Vehicle not found for the employer, or employee is trying to access a vehicle outside their employer's scope
+        return res.status(404).json({ message: "Vehicle not found or you do not have access." });
+    }
+    // --- End Access Control Check ---
+
     res.json(vehicle);
   } catch (err) {
     console.error('Error getting vehicle:', err);
@@ -159,38 +201,50 @@ export const deleteVehicle = async (req, res) => {
 
 // --- Vehicle Review Routes ---
 
-// @desc    Create a new vehicle review for a vehicle owned by the employer
-// @route   POST /api/vehicles/reviews
-// @access  Private (Employer Only or Employee if employeeId comes from req.user)
+// @desc    Create a new vehicle review
+// @route   POST /api/vehicles/:vehicleId/reviews
+// @access  Private (Authenticated users - employer or employee)
 export const createVehicleReview = async (req, res) => {
   try {
-    const { vehicle, dateReviewed, employeeId, oilChecked, vehicleChecked, vehicleBroken, notes, hours } = req.body;
+    const { vehicleId } = req.params; // vehicleId from URL
+    const { dateReviewed, oilChecked, vehicleChecked, vehicleBroken, notes, hours } = req.body;
+    const loggedInUserId = req.user.id;
+    const loggedInUserRole = req.user.role;
 
     // Validate required fields
-    if (!vehicle || !dateReviewed || !employeeId) {
-        return res.status(400).json({ message: 'Missing required review fields (vehicle, dateReviewed, employeeId)' });
+    if (!dateReviewed) {
+        return res.status(400).json({ message: 'Missing required review field: dateReviewed' });
+    }
+    if (!mongoose.Types.ObjectId.isValid(vehicleId)) {
+        return res.status(400).json({ message: 'Invalid vehicle ID format.' });
     }
 
-    // Check if the vehicle exists and belongs to the employer
-    const vehicleToReview = await Vehicle.findOne({ _id: vehicle, employerId: req.user.id });
+    // Find the employee record for the logged-in user (to get their Employee._id)
+    const employeeRecord = await Employee.findOne({ userId: loggedInUserId });
+    if (!employeeRecord) {
+        return res.status(404).json({ message: 'Employee record not found for the logged-in user.' });
+    }
+
+    // Check if the vehicle exists and if the user has permission to review it
+    const vehicleToReview = await Vehicle.findById(vehicleId);
     if (!vehicleToReview) {
-      return res.status(404).json({ message: 'Vehicle not found or not associated with this employer.' });
+      return res.status(404).json({ message: 'Vehicle not found.' });
     }
 
-    // Check if the employee exists and belongs to the employer
-    // (employeeId in req.body should be the _id of an Employee document)
-    const employeeForReview = await Employee.findOne({ _id: employeeId, employerId: req.user.id });
-    if (!employeeForReview) {
-      return res.status(404).json({ message: 'Employee not found or not associated with this employer.' });
+    // Access Control: Employer can review any of their vehicles.
+    // Employee can review vehicles belonging to their employer.
+    const isEmployerOwner = loggedInUserRole === 'employer' && vehicleToReview.employerId.toString() === loggedInUserId.toString();
+    const isEmployeeOfOwner = loggedInUserRole === 'employee' && employeeRecord.employerId && vehicleToReview.employerId.toString() === employeeRecord.employerId.toString();
+
+    if (!isEmployerOwner && !isEmployeeOfOwner) {
+        return res.status(403).json({ message: 'Access denied. You cannot review this vehicle.' });
     }
-    // If employeeId should be the logged-in user (if an employee is creating their own review)
-    // const employeeForReview = await Employee.findOne({ userId: req.user.id, employerId: req.user.id }); // if employeeId is from req.user
 
     const review = new VehicleReview({
-      vehicle,
-      dateReviewed: new Date(dateReviewed), // Ensure date is stored as Date object
-      employeeId,
-      oilChecked: oilChecked ?? false, // Default to false if not provided
+      vehicle: vehicleId,
+      dateReviewed: new Date(dateReviewed),
+      employeeId: employeeRecord._id, // Use the Employee document's _id
+      oilChecked: oilChecked ?? false,
       vehicleChecked: vehicleChecked ?? false,
       vehicleBroken: vehicleBroken ?? false,
       notes,
@@ -198,7 +252,6 @@ export const createVehicleReview = async (req, res) => {
     });
 
     await review.save();
-    // Optionally populate response
     const populatedReview = await VehicleReview.findById(review._id)
                                             .populate('vehicle', 'name wofRego')
                                             .populate('employeeId', 'name');
@@ -209,49 +262,89 @@ export const createVehicleReview = async (req, res) => {
   }
 };
 
-// @desc    Get all reviews for a specific vehicle owned by the employer
-// @route   GET /api/vehicles/:vehicleId/reviews
-// @access  Private (Employer Only)
+// @desc    Get all reviews for a specific vehicle
+// @route   GET /api/vehicles/vehicle/:vehicleId/reviews
+// @access  Private
 export const getVehicleReviewsByVehicleId = async (req, res) => {
   try {
     const { vehicleId } = req.params;
-
-    const vehicle = await Vehicle.findOne({ _id: vehicleId, employerId: req.user.id }).select('name wofRego');
-    if (!vehicle) {
-      return res.status(404).json({ message: 'Vehicle not found or not associated with this employer.' });
+    if (!mongoose.Types.ObjectId.isValid(vehicleId)) {
+        return res.status(400).json({ message: 'Invalid vehicle ID format.' });
     }
 
+    const vehicle = await Vehicle.findById(vehicleId);
+    if (!vehicle) {
+      return res.status(404).json({ message: 'Vehicle not found.' });
+    }
+
+    // --- Access Control Check ---
+    let employeeRecord = null;
+    if (req.user.role === 'employee') {
+        employeeRecord = await Employee.findOne({ userId: req.user.id }).select('employerId');
+         if (!employeeRecord || !employeeRecord.employerId) {
+            return res.status(403).json({ message: "Access denied. Employee record not found or incomplete." });
+        }
+    }
+
+    // Allow access if user is the employer who owns the vehicle
+    const isEmployerOwner = vehicle.employerId.toString() === req.user.id.toString();
+    const isEmployeeOfOwner = req.user.role === 'employee' && employeeRecord && vehicle.employerId.toString() === employeeRecord.employerId.toString();
+
+
+    if (!isEmployerOwner && !isEmployeeOfOwner) {
+        return res.status(404).json({ message: "Vehicle not found or you do not have access to its reviews." });
+    }
+    // --- End Access Control Check ---
+
     const reviews = await VehicleReview.find({ vehicle: vehicleId })
-      .populate('employeeId', 'name') // Vehicle already fetched
-      .sort({ dateReviewed: -1 }); // Sort by date descending
-    // Return vehicle info along with reviews
-    res.status(200).json({ vehicle, reviews });
-  } catch (err) {
+      .populate('employeeId', 'name')
+      .sort({ dateReviewed: -1 });
+    res.status(200).json(reviews); // Return just the reviews array
+  } catch (err){_id
     console.error('Error fetching reviews for vehicle:', err);
     res.status(500).json({ message: 'Server error while fetching vehicle reviews' });
   }
 };
 
-// @desc    Get a single vehicle review by its ID, ensuring it's for a vehicle owned by the employer
+// @desc    Get a single vehicle review by its ID
 // @route   GET /api/vehicles/reviews/:reviewId
-// @access  Private (Employer Only)
+// @access  Private
 export const getReviewById = async (req, res) => {
   try {
     const { reviewId } = req.params;
-    const review = await VehicleReview.findById(reviewId)
-      .populate('vehicle', 'name wofRego')
-      .populate('employeeId', 'name');
+    if (!mongoose.Types.ObjectId.isValid(reviewId)) {
+        return res.status(400).json({ message: 'Invalid review ID format.' });
+    }
+    // Fetch the review and populate the vehicle to check its employer
+    const review = await VehicleReview.findById(reviewId).populate('vehicle', 'name wofRego employerId'); // Populate employerId here
 
-    if (review && review.vehicle) {
-        const parentVehicle = await Vehicle.findById(review.vehicle._id);
-        if (!parentVehicle || parentVehicle.employerId.toString() !== req.user.id.toString()) {
-            return res.status(404).json({ message: 'Review not found or not associated with this employer.' });
+    // --- Access Control Check ---
+    let employeeRecord = null;
+    if (req.user.role === 'employee') {
+        employeeRecord = await Employee.findOne({ userId: req.user.id }).select('employerId');
+         if (!employeeRecord || !employeeRecord.employerId) {
+            return res.status(403).json({ message: "Access denied. Employee record not found or incomplete." });
         }
     }
 
-    if (!review) return res.status(404).json({ message: 'Review not found' });
+    // Allow access if user is the employer who owns the vehicle the review is for
+    // or if user is an employee and the vehicle belongs to their employer.
+    const isEmployerOwner = review && review.vehicle && review.vehicle.employerId && review.vehicle.employerId.toString() === req.user.id.toString();
+    const isEmployeeOfOwner = req.user.role === 'employee' && employeeRecord && review && review.vehicle && review.vehicle.employerId && review.vehicle.employerId.toString() === employeeRecord.employerId.toString();
 
-    res.status(200).json(review);
+    if (!review || !review.vehicle || (!isEmployerOwner && !isEmployeeOfOwner)) {
+        // This condition implies the review wasn't found OR the user doesn't have access to the vehicle it belongs to.
+        // For security, it's often better to return 404 if the user shouldn't even know it exists.
+        return res.status(404).json({ message: 'Review not found or access denied.' });
+    }
+    // --- End Access Control Check ---
+
+    // Repopulate employeeId for the response if needed by frontend
+    const finalReview = await VehicleReview.findById(review._id)
+                                .populate('vehicle', 'name wofRego')
+                                .populate('employeeId', 'name');
+
+    res.status(200).json(finalReview);
   } catch (err) {
     console.error('Error fetching review by ID:', err); // Keep detailed server log
     res.status(500).json({ message: 'Failed to fetch review' }); // Client-facing error
@@ -259,17 +352,35 @@ export const getReviewById = async (req, res) => {
 };
 
 
-// @desc    Get a vehicle (owned by employer) along with all its reviews
-// @route   GET /api/vehicles/:vehicleId/with-reviews
-// @access  Private (Employer Only)
+// @desc    Get a vehicle along with all its reviews
+// @route   GET /api/vehicles/vehicle-with-reviews/:vehicleId
+// @access  Private
 export const getVehicleWithReviews = async (req, res) => {
   try {
     const { vehicleId } = req.params;
-
-    const vehicle = await Vehicle.findOne({ _id: vehicleId, employerId: req.user.id });
-    if (!vehicle) {
-      return res.status(404).json({ message: 'Vehicle not found' });
+    if (!mongoose.Types.ObjectId.isValid(vehicleId)) {
+        return res.status(400).json({ message: 'Invalid vehicle ID format.' });
     }
+    // Fetch the vehicle by ID without filtering by user/employer initially
+    const vehicle = await Vehicle.findById(vehicleId);
+
+    // --- Access Control Check ---
+    let employeeRecord = null;
+    if (req.user.role === 'employee') {
+        employeeRecord = await Employee.findOne({ userId: req.user.id }).select('employerId');
+         if (!employeeRecord || !employeeRecord.employerId) {
+            return res.status(403).json({ message: "Access denied. Employee record not found or incomplete." });
+        }
+    }
+
+    const isEmployerOwner = vehicle && vehicle.employerId && vehicle.employerId.toString() === req.user.id.toString();
+    const isEmployeeOfOwner = req.user.role === 'employee' && employeeRecord && vehicle && vehicle.employerId && vehicle.employerId.toString() === employeeRecord.employerId.toString();
+
+    if (!isEmployerOwner && !isEmployeeOfOwner) {
+        return res.status(404).json({ message: "Vehicle not found or you do not have access." });
+    }
+    // --- End Access Control Check ---
+
 
     const reviews = await VehicleReview.find({ vehicle: vehicleId })
       .populate('employeeId', 'name') // No need to populate vehicle again if returning the full vehicle object
@@ -282,21 +393,38 @@ export const getVehicleWithReviews = async (req, res) => {
   }
 };
 
-// @desc    Update a vehicle review by its ID, ensuring it's for a vehicle owned by the employer
+// @desc    Update a vehicle review by its ID
 // @route   PUT /api/vehicles/reviews/:reviewId
-// @access  Private (Employer Only)
+// @access  Private
 export const updateReview = async (req, res) => {
   try {
     const { reviewId } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(reviewId)) {
+        return res.status(400).json({ message: 'Invalid review ID format.' });
+    }
+    // Fetch the review and populate the vehicle and employee to check ownership/employer
+    const reviewToUpdate = await VehicleReview.findById(reviewId).populate('vehicle').populate('employeeId'); // Populate employeeId to get its _id
 
-    const reviewToUpdate = await VehicleReview.findById(reviewId).populate('vehicle');
-    if (!reviewToUpdate || !reviewToUpdate.vehicle || reviewToUpdate.vehicle.employerId.toString() !== req.user.id.toString()) {
-        return res.status(404).json({ message: 'Review not found or not associated with this employer.' });
+    // --- Access Control Check ---
+    let employeeRecordForAccessCheck = null; // For checking if the logged-in employee owns the review
+    if (req.user.role === 'employee') {
+        employeeRecordForAccessCheck = await Employee.findOne({ userId: req.user.id }).select('_id'); // Get the Employee._id
+         if (!employeeRecordForAccessCheck) {
+            return res.status(403).json({ message: "Access denied. Employee record not found." });
+        }
     }
 
-    // Prevent changing vehicle/employee via this route.
-    // If employeeId can be changed, ensure the new employeeId also belongs to the employer.
-    const { vehicle, employeeId, ...updateData } = req.body; // Prevent changing vehicle/employee via this route
+    // Allow update if user is the employer who owns the vehicle the review is for
+    const isEmployerOwner = reviewToUpdate && reviewToUpdate.vehicle && reviewToUpdate.vehicle.employerId && reviewToUpdate.vehicle.employerId.toString() === req.user.id.toString();
+    // OR if user is the employee who created the review (match Employee._id)
+    const isReviewOwner = req.user.role === 'employee' && reviewToUpdate && reviewToUpdate.employeeId && reviewToUpdate.employeeId._id.toString() === employeeRecordForAccessCheck?._id.toString();
+
+    if (!reviewToUpdate || !reviewToUpdate.vehicle || (!isEmployerOwner && !isReviewOwner)) {
+        return res.status(403).json({ message: 'Access denied. You can only update your own reviews or reviews for vehicles you manage.' });
+    }
+
+    // Prevent changing vehicle/employeeId via this route.
+    const { vehicle, employeeId, ...updateData } = req.body;
 
     const updated = await VehicleReview.findByIdAndUpdate(reviewId, updateData, { new: true, runValidators: true })
                                       .populate('vehicle', 'name wofRego')
@@ -312,16 +440,34 @@ export const updateReview = async (req, res) => {
 };
 
 
-// @desc    Delete a vehicle review by its ID, ensuring it's for a vehicle owned by the employer
+// @desc    Delete a vehicle review by its ID
 // @route   DELETE /api/vehicles/reviews/:reviewId
-// @access  Private (Employer Only)
+// @access  Private
 export const deleteReview = async (req, res) => {
   try {
     const { reviewId } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(reviewId)) {
+        return res.status(400).json({ message: 'Invalid review ID format.' });
+    }
+    // Fetch the review and populate the vehicle and employee to check ownership/employer
+    const reviewToDelete = await VehicleReview.findById(reviewId).populate('vehicle').populate('employeeId'); // Populate employeeId
 
-    const reviewToDelete = await VehicleReview.findById(reviewId).populate('vehicle');
-    if (!reviewToDelete || !reviewToDelete.vehicle || reviewToDelete.vehicle.employerId.toString() !== req.user.id.toString()) {
-        return res.status(404).json({ message: 'Review not found or not associated with this employer.' });
+    // --- Access Control Check ---
+    let employeeRecordForAccessCheck = null;
+    if (req.user.role === 'employee') {
+        employeeRecordForAccessCheck = await Employee.findOne({ userId: req.user.id }).select('_id');
+         if (!employeeRecordForAccessCheck) {
+            return res.status(403).json({ message: "Access denied. Employee record not found." });
+        }
+    }
+
+    // Allow delete if user is the employer who owns the vehicle the review is for
+    const isEmployerOwner = reviewToDelete && reviewToDelete.vehicle && reviewToDelete.vehicle.employerId && reviewToDelete.vehicle.employerId.toString() === req.user.id.toString();
+    // OR if user is the employee who created the review
+    const isReviewOwner = req.user.role === 'employee' && reviewToDelete && reviewToDelete.employeeId && reviewToDelete.employeeId._id.toString() === employeeRecordForAccessCheck?._id.toString();
+
+    if (!reviewToDelete || !reviewToDelete.vehicle || (!isEmployerOwner && !isReviewOwner)) {
+        return res.status(403).json({ message: 'Access denied. You can only delete your own reviews or reviews for vehicles you manage.' });
     }
 
     const deletedReview = await VehicleReview.findByIdAndDelete(reviewId);
@@ -348,7 +494,7 @@ const generateReviewFilename = (review, extension) => {
 
 // @desc    Download a single vehicle review report (PDF or Excel)
 // @route   GET /api/vehicles/reviews/:reviewId/download
-// @access  Private (Employer Only)
+// @access  Private (Employer Only - as per route middleware)
 export const downloadReviewReport = async (req, res) => {
 const { reviewId } = req.params;
 const { format = 'pdf' } = req.query; // Default to pdf
@@ -358,10 +504,11 @@ if (!['pdf', 'excel'].includes(format)) {
 }
 
 try {
-  // Find the review and populate related vehicle and employee data
+  // Find the review and populate related vehicle and employee data for report generation
   const review = await VehicleReview.findById(reviewId)
     .populate('vehicle', 'name wofRego employerId') // Populate vehicle and include employerId for the check
     .populate('employeeId', 'name');
+  // Note: Access control for report download is handled by route middleware (employerOnly)
 
   // Check ownership: Ensure the review exists, is linked to a vehicle,
   // the vehicle has an employerId, and that employerId matches the logged-in user's ID.
@@ -369,6 +516,8 @@ try {
     // If any of these conditions are not met, the review is not found or not owned by this employer.
     return res.status(404).json({ message: 'Review not found' });
   }
+  // --- End Access Control Check ---
+
 
   // Proceed with report generation as the review is found and owned by the employer
   const filename = generateReviewFilename(review, format === 'pdf' ? 'pdf' : 'xlsx');
@@ -461,7 +610,7 @@ try {
 
 // @desc    Send a single vehicle review report via email
 // @route   POST /api/vehicles/reviews/:reviewId/send-email
-// @access  Private (Employer Only)
+// @access  Private (Employer Only - as per route middleware)
 export const sendReviewReportByClient = async (req, res) => {
   const { reviewId } = req.params;
   let { email, format = 'pdf' } = req.body; // Default to pdf
@@ -474,6 +623,7 @@ export const sendReviewReportByClient = async (req, res) => {
     return res.status(400).json({ message: 'Invalid format specified. Use "pdf" or "excel".' });
   }
   try {
+    // Note: Access control for report sending is handled by route middleware (employerOnly)
     // Load the review, vehicle and employee data
     const review = await VehicleReview.findById(reviewId)
       .populate('vehicle', 'name wofRego employerId') // Include employerId for ownership check
@@ -589,10 +739,11 @@ export const sendReviewReportByClient = async (req, res) => {
 
 // @desc    Download a multi-review report for a specific vehicle (Excel only)
 // @route   GET /api/vehicles/:vehicleId/report/download
-// @access  Private (Employer Only)
+// @access  Private (Employer Only - as per route middleware)
 export const downloadVehicleReport = async (req, res) => {
   try {
     const { vehicleId } = req.params;
+    // Note: Access control for report download is handled by route middleware (employerOnly)
     const { startDate, endDate } = req.query;
 
     // Validate inputs
@@ -614,6 +765,7 @@ export const downloadVehicleReport = async (req, res) => {
         end.setHours(23, 59, 59, 999);
     }
 
+    // Find the vehicle ensuring it belongs to the logged-in employer (as per employerOnly middleware)
     const vehicle = await Vehicle.findOne({ _id: vehicleId, employerId: req.user.id }).lean();
     if (!vehicle) {
         return res.status(404).json({ message: 'Vehicle not found or not associated with this employer.' });
@@ -731,10 +883,11 @@ export const downloadVehicleReport = async (req, res) => {
 
 // @desc    Send a multi-review report for a specific vehicle via email (Excel only)
 // @route   POST /api/vehicles/:vehicleId/report/send-email
-// @access  Private (Employer Only)
+// @access  Private (Employer Only - as per route middleware)
 export const sendVehicleReportByEmail = async (req, res) => {
   try {
     const { vehicleId } = req.params;
+    // Note: Access control for report sending is handled by route middleware (employerOnly)
     const { startDate, endDate, email } = req.body;
 
     // Validate inputs
@@ -746,6 +899,10 @@ export const sendVehicleReportByEmail = async (req, res) => {
     if (start && isNaN(start.getTime())) return res.status(400).json({ message: 'Invalid start date format.' });
     if (end && isNaN(end.getTime())) return res.status(400).json({ message: 'Invalid end date format.' });
     if (end) end.setHours(23, 59, 59, 999);
+
+    const formattedStart = start ? start.toLocaleDateString() : 'Start';
+    const formattedEnd = end ? end.toLocaleDateString() : 'End';
+    // Find the vehicle ensuring it belongs to the logged-in employer (as per employerOnly middleware)
 
     const vehicle = await Vehicle.findOne({ _id: vehicleId, employerId: req.user.id }).lean();
     if (!vehicle) {
@@ -765,9 +922,10 @@ export const sendVehicleReportByEmail = async (req, res) => {
                                         .sort({ dateReviewed: -1 });
 
     // Don't send email if no reviews, inform user
-    if (reviews.length === 0) {
-      return res.status(404).json({ message: 'No reviews found for this vehicle in the selected date range. Email not sent.' });
-    }
+    // if (reviews.length === 0) {
+    //   return res.status(404).json({ message: 'No reviews found for this vehicle in the selected date range. Email not sent.' });
+    // }
+
 
     // --- Generate Excel Workbook (Similar to downloadVehicleReport) ---
     // TODO: REFACTOR_EXCEL_VEHICLE_HISTORY - Use the same refactored helper as in downloadVehicleReport.
@@ -831,8 +989,6 @@ export const sendVehicleReportByEmail = async (req, res) => {
 
     // --- Write to buffer and Send Email ---
     const buffer = await workbook.xlsx.writeBuffer();
-    const formattedStart = start ? start.toLocaleDateString() : 'Start';
-    const formattedEnd = end ? end.toLocaleDateString() : 'End';
     const filename = `${vehicle.name.replace(/\s+/g, '_')}_Report_${formattedStart}_to_${formattedEnd}.xlsx`;
 
     const transporter = nodemailer.createTransport({
@@ -871,10 +1027,11 @@ export const sendVehicleReportByEmail = async (req, res) => {
 
 // @desc    Download a report for ALL vehicles and their reviews (Excel only)
 // @route   GET /api/vehicles/report/all/download
-// @access  Private (Employer Only)
+// @access  Private (Employer Only - as per route middleware)
 export const downloadAllVehiclesReport = async (req, res) => {
   try {
     const { startDate, endDate } = req.query;
+    // Note: Access control for report download is handled by route middleware (employerOnly)
 
     const start = startDate ? new Date(startDate) : null;
     const end = endDate ? new Date(endDate) : null;
@@ -889,14 +1046,6 @@ export const downloadAllVehiclesReport = async (req, res) => {
     }
 
     const vehicleIds = vehicles.map(v => v._id);
-
-    // Build review query
-    const reviewQueryBase = { vehicle: { $in: vehicleIds } };
-    if (start || end) {
-        reviewQueryBase.dateReviewed = {};
-        if (start) reviewQueryBase.dateReviewed.$gte = start;
-        if (end) reviewQueryBase.dateReviewed.$lte = end;
-    }
 
 
     const workbook = new ExcelJS.Workbook();
@@ -963,15 +1112,16 @@ export const downloadAllVehiclesReport = async (req, res) => {
 
 // @desc    Send a report for ALL vehicles and their reviews via email (Excel only)
 // @route   POST /api/vehicles/report/all/send-email
-// @access  Private (Employer Only)
+// @access  Private (Employer Only - as per route middleware)
 export const sendAllVehiclesReportByEmail = async (req, res) => {
   try {
     const { startDate, endDate, email } = req.body;
+    // Note: Access control for report sending is handled by route middleware (employerOnly)
 
     if (!email) {
       return res.status(400).json({ message: 'Recipient email address is required' });
     }
-
+    // Basic date validation
     const start = startDate ? new Date(startDate) : null;
     const end = endDate ? new Date(endDate) : null; // Corrected: was $lte = start
     if (start && isNaN(start.getTime())) return res.status(400).json({ error: 'Invalid start date format.' });
@@ -980,6 +1130,7 @@ export const sendAllVehiclesReportByEmail = async (req, res) => {
 
     const formattedStart = start ? start.toLocaleDateString() : 'Start';
     const formattedEnd = end ? end.toLocaleDateString() : 'End';
+    // Fetch all vehicles
 
     // Fetch all vehicles
     const vehicles = await Vehicle.find({ employerId: req.user.id }).lean();
@@ -989,7 +1140,7 @@ export const sendAllVehiclesReportByEmail = async (req, res) => {
 
     const vehicleIds = vehicles.map(v => v._id);
 
-    // Build review query
+    // Build review query for all vehicles within the date range
     const reviewQueryBase = { vehicle: { $in: vehicleIds } };
     if (start || end) {
         reviewQueryBase.dateReviewed = {};
@@ -1019,11 +1170,11 @@ export const sendAllVehiclesReportByEmail = async (req, res) => {
         // Removed review-specific columns
     ];
     const workbook = new ExcelJS.Workbook();
-    workbook.creator = 'Vehicle Management System';
-    workbook.created = new Date();
+    workbook.creator = 'Vehicle Management System'; // Optional metadata
+    workbook.created = new Date(); // Creation date
     const mainSheet = workbook.addWorksheet('All Vehicles Report');
     mainSheet.columns = columns;
-    mainSheet.getRow(1).font = { bold: true, name: 'Calibri' };
+    mainSheet.getRow(1).font = { bold: true, name: 'Calibri' }; // Header row font
     mainSheet.getRow(1).alignment = { vertical: 'middle', horizontal: 'center' };
 
 

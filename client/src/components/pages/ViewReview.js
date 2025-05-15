@@ -49,6 +49,7 @@ const ViewReview = () => {
   const dispatch = useDispatch();
 
   // Redux state selectors
+  const { user } = useSelector((state) => state.auth || {}); // Get user from auth state
   const reviewData = useSelector(selectCurrentReviewData);
   const fetchStatus = useSelector(selectCurrentReviewStatus);
   const fetchError = useSelector(selectCurrentReviewError);
@@ -195,27 +196,30 @@ const ViewReview = () => {
             <span className='breadcrumb-current'>View Review</span>
           </div>
         </div>
-        <div className='header-actions'>
-          <button
-            className='btn btn-purple'
-            onClick={() => setShowEmailPrompt(true)}
-            aria-controls="email-prompt-view-review"
-            aria-expanded={showEmailPrompt}
-          >
-            <FontAwesomeIcon icon={faPaperPlane} /> Send Report
-          </button>
-          <button
-            className='btn btn-danger'
-            onClick={() => setShowDownloadPrompt(true)}
-            aria-controls="download-prompt-view-review"
-            aria-expanded={showDownloadPrompt}
-          >
-            <FontAwesomeIcon icon={faDownload} /> Download Report
-          </button>
-        </div>
+        {user?.role === 'employer' && (
+          <div className='header-actions'>
+            <button
+              className='btn btn-purple'
+              onClick={() => setShowEmailPrompt(true)}
+              aria-controls="email-prompt-view-review"
+              aria-expanded={showEmailPrompt}
+            >
+              <FontAwesomeIcon icon={faPaperPlane} /> Send Report
+            </button>
+            <button
+              className='btn btn-danger'
+              onClick={() => setShowDownloadPrompt(true)}
+              aria-controls="download-prompt-view-review"
+              aria-expanded={showDownloadPrompt}
+            >
+              <FontAwesomeIcon icon={faDownload} /> Download Report
+            </button>
+          </div>
+        )}
       </div>
 
-      {showDownloadPrompt && (
+      {/* Ensure prompts are also conditionally rendered or handled if buttons are hidden */}
+      {user?.role === 'employer' && showDownloadPrompt && (
         <div className='prompt-overlay'>
           <div id="download-prompt-view-review" className='prompt-container'>
             <h4 className='prompt-title'>Download Report</h4>
@@ -246,7 +250,7 @@ const ViewReview = () => {
         </div>
       )}
 
-      {showEmailPrompt && (
+      {user?.role === 'employer' && showEmailPrompt && (
         <div className='prompt-overlay'>
           <div id="email-prompt-view-review" className='prompt-container'>
             <h4 className='prompt-title'>Send Report via Email</h4>

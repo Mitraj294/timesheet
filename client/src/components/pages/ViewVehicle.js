@@ -276,12 +276,32 @@ const ViewVehicle = () => {
           </div>
         </div>
         <div className='header-actions'>
-          {user?.role === 'employer' && (
+          {(user?.role === 'employer' || user?.role === 'employee') && ( // Allow employees to create reviews
             <button className='btn btn-success' onClick={handleCreateReviewClick}>
               <FontAwesomeIcon icon={faPlus} /> Create Review
             </button>
           )}
-          <button
+          {user?.role === 'employer' && ( // Keep report actions for employer only
+            <>
+              <button
+                className='btn btn-purple'
+                onClick={toggleSendReport}
+                aria-expanded={showSendReport}
+                aria-controls="send-report-options-view"
+              >
+                <FontAwesomeIcon icon={faPaperPlane} /> Send Report
+              </button>
+              <button
+                className='btn btn-danger'
+                onClick={toggleDownloadReport}
+                aria-expanded={showDateRangePicker}
+                aria-controls="download-report-options-view"
+              >
+                <FontAwesomeIcon icon={faDownload} /> Download Report
+              </button>
+            </>
+          )}
+          {/* <button
             className='btn btn-purple'
             onClick={toggleSendReport}
             aria-expanded={showSendReport}
@@ -296,11 +316,11 @@ const ViewVehicle = () => {
             aria-controls="download-report-options-view"
           >
             <FontAwesomeIcon icon={faDownload} /> Download Report
-          </button>
+          </button> */}
         </div>
       </div>
 
-      {showSendReport && (
+      {user?.role === 'employer' && showSendReport && ( // Ensure report UI is employer-only
         <div id="send-report-options-view" className='report-options-container send-report-container'>
           <h4>Send Report for {vehicle?.name}</h4>
           {/* Errors for send operation are handled by the global Alert component via Redux state */}
@@ -355,7 +375,7 @@ const ViewVehicle = () => {
         </div>
       )}
 
-      {showDateRangePicker && (
+      {user?.role === 'employer' && showDateRangePicker && ( // Ensure report UI is employer-only
         <div id="download-report-options-view" className='report-options-container download-date-range'>
           <h4>Download Report for {vehicle?.name}</h4>
           {/* Errors for download operation are handled by the global Alert component via Redux state */}
@@ -474,7 +494,7 @@ const ViewVehicle = () => {
                     <FontAwesomeIcon icon={faPen} />
                   </Link>
                 )}
-                {(user?.role === 'employer' || user?.name === item.employeeId?.name) && (
+                {user?.role === 'employer' && (
                   <button
                     onClick={() => handleDeleteClick(item._id, item.employeeId?.name)}
                     disabled={isDeletingReview}

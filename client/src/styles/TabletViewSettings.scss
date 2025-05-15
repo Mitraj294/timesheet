@@ -1,0 +1,78 @@
+// /home/digilab/timesheet/client/src/styles/TabletViewSettings.scss
+
+.tablet-view-settings-card {
+    padding: 20px;
+    background-color: #fff;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.07); // Softened shadow
+    margin-top: 1.5rem; // Consistent with other sections
+    border: 1px solid #e2e8f0; // Light border
+
+    h3.tablet-view-title {
+        font-size: 1.25rem; // Slightly smaller title for section
+        color: #2d3748; // Darker gray for title
+        margin-bottom: 1.5rem;
+        padding-bottom: 0.75rem;
+        border-bottom: 1px solid #e2e8f0;
+        font-weight: 600;
+    }
+}
+
+.tablet-view-input {
+    margin-bottom: 1.25rem;
+
+    .select-slim-label {
+        display: block;
+        margin-bottom: 0.5rem;
+        font-weight: 500; // Medium weight
+        font-size: 0.875rem;
+        color: #4a5568; // Gray for label
+    }
+
+    select {
+        width: 100%;
+        padding: 0.65rem 0.75rem; // Adjusted padding
+        border: 1px solid #cbd5e0; // Softer border color
+        border-radius: 0.375rem; // Standard border radius
+        box-sizing: border-box;
+        background-color: #fff;
+        color: #2d3748;
+        font-size: 0.9rem;
+        transition: border-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+
+        &:focus {
+            border-color: #4299e1; // Blue border on focus
+            box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.5);
+            outline: none;
+        }
+
+        &:disabled {
+            background-color: #e2e8f0; // Disabled background
+            cursor: not-allowed;
+        }
+    }
+}
+
+.tablet-view-button-group {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 1.5rem;
+
+    .btn-primary {
+        // Assuming you have global .btn and .btn-primary styles
+        // If not, define them here or in a global stylesheet
+        // Example:
+        // padding: 0.65rem 1.25rem;
+        // font-size: 0.9rem;
+        // font-weight: 500;
+    }
+
+    .button-text {
+        margin-left: 0.5rem;
+    }
+}
+
+// Add styles for FontAwesome icons if needed, e.g., color, size within buttons
+.tablet-view-button-group .btn svg {
+    margin-right: 0.25rem; // Space between icon and text if icon is first
+}
