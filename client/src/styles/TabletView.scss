@@ -1,5 +1,43 @@
 // /home/digilab/timesheet/client/src/styles/TabletView.scss
 
+// --- SCSS Variables ---
+$font-family-base: 'Segoe UI', sans-serif;
+
+// Colors
+$primary-color: #6f42c1; // Violet
+$success-color: #28a745; // Green
+$danger-color: #dc3545; // Red
+$info-color: #007bff; // Blue (for links)
+
+$text-color-dark: #333;
+$text-color-medium: #495057;
+$text-color-light: #6c757d;
+$text-color-white: #ffffff;
+
+$background-light: #f8f9fa;
+$background-header: #f0eaff; // For grid header
+$background-disabled: #e9ecef;
+$background-white: #ffffff;
+
+$border-color-light: #e9ecef;
+$border-color-medium: #ced4da; // Input border
+$border-color-dark: #d1c4e9; // Grid header border
+$border-focus-color: #80bdff; // Input focus
+$box-shadow-focus-color: rgba(0, 123, 255, 0.25);
+
+// Spacing & Sizing
+$spacing-xs: 0.25rem;
+$spacing-sm: 0.5rem;
+$spacing-md: 0.75rem;
+$spacing-lg: 1rem;
+$spacing-xl: 1.25rem;
+$spacing-xxl: 1.5rem;
+
+$border-radius-sm: 4px;
+$border-radius-md: 8px;
+
+$modal-backdrop-color: rgba(0, 0, 0, 0.4);
+
 // --- Common Page Wrapper for TabletView ---
 .tv-page-wrapper {
     width: 100%;
@@ -8,35 +46,35 @@
     margin: 0 auto;
     display: flex;
     flex-direction: column;
-    gap: 1.5rem;
+    gap: $spacing-xxl;
     min-height: calc(100vh - 60px); // Adjust 60px if your navbar height is different
     box-sizing: border-box;
-    font-family: 'Segoe UI', sans-serif; // Example font, match your app's font
+    font-family: $font-family-base;
 
-    &.modal-open-background {
-        // If you want to affect the main page content when a modal is open (e.g., blur it)
-        // filter: blur(3px); // Example
-    }
+    // &.modal-open-background {
+    //     // If you want to affect the main page content when a modal is open (e.g., blur it)
+    //     // filter: blur(3px); // Example
+    // }
 
 }
 
 // --- Breadcrumb Styles ---
 .tv-breadcrumbs-container {
-    margin-bottom: 1.5rem;
-    padding: 0.5rem 0;
+    margin-bottom: $spacing-xxl;
+    padding: $spacing-sm 0;
 
     .tv-page-title {
         font-size: 1.75rem;
         font-weight: 700;
-        color: #333;
-        margin: 0 0 0.25rem 0;
+        color: $text-color-dark;
+        margin: 0 0 $spacing-xs 0;
     }
 
     .tv-breadcrumbs-links {
         display: flex;
         align-items: center;
         font-size: 0.9rem;
-        color: #6c757d;
+        color: $text-color-light;
 
         .tv-breadcrumb-link-wrapper {
             display: flex;
@@ -44,7 +82,7 @@
         }
 
         .tv-breadcrumb-link {
-            color: #007bff;
+            color: $info-color;
             text-decoration: none;
 
             &:hover {
@@ -53,8 +91,8 @@
         }
 
         .tv-breadcrumb-separator {
-            margin: 0 0.5rem;
-            color: #6c757d;
+            margin: 0 $spacing-sm;
+            color: $text-color-light;
             font-weight: 700;
         }
 
@@ -76,11 +114,11 @@
 
 // Card style for initial password prompt AND modal content
 .tv-card {
-    background: white;
-    padding: 2rem 2.5rem;
-    border-radius: 8px;
+    background: $background-white;
+    padding: $spacing-xxl * 1.2 $spacing-xxl * 1.5; // approx 2rem 2.5rem
+    border-radius: $border-radius-md;
     box-shadow: 0 6px 18px rgba(0, 0, 0, 0.12);
-    max-width: 420px;
+    max-width: 500px; // Increased width
     width: 100%;
     text-align: center;
     box-sizing: border-box;
@@ -89,20 +127,21 @@
 .tv-card-heading {
     font-size: 1.25rem;
     font-weight: 700;
-    margin-bottom: 1.5rem;
-    color: #333;
+    margin-bottom: $spacing-xxl;
+    color: $text-color-dark;
 }
 
 .tv-form {
     display: flex;
     flex-direction: column;
-    gap: 1.25rem;
+    gap: $spacing-xl;
 }
 
 .tv-input-margin-bottom {
-    margin-bottom: 0.5rem;
+    margin-bottom: $spacing-sm;
 }
 
+// Base input container, used by password prompt and search
 .input-container {
     // This is a more generic class, used by password prompt
     position: relative;
@@ -111,20 +150,20 @@
     width: 100%;
 }
 
+// Base input style, used by password prompt and extended by tv-input (for modals)
 .form-input {
-    // Base input style, used by password prompt and extended by tv-input
     width: 100%;
-    padding: 0.85rem 1rem;
-    border: 1px solid #ced4da;
-    border-radius: 4px;
+    padding: $spacing-md + $spacing-xs $spacing-lg; // approx 0.85rem 1rem
+    border: 1px solid $border-color-medium;
+    border-radius: $border-radius-sm;
     font-size: 1rem;
     box-sizing: border-box;
     transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
 
     &:focus {
-        border-color: #80bdff;
+        border-color: $border-focus-color;
         outline: 0;
-        box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+        box-shadow: 0 0 0 0.2rem $box-shadow-focus-color;
     }
 }
 
@@ -138,7 +177,7 @@
     .toggle-password-icon {
         position: absolute;
         right: 12px;
-        color: #6c757d;
+        color: $text-color-light;
         cursor: pointer;
         z-index: 2;
     }
@@ -148,25 +187,24 @@
     margin-top: 1rem;
 }
 
-.button-tablet {
-    // Base button style for tablet view
-    padding: 0.85rem 1.5rem;
+// --- Button Styles ---
+// Base for most buttons in TabletView
+.tv-button {
+    padding: $spacing-md + $spacing-xs $spacing-xxl; // approx 0.85rem 1.5rem
     font-size: 1rem;
     font-weight: 600;
     border: none;
-    border-radius: 4px;
+    border-radius: $border-radius-sm;
     cursor: pointer;
     transition: background-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out, opacity 0.15s ease-in-out;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    gap: 0.5em;
+    gap: $spacing-sm; // 0.5em
     text-decoration: none;
-    color: white;
-    width: 100%;
 
     &:disabled {
-        background-color: #adb5bd;
+        background-color: $text-color-light; // A common disabled color
         cursor: not-allowed;
         opacity: 0.65;
     }
@@ -174,36 +212,67 @@
     &:not(:disabled):hover {
         opacity: 0.85;
     }
-}
 
-.button-proceed.button-violet {
-    @extend .button-tablet;
-    background-color: #6f42c1;
+    // Modifier for solid background buttons
+    &--solid {
+        color: $text-color-white;
+        width: 100%; // Default for solid buttons in forms
 
-    &:not(:disabled):hover {
-        background-color: darken(#6f42c1, 8%);
+        &.tv-button--violet {
+            background-color: $primary-color;
+
+            &:not(:disabled):hover {
+                background-color: darken($primary-color, 8%);
+            }
+        }
+
+        &.tv-button--green {
+            background-color: $success-color;
+
+            &:not(:disabled):hover {
+                background-color: darken($success-color, 8%);
+            }
+        }
+
+        &.tv-button--auto-width {
+            width: auto;
+        }
     }
-}
 
-.button-proceed.button-green {
-    // Used by Log Time Modal button via @extend
-    @extend .button-tablet;
-    background-color: #28a745;
+    // Modifier for text-style buttons (transparent background)
+    &--text {
+        background-color: transparent;
+        width: auto; // Default for text buttons
 
-    &:not(:disabled):hover {
-        background-color: darken(#28a745, 8%);
+        &.tv-button--red {
+            color: $danger-color;
+
+            &:not(:disabled):hover {
+                background-color: rgba($danger-color, 0.08);
+                color: darken($danger-color, 10%);
+            }
+        }
+
+        &.tv-button--green {
+            color: $success-color;
+
+            &:not(:disabled):hover {
+                background-color: rgba($success-color, 0.08);
+                color: darken($success-color, 10%);
+            }
+        }
     }
 }
 
 // --- Verified View Styles ---
 .tv-main-content-card {
-    background-color: #ffffff;
-    padding: 1.5rem;
-    border-radius: 8px;
+    background-color: $background-white;
+    padding: $spacing-xxl;
+    border-radius: $border-radius-md;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.07);
     display: flex;
     flex-direction: column;
-    gap: 1.5rem;
+    gap: $spacing-xxl;
     width: 100%;
     flex-grow: 1;
 }
@@ -212,9 +281,9 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    gap: 1rem;
-    padding-bottom: 1rem;
-    border-bottom: 1px solid #e9ecef;
+    gap: $spacing-lg;
+    padding-bottom: $spacing-lg;
+    border-bottom: 1px solid $border-color-light;
 
     .search-input-container {
         @extend .input-container;
@@ -229,45 +298,49 @@
         .search-icon {
             position: absolute;
             right: 10px;
-            color: #6c757d;
+            color: $text-color-light;
         }
+    }
+
+    // Specific styling for the "Exit Tablet View" button
+    .tv-button-exit-view {
+        @extend .tv-button; // Inherit base tv-button styles
+        @extend .tv-button--text; // Make it a text-style button
+        @extend .tv-button--red; // Make it red
+        padding: $spacing-md $spacing-lg; // approx 0.65rem 1rem
     }
 }
 
-.button-exit.button-text-red {
-    @extend .button-tablet;
-    background-color: transparent;
-    color: #dc3545;
-    padding: 0.65rem 1rem;
-    width: auto;
-
-    &:not(:disabled):hover {
-        background-color: rgba(220, 53, 69, 0.08);
-        color: darken(#dc3545, 10%);
-    }
+// Styles for buttons within the employee grid (Sign In / Sign Out)
+.tv-button-grid-action {
+    @extend .tv-button; // Inherit base tv-button styles
+    @extend .tv-button--text; // Make it a text-style button
+    padding: $spacing-sm $spacing-lg; // approx 0.5rem 1rem
+    font-size: 0.9rem;
+    min-width: 90px;
 }
 
 .tv-employee-grid {
     display: grid;
     grid-template-columns: 1fr auto;
     gap: 0;
-    border: 1px solid #dee2e6;
-    border-radius: 8px;
+    border: 1px solid $border-color-medium;
+    border-radius: $border-radius-md;
     overflow: hidden;
 
     .tv-grid-column {
-        padding: 0.85rem 1.25rem;
+        padding: $spacing-md + $spacing-xs $spacing-xl; // approx 0.85rem 1.25rem
         text-align: left;
-        border-bottom: 1px solid #e9ecef;
+        border-bottom: 1px solid $border-color-light;
 
         &.tv-grid-header {
             font-weight: 600;
-            background-color: #f0eaff;
-            color: #495057;
-            border-bottom: 1px solid #d1c4e9;
+            background-color: $background-header;
+            color: $text-color-medium;
+            border-bottom: 1px solid $border-color-dark;
 
             &:first-child {
-                border-right: 1px solid #d1c4e9;
+                border-right: 1px solid $border-color-dark;
             }
         }
 
@@ -286,35 +359,20 @@
     }
 }
 
-.button-sign-in.button-text-green {
-    @extend .button-tablet;
-    background-color: transparent;
-    color: #28a745;
-    padding: 0.5rem 1rem;
-    font-size: 0.9rem;
-    min-width: 90px;
-    width: auto;
-
-    &:not(:disabled):hover {
-        background-color: rgba(40, 167, 69, 0.08);
-        color: darken(#28a745, 10%);
-    }
-}
-
 .error-text {
-    color: #dc3545;
+    color: $danger-color;
     font-size: 0.875rem;
     text-align: left;
-    margin-top: 0.25rem;
-    padding-left: 0.25rem;
+    margin-top: $spacing-xs;
+    padding-left: $spacing-xs;
 }
 
 .loading-text,
 .tv-no-results {
     text-align: center;
-    color: #6c757d;
+    color: $text-color-light;
     font-style: italic;
-    padding: 2rem 1rem;
+    padding: $spacing-xxl * 1.2 $spacing-lg; // approx 2rem 1rem
 }
 
 .tv-no-results {
@@ -329,12 +387,27 @@
     left: 0;
     right: 0;
     bottom: 0;
-    background-color: rgba(0, 0, 0, 0.4);
+    background-color: $modal-backdrop-color;
     display: flex;
     justify-content: center;
     align-items: center;
     z-index: 1050;
     backdrop-filter: blur(3px);
+}
+
+// --- Base Modal Close Button Style ---
+.modal-close-button {
+    background: none;
+    border: none;
+    font-size: 1.25rem; // Controls the size of the Font Awesome icon
+    color: $text-color-light;
+    cursor: pointer;
+    padding: $spacing-xs; // Small clickable area around the icon
+    line-height: 1; // Helps with vertical alignment
+
+    &:hover {
+        color: $text-color-dark; // Darken icon on hover
+    }
 }
 
 .modal-content {
@@ -343,29 +416,11 @@
     flex-direction: column;
     max-height: 90vh;
     overflow: hidden;
-}
-
-.modal-header {
-    // Base modal header (used by Employee Password Modal)
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding-bottom: 0.5rem;
+    padding-bottom: $spacing-sm;
 
-    .modal-close-button {
-        // Base close button style
-        background: none;
-        border: none;
-        font-size: 1.25rem;
-        color: #6c757d;
-        cursor: pointer;
-        padding: 0.25rem;
-        line-height: 1;
-
-        &:hover {
-            color: #343a40;
-        }
-    }
 }
 
 .modal-body {
@@ -395,13 +450,13 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding-bottom: 1rem;
-    margin-bottom: 0.5rem;
-    border-bottom: 1px solid #e9ecef;
+    padding-bottom: $spacing-lg;
+    margin-bottom: $spacing-sm;
+    border-bottom: 1px solid $border-color-light;
     // Text styles (formerly from complex classes)
     font-size: 1.25rem; // from styles_Text___heading___xxs__GKKzO
     font-weight: 700; // from styles_Text___heading___xxs__GKKzO
-    color: #333; // from styles_Text___n___0__288bs
+    color: $text-color-dark; // from styles_Text___n___0__288bs
 }
 
 .tv-modal-close-button {
@@ -414,12 +469,12 @@
 }
 
 .tv-modal-content {
-    padding: 0.5rem 1rem;
+    padding: $spacing-sm $spacing-lg;
     overflow-y: auto;
     max-height: 60vh;
     display: flex;
     flex-direction: column;
-    gap: 1rem;
+    gap: $spacing-lg;
 }
 
 .tv-input-container,
@@ -436,7 +491,7 @@
         // Actual textarea element
         @extend .form-input; // Inherit base form input styles
         order: 2; // Input below label for floating effect
-        padding-top: 1.5rem; // Make more space for label
+        padding-top: $spacing-xxl; // Make more space for label
         padding-bottom: 0.75rem;
 
         &.tv-input-with-icon,
@@ -448,7 +503,7 @@
         &:disabled,
         &.tv-input-disabled {
             // Modifier for disabled state
-            background-color: #e9ecef;
+            background-color: $background-disabled;
             cursor: not-allowed;
         }
     }
@@ -464,30 +519,30 @@
     .tv-textarea-label {
         // Label text for textareas
         position: absolute;
-        top: 1rem;
-        left: 0.75rem; // Aligned with icon padding
+        top: $spacing-lg;
+        left: $spacing-md; // Aligned with icon padding
         font-size: 1rem; // from styles_Text___body___md__6riP4
-        color: #6c757d;
+        color: $text-color-light;
         font-weight: 500; // from styles_Text___n___500__3UEGt
         pointer-events: none;
         transition: all 0.2s ease-out;
         order: 1;
-        background-color: white;
-        padding: 0 0.25rem;
+        background-color: $background-white;
+        padding: 0 $spacing-xs;
 
         &.tv-input-label-active,
         // Active state (e.g., on focus or has value)
         &:has(+ .tv-input:not(:placeholder-shown):not([type="time"]):not(select)),
         // If input has value (excluding time/select)
         &:has(+ .tv-textarea:not(:placeholder-shown)),
-        // If textarea has value
+        // If textarea has value (placeholder-shown is more reliable for textareas)
         &:has(+ .tv-input:focus),
         // If input is focused
         &:has(+ .tv-textarea:focus) {
             // If textarea is focused
-            top: 0.25rem;
+            top: $spacing-xs;
             font-size: 0.75rem;
-            color: #495057;
+            color: $text-color-medium;
         }
 
         // Specific for icon version
@@ -500,10 +555,10 @@
     // Special handling for time inputs and selects as :placeholder-shown doesn't work well
     .tv-input[type="time"]+.tv-input-label,
     select.tv-input+.tv-input-label {
-        // If it's a select or time input, always float the label
-        top: 0.25rem;
+        // If it's a select or time input, always float the label (active style)
+        top: $spacing-xs;
         font-size: 0.75rem;
-        color: #495057;
+        color: $text-color-medium;
     }
 
 
@@ -512,28 +567,28 @@
     .tv-textarea-icon {
         // Icon for textareas
         position: absolute;
-        left: 0.75rem;
+        left: $spacing-md;
         top: 50%;
         transform: translateY(-50%);
-        color: #6c757d;
+        color: $text-color-light;
         order: 0;
-        margin-top: 0.3rem; // Adjust to align with input text after label moves
+        margin-top: calc(#{$spacing-xs} + 1px); // Adjust to align with input text after label moves
     }
 }
 
 .tv-mt-1 {
     // Margin top utility
-    margin-top: 1rem;
+    margin-top: $spacing-lg;
 }
 
 .tv-checkbox-input {
-    margin-right: 0.5rem;
+    margin-right: $spacing-sm;
     vertical-align: middle;
 }
 
 .tv-checkbox-label {
     font-size: 0.9rem;
-    color: #333;
+    color: $text-color-dark;
     vertical-align: middle;
     cursor: pointer;
 }
@@ -541,15 +596,15 @@
 .tv-modal-footer {
     padding-top: 1.5rem;
     border-top: 1px solid #e9ecef;
-    margin-top: 1rem;
+    margin-top: $spacing-lg;
     text-align: right;
 
-    .tv-button.tv-button-primary.tv-button-green {
+    .tv-button-footer-action {
         // Specific button in footer
-        @extend .button-tablet; // Base tablet button
-        @extend .button-proceed; // Proceed variant (might define color or specific padding)
-        @extend .button-green; // Green color variant
-        width: auto;
+        @extend .tv-button;
+        @extend .tv-button--solid; // Make it solid
+        @extend .tv-button--green; // Make it green
+        @extend .tv-button--auto-width; // Make its width auto
         min-width: 120px;
     }
 }
@@ -560,19 +615,19 @@
 .tv-modal-content .error-text {
     // For Log Time Modal
     text-align: center;
-    margin-top: 0.5rem;
+    margin-top: $spacing-sm;
     margin-bottom: 0;
-    color: #dc3545;
+    color: $danger-color;
     font-size: 0.875rem;
 }
 
 // Styles for the Log Time Summary section (added in a previous step)
 .log-time-summary {
-    padding: 0.75rem 1rem;
-    background-color: #f8f9fa;
-    border-top: 1px solid #e9ecef;
-    border-bottom: 1px solid #e9ecef;
-    margin-top: 1rem;
+    padding: $spacing-md $spacing-lg;
+    background-color: $background-light;
+    border-top: 1px solid $border-color-light;
+    border-bottom: 1px solid $border-color-light;
+    margin-top: $spacing-lg;
 
     p {
         margin-bottom: 0.5rem;
@@ -585,7 +640,7 @@
         font-size: 0.85rem;
 
         li {
-            margin-bottom: 0.25rem;
+            margin-bottom: $spacing-xs;
         }
     }
 }

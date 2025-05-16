@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom'; // Import Link for breadcrumbs
 import { setAlert } from '../../redux/slices/alertSlice'; // Corrected path
 import axios from 'axios'; // Import axios directly
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faCheckCircle, faTimesCircle, faSpinner, faEnvelopeOpenText, faUsersCog } from '@fortawesome/free-solid-svg-icons'; // Added faUsersCog for header
+import { faCheckCircle, faTimesCircle, faSpinner, faEnvelopeOpenText} from '@fortawesome/free-solid-svg-icons'; 
 import '../../styles/ManageInvitations.scss'; // Corrected path
 
 const ManageInvitations = () => {
@@ -114,7 +114,7 @@ const ManageInvitations = () => {
       <div className="page-header">
         <div className="title-breadcrumbs">
           <h2>
-            <FontAwesomeIcon icon={faUsersCog} /> Manage Invitations
+          Manage Invitations
           </h2>
           <div className="breadcrumbs">
             <Link to="/dashboard" className="breadcrumb-link">Dashboard</Link>

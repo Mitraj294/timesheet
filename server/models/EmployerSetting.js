@@ -3,9 +3,9 @@ import mongoose from 'mongoose';
 const EmployerSettingSchema = new mongoose.Schema({
   employerId: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'User', // Assuming your User model is named 'User'
+    ref: 'User', 
     required: true,
-    unique: true, // Each employer should have only one settings document
+    unique: true, 
   },
   tabletViewRecordingType: {
     type: String,
@@ -18,11 +18,11 @@ const EmployerSettingSchema = new mongoose.Schema({
   },
   showVehiclesTabInSidebar: {
     type: Boolean,
-    default: true, // Default to showing the tab
+    // No default value; will be undefined if not explicitly set
   },
-  // You can add more employer-specific settings here in the future
+ 
 }, {
-  timestamps: true, // Adds createdAt and updatedAt timestamps
+  timestamps: true,
 });
 
 const EmployerSetting = mongoose.model('EmployerSetting', EmployerSettingSchema);

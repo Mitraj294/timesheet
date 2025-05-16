@@ -78,8 +78,7 @@ const Sidebar = () => {
     }
 
     // Define which paths are generally allowed for each role
-    // Remove "/vehicles" from default role paths. It will be added based on the setting.
-    // Add "/tablet-view" to employee allowed paths
+    // "/vehicles" will be added conditionally based on the setting.
     const employeeAllowedPaths = new Set(["/dashboard", "/timesheet", "/rosterpage", "/clients", "/tablet-view"]);
     const employerAllowedPaths = new Set(["/dashboard", "/map", "/timesheet", "/rosterpage", "/clients", "/employees", "/tablet-view"]);
 
@@ -96,7 +95,7 @@ const Sidebar = () => {
     // This applies to both roles, as the role-specific filtering above no longer includes/excludes vehicles by default.
     if (showVehiclesTabSetting) {
         const vehiclesItem = baseMenuItems.find(item => item.path === "/vehicles");
-        // Ensure it's a valid base item and not somehow already added (though it shouldn't be with current logic)
+        // Ensure it's a valid base item and not somehow already added
         if (vehiclesItem && !itemsToDisplay.some(item => item.path === "/vehicles")) {
             itemsToDisplay.push(vehiclesItem);
         }

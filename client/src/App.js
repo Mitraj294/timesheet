@@ -101,12 +101,12 @@ const AppContent = () => {
     }
   }, [dispatch]);
 
-  // Effect to fetch employer settings after user is authenticated and is an employer
+  // Effect to fetch employer settings after user is authenticated, regardless of role
   useEffect(() => {
-    if (isAuthenticated && user?.role === 'employer') {
+    if (isAuthenticated && user?.id) { // Only dispatch if authenticated and user object has an ID
       dispatch(fetchEmployerSettings());
     }
-  }, [dispatch, isAuthenticated, user]); // Dependencies ensure this runs when auth state changes
+  }, [dispatch, isAuthenticated, user?.id]); // Depend on user.id to ensure fetch happens after user is loaded
   
   return (
     <LayoutWrapper>

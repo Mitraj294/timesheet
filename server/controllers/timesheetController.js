@@ -22,11 +22,18 @@ const calculateTotalHours = (startTime, endTime, lunchBreak, lunchDuration) => {
 
   let totalMinutes = end.diff(start, "minutes");
 
-  if (lunchBreak === "Yes" && lunchDuration && /^\d{2}:\d{2}$/.test(lunchDuration)) {
+  if (lunchBreak === "Yes" && lunchDuration && /^\d{2}:\d{2}$/.test(lunchDuration) && totalMinutes > 0) {
     const [h, m] = lunchDuration.split(":").map(Number);
     const lunchMinutes = h * 60 + m;
     if (lunchMinutes > 0) {
+      // Only deduct lunch if the actual work duration is greater than the lunch duration
+      if (totalMinutes > lunchMinutes) {
         totalMinutes -= lunchMinutes;
+      } else {
+        // If work duration is less than or equal to lunch, implies no work time, or lunch wasn't effectively taken from this short period.
+        // In this case, totalMinutes remains the short work duration.
+        // If policy dictates it should be 0, then this 'else' isn't needed and Math.max will handle it.
+      }
     }
   }
   const finalTotalMinutes = Math.max(0, totalMinutes);
@@ -302,9 +309,9 @@ export const getTimesheetById = async (req, res) => {
   }
 };
 
-// @desc    Update an existing timesheet entry
+// @desc    Update a timesheet entry
 // @route   PUT /api/timesheets/:id
-// @access  Private (e.g., Employee, Employer)
+// @access  Private
 export const updateTimesheet = async (req, res) => {
   try {
     const { id } = req.params;
@@ -312,14 +319,46 @@ export const updateTimesheet = async (req, res) => {
         return res.status(400).json({ message: "Invalid Timesheet ID format" });
     }
 
+    // Fetch the existing timesheet document
     const timesheet = await Timesheet.findById(id);
     if (!timesheet) return res.status(404).json({ message: "Timesheet not found" });
 
-    const updatedData = buildTimesheetData({ ...req.body, employeeId: timesheet.employeeId });
+    // For a sign-out, the req.body will typically contain:
+    // { date (original), endTime, lunchBreak, lunchDuration, notes }
+    // We need to preserve other fields like startTime, hourlyWage, timezone, etc.
+    // from the existing 'timesheet' document.
 
-    Object.assign(timesheet, updatedData);
+    // Selectively update fields from req.body
+    // This ensures that fields not present in req.body (like startTime, hourlyWage, original timezone) are preserved.
+    if (req.body.date) timesheet.date = req.body.date; // Should be the original date
+    if (req.body.endTime) timesheet.endTime = new Date(req.body.endTime); // Ensure it's a Date object
+    if (req.body.lunchBreak !== undefined) timesheet.lunchBreak = req.body.lunchBreak;
+    if (req.body.lunchDuration !== undefined) timesheet.lunchDuration = req.body.lunchDuration;
+    if (req.body.notes !== undefined) timesheet.notes = req.body.notes;
+    
+    // If other fields like clientId, projectId, leaveType, description could be updated by this endpoint,
+    // they should also be handled conditionally:
+    // if (req.body.clientId !== undefined) timesheet.clientId = req.body.clientId ? req.body.clientId : null;
+    // if (req.body.projectId !== undefined) timesheet.projectId = req.body.projectId ? req.body.projectId : null;
+    // if (req.body.leaveType) timesheet.leaveType = req.body.leaveType;
+    // if (req.body.description !== undefined) timesheet.description = req.body.description;
+    // if (req.body.hourlyWage !== undefined) timesheet.hourlyWage = parseFloat(req.body.hourlyWage) || 0;
+    // if (req.body.timezone && moment.tz.zone(req.body.timezone)) timesheet.timezone = req.body.timezone;
+
+
+    // Recalculate totalHours using the (preserved) startTime and new endTime
+    if (timesheet.startTime && timesheet.endTime) {
+        timesheet.totalHours = calculateTotalHours(
+            timesheet.startTime, // Preserved from the fetched document
+            timesheet.endTime,   // Updated from req.body
+            timesheet.lunchBreak,
+            timesheet.lunchDuration
+        );
+    } else {
+        timesheet.totalHours = 0; // Or handle as an error if startTime is missing
+    }
+
     timesheet.updatedAt = Date.now();
-
     const savedTimesheet = await timesheet.save();
     res.json({ message: "Timesheet updated successfully", timesheet: savedTimesheet });
   } catch (error) {

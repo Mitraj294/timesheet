@@ -102,8 +102,13 @@ export const registerUser = async (req, res) => {
   }
 };
 
-const generateToken = (userId, userRole) => {
-  return jwt.sign({ id: userId, role: userRole }, process.env.JWT_SECRET, {
+const generateToken = (userId, userRole, employerId = null) => {
+  const payload = { id: userId, role: userRole };
+  // Only include employerId in the token if the user is an employee and employerId is provided
+  if (userRole === USER_ROLES.EMPLOYEE && employerId) {
+    payload.employerId = employerId;
+  }
+  return jwt.sign(payload, process.env.JWT_SECRET, {
     expiresIn: JWT_EXPIRY,
   });
 };
@@ -125,7 +130,21 @@ export const loginUser = async (req, res) => {
       return res.status(401).json({ message: "Invalid credentials" });
     }
 
-    const token = generateToken(user._id, user.role);
+    // For employees, try to find their associated employerId from the Employee model using their User ID
+    let employerIdForToken = null;
+    if (user.role === USER_ROLES.EMPLOYEE) {
+      console.log(`[authController.loginUser] Attempting to find Employee record for userId: ${user._id}`); // Log attempt
+      const employeeRecord = await Employee.findOne({ userId: user._id }).select('employerId');
+      if (employeeRecord) {
+        employerIdForToken = employeeRecord.employerId;
+        console.log(`[authController.loginUser] Found Employee record for userId ${user._id}, employerId: ${employerIdForToken}`); // Log success
+      } else {
+        console.warn(`[authController.loginUser] No Employee record found for userId: ${user._id}. Cannot include employerId in token.`); // Log failure to find record
+      }
+    }
+
+    console.log(`[authController.loginUser] Generating token for user ${user._id}, role ${user.role}, final employerId for token: ${employerIdForToken}`); // Log final employerId used for token
+    const token = generateToken(user._id, user.role, employerIdForToken);
 
     res.json({
       token,
@@ -136,7 +155,8 @@ export const loginUser = async (req, res) => {
         role: user.role,
         country: user.country,
         phoneNumber: user.phoneNumber,
-        companyName: user.companyName
+        companyName: user.companyName,
+        ...(user.role === USER_ROLES.EMPLOYEE && employerIdForToken && { employerId: employerIdForToken }), // Optionally include in response
       }
     });
 

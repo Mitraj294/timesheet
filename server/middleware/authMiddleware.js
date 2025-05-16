@@ -25,6 +25,16 @@ export const protect = async (req, res, next) => {
           return res.status(401).json({ message: "Not authorized, user not found" });
       }
 
+      // If the user is an employee and the token contains employerId, attach it to req.user
+      // This relies on employerId being present in the decoded JWT payload.
+      if (req.user.role === 'employee' && decoded.employerId) {
+        req.user.employerId = decoded.employerId;
+        console.log(`[${new Date().toISOString()}] Protect middleware: Attached employerId ${decoded.employerId} for employee ${req.user.email}.`);
+      } else if (req.user.role === 'employee' && !decoded.employerId) {
+        // Log if an employee token is missing the employerId - helps diagnose JWT generation issues
+        console.warn(`[${new Date().toISOString()}] Protect middleware: Employee token for ${req.user.email} is missing employerId in JWT payload.`);
+      }
+
       console.log(`[${new Date().toISOString()}] Protect middleware: Token verified for user ${req.user.email}. Proceeding.`);
       next(); // Proceed to the next middleware/route handler
     } catch (error) {

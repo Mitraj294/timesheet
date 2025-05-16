@@ -1,83 +1,85 @@
 // /home/digilab/timesheet/client/src/components/setting/VehicleSettingsSection.js
 import React, { useState, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { 
-    updateEmployerSettings, 
-    selectShowVehiclesTabInSidebar, 
-    selectSettingsStatus 
+import {
+    updateEmployerSettings,
+    selectShowVehiclesTabInSidebar, // Re-import this selector
+    selectSettingsStatus
 } from '../../redux/slices/settingsSlice';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faCar, faSave, faSpinner } from '@fortawesome/free-solid-svg-icons';
+import { faSpinner, faSave } from '@fortawesome/free-solid-svg-icons'; // Added faSave
+// Link import removed as breadcrumbs are removed
+import '../../styles/VehicleSettingsSection.scss';
 
 const VehicleSettingsSection = () => {
   const dispatch = useDispatch();
-  
-  // Get the persisted setting and API status from Redux
+
+  // Get the setting from the Redux store
   const showVehiclesTabFromStore = useSelector(selectShowVehiclesTabInSidebar);
   const settingsStatus = useSelector(selectSettingsStatus);
   const isSaving = settingsStatus === 'loading';
 
-  // Local state to manage the dropdown's current selection before saving
+  // Local state for the select input, initialized from the store
   const [localShowVehiclesTab, setLocalShowVehiclesTab] = useState(showVehiclesTabFromStore);
 
-  // Sync local state if the Redux store's version changes (e.g., after initial fetch or successful save)
+  // Effect to update local state if the store value changes (e.g., after fetching settings)
   useEffect(() => {
-      setLocalShowVehiclesTab(showVehiclesTabFromStore);
+      // Ensure that we are not in an undefined state before setting
+      if (typeof showVehiclesTabFromStore === 'boolean') {
+        setLocalShowVehiclesTab(showVehiclesTabFromStore);
+      }
   }, [showVehiclesTabFromStore]);
-  
-  // Update local state when the select dropdown changes
+
   const handleSelectChange = (e) => {
       const newValue = e.target.value === 'true';
-      setLocalShowVehiclesTab(newValue); 
+      setLocalShowVehiclesTab(newValue);
   };
 
-  // Handle form submission to save the staged setting
   const handleSubmit = (e) => {
     e.preventDefault();
-    // Dispatch the update thunk with the locally staged value
     dispatch(updateEmployerSettings({ showVehiclesTabInSidebar: localShowVehiclesTab }));
   };
 
   return (
-    <div className="simple-card"> {/* Ensure this class matches your SCSS */}
-      <h2><FontAwesomeIcon icon={faCar} /> Vehicle Settings</h2>
-      <p>Configure visibility options for vehicle-related features.</p>
-      
-      <form onSubmit={handleSubmit}>
-        <div className="form-group"> {/* Ensure this class matches your SCSS */}
-          <label htmlFor="showVehiclesTabSelect">Show "Vehicles" Tab in Main Navigation?</label>
-          <select
-            id="showVehiclesTabSelect"
-            name="showVehiclesTabSelect" // Good practice to have a name
-            value={localShowVehiclesTab.toString()} // Bind to local state
-            onChange={handleSelectChange} 
-            disabled={isSaving} 
-            className="form-control" // Ensure this class matches your SCSS
-          >
-            <option value="true">Yes, show the tab</option>
-            <option value="false">No, hide the tab</option>
-          </select>
-          <small className="form-text text-muted">
-            This controls whether the "Vehicles" link appears in the main sidebar navigation.
-          </small>
-        </div>
+    // Adopt structure similar to TabletViewSettingsSection
+    <div className="tablet-view-settings-card"> {/* Using class from TabletViewSettings */}
+      <div>
+        <h3 className="tablet-view-title">Vehicle Settings</h3> {/* Using class from TabletViewSettings */}
+        <form onSubmit={handleSubmit}>
+          {/* Adopt input structure from TabletViewSettings */}
+          <div className="tablet-view-input select-input" id="vehicleSettingsShowVehiclesTab">
+            <p className="select-slim-label">Show Vehicles Tab in Sidebar?</p>
+            <select
+              id="showVehiclesTabSelect"
+              name="showVehiclesTabSelect"
+              value={localShowVehiclesTab.toString()}
+              onChange={handleSelectChange}
+              disabled={isSaving}
+              // className="form-control" // form-control class removed to match TabletViewSettings select styling
+            >
+              <option value="true">Yes</option>
+              <option value="false">No</option>
+            </select>
+          </div>
 
-        <div className="form-footer"> {/* Ensure this class matches your SCSS */}
-           <button
-             type="submit"
-             className="btn btn-primary" // Ensure .btn and .btn-primary are styled
-             disabled={isSaving}
-           >
-             {isSaving ? (
-                <><FontAwesomeIcon icon={faSpinner} spin /> Saving...</>
-             ) : (
-                <><FontAwesomeIcon icon={faSave} /> Update Settings</>
-             )}
-           </button>
-        </div>
-      </form>
+          {/* Adopt button group structure from TabletViewSettings */}
+          <div className="tablet-view-button-group">
+            <button
+              type="submit"
+              className="btn btn-primary" // Assuming .btn and .btn-primary are globally styled or defined below
+              disabled={isSaving}
+            >
+              {isSaving ? (
+                <FontAwesomeIcon icon={faSpinner} spin />
+              ) : (
+                <FontAwesomeIcon icon={faSave} />
+              )}
+              <span className="button-text">{isSaving ? 'Saving...' : 'Update '}</span>
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 };
-
 export default VehicleSettingsSection;

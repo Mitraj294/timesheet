@@ -3,7 +3,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios'; // Make sure axios is imported
 import '../../styles/TabletView.scss';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faEye, faEyeSlash, faSignOutAlt, faSearch, faLockOpen, faArrowLeft, faSpinner, faTimes, faPen, faCalendarAlt, faUtensils, faStickyNote, faClock } from '@fortawesome/free-solid-svg-icons';
+import { faEye, faEyeSlash,faSignInAlt, faSignOutAlt, faSearch,  faArrowLeft, faSpinner, faTimes, faPen, faCalendarAlt, faUtensils, faStickyNote, faClock } from '@fortawesome/free-solid-svg-icons';
 import { useSelector, useDispatch } from 'react-redux';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import {
@@ -12,9 +12,17 @@ import {
   selectSettingsStatus as selectEmployerSettingsStatus // Alias to avoid conflict if other settingsStatus is used
 } from '../../redux/slices/settingsSlice';
 import { selectAuthUser, setTabletViewUnlocked, selectIsTabletViewUnlocked } from '../../redux/slices/authSlice';
-import { setAlert } from '../../redux/slices/alertSlice'; // Import setAlert for user feedback
-import { createTimesheet } from '../../redux/slices/timesheetSlice'; // Import createTimesheet
+import { setAlert } from '../../redux/slices/alertSlice';
+import {
+  createTimesheet,
+  updateTimesheet, // Import updateTimesheet
+  checkTimesheetExists, // Import checkTimesheetExists
+  clearCheckStatus, // Import to clear check status
+  selectTimesheetCheckStatus, // To monitor check status
+  selectTimesheetCheckResult // To get check result
+} from '../../redux/slices/timesheetSlice';
 
+import { DateTime } from 'luxon'; // Import Luxon
 const TabletView = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
@@ -68,6 +76,14 @@ const TabletView = () => {
   const [isSubmittingLogTime, setIsSubmittingLogTime] = useState(false);
   const [logTimeError, setLogTimeError] = useState(null);
 
+  // State for active clock-ins: { employeeId: { id: timesheetId, date: timesheetDate } }
+  const [activeClockIns, setActiveClockIns] = useState({});
+  const [showSignInSuccessModal, setShowSignInSuccessModal] = useState(false);
+  const [signInSuccessMessage, setSignInSuccessMessage] = useState("");
+
+  // State to track initial status checks
+  const [initialStatusChecked, setInitialStatusChecked] = useState(false);
+
 
   // --- Effects ---
 
@@ -78,10 +94,15 @@ const TabletView = () => {
     setEmployeeFetchError(null);
     try {
        if (currentUser.role === 'employer') {
-        const response = await axios.get(`/api/employees`);
+        // Employers should fetch employees associated with them
+        const response = await axios.get(`/api/employees`); // Ensure backend scopes this to the employer
         setEmployees(response.data || []);
        } else if (currentUser.role === 'employee') {
-         setEmployees(currentUser ? [currentUser] : []);
+         // Employees should fetch their own record
+         // This ensures the `_id` field is consistently available.
+         // Assumes an endpoint like /api/employees/me or similar that returns the logged-in employee's full record.
+         const response = await axios.get(`/api/employees/me`);
+         setEmployees(response.data ? [response.data] : []);
        } else {
          setEmployees([]);
        }
@@ -92,13 +113,16 @@ const TabletView = () => {
     } finally {
       setIsLoadingEmployees(false);
     }
-  }, [currentUser]);
+  }, [currentUser?.id, currentUser?.role, dispatch]); // Added dispatch, refined currentUser dependency
 
   useEffect(() => {
     if (isTabletViewUnlocked && currentUser?.id) {
       fetchEmployeesCallback();
+      // When employees are (re)fetched, reset initialStatusChecked
+      // so that the status check runs for the (potentially new) list of employees.
+      setInitialStatusChecked(false);
     }
-  }, [isTabletViewUnlocked, currentUser?.id, fetchEmployeesCallback]);
+  }, [isTabletViewUnlocked, currentUser?.id, fetchEmployeesCallback]); // currentUser.id ensures it re-runs if user changes
 
   // Effect to fetch employer settings if the user is an employer and settings are not loaded
   useEffect(() => {
@@ -118,7 +142,10 @@ const TabletView = () => {
 
     if (isTabletViewUnlocked) {
       if (location.pathname !== '/tablet-view') {
+          // Force navigation back to /tablet-view if unlocked and not on the correct path
           navigate('/tablet-view', { replace: true });
+          // The alert dispatch that was here for this specific scenario is now removed
+          // dispatch(setAlert('Redirected: Tablet View is active. Navigation restricted.', 'warning', 3000));
       }
       window.addEventListener('popstate', handlePopState);
     }
@@ -127,6 +154,51 @@ const TabletView = () => {
       window.removeEventListener('popstate', handlePopState);
     };
   }, [isTabletViewUnlocked, navigate, location.pathname, dispatch]);
+
+  // Effect to check initial sign-in status of employees when view is unlocked and employees are loaded
+  useEffect(() => {
+    if (isTabletViewUnlocked && employees.length > 0 && !initialStatusChecked) {
+      const checkInitialStatuses = async () => {
+        const todayDate = new Date().toISOString().split('T')[0];
+        const newActiveClockIns = {};
+        for (const emp of employees) {
+          if (!emp._id) continue; // Skip if employee object doesn't have _id
+          try {
+            // Dispatch Redux thunk to check timesheet
+            const checkAction = await dispatch(checkTimesheetExists({ employee: emp._id, date: todayDate })).unwrap();
+            if (checkAction.exists && checkAction.timesheet && !checkAction.timesheet.endTime) {
+              newActiveClockIns[emp._id] = { id: checkAction.timesheet._id, date: checkAction.timesheet.date };
+            }
+          } catch (error) {
+            console.warn(`Failed to check initial status for ${emp.name}:`, error.message || error);
+          }
+        }
+        setActiveClockIns(prev => ({ ...prev, ...newActiveClockIns }));
+        setInitialStatusChecked(true); // Mark as checked to prevent re-running for this set of employees
+      };
+      checkInitialStatuses();
+    }
+  }, [isTabletViewUnlocked, employees, dispatch, initialStatusChecked]);
+
+  // Effect to persist/restore isTabletViewUnlocked state using sessionStorage
+  useEffect(() => {
+    // On component mount, check if sessionStorage has the unlocked flag
+    // and if the current Redux state is still 'locked'.
+    if (sessionStorage.getItem('tabletViewUnlocked') === 'true' && !isTabletViewUnlocked) {
+      dispatch(setTabletViewUnlocked(true));
+    }
+  }, [dispatch]); // Run once on mount to check sessionStorage
+
+  useEffect(() => {
+    // When isTabletViewUnlocked changes, update sessionStorage
+    if (isTabletViewUnlocked) {
+      sessionStorage.setItem('tabletViewUnlocked', 'true');
+    } else {
+      // If explicitly locked (e.g., user exits), remove the flag
+      sessionStorage.removeItem('tabletViewUnlocked');
+    }
+  }, [isTabletViewUnlocked]);
+
 
 
   // --- Handlers ---
@@ -225,6 +297,7 @@ const TabletView = () => {
     setShowExitPasswordModal(false);
     setExitPasswordInput('');
     setExitPasswordError(null);
+    // dispatching setTabletViewUnlocked(false) will trigger the useEffect above to clear sessionStorage
     dispatch(setTabletViewUnlocked(false));
   };
 
@@ -296,14 +369,117 @@ const TabletView = () => {
   };
 
   // Execute the final action (Sign In or Open Log Time Modal)
-  const executeFinalEmployeeAction = (employee) => {
+  const executeFinalEmployeeAction = async (employee) => { // Made async
     const recordingType = employerSettings?.tabletViewRecordingType || 'Automatically Record';
+
+    // Always set selectedEmployeeForAction for potential use in alerts/modals
+    setSelectedEmployeeForAction(employee);
 
     if (recordingType === 'Automatically Record') {
       console.log(`PERFORM SIGN IN for employee ID: ${employee.id || employee._id}, Name: ${employee.name}`);
-      // TODO: Implement actual sign-in logic (e.g., create timesheet entry with current time as start)
-      dispatch(setAlert(`${employee.name} signed in successfully (simulated).`, 'success', 3000));
-      setSelectedEmployeeForAction(null);
+      setIsSubmittingLogTime(true);
+      dispatch(clearCheckStatus()); // Clear previous check status
+
+      try {
+        const now = new Date();
+        const todayDate = now.toISOString().split('T')[0];
+
+        // 1. Check if already clocked in or completed shift for today
+        const checkAction = await dispatch(checkTimesheetExists({ employee: employee._id, date: todayDate })).unwrap();
+
+        if (checkAction.exists && checkAction.timesheet) {
+          if (!checkAction.timesheet.endTime) {
+            // Already clocked in and active
+            setActiveClockIns(prev => ({ ...prev, [employee._id]: checkAction.timesheet._id }));
+            setSignInSuccessMessage(`${employee.name} is already signed in.`);
+            setShowSignInSuccessModal(true);
+            setIsSubmittingLogTime(false);
+            // No need to clear selectedEmployeeForAction here if modal uses it, modal close will handle
+            return;
+          } else {
+            // Already worked and clocked out today
+            dispatch(setAlert(`${employee.name} has already completed a shift today. Further clock-ins on the same day are not supported via Tablet View.`, 'warning', 5000));
+            setIsSubmittingLogTime(false);
+            setSelectedEmployeeForAction(null); // Clear as no further action
+            return;
+          }
+        }
+
+        // 2. If not clocked in, proceed to create timesheet (clock-in)
+        // Ensure `employee` object has `_id` for payload
+        if (!employee._id) {
+            console.error("Employee object is missing _id for timesheet creation:", employee);
+            dispatch(setAlert("Cannot sign in: Employee data is incomplete.", "danger"));
+            setIsSubmittingLogTime(false);
+            setSelectedEmployeeForAction(null);
+            return;
+        }
+
+        // --- Payload for new clock-in timesheet ---
+        const currentDate = now.toISOString().split('T')[0]; // YYYY-MM-DD
+        const currentTimeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+        const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+
+        const localTimeToUtcISO = (timeStr, dateStr, tz) => {
+          if (!timeStr || !/^\d{2}:\d{2}$/.test(timeStr)) {
+            throw new Error(`Invalid time string (HH:MM format required): '${timeStr}'`);
+          }
+          if (!dateStr || !/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+            throw new Error(`Invalid or missing Date string (YYYY-MM-DD format required): '${dateStr}'`);
+          }
+          if (!tz || !DateTime.local().setZone(tz).isValid) {
+            throw new Error(`Invalid or missing timezone: '${tz}'`);
+          }
+          try {
+            const localDateTime = DateTime.fromISO(`${dateStr}T${timeStr}`, { zone: tz });
+            if (!localDateTime.isValid) {
+              throw new Error(`Failed to parse date/time. Reason: ${localDateTime.invalidReason || 'unknown'}. Explanation: ${localDateTime.invalidExplanation || 'none'}. Input: ${dateStr}T${timeStr}, Zone: ${tz}`);
+            }
+            return localDateTime.toUTC().toISO();
+          } catch (err) {
+            console.error(`Error in localTimeToUtcISO for ${dateStr}T${timeStr} in ${tz}:`, err);
+            throw new Error(`Time conversion failed: ${err.message}`);
+          }
+        };
+
+        const timesheetPayload = {
+          employeeId: employee._id,
+          date: currentDate,
+          startTime: localTimeToUtcISO(currentTimeStr, currentDate, userTimezone),
+          endTime: null, // Clock-in, so no end time yet
+          lunchBreak: 'No',
+          lunchDuration: '00:00', // No lunch at clock-in
+          totalHours: 0, // No hours calculated at clock-in
+          notes: 'Clocked in via Tablet View',
+          timezone: userTimezone,
+          leaveType: 'None',
+          clientId: null,
+          projectId: null,
+          hourlyWage: employee?.wage || 0,
+        };
+
+        const createdTimesheetAction = await dispatch(createTimesheet(timesheetPayload)).unwrap();
+        if (createdTimesheetAction && createdTimesheetAction.data) {
+            setActiveClockIns(prev => ({ ...prev, [employee._id]: createdTimesheetAction.data._id }));
+            // Store more details for sign-out
+            setActiveClockIns(prev => ({
+                ...prev,
+                [employee._id]: { id: createdTimesheetAction.data._id, date: createdTimesheetAction.data.date }
+            }));
+            setSignInSuccessMessage(`${employee.name} signed in successfully at ${currentTimeStr}.`);
+            setShowSignInSuccessModal(true);
+        } else {
+            // Should not happen if unwrap() doesn't throw, but as a safeguard
+            dispatch(setAlert(`Sign in attempt for ${employee.name} did not return expected data.`, 'warning'));
+        }
+      } catch (error) {
+        console.error("Error during automatic sign-in (create timesheet):", error);
+        // error from unwrap() will be the backend message or thunk rejection payload
+        dispatch(setAlert(error || `Failed to sign in ${employee.name}.`, 'danger', 5000));
+      } finally {
+        setIsSubmittingLogTime(false);
+        // Don't clear selectedEmployeeForAction here if modal might use it. Modal close can handle it.
+      }
     } else { // Manually Record
       console.log(`OPEN MANUAL LOG TIME for employee ID: ${employee.id || employee._id}, Name: ${employee.name}`);
       const now = new Date();
@@ -319,6 +495,73 @@ const TabletView = () => {
       setLogTimeCalculatedHours('0.00');
       setLogTimeError(null);
       setShowLogTimeModal(true);
+    }
+  };
+
+  const handleSignOut = async (employeeId) => {
+    if (!activeClockIns[employeeId] || !activeClockIns[employeeId].id || !activeClockIns[employeeId].date) {
+        dispatch(setAlert("Error: Active clock-in data is incomplete or missing.", "danger"));
+        return;
+    }
+    const timesheetIdToUpdate = activeClockIns[employeeId].id;
+    const originalTimesheetDate = activeClockIns[employeeId].date; // Date of the clock-in
+
+    // Ensure selectedEmployeeForAction is set if not already (e.g. if page reloaded)
+    // This is now handled by the button's onClick setting it.
+    const currentEmployee = selectedEmployeeForAction || employees.find(emp => (emp._id || emp.id) === employeeId);
+
+    setIsSubmittingLogTime(true);
+    try {
+        const now = new Date();
+        // const currentDate = now.toISOString().split('T')[0]; // Not needed if using originalTimesheetDate for context
+        const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+        const currentTimeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+
+        const localTimeToUtcISO = (timeStr, dateStr, tz) => {
+            if (!timeStr || !/^\d{2}:\d{2}$/.test(timeStr)) {
+                throw new Error(`Invalid time string (HH:MM format required): '${timeStr}'`);
+            }
+            if (!dateStr || !/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+                throw new Error(`Invalid or missing Date string (YYYY-MM-DD format required): '${dateStr}'`);
+            }
+            if (!tz || !DateTime.local().setZone(tz).isValid) {
+                throw new Error(`Invalid or missing timezone: '${tz}'`);
+            }
+            try {
+                const localDateTime = DateTime.fromISO(`${dateStr}T${timeStr}`, { zone: tz });
+                if (!localDateTime.isValid) {
+                    throw new Error(`Failed to parse date/time. Reason: ${localDateTime.invalidReason || 'unknown'}. Explanation: ${localDateTime.invalidExplanation || 'none'}. Input: ${dateStr}T${timeStr}, Zone: ${tz}`);
+                }
+                return localDateTime.toUTC().toISO();
+            } catch (err) {
+                console.error(`Error in localTimeToUtcISO for ${dateStr}T${timeStr} in ${tz}:`, err);
+                throw new Error(`Time conversion failed: ${err.message}`);
+            }
+        };
+
+        const updatePayload = {
+            date: originalTimesheetDate, // Send the original date of the timesheet
+            endTime: localTimeToUtcISO(currentTimeStr, originalTimesheetDate, userTimezone), // Use original date for endTime context
+            lunchBreak: "Yes", // Default to Yes
+            lunchDuration: "00:30", // Default 30 min lunch
+            notes: (currentEmployee?.tabletViewSignOutNotes || "") + " Clocked out via Tablet View",
+        };
+
+        await dispatch(updateTimesheet({ id: timesheetIdToUpdate, timesheetData: updatePayload })).unwrap();
+
+        setActiveClockIns(prev => {
+            const newState = { ...prev };
+            delete newState[employeeId];
+            return newState;
+        });
+        dispatch(setAlert(`${currentEmployee?.name || 'Employee'} signed out successfully at ${currentTimeStr}.`, 'success', 4000));
+    } catch (error) {
+        console.error("Error during sign-out (update timesheet):", error);
+        // error from unwrap() will be the backend message or thunk rejection payload
+        dispatch(setAlert(error.message || error || `Failed to sign out ${currentEmployee?.name || 'employee'}.`, 'danger', 5000));
+    } finally {
+        setIsSubmittingLogTime(false);
+        setSelectedEmployeeForAction(null);
     }
   };
 
@@ -415,22 +658,47 @@ const TabletView = () => {
 
     setIsSubmittingLogTime(true);
     try {
+      const employeeId = selectedEmployeeForAction._id;
+      const todayDate = new Date().toISOString().split('T')[0]; // Use todayDate for check
+
+      // 1. Check if a timesheet already exists for this employee and date
+      const checkAction = await dispatch(checkTimesheetExists({ employee: employeeId, date: todayDate })).unwrap();
+
+      if (checkAction.exists && checkAction.timesheet) {
+        // A timesheet (either active or completed) already exists for today.
+        // Dispatch a new alert message and navigate to the edit page.
+        const existingTimesheetId = checkAction.timesheet._id;
+        dispatch(setAlert(`${selectedEmployeeForAction.name} has already recorded time for today. You can edit the existing entry.`, 'info', 7000));
+        setIsSubmittingLogTime(false);
+        setShowLogTimeModal(false); // Close the modal as well
+        setSelectedEmployeeForAction(null); // Clear selected employee
+        // Navigate to the edit timesheet page.
+        // Ensure this path matches your application's route for editing timesheets.
+        navigate(`/edit-timesheet/${existingTimesheetId}`); // Or e.g., `/employee/timesheets/${existingTimesheetId}/edit`
+        return; // Stop further processing
+      }
+
+      // If no existing timesheet for today, proceed to create one.
       const currentDate = new Date().toISOString().split('T')[0];
       const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
       const localTimeToUtcISO = (timeStr, dateStr, tz) => {
-        if (!timeStr || !/^\d{2}:\d{2}$/.test(timeStr) || !dateStr || !tz) return null;
+        if (!timeStr || !/^\d{2}:\d{2}$/.test(timeStr)) { throw new Error(`Invalid time string: '${timeStr}'`); }
+        if (!dateStr || !/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) { throw new Error(`Invalid date string: '${dateStr}'`); }
+        if (!tz || !DateTime.local().setZone(tz).isValid) { throw new Error(`Invalid timezone: '${tz}'`); }
         try {
-          const tempDate = new Date(`${dateStr}T${timeStr}:00`);
-          return tempDate.toISOString();
+          const localDateTime = DateTime.fromISO(`${dateStr}T${timeStr}`, { zone: tz });
+          if (!localDateTime.isValid) {
+            throw new Error(`Luxon parse error: ${localDateTime.invalidReason} - ${localDateTime.invalidExplanation}`);
+          }
+          return localDateTime.toUTC().toISO();
         } catch (err) {
-          console.error("Error converting local time to UTC ISO:", err);
-          throw new Error("Time conversion error.");
+          console.error(`Error in localTimeToUtcISO (manual log) for ${dateStr}T${timeStr} in ${tz}:`, err);
+          throw new Error(`Manual log time conversion failed: ${err.message}`);
         }
       };
-
       const timesheetPayload = {
-        employeeId: selectedEmployeeForAction._id,
+        employeeId: employeeId, // Use the employeeId variable
         date: currentDate,
         startTime: localTimeToUtcISO(logTimeData.startTime, currentDate, userTimezone),
         endTime: logTimeData.showEndTimeDetails ? localTimeToUtcISO(logTimeData.endTime, currentDate, userTimezone) : null,
@@ -454,7 +722,12 @@ const TabletView = () => {
 
     } catch (error) {
       console.error("Error submitting log time:", error);
-      setLogTimeError(error.response?.data?.message || "Failed to log time.");
+      // The specific check above handles the "already exists" case by dispatching an alert.
+      // This catch block will now primarily handle other errors during timesheet creation
+      // or if the checkTimesheetExists thunk itself fails.
+      // Dispatch a global alert for other errors too.
+      const errorMessage = error.message || (error.response && error.response.data && error.response.data.message) || "Failed to log time.";
+      dispatch(setAlert(errorMessage, 'danger', 5000));
     } finally {
       setIsSubmittingLogTime(false);
     }
@@ -490,7 +763,7 @@ const TabletView = () => {
            <div className="tv-card">
              <h5 className="tv-card-heading">
                Enter your password to exit tablet view
-               <button type="button" className="modal-close-button" onClick={() => setShowExitPasswordModal(false)}>
+               <button type="button" className="tv-modal-close-button" onClick={() => setShowExitPasswordModal(false)}>
                  <FontAwesomeIcon icon={faTimes} />
                </button>
              </h5>
@@ -520,10 +793,17 @@ const TabletView = () => {
                    onClick={toggleShowExitPassword}
                  />
                </div>
-               {exitPasswordError && <p className="error-text" style={{ marginTop: '10px' }}>{exitPasswordError}</p>}
+               {exitPasswordError && <p className="error-text">{exitPasswordError}</p>}
                <div className="tv-button-group">
-                  <button type="submit" className="button-tablet button-proceed button-green" disabled={isVerifyingExitPassword || !currentUser?.id}>
-                     {isVerifyingExitPassword ? <><FontAwesomeIcon icon={faSpinner} spin /> Verifying...</> : 'Proceed'}
+                  <button
+                    type="submit"
+                    className="tv-button tv-button--solid tv-button--violet" // Changed to violet
+                    disabled={isVerifyingExitPassword || !currentUser?.id}
+                  >
+                 
+                    <span className="tv-button-text"> {/* Added span for text structure */}
+                      {isVerifyingExitPassword ? <><FontAwesomeIcon icon={faSpinner} spin /> Verifying...</> : 'Proceed'}
+                    </span>
                   </button>
                </div>
              </form>
@@ -539,19 +819,20 @@ const TabletView = () => {
        <div className="modal-overlay">
          <div className="modal-content tv-card">
            <div className="modal-header">
+            {/* Adjusted structure: button is now inside h5 for consistent styling context */}
              <h5 className="tv-card-heading">
                Hi {selectedEmployeeForAction.name}, please enter your password
+              <button
+                type="button"
+                className="tv-modal-close-button" // Standardized class name
+                onClick={() => {
+                  setShowEmployeePasswordModal(false);
+                  setSelectedEmployeeForAction(null);
+                }}
+              >
+                <FontAwesomeIcon icon={faTimes} />
+              </button>
              </h5>
-             <button
-               type="button"
-               className="modal-close-button"
-               onClick={() => {
-                 setShowEmployeePasswordModal(false);
-                 setSelectedEmployeeForAction(null);
-               }}
-             >
-               <FontAwesomeIcon icon={faTimes} />
-             </button>
            </div>
            <div className="modal-body">
              <form onSubmit={handleEmployeePasswordSubmit} className="tv-form">
@@ -582,7 +863,7 @@ const TabletView = () => {
                </div>
                {employeePasswordError && <p className="error-text">{employeePasswordError}</p>}
                <div className="tv-button-group">
-                 <button type="submit" className="button-tablet button-proceed button-green" disabled={isVerifyingEmployeePassword}>
+                 <button type="submit" className="tv-button tv-button--solid tv-button--green" disabled={isVerifyingEmployeePassword}>
                    {isVerifyingEmployeePassword ? <><FontAwesomeIcon icon={faSpinner} spin /> Verifying...</> : 'Proceed'}
                  </button>
                </div>
@@ -711,7 +992,8 @@ const TabletView = () => {
                   </div>
                 </>
               )}
-              {logTimeError && <p className="error-text" style={{textAlign: 'center', marginTop: '1rem'}}>{logTimeError}</p>}
+              {/* logTimeError display is removed from here, as errors will now be global alerts */}
+              {/* {logTimeError && <p className="error-text" style={{textAlign: 'center', marginTop: '1rem'}}>{logTimeError}</p>} */}
             </form>
             {/* Summary Section - Outside the form, before the footer */}
             {logTimeData.showEndTimeDetails && (logTimeData.startTime || logTimeData.endTime) && (
@@ -738,7 +1020,7 @@ const TabletView = () => {
               <button
                 data-test="button"
                 type="button"
-                className="tv-button tv-button-primary tv-button-green"
+                className="tv-button-footer-action" // Uses new specific class from SCSS
                 tabIndex="0"
                 onClick={handleLogTimeSubmit}
                 disabled={isSubmittingLogTime}
@@ -749,6 +1031,36 @@ const TabletView = () => {
           </div>
         </div>
       </div>
+    );
+  };
+
+  const renderSignInSuccessModal = () => {
+    if (!showSignInSuccessModal) return null;
+    return (
+        <div className="tv-modal-overlay">
+            <div className="tv-modal tv-modal-sm" role="dialog" aria-modal="true" aria-labelledby="signInSuccessTitle">
+                <h5 className="tv-modal-title" id="signInSuccessTitle">
+                    Success
+                    <button type="button" className="tv-modal-close-button" onClick={() => {
+                        setShowSignInSuccessModal(false);
+                        setSignInSuccessMessage("");
+                        setSelectedEmployeeForAction(null); // Clear after modal is closed
+                    }}>
+                        <FontAwesomeIcon icon={faTimes} className="tv-modal-close-icon" />
+                    </button>
+                </h5>
+                <div className="tv-modal-content">
+                    <p className="tv-text-body" style={{ textAlign: 'center', margin: '1rem 0', fontWeight: 'bold' }}>
+                        {signInSuccessMessage}
+                    </p>
+                </div>
+                <div className="tv-modal-footer">
+                    <button type="button" className="tv-button-footer-action" onClick={() => { setShowSignInSuccessModal(false); setSignInSuccessMessage(""); setSelectedEmployeeForAction(null); }}>
+                        Finish
+                    </button>
+                </div>
+            </div>
+        </div>
     );
   };
 
@@ -794,10 +1106,9 @@ const TabletView = () => {
                 <button
                   data-test="button"
                   type="submit"
-                  className="button-tablet button-proceed button-violet button-with-icon"
+                  className="tv-button tv-button--solid tv-button--violet" // Updated class
                   disabled={isVerifyingPassword || !currentUser?.id}
                 >
-                  <FontAwesomeIcon icon={faLockOpen} className="button-icon-left" />
                   <span className="tv-button-text">
                     {isVerifyingPassword ? <><FontAwesomeIcon icon={faSpinner} spin /> Verifying...</> : 'Proceed'}
                   </span>
@@ -809,7 +1120,7 @@ const TabletView = () => {
       ) : (
         <div className="tv-main-content-card">
           <div className="tv-top-bar">
-            <button className="button-tablet button-exit button-text-red button-with-icon" onClick={handleExitTabletView}>
+            <button className="tv-button-exit-view" onClick={handleExitTabletView}> {/* Updated class */}
               <FontAwesomeIcon icon={faArrowLeft} className="button-icon-left" /> Exit Tablet View
             </button>
             <div className="input-container search-input-container">
@@ -843,21 +1154,32 @@ const TabletView = () => {
             ) : (
               <>
                 {filteredEmployees.length > 0 ? (
-                  filteredEmployees.map(emp => (
-                    <React.Fragment key={emp.id || emp._id}>
-                      <div className="tv-grid-column">{emp.name}</div>
-                      <div className="tv-grid-column">
-                        <button
-                          className="button-tablet button-sign-in button-text-green button-with-icon"
-                          onClick={() => handleEmployeeActionTrigger(emp)}
-                          disabled={employerSettingsStatus === 'loading' || employerSettingsStatus === 'failed'}
-                        >
-                          <FontAwesomeIcon icon={employerSettings?.tabletViewRecordingType === 'Manually Record' ? faPen : faLockOpen} className="button-icon-left" />
-                          {employerSettings?.tabletViewRecordingType === 'Manually Record' ? 'Log Time' : 'Sign In'}
-                        </button>
-                      </div>
-                    </React.Fragment>
-                  ))
+                  filteredEmployees.map(emp => {
+                    const employeeId = emp._id || emp.id; // Ensure we have a consistent ID
+                    const isClockedIn = !!activeClockIns[employeeId];
+                    const isProcessingThisEmployee = (isSubmittingLogTime || isVerifyingEmployeePassword) && selectedEmployeeForAction?._id === employeeId; // Check _id
+
+                    return (
+                      <React.Fragment key={employeeId}>
+                        <div className="tv-grid-column">{emp.name}</div>
+                        <div className="tv-grid-column">
+                          <button
+                            className={`tv-button-grid-action ${isClockedIn ? 'tv-button--red' : 'tv-button--green'}`} // Updated classes
+                            onClick={() => {
+                                setSelectedEmployeeForAction(emp); // Set before calling action
+                                if (isClockedIn) { handleSignOut(employeeId); }
+                                else { handleEmployeeActionTrigger(emp); }
+                            }}
+                            disabled={employerSettingsStatus === 'loading' || employerSettingsStatus === 'failed' || isProcessingThisEmployee}
+                          >
+                            <FontAwesomeIcon icon={isClockedIn ? faSignOutAlt : (employerSettings?.tabletViewRecordingType === 'Manually Record' ? faPen : faSignInAlt)} className="button-icon-left" />
+                            {isProcessingThisEmployee ? <FontAwesomeIcon icon={faSpinner} spin style={{marginRight: '5px'}}/> : null}
+                            {isClockedIn ? 'Sign Out' : (employerSettings?.tabletViewRecordingType === 'Manually Record' ? 'Log Time' : 'Sign In')}
+                          </button>
+                        </div>
+                      </React.Fragment>
+                    );
+                  })
                 ) : (
                   <div className="tv-grid-column tv-no-results" style={{ gridColumn: '1 / -1' }}>No employees found.</div>
                 )}
@@ -870,6 +1192,7 @@ const TabletView = () => {
       {isTabletViewUnlocked && renderExitPasswordModal()}
       {isTabletViewUnlocked && renderEmployeePasswordModal()}
       {isTabletViewUnlocked && showLogTimeModal && renderLogTimeModal()}
+      {isTabletViewUnlocked && renderSignInSuccessModal()}
     </div>
   );
 };

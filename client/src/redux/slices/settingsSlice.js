@@ -2,7 +2,6 @@ import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import axios from 'axios';
 import { setAlert } from './alertSlice'; // Assuming setAlert is available
 
-const API_URL = process.env.REACT_APP_API_URL || 'https://timesheet-slpc.onrender.com/api'; // **IMPORTANT: Update with your actual API URL**
 
 // Helper to get auth headers
 const getAuthHeaders = (token) => ({
@@ -19,15 +18,20 @@ export const fetchEmployerSettings = createAsyncThunk(
   'settings/fetchEmployerSettings',
   async (_, { getState, rejectWithValue }) => {
     try {
-      const { token, user } = getState().auth;
-      if (!token || user?.role !== 'employer') {
-        return rejectWithValue('Not authorized or not an employer.');
+      // Get token and user from the auth state
+      const { token, user } = getState().auth; 
+      if (!token) { // Only check for token; backend handles role-specific logic for fetching
+        return rejectWithValue('Not authorized.');
       }
       // **IMPORTANT: Update endpoint** - e.g., /api/settings/employer
-      const response = await axios.get(`${API_URL}/settings/employer`, getAuthHeaders(token));
+      const response = await axios.get('/api/settings/employer', getAuthHeaders(token));
       return response.data; // Expected: { showVehiclesTabInSidebar: boolean, ...otherSettings }
     } catch (error) {
-      const message = getErrorMessage(error);
+      const message = getErrorMessage(error); // Use the helper function
+      // Optionally, provide a more specific message if it's the known employerId issue
+      if (message.includes('Employer ID not found for this employee')) {
+        return rejectWithValue('Could not retrieve settings: Employer information missing.');
+      }
       return rejectWithValue(message);
     }
   }
@@ -43,7 +47,7 @@ export const updateEmployerSettings = createAsyncThunk(
         return rejectWithValue('Not authorized or not an employer.');
       }
       // **IMPORTANT: Update endpoint** - e.g., /api/settings/employer
-      const response = await axios.put(`${API_URL}/settings/employer`, settingsData, getAuthHeaders(token));
+      const response = await axios.put('/api/settings/employer', settingsData, getAuthHeaders(token));
       dispatch(setAlert('Settings updated successfully!', 'success'));
       return response.data;
     } catch (error) {
@@ -58,7 +62,8 @@ const settingsSlice = createSlice({
   name: 'settings',
   initialState: {
     employerSettings: {
-      showVehiclesTabInSidebar: true, // Default value
+      // Set to undefined initially; its true value will come from the DB.
+      showVehiclesTabInSidebar: undefined, 
     },
     status: 'idle', // 'idle' | 'loading' | 'succeeded' | 'failed'
     error: null,

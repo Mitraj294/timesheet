@@ -39,7 +39,7 @@ export const getEmployerSettings = async (req, res) => {
       console.log(`[settingsController] No settings found for employer ${targetEmployerId}. Creating and returning defaults.`);
       const defaultSettings = {
         employerId: targetEmployerId, // Associate default settings with the correct employerId
-        showVehiclesTabInSidebar: true, 
+        // showVehiclesTabInSidebar is intentionally omitted, will be undefined by default
         tabletViewRecordingType: 'Automatically Record',
         tabletViewPasswordRequired: false,
       };

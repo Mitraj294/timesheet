@@ -1,8 +1,12 @@
 import express from "express";
 import { protect, employerOnly } from "../middleware/authMiddleware.js";
-import { getEmployees, addEmployee, updateEmployee, deleteEmployee } from "../controllers/employeeController.js";
+import { getEmployees, addEmployee, updateEmployee, deleteEmployee, getMyEmployeeProfile } from "../controllers/employeeController.js";
 
 const router = express.Router();
+
+// GET /api/employees/me - Fetch current logged-in employee's profile (protected)
+// This route should be defined before /:id to avoid 'me' being treated as an ID
+router.get("/me", protect, getMyEmployeeProfile);
 
 // GET /api/employees - Fetch all employees (protected)
 router.get("/", protect, getEmployees);

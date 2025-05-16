@@ -37,6 +37,29 @@ export const getEmployees = async (req, res) => {
   }
 };
 
+// @desc    Get current logged-in employee's profile
+// @route   GET /api/employees/me
+// @access  Private (Employee needs to be authenticated)
+export const getMyEmployeeProfile = async (req, res) => {
+  if (!req.user || !req.user.id) { // req.user.id is the User._id
+    return res.status(401).json({ message: "Not authorized, no user token" });
+  }
+
+  try {
+    // Find the Employee record linked to the User ID from the token
+    const employeeProfile = await Employee.findOne({ userId: req.user.id })
+      .populate('employerId', 'name email companyName phoneNumber country'); // Populate employer details
+
+    if (!employeeProfile) {
+      return res.status(404).json({ message: "Employee profile not found for this user." });
+    }
+    res.json(employeeProfile); // Return the single employee profile object
+  } catch (error) {
+    console.error("[employeeController.getMyEmployeeProfile] Error fetching employee profile:", error);
+    res.status(500).json({ message: "Server error fetching employee profile" });
+  }
+};
+
 // @desc    Add a new employee
 // @route   POST /api/employees
 // @access  Private (Employer only)
