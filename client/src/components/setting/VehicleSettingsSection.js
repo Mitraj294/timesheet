@@ -19,8 +19,11 @@ const VehicleSettingsSection = () => {
   const settingsStatus = useSelector(selectSettingsStatus);
   const isSaving = settingsStatus === 'loading';
 
-  // Local state for the select input, initialized from the store
-  const [localShowVehiclesTab, setLocalShowVehiclesTab] = useState(showVehiclesTabFromStore);
+  // Local state for the select input.
+  // Initialize with a default boolean value (e.g., false) if showVehiclesTabFromStore is not yet a boolean.
+  const [localShowVehiclesTab, setLocalShowVehiclesTab] = useState(
+    typeof showVehiclesTabFromStore === 'boolean' ? showVehiclesTabFromStore : false
+  );
 
   // Effect to update local state if the store value changes (e.g., after fetching settings)
   useEffect(() => {

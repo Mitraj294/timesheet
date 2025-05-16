@@ -377,6 +377,7 @@ const UserSettingsSection = () => {
                                 value={passwordData.currentPassword}
                                 onChange={handlePasswordChange}
                                 required
+                                autoComplete="current-password"
                                 disabled={isSubmittingPassword}
                             />
                             <button type="button" onClick={() => setShowCurrentPassword(!showCurrentPassword)} className="styles_PasswordToggleBtn" disabled={isSubmittingPassword}>
@@ -395,6 +396,7 @@ const UserSettingsSection = () => {
                                 onChange={handlePasswordChange}
                                 required
                                 minLength="6"
+                                autoComplete="new-password"
                                 disabled={isSubmittingPassword}
                             />
                             <button type="button" onClick={() => setShowNewPassword(!showNewPassword)} className="styles_PasswordToggleBtn" disabled={isSubmittingPassword}>
@@ -413,6 +415,7 @@ const UserSettingsSection = () => {
                                 onChange={handlePasswordChange}
                                 required
                                 minLength="6"
+                                autoComplete="new-password"
                                 disabled={isSubmittingPassword}
                             />
                             <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="styles_PasswordToggleBtn" disabled={isSubmittingPassword}>

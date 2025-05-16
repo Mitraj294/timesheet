@@ -23,6 +23,30 @@ import {
 } from '../../redux/slices/timesheetSlice';
 
 import { DateTime } from 'luxon'; // Import Luxon
+
+// Helper function for time conversion, moved to component scope
+const localTimeToUtcISO = (timeStr, dateStr, tz) => {
+  if (!timeStr || !/^\d{2}:\d{2}$/.test(timeStr)) {
+    throw new Error(`Invalid time string (HH:MM format required): '${timeStr}'`);
+  }
+  if (!dateStr || !/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+    throw new Error(`Invalid or missing Date string (YYYY-MM-DD format required): '${dateStr}'`);
+  }
+  if (!tz || !DateTime.local().setZone(tz).isValid) {
+    throw new Error(`Invalid or missing timezone: '${tz}'`);
+  }
+  try {
+    const localDateTime = DateTime.fromISO(`${dateStr}T${timeStr}`, { zone: tz });
+    if (!localDateTime.isValid) {
+      throw new Error(`Failed to parse date/time. Reason: ${localDateTime.invalidReason || 'unknown'}. Explanation: ${localDateTime.invalidExplanation || 'none'}. Input: ${dateStr}T${timeStr}, Zone: ${tz}`);
+    }
+    return localDateTime.toUTC().toISO();
+  } catch (err) {
+    console.error(`Error in localTimeToUtcISO for ${dateStr}T${timeStr} in ${tz}:`, err);
+    throw new Error(`Time conversion failed: ${err.message}`);
+  }
+};
+
 const TabletView = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
@@ -420,28 +444,6 @@ const TabletView = () => {
         const currentTimeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
         const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
-        const localTimeToUtcISO = (timeStr, dateStr, tz) => {
-          if (!timeStr || !/^\d{2}:\d{2}$/.test(timeStr)) {
-            throw new Error(`Invalid time string (HH:MM format required): '${timeStr}'`);
-          }
-          if (!dateStr || !/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
-            throw new Error(`Invalid or missing Date string (YYYY-MM-DD format required): '${dateStr}'`);
-          }
-          if (!tz || !DateTime.local().setZone(tz).isValid) {
-            throw new Error(`Invalid or missing timezone: '${tz}'`);
-          }
-          try {
-            const localDateTime = DateTime.fromISO(`${dateStr}T${timeStr}`, { zone: tz });
-            if (!localDateTime.isValid) {
-              throw new Error(`Failed to parse date/time. Reason: ${localDateTime.invalidReason || 'unknown'}. Explanation: ${localDateTime.invalidExplanation || 'none'}. Input: ${dateStr}T${timeStr}, Zone: ${tz}`);
-            }
-            return localDateTime.toUTC().toISO();
-          } catch (err) {
-            console.error(`Error in localTimeToUtcISO for ${dateStr}T${timeStr} in ${tz}:`, err);
-            throw new Error(`Time conversion failed: ${err.message}`);
-          }
-        };
-
         const timesheetPayload = {
           employeeId: employee._id,
           date: currentDate,
@@ -516,28 +518,6 @@ const TabletView = () => {
         // const currentDate = now.toISOString().split('T')[0]; // Not needed if using originalTimesheetDate for context
         const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
         const currentTimeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
-
-        const localTimeToUtcISO = (timeStr, dateStr, tz) => {
-            if (!timeStr || !/^\d{2}:\d{2}$/.test(timeStr)) {
-                throw new Error(`Invalid time string (HH:MM format required): '${timeStr}'`);
-            }
-            if (!dateStr || !/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
-                throw new Error(`Invalid or missing Date string (YYYY-MM-DD format required): '${dateStr}'`);
-            }
-            if (!tz || !DateTime.local().setZone(tz).isValid) {
-                throw new Error(`Invalid or missing timezone: '${tz}'`);
-            }
-            try {
-                const localDateTime = DateTime.fromISO(`${dateStr}T${timeStr}`, { zone: tz });
-                if (!localDateTime.isValid) {
-                    throw new Error(`Failed to parse date/time. Reason: ${localDateTime.invalidReason || 'unknown'}. Explanation: ${localDateTime.invalidExplanation || 'none'}. Input: ${dateStr}T${timeStr}, Zone: ${tz}`);
-                }
-                return localDateTime.toUTC().toISO();
-            } catch (err) {
-                console.error(`Error in localTimeToUtcISO for ${dateStr}T${timeStr} in ${tz}:`, err);
-                throw new Error(`Time conversion failed: ${err.message}`);
-            }
-        };
 
         const updatePayload = {
             date: originalTimesheetDate, // Send the original date of the timesheet
@@ -682,21 +662,6 @@ const TabletView = () => {
       const currentDate = new Date().toISOString().split('T')[0];
       const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
-      const localTimeToUtcISO = (timeStr, dateStr, tz) => {
-        if (!timeStr || !/^\d{2}:\d{2}$/.test(timeStr)) { throw new Error(`Invalid time string: '${timeStr}'`); }
-        if (!dateStr || !/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) { throw new Error(`Invalid date string: '${dateStr}'`); }
-        if (!tz || !DateTime.local().setZone(tz).isValid) { throw new Error(`Invalid timezone: '${tz}'`); }
-        try {
-          const localDateTime = DateTime.fromISO(`${dateStr}T${timeStr}`, { zone: tz });
-          if (!localDateTime.isValid) {
-            throw new Error(`Luxon parse error: ${localDateTime.invalidReason} - ${localDateTime.invalidExplanation}`);
-          }
-          return localDateTime.toUTC().toISO();
-        } catch (err) {
-          console.error(`Error in localTimeToUtcISO (manual log) for ${dateStr}T${timeStr} in ${tz}:`, err);
-          throw new Error(`Manual log time conversion failed: ${err.message}`);
-        }
-      };
       const timesheetPayload = {
         employeeId: employeeId, // Use the employeeId variable
         date: currentDate,
@@ -740,20 +705,26 @@ const TabletView = () => {
     emp.name && emp.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const renderBreadcrumbHeader = () => (
-    <div className="tv-breadcrumbs-container">
+  const renderBreadcrumbHeader = () => {
+    return (
+      <div className="tv-breadcrumbs-container">
       <div>
         <h4 className="tv-page-title">Tablet View</h4>
         <div className="tv-breadcrumbs-links">
           <div className="tv-breadcrumb-link-wrapper">
-            <Link to={currentUser?.role === 'employer' ? "/employer/dashboard" : "/employee/dashboard"} className="tv-breadcrumb-link">Dashboard</Link>
+            {/* 
+              Updated to link directly to /dashboard, consistent with Timesheet.js and Vehicles.js.
+              This assumes the /dashboard route handles authentication and role-specific content/redirection.
+            */}
+            <Link to="/dashboard" className="tv-breadcrumb-link">Dashboard</Link>
             <p className="tv-breadcrumb-separator">/</p>
           </div>
           <span className="tv-breadcrumb-current-page">Tablet View</span>
         </div>
       </div>
     </div>
-  );
+    );
+  };
 
   const renderExitPasswordModal = () => {
      if (!showExitPasswordModal) return null;

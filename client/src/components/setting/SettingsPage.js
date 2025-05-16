@@ -95,17 +95,11 @@ const SettingsPage = () => {
   const renderSection = () => {
     if (!activeSection) return <PlaceholderSection title="Settings" />;
     const selectedItem = menuItems.find(item => item.key === activeSection);
-    
-    // This is where the error happens if selectedItem.component is an object
-    if (selectedItem && typeof selectedItem.component === 'function') {
-        // This is not how React components are typically rendered from an object.
-        // They should be JSX elements: <MyComponent />
-        // The 'component' property in menuItems already holds the JSX element.
-        return selectedItem.component;
-    } else if (selectedItem && React.isValidElement(selectedItem.component)) {
+
+    if (selectedItem && React.isValidElement(selectedItem.component)) {
         return selectedItem.component;
     }
-    
+
     // Fallback or error handling if component is not valid
     console.error("Invalid component for section:", activeSection, selectedItem);
     return <PlaceholderSection title="Error: Component not found" />;
