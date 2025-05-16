@@ -443,42 +443,22 @@ const CreateTimesheet = () => {
                              ? finalFormData.timezone
                              : Intl.DateTimeFormat().resolvedOptions().timeZone;
 
-      // Initialize requestData with common fields
       const requestData = {
         employeeId: finalFormData.employeeId,
+        clientId: !currentIsLeaveSelected ? (finalFormData.clientId || null) : null,
+        projectId: !currentIsLeaveSelected ? (finalFormData.projectId || null) : null,
         date: finalFormData.date,
-        startTime: startTimeUTC, // Already null if currentIsLeaveSelected is true
-        endTime: endTimeUTC,     // Already null if currentIsLeaveSelected is true
+        startTime: startTimeUTC,
+        endTime: endTimeUTC,
+        lunchBreak: !currentIsLeaveSelected ? finalFormData.lunchBreak : 'No',
+        lunchDuration: !currentIsLeaveSelected && finalFormData.lunchBreak === 'Yes' ? finalFormData.lunchDuration : '00:30',
         leaveType: finalFormData.leaveType,
+        description: currentIsLeaveSelected ? finalFormData.description : "",
+        notes: !currentIsLeaveSelected ? finalFormData.notes : "",
         hourlyWage: parseFloat(finalFormData.hourlyWage) || 0,
-        totalHours: finalFormData.totalHours,
+        totalHours: finalFormData.totalHours, // Use the totalHours from finalFormData
         timezone: timezoneToSend,
       };
-
-      if (currentIsLeaveSelected) {
-        requestData.description = finalFormData.description;
-        // For leave entries, clientId and projectId are null.
-        // Other fields get their leave-specific defaults.
-        requestData.clientId = null;
-        requestData.projectId = null;
-        requestData.lunchBreak = 'No';
-        requestData.lunchDuration = '00:00'; // Model default is 00:00
-        requestData.notes = ""; // Or rely on model default ''
-      } else {
-        // Work Entry
-        requestData.notes = finalFormData.notes;
-        requestData.lunchBreak = finalFormData.lunchBreak;
-        requestData.lunchDuration = finalFormData.lunchBreak === 'Yes' ? finalFormData.lunchDuration : '00:00'; // Model default is 00:00
-
-        // Only add clientId and projectId if they are actual values (not empty strings)
-        // If they are empty strings, they will be omitted, and Mongoose default 'null' will apply.
-        if (finalFormData.clientId && finalFormData.clientId !== '') {
-          requestData.clientId = finalFormData.clientId;
-        }
-        if (finalFormData.projectId && finalFormData.projectId !== '') {
-          requestData.projectId = finalFormData.projectId;
-        }
-      }
 
       if (isEditing) {
         await dispatch(updateTimesheet({ id: timesheetIdForEdit, timesheetData: requestData })).unwrap();
