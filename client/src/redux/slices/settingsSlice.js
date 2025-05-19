@@ -1,3 +1,4 @@
+// /home/digilab/timesheet/client/src/redux/slices/settingsSlice.js
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import axios from 'axios';
 import { setAlert } from './alertSlice'; // Assuming setAlert is available
