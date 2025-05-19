@@ -1,8 +1,7 @@
 // /home/digilab/timesheet/client/src/redux/slices/employeeSlice.js
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import axios from 'axios';
-
-const API_URL = process.env.REACT_APP_API_URL || 'https://timesheet-c4mj.onrender.com/api';
+const API_URL = process.env.REACT_APP_API_URL || 'https://timesheet-slpc.onrender.com/api';
 
 // Helper to get auth headers.
 // Might move this to a shared utility later if used in many places.
