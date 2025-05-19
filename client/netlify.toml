@@ -8,3 +8,4 @@
   to = "https://timesheet-slpc.onrender.com/api/:splat" # Your backend URL
   status = 200 # This makes it a rewrite (proxy), not a redirect
   force = true # Ensures this rule is applied
+  methods = ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"] # Explicitly allow these methods
