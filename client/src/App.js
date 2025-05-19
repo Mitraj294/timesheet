@@ -1,14 +1,17 @@
 // /home/digilab/timesheet/client/src/App.js
-import React, { useEffect } from "react";
-import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
+import React, { useEffect, useLayoutEffect } from "react"; // Added useLayoutEffect
+import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate, useLocation } from "react-router-dom"; // Added useNavigate, useLocation
 import { useSelector, Provider, useDispatch } from "react-redux";
 import store from "./store/store";
 import { SidebarProvider } from "./context/SidebarContext";
 import { 
     loadUserFromToken, 
     selectIsAuthenticated, 
-    selectAuthUser 
+    selectAuthUser,
+    selectIsTabletViewUnlocked, // Import selector for tablet view status
+    setTabletViewUnlocked // Import the action creator
 } from './redux/slices/authSlice';
+import { setAlert } from './redux/slices/alertSlice'; // Import setAlert for navigation restriction messages
 import { fetchEmployerSettings } from './redux/slices/settingsSlice'; // Import the fetch settings thunk
 
 // Layout Components
@@ -93,6 +96,9 @@ const AppContent = () => {
   const dispatch = useDispatch();
   const isAuthenticated = useSelector(selectIsAuthenticated);
   const user = useSelector(selectAuthUser);
+  const isTabletViewUnlocked = useSelector(selectIsTabletViewUnlocked); // Get tablet view status
+  const navigate = useNavigate(); // Hook for navigation
+  const location = useLocation(); // Hook for current location
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -107,6 +113,55 @@ const AppContent = () => {
       dispatch(fetchEmployerSettings());
     }
   }, [dispatch, isAuthenticated, user?.id]); // Depend on user.id to ensure fetch happens after user is loaded
+
+  // Effect to restore tablet view lock state from session storage on initial app load/refresh
+  useEffect(() => {
+    const storedTabletLockState = sessionStorage.getItem('tabletViewUnlocked');
+    if (storedTabletLockState === 'true') {
+      // If session storage indicates the view should be locked, dispatch an action to update the Redux state.
+      // This ensures that if the app is refreshed or loaded while tablet view was active, it remains locked.
+      // No need to check current `isTabletViewUnlocked` from Redux here, as the reducer for `setTabletViewUnlocked`
+      // should ideally handle cases where the state is already what's being set (i.e., be idempotent).
+      console.log('[App.js Initial Session Restore] Session indicates locked. Dispatching setTabletViewUnlocked(true).');
+      dispatch(setTabletViewUnlocked(true));
+    }
+    // This effect should run only once when the AppContent component mounts.
+  }, [dispatch]); // Dependencies: only dispatch, so it runs once on mount.
+  // --- Global Tablet View Navigation Lock ---
+  // Effect to handle browser back/forward button restrictions when tablet view is unlocked
+  useLayoutEffect(() => {
+    const handlePopState = () => {
+      // `window.location.pathname` reflects the URL *after* the popstate event.
+      if (isTabletViewUnlocked && window.location.pathname !== '/tablet-view') {
+        navigate('/tablet-view', { replace: true });
+        dispatch(setAlert('Navigation is restricted. Stay on Tablet View.', 'warning', 3500));
+      }
+    };
+
+    if (isTabletViewUnlocked) {
+      window.addEventListener('popstate', handlePopState);
+      return () => {
+        window.removeEventListener('popstate', handlePopState);
+      };
+    }
+  }, [isTabletViewUnlocked, navigate, dispatch]);
+
+  // Effect for INITIAL PATH CORRECTION if app loads or navigates to a non-/tablet-view path
+  // while tablet view is supposed to be active.
+  useEffect(() => {
+    console.log('[App.js Lock Effect] Checking. Path:', location.pathname, 'isTabletViewUnlocked:', isTabletViewUnlocked);
+    if (isTabletViewUnlocked && location.pathname !== '/tablet-view') {
+      // This check ensures that if the app is already on a different page when
+      // isTabletViewUnlocked becomes true (e.g., due to sessionStorage restore or direct state change),
+      // or if a programmatic navigation occurs to a wrong path while unlocked,
+      // it redirects back to /tablet-view.
+      console.log('[App.js Lock Effect] Condition MET. Redirecting to /tablet-view.');
+      navigate('/tablet-view', { replace: true });
+      dispatch(setAlert('Redirected to Tablet View as it is active.', 'warning', 3500));
+    }
+  }, [isTabletViewUnlocked, location.pathname, navigate, dispatch]);
+  // --- End Global Tablet View Navigation Lock ---
+
   
   return (
     <LayoutWrapper>
