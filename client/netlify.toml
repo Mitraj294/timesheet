@@ -1,0 +1,10 @@
+# netlify.toml
+[build]
+  publish = "build" # Or your client's build output directory (e.g., dist)
+  command = "npm run build" # Or your client's build command (e.g., yarn build)
+
+[[redirects]]
+  from = "/api/*"
+  to = "https://timesheet-slpc.onrender.com/api/:splat" # Your backend URL
+  status = 200 # This makes it a rewrite (proxy), not a redirect
+  force = true # Ensures this rule is applied
