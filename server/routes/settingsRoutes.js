@@ -2,7 +2,7 @@ import express from 'express';
 // Import your authentication middleware (protect, employerOnly)
 import { protect, employerOnly } from '../middleware/authMiddleware.js'; 
 // Import the controller functions you created
-import { getEmployerSettings, updateEmployerSettingsController } from '../controllers/settingsController.js'; 
+import { getEmployerSettings, updateEmployerSettings } from '../controllers/settingsController.js'; 
 
 const router = express.Router();
 
@@ -15,6 +15,6 @@ router.get('/employer', protect, getEmployerSettings);
 // @route   PUT /api/settings/employer
 // @desc    Update settings for the logged-in employer
 // @access  Private (Employer Only)
-router.put('/employer', protect, employerOnly, updateEmployerSettingsController);
+router.put('/employer', protect, employerOnly, updateEmployerSettings);
 
 export default router;
