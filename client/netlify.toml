@@ -1,6 +1,6 @@
 # /home/digilab/timesheet/client/netlify.toml
 [build]
-  publish = "client/build" # Or keep as "build" if UI is the source of truth
+  publish = "build"
   command = "npm run build"
 
 [[redirects]]
