@@ -845,7 +845,7 @@ export const verifyCurrentUserPassword = async (req, res) => {
     }
     // Scenario 3: Unauthorized attempt
     else {
-        return res.status(403).json({ success: false, message: "Forbidden: User ID mismatch." });
+        return res.status(403).json({ success: false, message: "Forbidden: User ID mismatch or insufficient permissions." });
     }
 
     const userToVerify = await User.findById(userId).select('+password'); // User whose password is to be verified

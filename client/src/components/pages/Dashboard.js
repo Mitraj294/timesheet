@@ -314,14 +314,30 @@ const Dashboard = () => {
   }, [combinedError, dispatch]);
 
   // Memoized summary calculations for "All Employees" view (employer only)
+
   const totalHoursAllPeriodSummary = useMemo(() => filteredAllCurrentTimesheets.reduce((acc, sheet) => acc + (parseFloat(sheet.totalHours) || 0), 0), [filteredAllCurrentTimesheets]);
+
+
   const avgHoursAllPeriodSummary = useMemo(() => {
-       // Changed to: Total hours / Number of unique employees who logged time in the period
-       const numberOfEmployeesWhoWorked = new Set(
-           filteredAllCurrentTimesheets.map(t => t.employeeId?._id || t.employeeId)
-       ).size;
-       return numberOfEmployeesWhoWorked > 0 ? (totalHoursAllPeriodSummary / numberOfEmployeesWhoWorked) : 0;
-   }, [totalHoursAllPeriodSummary, filteredAllCurrentTimesheets]);
+    // Collect all unique dates (formatted as ISO strings, assuming t.date is ISO)
+    // from all timesheets in the filteredAllCurrentTimesheets for the current period.
+    const uniqueDates = new Set(filteredAllCurrentTimesheets.map(t => {
+        // Ensure the date is valid and format it consistently (e.g., to 'YYYY-MM-DD')
+        // to count unique days, not unique times.
+        try {
+            return DateTime.fromISO(t.date).toISODate(); // Ensures only date part is considered
+        } catch (e) {
+            console.warn("Invalid date format in timesheet entry:", t.date);
+            return null; // Ignore invalid dates for counting
+        }
+    }).filter(Boolean)); // Filter out any nulls from invalid dates
+
+    const numberOfUniqueDaysWorkedAcrossAllEmployees = uniqueDates.size;
+
+    return numberOfUniqueDaysWorkedAcrossAllEmployees > 0
+        ? (totalHoursAllPeriodSummary / numberOfUniqueDaysWorkedAcrossAllEmployees)
+        : 0;
+}, [totalHoursAllPeriodSummary, filteredAllCurrentTimesheets]);
 
   // Memoized summary calculations for selected/logged-in employee view
   const totalHoursEmployeeSummary = useMemo(() => filteredCurrentTimesheets.reduce((acc, sheet) => acc + (parseFloat(sheet.totalHours) || 0), 0), [filteredCurrentTimesheets]);
