@@ -59,7 +59,7 @@ export const getEmployerSettings = async (req, res) => {
 // @desc    Update settings for the logged-in employer
 // @route   PUT /api/settings/employer
 // @access  Private (Employer Only)
-export const updateEmployerSettingsController = async (req, res) => {
+export const updateEmployerSettings = async (req, res) => {
   // req.user should be available from the 'protect' middleware
   if (!req.user || req.user.role !== 'employer') {
     return res.status(403).json({ message: 'Access denied.' });
