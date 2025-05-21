@@ -342,16 +342,29 @@ export const updateTimesheet = async (req, res) => {
     if (!mongoose.Types.ObjectId.isValid(id)) {
         return res.status(400).json({ message: "Invalid Timesheet ID format" });
     }
-
-    // Fetch the existing timesheet document
-    const timesheet = await Timesheet.findById(id).populate('employeeId', 'employerId userId'); // Populate employeeId to get employerId and userId
-    if (!timesheet) return res.status(404).json({ message: "Timesheet not found" });
-
-    // Check if employeeId is populated and has an employerId
-    if (!timesheet.employeeId || !timesheet.employeeId._id || !timesheet.employeeId.employerId) {
-      return res.status(400).json({ message: "Cannot determine employer for settings for this timesheet." });
+    
+    // Step 1: Fetch the timesheet document WITHOUT populating employeeId initially
+    // to safely access its original employeeId ObjectId.
+    const timesheet = await Timesheet.findById(id);
+    if (!timesheet) {
+      return res.status(404).json({ message: "Timesheet not found" });
     }
 
+    // Get the original employeeId as a string BEFORE it might be overwritten by population or become null
+    const originalEmployeeIdString = timesheet.employeeId.toString();
+
+    // Step 2: Now populate employeeId for other uses (like fetching employer settings, auth checks)
+    // This will modify the `timesheet.employeeId` field on the `timesheet` Mongoose document instance.
+    await timesheet.populate('employeeId', 'employerId userId'); 
+    // After this, timesheet.employeeId is either the populated object or null if the ref is broken.
+
+    // Check if employeeId is populated and has an employerId
+    // If timesheet.employeeId is null (broken ref after populate), this check handles it.
+    // If it's a populated object, it checks for _id and employerId.
+    if (!timesheet.employeeId || !timesheet.employeeId.employerId) { // Simpler check, as _id is implied if employerId exists on populated obj
+      return res.status(400).json({ message: "Cannot determine employer for settings for this timesheet." });
+    }
+    
     // Fetch employer settings
     const employerIdForSettings = timesheet.employeeId.employerId;
     const settings = await EmployerSetting.findOne({ employerId: employerIdForSettings });
@@ -387,7 +400,12 @@ export const updateTimesheet = async (req, res) => {
 
     // Re-build/validate data before applying selective updates, considering settings
     // We use req.body combined with existing timesheet data for fields not being updated
-    const potentialUpdateData = buildTimesheetData({ ...timesheet.toObject(), ...req.body });
+    const dataForBuild = {
+      ...timesheet.toObject(), // This will have employeeId as populated object or null
+      ...req.body,
+      employeeId: originalEmployeeIdString // Crucially, use the original string ID for buildTimesheetData
+    };
+    const potentialUpdateData = buildTimesheetData(dataForBuild);
 
     const isLeaveEntry = potentialUpdateData.leaveType && potentialUpdateData.leaveType !== "None";
     if (settings && !isLeaveEntry) {

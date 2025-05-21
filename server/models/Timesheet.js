@@ -24,18 +24,15 @@ const timesheetSchema = new mongoose.Schema({
   description: { type: String, default: '' },
   hourlyWage: { type: Number, default: 0 },
   timezone: { type: String, default: 'UTC' }, // User's local timezone identifier
-  createdAt: { type: Date, default: Date.now },
-  updatedAt: { type: Date, default: Date.now }
-});
+  actualEndTime: { type: Date, default: null }, // Actual timestamp when endTime was recorded
+  // createdAt and updatedAt will be handled by timestamps option
+}, { timestamps: true });
 
 // Ensure a unique timesheet entry per employee per day.
 timesheetSchema.index({ employeeId: 1, date: 1 }, { unique: true });
 
-// Middleware: Update the 'updatedAt' field on each save.
-timesheetSchema.pre('save', function(next) {
-  this.updatedAt = Date.now();
-  next();
-});
+// The { timestamps: true } option automatically handles createdAt and updatedAt,
+// so the manual pre('save') hook for updatedAt is no longer needed.
 
 const Timesheet = mongoose.model('Timesheet', timesheetSchema);
 
