@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'; 
-import { faSave, faSpinner, faCalendarWeek, faUtensils, faEyeSlash, faEdit, faListAlt } from '@fortawesome/free-solid-svg-icons';
+import { faSave, faSpinner, faCalendarWeek, faUtensils, faEyeSlash, faEdit, faListAlt, faEnvelope } from '@fortawesome/free-solid-svg-icons';
 import { // Keep faUserPlus for the new setting
   updateEmployerSettings,
   selectEmployerSettings,
@@ -28,6 +28,7 @@ const TimesheetSettingsSection = () => {
     timesheetAreNotesRequired: false,       // Default to No (false)
     employeeCanCreateProject: false, // New setting, default to false
     reportColumns: [], // New setting for report columns
+    weeklyReportEmail: '', // New setting for weekly report email
   });
 
   const isSaving = settingsStatus === 'loading';
@@ -44,6 +45,7 @@ const TimesheetSettingsSection = () => {
         timesheetAreNotesRequired: currentSettings.timesheetAreNotesRequired === true,
         employeeCanCreateProject: currentSettings.employeeCanCreateProject === true, // Ensure boolean
         reportColumns: currentSettings.reportColumns || [], // Initialize with current settings or empty array
+        weeklyReportEmail: currentSettings.weeklyReportEmail || '', // Initialize with current or empty
       });
     }
   }, [currentSettings]);
@@ -176,6 +178,20 @@ const TimesheetSettingsSection = () => {
               {booleanOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
             </select>
           </div>
+{/* Weekly Report Email */}
+          <div className="tablet-view-input"> {/* Removed select-input, just use tablet-view-input */}
+            <p className="select-slim-label"><FontAwesomeIcon icon={faEnvelope} /> Weekly Report Email</p>
+            <input
+              type="email"
+              name="weeklyReportEmail"
+              value={formData.weeklyReportEmail}
+              onChange={handleChange}
+              disabled={isSaving}
+              placeholder="Enter email for weekly report" // Changed placeholder slightly for consistency
+              className="tablet-view-input-field" // Add a new class for styling the input element directly
+            />
+            <small>An email address that will receive a weekly timesheet summary report.</small>
+          </div>
 
           {/* Report Columns Selection */}
           <div className="tablet-view-input select-input">
@@ -192,6 +208,8 @@ const TimesheetSettingsSection = () => {
             />
             <small>If no columns are selected, all standard columns will be included in reports.</small>
           </div>
+
+          
 
           <div className="tablet-view-button-group">
             <button type="submit" className="btn btn-primary" disabled={isSaving}>

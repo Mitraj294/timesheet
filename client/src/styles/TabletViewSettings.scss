@@ -29,7 +29,14 @@
         color: #4a5568; // Gray for label
     }
 
-    select {
+    // Styles for both select and input elements within tablet-view-input
+    select,
+    input[type="email"],
+    // Apply these styles to the email input
+    input[type="text"],
+    // Add this if you have other text inputs that need consistent styling
+    input[type="number"] {
+        // And for number inputs
         width: 100%;
         padding: 0.65rem 0.75rem; // Adjusted padding
         border: 1px solid #cbd5e0; // Softer border color
@@ -50,6 +57,11 @@
             background-color: #e2e8f0; // Disabled background
             cursor: not-allowed;
         }
+    }
+
+    // If you added tablet-view-input-field to the input and need specific styles for it:
+    .tablet-view-input-field {
+        // Add any specific overrides for elements with this class here
     }
 }
 

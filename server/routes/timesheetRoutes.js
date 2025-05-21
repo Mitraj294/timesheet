@@ -8,6 +8,7 @@ import {
   getTimesheetsByProject,
   getTimesheetsByEmployee,
   getTimesheetsByClient,
+  getIncompleteTimesheetsByEmployee, // Import the new controller function
   updateTimesheet,
   deleteTimesheet,
   downloadTimesheets ,
@@ -33,6 +34,7 @@ router.route('/:id')
 // Get timesheets by specific criteria
 router.get('/project/:projectId', protect, getTimesheetsByProject);
 router.get('/employee/:employeeId', protect, getTimesheetsByEmployee);
+router.get('/employee/:employeeId/incomplete', protect, getIncompleteTimesheetsByEmployee); // New route
 router.get('/client/:clientId', protect, getTimesheetsByClient);
 
 // Download and email general timesheet reports

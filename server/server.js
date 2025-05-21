@@ -5,9 +5,14 @@ import mongoose from "mongoose";
 import helmet from "helmet";
 import cookieParser from "cookie-parser";
 import dotenv from "dotenv";
+import cron from 'node-cron'; // Import node-cron
+import path from 'path'; // Import path module
+import { fileURLToPath } from 'url'; // Import fileURLToPath for ES modules
 
 // Initialize environment variables
-dotenv.config();
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+dotenv.config({ path: path.resolve(__dirname, '.env') }); // Load .env from the same directory as server.js
 
 // Import Routes
 import clientRoutes from "./routes/clientRoutes.js";
@@ -19,6 +24,7 @@ import roleRoutes from "./routes/roleRoutes.js";
 import scheduleRoutes from "./routes/scheduleRoutes.js";
 import vehicleRoutes from "./routes/vehicleRoutes.js";
 import userRoutes from './routes/userRoutes.js'; 
+import { sendWeeklyTimesheetReports } from './controllers/timesheetController.js'; // Import the scheduler function
 import settingsRoutes from './routes/settingsRoutes.js'; // Import the new settings routes
 
 const app = express();
@@ -62,6 +68,26 @@ app.use(`${BASE_API_URL}/vehicles`, vehicleRoutes);
 app.use(`${BASE_API_URL}/users`, userRoutes); // Mount userRoutes consistently
 app.use(`${BASE_API_URL}/settings`, settingsRoutes); // Mount the new settings routes
 // Root Route
+
+// Schedule the weekly report email
+// CRON Pattern: 'minute hour day-of-month month day-of-week'
+
+const weeklyReportSchedule = process.env.WEEKLY_REPORT_CRON_SCHEDULE || '00 19 * * 6'; // Default to Sat 7 PM if not set
+const serverTimezone = process.env.SERVER_TIMEZONE || 'Asia/Kolkata'; 
+
+if (cron.validate(weeklyReportSchedule)) {
+  cron.schedule(weeklyReportSchedule, () => {
+      console.log(`[Scheduler] Triggered: Running sendWeeklyTimesheetReports at ${new Date().toLocaleString()} (${serverTimezone})`);
+      sendWeeklyTimesheetReports();
+  }, {
+      scheduled: true,
+      timezone: serverTimezone
+  });
+  console.log(`[Scheduler] Weekly timesheet report job scheduled with pattern "${weeklyReportSchedule}" in timezone "${serverTimezone}".`);
+} else {
+  console.error(`[Scheduler] Invalid CRON pattern specified for weekly reports: "${weeklyReportSchedule}". Job not scheduled.`);
+}
+
 app.get("/", (req, res) => {
   res.send("TimeSheet Backend is Running...");
 });

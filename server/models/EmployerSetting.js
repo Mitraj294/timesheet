@@ -59,7 +59,11 @@ const EmployerSettingSchema = new mongoose.Schema({
     type: [String], // Array of strings to store selected column keys
                     // default: [], // No default; undefined means all columns
   },
-  
+  weeklyReportEmail: {
+    type: String,
+    trim: true,
+    default: '', // Default to an empty string
+  },
 }, {
   timestamps: true,
 });

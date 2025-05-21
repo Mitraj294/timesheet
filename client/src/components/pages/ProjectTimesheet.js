@@ -31,7 +31,7 @@ import '../../styles/Timesheet.scss';
 import { DateTime } from 'luxon';
 import Select from "react-select";
 
-// Redux Imports
+// Redux Imports 
 import { fetchEmployees, selectAllEmployees, selectEmployeeStatus, selectEmployeeError } from '../../redux/slices/employeeSlice';
 import { fetchClients, selectAllClients, selectClientStatus, selectClientError } from '../../redux/slices/clientSlice';
 import { fetchProjects, selectProjectItems, selectProjectStatus, selectProjectError } from '../../redux/slices/projectSlice'; // Use selectProjectItems
@@ -687,15 +687,19 @@ const handleDownload = useCallback(async () => {
               <div className="detail-item"><FontAwesomeIcon icon={faBuilding} /> <strong>Client:</strong> <span>{entry.clientName || 'N/A'}</span></div>
               <div className="detail-item"><FontAwesomeIcon icon={faProjectDiagram} /> <strong>Project:</strong> <span>{entry.projectName || 'N/A'}</span></div>
               {/* Display Start Time and Actual Creation Time - Daily Card */}
-              {entry.startTime && (<div className="detail-item stacked-time work-time-group">
-                <div><FontAwesomeIcon icon={faClock} /> <strong className="work-time-label">Start:</strong> <span className="work-time-value">{formatTimeFromISO(entry.startTime, entryTimezone)}</span></div>
-                {entry.createdAt && <div className="actual-time-sub-item"><span className="actual-time-label">Actual:</span> <span className="actual-time-value">{formatTimeFromISO(entry.createdAt, entryTimezone)}</span></div>}
-              </div>)}
+              {entry.startTime && (
+                <div className="detail-item stacked-time work-time-group">
+                  <div><FontAwesomeIcon icon={faClock} /> <strong className="work-time-label">Start:</strong> <span className="work-time-value">{formatTimeFromISO(entry.startTime, entryTimezone)}</span></div>
+                  {entry.createdAt && <div className="actual-time-sub-item"><span className="actual-time-label">Actual Start:</span> <span className="actual-time-value">{formatTimeFromISO(entry.createdAt, entryTimezone)}</span></div>}
+                </div>
+              )}
               {/* Display End Time and Actual Update Time - Daily Card */}
-              {entry.endTime && (<div className="detail-item stacked-time work-time-group">
-                <div><FontAwesomeIcon icon={faClock} /> <strong className="work-time-label">End:</strong> <span className="work-time-value">{formatTimeFromISO(entry.endTime, entryTimezone)}</span></div>
-                {entry.updatedAt && <div className="actual-time-sub-item"><span className="actual-time-label">Actual:</span> <span className="actual-time-value">{formatTimeFromISO(entry.updatedAt, entryTimezone)}</span></div>}
-              </div>)}
+              {entry.endTime && (
+                <div className="detail-item stacked-time work-time-group">
+                  <div><FontAwesomeIcon icon={faClock} /> <strong className="work-time-label">End:</strong> <span className="work-time-value">{formatTimeFromISO(entry.endTime, entryTimezone)}</span></div>
+                  {entry.actualEndTime && <div className="actual-time-sub-item"><span className="actual-time-label">Actual End:</span> <span className="actual-time-value">{formatTimeFromISO(entry.actualEndTime, entryTimezone)}</span></div>}
+                </div>
+              )}
               <div className="detail-item"><FontAwesomeIcon icon={faUtensils} /> <strong>Lunch:</strong> <span>{entry.lunchBreak === 'Yes' ? formatLunchDuration(entry.lunchDuration) : 'No break'}</span></div>
               {entry.notes && entry.notes.trim() !== '' && (
                 <div className="detail-item notes-item"><FontAwesomeIcon icon={faStickyNote} /> <strong>Notes:</strong> <span>{entry.notes}</span></div>
@@ -969,14 +973,13 @@ const handleDownload = useCallback(async () => {
                                                         {/* Display Start Time and Actual Creation Time */}
                                                         {entry.startTime && (<>
                                                           <div className="detail-section"><span className="detail-label work-time-label">Start:</span><span className="detail-value work-time-value">{formatTimeFromISO(entry.startTime, entryTimezone)}</span></div>
-                                                          {entry.createdAt && <div className="detail-section sub-detail"><span className="detail-label actual-time-label">Actual:</span><span className="detail-value actual-time-value">{formatTimeFromISO(entry.createdAt, entryTimezone)}</span></div>}
+                                                          {entry.createdAt && <div className="detail-section sub-detail"><span className="detail-label actual-time-label">Actual Start:</span><span className="detail-value actual-time-value">{formatTimeFromISO(entry.createdAt, entryTimezone)}</span></div>}
                                                         </>)}
                                                         {/* Display End Time and Actual Update Time */}
                                                         {entry.endTime && (<>
                                                           <div className="detail-section"><span className="detail-label work-time-label">End:</span><span className="detail-value work-time-value">{formatTimeFromISO(entry.endTime, entryTimezone)}</span></div>
                                                           {/* Show updatedAt if different, otherwise show createdAt if entry was completed in one go */}
-                                                          {entry.updatedAt && entry.updatedAt !== entry.createdAt && <div className="detail-section sub-detail"><span className="detail-label actual-time-label">Actual:</span><span className="detail-value actual-time-value">{formatTimeFromISO(entry.updatedAt, entryTimezone)}</span></div>}
-                                                          {entry.updatedAt && entry.updatedAt === entry.createdAt && entry.createdAt && <div className="detail-section sub-detail"><span className="detail-label actual-time-label">Actual:</span><span className="detail-value actual-time-value">{formatTimeFromISO(entry.createdAt, entryTimezone)}</span></div>}
+                                                          {entry.actualEndTime && <div className="detail-section sub-detail"><span className="detail-label actual-time-label">Actual End:</span><span className="detail-value actual-time-value">{formatTimeFromISO(entry.actualEndTime, entryTimezone)}</span></div>}
                                                         </>)}
                                                         <div className="detail-section"><span className="detail-label">Lunch:</span><span className="detail-value">{entry.lunchBreak === 'Yes' ? formatLunchDuration(entry.lunchDuration) : 'No break'}</span></div>
                                                         {(user?.role === 'employer' || (user?.role === 'employee' && employerSettings?.timesheetHideWage === false)) && entry.hourlyWage != null && (

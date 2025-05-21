@@ -211,6 +211,26 @@ export const checkTimesheetExists = createAsyncThunk(
   }
 );
 
+// Fetches all incomplete timesheets for a specific employee. Requires authentication.
+// employeeId: The ID of the employee.
+export const fetchIncompleteTimesheets = createAsyncThunk(
+  'timesheets/fetchIncompleteTimesheets',
+  async (employeeId, { getState, rejectWithValue }) => {
+    try {
+      const { token } = getState().auth;
+      if (!token) return rejectWithValue('Authentication required.');
+      if (!employeeId) return rejectWithValue('Employee ID is required.');
+
+      const response = await axios.get(`${API_URL}/timesheets/employee/${employeeId}/incomplete`, getAuthHeaders(token));
+      return response.data; // Expecting an array of incomplete timesheet objects
+    } catch (error) {
+      console.error("Error fetching incomplete timesheets:", error);
+      return rejectWithValue(getErrorMessage(error));
+    }
+  }
+);
+
+
 // Creates a new Timesheet. Requires authentication.
 // timesheetData: Data for the new timesheet.
 export const createTimesheet = createAsyncThunk(
@@ -305,6 +325,10 @@ const initialState = {
   currentTimesheet: null,        // Currently viewed/edited single timesheet.
   currentTimesheetStatus: 'idle',// Loading status for a single timesheet.
   currentTimesheetError: null,   // Error for single timesheet operations.
+
+  incompleteTimesheets: [],      // List of incomplete timesheets for the logged-in user.
+  incompleteStatus: 'idle',      // Status for fetching incomplete timesheets.
+  incompleteError: null,         // Error for fetching incomplete timesheets.
 };
 
 const timesheetSlice = createSlice({
@@ -338,6 +362,11 @@ const timesheetSlice = createSlice({
         state.checkStatus = 'idle';
         state.checkError = null;
         state.checkResult = null;
+    },
+    clearIncompleteStatus: (state) => {
+        state.incompleteStatus = 'idle';
+        state.incompleteError = null;
+        state.incompleteTimesheets = [];
     },
     clearCreateStatus: (state) => {
         state.createStatus = 'idle';
@@ -510,6 +539,19 @@ const timesheetSlice = createSlice({
       .addCase(updateTimesheet.rejected, (state, action) => {
         state.updateStatus = 'failed';
         state.updateError = action.payload;
+      })
+      // --- fetchIncompleteTimesheets ---
+      .addCase(fetchIncompleteTimesheets.pending, (state) => {
+        state.incompleteStatus = 'loading';
+        state.incompleteError = null;
+      })
+      .addCase(fetchIncompleteTimesheets.fulfilled, (state, action) => {
+        state.incompleteStatus = 'succeeded';
+        state.incompleteTimesheets = action.payload;
+      })
+      .addCase(fetchIncompleteTimesheets.rejected, (state, action) => {
+        state.incompleteStatus = 'failed';
+        state.incompleteError = action.payload;
       });
   },
 });
@@ -539,7 +581,8 @@ export const selectTimesheetProjectSendError = (state) => state.timesheets.proje
 export const {
     clearTimesheetError, clearTimesheets,
     clearDownloadStatus, clearSendStatus, clearProjectDownloadStatus, clearProjectSendStatus,
-    clearCheckStatus, clearCreateStatus, clearUpdateStatus, clearCurrentTimesheet
+    clearCheckStatus, clearCreateStatus, clearUpdateStatus, clearCurrentTimesheet,
+    clearIncompleteStatus // Export the new clear action
 } = timesheetSlice.actions;
 // Selectors for check/create/update state
 export const selectTimesheetCheckStatus = (state) => state.timesheets.checkStatus;
@@ -553,3 +596,7 @@ export const selectTimesheetUpdateError = (state) => state.timesheets.updateErro
 export const selectCurrentTimesheet = (state) => state.timesheets.currentTimesheet;
 export const selectCurrentTimesheetStatus = (state) => state.timesheets.currentTimesheetStatus;
 export const selectCurrentTimesheetError = (state) => state.timesheets.currentTimesheetError;
+// Selectors for incomplete timesheets
+export const selectIncompleteTimesheets = (state) => state.timesheets.incompleteTimesheets;
+export const selectIncompleteStatus = (state) => state.timesheets.incompleteStatus;
+export const selectIncompleteError = (state) => state.timesheets.incompleteError;

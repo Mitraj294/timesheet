@@ -4,7 +4,7 @@ import mongoose from "mongoose";
 import moment from "moment-timezone"; // Keep for report formatting consistency for now
 import nodemailer from "nodemailer";
 import Employee from "../models/Employee.js"; // Import Employee model
-import Project from "../models/Project.js"; // Import Project model
+import Project from "../models/Project.js";
 import EmployerSetting from "../models/EmployerSetting.js"; // Import EmployerSetting model
 import dotenv from "dotenv";
 dotenv.config();
@@ -42,7 +42,7 @@ const calculateTotalHours = (startTime, endTime, lunchBreak, lunchDuration) => {
   return totalHours;
 };
 
-// buildTimesheetData function remains the same
+// buildTimesheetData function: actualEndTime is removed from here
 const buildTimesheetData = (body) => {
   const {
     employeeId, clientId, projectId, // These can be undefined, null, or a string from req.body
@@ -109,34 +109,30 @@ const buildTimesheetData = (body) => {
 
   const finalData = {
     employeeId,
-    // If clientId/projectId is an empty string or not provided (undefined), it becomes null.
-    // Otherwise, use the provided value (Mongoose will validate if it's a valid ObjectId string).
     clientId: (isWorkDay && clientId && typeof clientId === 'string' && clientId.trim() !== '') ? clientId : null,
     projectId: (isWorkDay && projectId && typeof projectId === 'string' && projectId.trim() !== '') ? projectId : null,
-    date: date, // Use the validated date string
+    date: date,
     startTime: utcStartTime,
     endTime: utcEndTime,
-    lunchBreak: isWorkDay ? (lunchBreak || 'No') : "No", // Default to 'No' if undefined for work day
-    lunchDuration: isWorkDay && (lunchBreak === 'Yes') ? (lunchDuration || "00:30") : "00:00", // Default for work day or if leave
-    leaveType: leaveType || "None", // Default to "None" if undefined
+    lunchBreak: isWorkDay ? (lunchBreak || 'No') : "No",
+    lunchDuration: isWorkDay && (lunchBreak === 'Yes') ? (lunchDuration || "00:30") : "00:00",
+    leaveType: leaveType || "None",
     totalHours: calculatedTotalHours,
     notes: isWorkDay ? (notes || "") : "",
     description: !isWorkDay ? (description || "") : "",
-    hourlyWage: parseFloat(hourlyWage) || 0, // Ensure it's a number
-    timezone: userTimezone
+    hourlyWage: parseFloat(hourlyWage) || 0,
+    timezone: userTimezone,
+    // actualEndTime is NOT set here anymore. It's handled in create/update.
   };
 
-  // If it's a leave entry, explicitly nullify/reset work-specific fields
   if (!isWorkDay) {
       finalData.clientId = null;
       finalData.projectId = null;
       finalData.startTime = null;
       finalData.endTime = null;
       finalData.lunchBreak = "No";
-      finalData.lunchDuration = "00:00"; // Align with model default or leave policy
+      finalData.lunchDuration = "00:00";
       finalData.notes = "";
-      // totalHours for leave might be handled differently (e.g., based on leaveType duration)
-      // but for this model, it's often 0 for the work part.
       finalData.totalHours = 0;
   }
 
@@ -148,31 +144,36 @@ const buildTimesheetData = (body) => {
 // @access  Private (e.g., Employee, Employer)
 export const createTimesheet = async (req, res) => {
   try {
-    // Fetch employer settings first
     const employeeCreatingTimesheet = await Employee.findById(req.body.employeeId);
     if (!employeeCreatingTimesheet || !employeeCreatingTimesheet.employerId) {
       return res.status(400).json({ message: "Cannot determine employer for settings." });
     }
     const settings = await EmployerSetting.findOne({ employerId: employeeCreatingTimesheet.employerId });
 
-    const timesheetData = buildTimesheetData(req.body);
+    const timesheetDataFromBuild = buildTimesheetData(req.body);
 
-    // Validation based on settings (only if settings are found and it's not a leave entry)
-    const isLeaveEntry = timesheetData.leaveType && timesheetData.leaveType !== "None";
+    const isLeaveEntry = timesheetDataFromBuild.leaveType && timesheetDataFromBuild.leaveType !== "None";
     if (settings && !isLeaveEntry) {
-      if (settings.timesheetIsProjectClientRequired && !timesheetData.clientId) {
+      if (settings.timesheetIsProjectClientRequired && !timesheetDataFromBuild.clientId) {
         return res.status(400).json({ message: "Client is required based on employer settings." });
       }
-      // If client is required and present, then project is also required
-      if (settings.timesheetIsProjectClientRequired && timesheetData.clientId && !timesheetData.projectId) {
+      if (settings.timesheetIsProjectClientRequired && timesheetDataFromBuild.clientId && !timesheetDataFromBuild.projectId) {
         return res.status(400).json({ message: "Project is required." });
       }
-      if (settings.timesheetAreNotesRequired && (!timesheetData.notes || timesheetData.notes.trim() === "")) {
+      if (settings.timesheetAreNotesRequired && (!timesheetDataFromBuild.notes || timesheetDataFromBuild.notes.trim() === "")) {
         return res.status(400).json({ message: "Work Notes are required based on employer settings." });
       }
     }
 
-    const newTimesheet = new Timesheet(timesheetData);
+    let actualEndTimeForNewEntry = null;
+    if (timesheetDataFromBuild.endTime instanceof Date && !isNaN(timesheetDataFromBuild.endTime.getTime())) {
+        actualEndTimeForNewEntry = new Date(); // Set actualEndTime if endTime is valid
+    }
+
+    const newTimesheet = new Timesheet({
+        ...timesheetDataFromBuild,
+        actualEndTime: actualEndTimeForNewEntry // Add actualEndTime here
+    });
     const saved = await newTimesheet.save();
     res.status(201).json({ message: "Timesheet created successfully", data: saved });
   } catch (error) {
@@ -214,20 +215,15 @@ export const checkTimesheet = async (req, res) => {
 // @access  Private (e.g., Employee, Employer)
 export const getTimesheets = async (req, res) => {
   try {
-    const { employeeIds = [], projectId, startDate, endDate } = req.query; // Added projectId
+    const { employeeIds = [], projectId, startDate, endDate } = req.query;
     const filter = {};
 
-    // Filter by Project ID
     if (projectId && mongoose.Types.ObjectId.isValid(projectId)) {
         filter.projectId = projectId;
     } else if (projectId) {
         console.log("[Server Get] Invalid project ID provided, ignoring project filter.");
-        // Optionally return empty if project ID is mandatory and invalid
-        // return res.json({ timesheets: [], totalHours: 0, avgHours: 0 });
     }
 
-    // Filter by Employee IDs (only if projectId is NOT set, or adjust logic if needed)
-    // If you want to filter by *both* project and employee, remove the !filter.projectId condition
     if (!filter.projectId && Array.isArray(employeeIds) && employeeIds.length > 0) {
       const validIds = employeeIds.filter(id => mongoose.Types.ObjectId.isValid(id));
       if (validIds.length > 0) {
@@ -245,7 +241,6 @@ export const getTimesheets = async (req, res) => {
         }
     }
 
-    // Filter by Date Range
     if (startDate && moment(startDate, 'YYYY-MM-DD', true).isValid()) {
         filter.date = filter.date || {};
         filter.date.$gte = startDate;
@@ -255,18 +250,12 @@ export const getTimesheets = async (req, res) => {
         filter.date.$lte = endDate;
     }
 
-    // --- Reduced Logging ---
-    // console.log(`[Server Get] Finding timesheets with filter:`, JSON.stringify(filter));
-
     const timesheetsFromDb = await Timesheet.find(filter)
       .populate("employeeId", "name email wage status expectedWeeklyHours")
       .populate("clientId", "name emailAddress")
       .populate("projectId", "name startDate finishDate")
       .sort({ date: 1, startTime: 1 })
       .lean();
-
-    // --- Reduced Logging ---
-    // console.log(`[Server Get] Found ${timesheetsFromDb.length} timesheets.`);
 
     const formattedTimesheets = timesheetsFromDb.map(ts => {
         let formattedDate = ts.date;
@@ -287,11 +276,6 @@ export const getTimesheets = async (req, res) => {
         return { ...ts, date: formattedDate };
     });
 
-    // --- Reduced Logging ---
-    // if (formattedTimesheets.length > 0) {
-    //   console.log(`[Server Get] Structure of first formatted timesheet sent:`, JSON.stringify(formattedTimesheets[0], null, 2));
-    // }
-
     const total = formattedTimesheets.reduce((sum, t) => sum + (t.totalHours || 0), 0);
     const avg = formattedTimesheets.length > 0 ? parseFloat((total / formattedTimesheets.length).toFixed(2)) : 0;
 
@@ -302,7 +286,6 @@ export const getTimesheets = async (req, res) => {
     });
   } catch (error) {
     console.error("[Server Get] Error fetching timesheets:", error.message);
-    // console.error("Full error object:", error); // Keep this for debugging if needed
     res.status(500).json({ message: `Failed to fetch timesheets: ${error.message}` });
   }
 };
@@ -321,7 +304,7 @@ export const getTimesheetById = async (req, res) => {
       .populate("employeeId", "name email wage status expectedWeeklyHours")
       .populate("clientId", "name emailAddress")
       .populate("projectId", "name startDate finishDate")
-      .lean(); // Use .lean() if you don't need Mongoose document methods
+      .lean();
 
     if (!timesheet) {
       return res.status(404).json({ message: "Timesheet not found" });
@@ -343,43 +326,30 @@ export const updateTimesheet = async (req, res) => {
         return res.status(400).json({ message: "Invalid Timesheet ID format" });
     }
     
-    // Step 1: Fetch the timesheet document WITHOUT populating employeeId initially
-    // to safely access its original employeeId ObjectId.
     const timesheet = await Timesheet.findById(id);
     if (!timesheet) {
       return res.status(404).json({ message: "Timesheet not found" });
     }
+    // Store the original endTime from the database for comparison
+    const originalDbEndTime = timesheet.endTime ? new Date(timesheet.endTime.getTime()) : null;
 
-    // Get the original employeeId as a string BEFORE it might be overwritten by population or become null
     const originalEmployeeIdString = timesheet.employeeId.toString();
-
-    // Step 2: Now populate employeeId for other uses (like fetching employer settings, auth checks)
-    // This will modify the `timesheet.employeeId` field on the `timesheet` Mongoose document instance.
     await timesheet.populate('employeeId', 'employerId userId'); 
-    // After this, timesheet.employeeId is either the populated object or null if the ref is broken.
 
-    // Check if employeeId is populated and has an employerId
-    // If timesheet.employeeId is null (broken ref after populate), this check handles it.
-    // If it's a populated object, it checks for _id and employerId.
-    if (!timesheet.employeeId || !timesheet.employeeId.employerId) { // Simpler check, as _id is implied if employerId exists on populated obj
+    if (!timesheet.employeeId || !timesheet.employeeId.employerId) {
       return res.status(400).json({ message: "Cannot determine employer for settings for this timesheet." });
     }
     
-    // Fetch employer settings
     const employerIdForSettings = timesheet.employeeId.employerId;
     const settings = await EmployerSetting.findOne({ employerId: employerIdForSettings });
     if (!settings) {
       console.warn(`[Server Update] Settings not found for employer ${employerIdForSettings}. Proceeding without settings-based validation.`);
     }
 
-    // Authorization: Check if employee is allowed to edit this timesheet
     if (req.user.role === 'employee') {
-      // Ensure employee is only updating their own timesheet
-      // Compare the userId on the populated employeeId with the logged-in user's ID
       if (!timesheet.employeeId.userId || timesheet.employeeId.userId.toString() !== req.user.id.toString()) {
           return res.status(403).json({ message: "Forbidden: You can only update your own timesheets." });
       }
-
       if (settings && settings.timesheetAllowOldEdits === false) {
         const timesheetDate = moment.utc(timesheet.date, 'YYYY-MM-DD');
         if (moment.utc().diff(timesheetDate, 'days') > 15) {
@@ -387,73 +357,77 @@ export const updateTimesheet = async (req, res) => {
         }
       }
     } else if (req.user.role === 'employer') {
-      // Ensure employer is updating a timesheet for one of their employees
       if (timesheet.employeeId.employerId.toString() !== req.user.id.toString()) {
         return res.status(403).json({ message: "Forbidden: You can only update timesheets for your own employees." });
       }
     }
 
-    // For a sign-out, the req.body will typically contain:
-    // { date (original), endTime, lunchBreak, lunchDuration, notes }
-    // We need to preserve other fields like startTime, hourlyWage, timezone, etc.
-    // from the existing 'timesheet' document.
-
-    // Re-build/validate data before applying selective updates, considering settings
-    // We use req.body combined with existing timesheet data for fields not being updated
     const dataForBuild = {
-      ...timesheet.toObject(), // This will have employeeId as populated object or null
+      ...timesheet.toObject(),
       ...req.body,
-      employeeId: originalEmployeeIdString // Crucially, use the original string ID for buildTimesheetData
+      employeeId: originalEmployeeIdString
     };
-    const potentialUpdateData = buildTimesheetData(dataForBuild);
+    const validatedData = buildTimesheetData(dataForBuild); // Renamed from potentialUpdateData
 
-    const isLeaveEntry = potentialUpdateData.leaveType && potentialUpdateData.leaveType !== "None";
+    const isLeaveEntry = validatedData.leaveType && validatedData.leaveType !== "None";
     if (settings && !isLeaveEntry) {
-      if (settings.timesheetIsProjectClientRequired && !potentialUpdateData.clientId) {
+      if (settings.timesheetIsProjectClientRequired && !validatedData.clientId) {
         return res.status(400).json({ message: "Client is required based on employer settings." });
       }
-      if (settings.timesheetIsProjectClientRequired && potentialUpdateData.clientId && !potentialUpdateData.projectId) {
+      if (settings.timesheetIsProjectClientRequired && validatedData.clientId && !validatedData.projectId) {
         return res.status(400).json({ message: "Project is required." });
       }
-      if (settings.timesheetAreNotesRequired && (!potentialUpdateData.notes || potentialUpdateData.notes.trim() === "")) {
+      if (settings.timesheetAreNotesRequired && (!validatedData.notes || validatedData.notes.trim() === "")) {
         return res.status(400).json({ message: "Work Notes are required based on employer settings." });
       }
     }
 
-    // Selectively update fields from req.body
-    // This ensures that fields not present in req.body (like startTime, hourlyWage, original timezone) are preserved.
-    if (req.body.date) timesheet.date = req.body.date; // Should be the original date
-    if (req.body.endTime) timesheet.endTime = new Date(req.body.endTime); // Ensure it's a Date object
-    if (req.body.lunchBreak !== undefined) timesheet.lunchBreak = req.body.lunchBreak;
-    if (req.body.lunchDuration !== undefined) timesheet.lunchDuration = req.body.lunchDuration;
-    if (req.body.notes !== undefined) timesheet.notes = req.body.notes;
-    // Apply other fields from potentialUpdateData if they are part of the update scope
-    if (req.body.clientId !== undefined) timesheet.clientId = potentialUpdateData.clientId;
-    if (req.body.projectId !== undefined) timesheet.projectId = potentialUpdateData.projectId;
-    if (req.body.leaveType !== undefined) timesheet.leaveType = potentialUpdateData.leaveType;
-    if (req.body.description !== undefined) timesheet.description = potentialUpdateData.description;
-    // If other fields like clientId, projectId, leaveType, description could be updated by this endpoint,
-    // they should also be handled conditionally:
-    // if (req.body.clientId !== undefined) timesheet.clientId = req.body.clientId ? req.body.clientId : null;
-    // if (req.body.projectId !== undefined) timesheet.projectId = req.body.projectId ? req.body.projectId : null;
-    // if (req.body.leaveType) timesheet.leaveType = req.body.leaveType;
-    // if (req.body.description !== undefined) timesheet.description = req.body.description;
-    // if (req.body.hourlyWage !== undefined) timesheet.hourlyWage = parseFloat(req.body.hourlyWage) || 0;
-    // if (req.body.timezone && moment.tz.zone(req.body.timezone)) timesheet.timezone = req.body.timezone;
+    // Apply validated data
+    if (req.body.date !== undefined) timesheet.date = validatedData.date;
+    if (req.body.startTime !== undefined) timesheet.startTime = validatedData.startTime;
+    
+    // Handle endTime and actualEndTime logic
+    if (req.body.hasOwnProperty('endTime')) {
+        const newValidatedEndTime = validatedData.endTime;
 
-    // Recalculate totalHours using the (preserved) startTime and new endTime
+        const newEndTimeMs = newValidatedEndTime ? newValidatedEndTime.getTime() : null;
+        const originalDbEndTimeMs = originalDbEndTime ? originalDbEndTime.getTime() : null;
+
+        if (newEndTimeMs !== originalDbEndTimeMs) { // If the effective endTime value has changed
+            timesheet.endTime = newValidatedEndTime;
+            if (newValidatedEndTime) {
+                timesheet.actualEndTime = new Date(); // Set/update actualEndTime
+            } else {
+                timesheet.actualEndTime = null; // Clear actualEndTime if endTime is cleared
+            }
+        }
+        // If endTime was in req.body but its value didn't change, actualEndTime is NOT updated.
+    }
+    // If 'endTime' is not in req.body, timesheet.endTime and timesheet.actualEndTime are not touched.
+
+    if (req.body.lunchBreak !== undefined) timesheet.lunchBreak = validatedData.lunchBreak;
+    if (req.body.lunchDuration !== undefined) timesheet.lunchDuration = validatedData.lunchDuration;
+    if (req.body.notes !== undefined) timesheet.notes = validatedData.notes;
+    if (req.body.clientId !== undefined) timesheet.clientId = validatedData.clientId;
+    if (req.body.projectId !== undefined) timesheet.projectId = validatedData.projectId;
+    if (req.body.leaveType !== undefined) timesheet.leaveType = validatedData.leaveType;
+    if (req.body.description !== undefined) timesheet.description = validatedData.description;
+    if (req.body.hourlyWage !== undefined) timesheet.hourlyWage = validatedData.hourlyWage;
+    if (req.body.timezone !== undefined) timesheet.timezone = validatedData.timezone;
+
     if (timesheet.startTime && timesheet.endTime) {
         timesheet.totalHours = calculateTotalHours(
-            timesheet.startTime, // Preserved from the fetched document
-            timesheet.endTime,   // Updated from req.body
+            timesheet.startTime,
+            timesheet.endTime,
             timesheet.lunchBreak,
-            timesheet.lunchDuration // This would have been updated from req.body if present
+            timesheet.lunchDuration
         );
+    } else if (timesheet.leaveType && timesheet.leaveType !== "None") {
+        timesheet.totalHours = 0; 
     } else {
-        timesheet.totalHours = 0; // Or handle as an error if startTime is missing
+        timesheet.totalHours = 0;
     }
 
-    timesheet.updatedAt = Date.now();
     const savedTimesheet = await timesheet.save();
     res.json({ message: "Timesheet updated successfully", timesheet: savedTimesheet });
   } catch (error) {
@@ -464,6 +438,28 @@ export const updateTimesheet = async (req, res) => {
     console.error("[Server Update] Error updating timesheet:", error);
     res.status(400).json({ message: error.message || "Error updating timesheet" });
   }
+};
+
+// @desc    Get all incomplete timesheets for a specific employee (startTime exists, endTime is null)
+// @route   GET /api/timesheets/employee/:employeeId/incomplete
+// @access  Private (Employee, Employer)
+export const getIncompleteTimesheetsByEmployee = async (req, res) => {
+    try {
+        const { employeeId } = req.params;
+        if (!mongoose.Types.ObjectId.isValid(employeeId)) return res.status(400).json({ message: "Invalid Employee ID" });
+
+        const incompleteTimesheets = await Timesheet.find({
+            employeeId: employeeId,
+            startTime: { $ne: null },
+            endTime: null
+        })
+        .sort({ date: 1, startTime: 1 })
+        .lean();
+        res.json(incompleteTimesheets);
+    } catch (error) {
+        console.error("[Server GetIncompleteByEmployee] Error:", error);
+        res.status(500).json({ message: `Error fetching incomplete timesheets: ${error.message}` });
+    }
 };
 
 // @desc    Get all timesheets for a specific project
@@ -624,20 +620,16 @@ const handleReportAction = async (req, res, isDownload, groupBy) => {
   }
 
   try {
-    // Fetch employer settings to get reportColumns
     const employerSettings = await EmployerSetting.findOne({ employerId: employerId }).lean();
 
     let employeesOfEmployer;
-    // Determine the list of employee IDs to filter by, ALWAYS scoped to the employer
     if (requestedEmployeeIdsParam && requestedEmployeeIdsParam.length > 0) {
-        // If specific employee IDs are requested, validate they belong to the employer
         const validRequestedIds = requestedEmployeeIdsParam.filter(id => mongoose.Types.ObjectId.isValid(id));
         employeesOfEmployer = await Employee.find({
             _id: { $in: validRequestedIds },
-            employerId: employerId // Crucial: ensure requested employees belong to this employer
+            employerId: employerId
         }).select('_id').lean();
     } else {
-        // If no specific employees are requested, get all employees for this employer
         employeesOfEmployer = await Employee.find({ employerId: employerId }).select('_id').lean();
     }
 
@@ -646,27 +638,22 @@ const handleReportAction = async (req, res, isDownload, groupBy) => {
     if (finalEmployeeIds.length === 0) {
         return res.status(404).json({ message: "No employees found for this employer matching the criteria." });
     }
-    // Fetch full employee data for use in reports
     const employeesData = await Employee.find({ _id: { $in: finalEmployeeIds } })
-                                        .select('name wage expectedHours')
+                                        .select('name wage expectedHours') // Corrected: expectedHours instead of expectedWeeklyHours
                                         .lean();
     const employeeMap = new Map(employeesData.map(emp => [emp._id.toString(), emp]));
 
-    let projectDetailsMap = new Map(); // Initialize projectDetailsMap here
+    let projectDetailsMap = new Map();
     const filter = {};
     const filterIds = (ids) => ids.filter(id => mongoose.Types.ObjectId.isValid(id));
 
-    // Always filter by the employer's employees
     filter.employeeId = { $in: finalEmployeeIds };
 
-    // Additional filtering based on groupBy and other parameters
     if (groupBy === 'employee') {
-        // The filter.employeeId is already correctly set by finalEmployeeIds.
-        // If specific employees were requested, finalEmployeeIds respects that.
-        // If no specific employees were requested, finalEmployeeIds includes all employer's employees.
+        // No additional filtering needed beyond employer's employees
     } else if (groupBy === 'project' && Array.isArray(projectIds) && projectIds.length > 0) {
         const validIds = filterIds(projectIds);
-        if (validIds.length > 0) filter.projectId = { $in: validIds }; // employeeId filter is already applied
+        if (validIds.length > 0) filter.projectId = { $in: validIds };
         else return res.status(400).json({ message: 'No valid project IDs provided for project filtering.' });
     }
     if (startDate && moment(startDate, 'YYYY-MM-DD', true).isValid()) {
@@ -676,8 +663,6 @@ const handleReportAction = async (req, res, isDownload, groupBy) => {
         filter.date = { ...filter.date, $lte: endDate };
     }
 
-    // --- Reduced Logging ---
-    // console.log(`[Server Report] Finding timesheets with filter:`, JSON.stringify(filter));
     const timesheets = await Timesheet.find(filter)
       .populate('employeeId', 'name')
       .populate('clientId', 'name')
@@ -685,8 +670,6 @@ const handleReportAction = async (req, res, isDownload, groupBy) => {
       .sort(groupBy === 'project' ? { 'projectId.name': 1, date: 1, startTime: 1 } : { 'employeeId.name': 1, date: 1, startTime: 1 })
       .lean();
 
-    // --- Reduced Logging ---
-    // console.log(`[Server Report] Found ${timesheets.length} timesheets for report.`);
     if (!timesheets.length) {
       return res.status(404).json({ message: "No timesheets found matching the specified filters." });
     }
@@ -695,31 +678,24 @@ const handleReportAction = async (req, res, isDownload, groupBy) => {
     workbook.creator = "Timesheet App";
     const ws = workbook.addWorksheet(groupBy === 'project' ? 'Project Timesheets' : 'Employee Timesheets');
 
-    let activeReportColumns = standardReportColumns; // Default to all standard columns
-
-   // If employerSettings.reportColumns is explicitly set by the user and is not empty, use the selected columns.
-    // If it's undefined (never set) or an empty array (initial default or user deselected all but wants default), show all.
+    let activeReportColumns = standardReportColumns;
     if (employerSettings && Array.isArray(employerSettings.reportColumns)) {
-      // If the user has made a specific selection (reportColumns is not empty)
       if (employerSettings.reportColumns.length > 0) {
         activeReportColumns = standardReportColumns.filter(col => employerSettings.reportColumns.includes(col.key));
-      } // If employerSettings.reportColumns is an empty array [], activeReportColumns remains standardReportColumns (show all)
+      }
     }
-    ws.columns = activeReportColumns; // Set the final columns for the worksheet, could be empty.
+    ws.columns = activeReportColumns;
 
-    // Only apply header styling if there are columns to display
     if (activeReportColumns.length > 0) {
       ws.getRow(1).font = { bold: true, alignment: { vertical: 'middle', horizontal: 'center' }, fill: { type: 'pattern', pattern:'solid', fgColor:{argb:'FFD3D3D3'} }, border: { bottom: { style: 'thin' } }};
     }
 
     if (groupBy === 'project') {
-        // Create a map of projects from the fetched timesheets or requested projectIds
-        // projectDetailsMap is already initialized above
         if (projectIds && projectIds.length > 0) {
             const validProjectIds = filterIds(projectIds);
             const projectsFromDb = await Project.find({ _id: { $in: validProjectIds } }).select('name').lean();
             projectsFromDb.forEach(p => projectDetailsMap.set(p._id.toString(), p.name));
-        } else { // If no specific projects requested, derive from timesheets (if any)
+        } else {
             timesheets.forEach(ts => {
                 if (ts.projectId && !projectDetailsMap.has(ts.projectId._id.toString())) {
                     projectDetailsMap.set(ts.projectId._id.toString(), ts.projectId.name);
@@ -727,17 +703,17 @@ const handleReportAction = async (req, res, isDownload, groupBy) => {
             });
         }
 
-        if (projectDetailsMap.size === 0 && activeReportColumns.length > 0) { // Only error if columns were expected
+        if (projectDetailsMap.size === 0 && activeReportColumns.length > 0) {
              return res.status(404).json({ message: "No projects found for the report criteria." });
         }
 
         projectDetailsMap.forEach((projectName, currentProjectIdString) => {
-            if (activeReportColumns.length > 0) { // Only add project header if there are columns
+            if (activeReportColumns.length > 0) {
                 const projectHeaderRow = ws.addRow([projectName]);
                 projectHeaderRow.font = { bold: true, size: 14 };
                 ws.mergeCells(projectHeaderRow.number, 1, projectHeaderRow.number, activeReportColumns.length);
                 projectHeaderRow.getCell(1).alignment = { horizontal: 'center' };
-                ws.addRow([]); // Blank row after project header
+                ws.addRow([]);
             }
 
             employeesData.forEach(employee => {
@@ -753,72 +729,66 @@ const handleReportAction = async (req, res, isDownload, groupBy) => {
                 if (formattedEmployeeTimesheets.length > 0) {
                     formattedEmployeeTimesheets.forEach((entry, index) => {
                         const rowDataValues = activeReportColumns.map(col => entry[col.key]);
-                        // Ensure employee name is correctly placed if 'employee' is the first active column
                         if (activeReportColumns.length > 0 && activeReportColumns[0].key === 'employee') {
                             rowDataValues[0] = index === 0 ? employee.name : '';
                         }
-                        if (activeReportColumns.length > 0) ws.addRow(rowDataValues); // Only add row if columns exist
+                        if (activeReportColumns.length > 0) ws.addRow(rowDataValues);
                         employeeProjectTotalHours += parseFloat(entry.totalHours || 0);
                         employeeProjectTotalIncome += parseFloat(entry.totalHours || 0) * (employee.wage || 0);
                     });
-                } else if (activeReportColumns.length > 0) { // Add empty row only if columns are active
+                } else if (activeReportColumns.length > 0) {
                     const emptyRowDataValues = activeReportColumns.map(col => (col.key === 'employee') ? employee.name : '');
                     ws.addRow(emptyRowDataValues);
                 }
 
-                if (activeReportColumns.length > 0) { // Only add summaries if there are columns
-                    // Create summary row data as an array based on active columns
+                if (activeReportColumns.length > 0) {
                     const summaryExpectedValues = activeReportColumns.map(col => {
                         if (col.key === 'leaveType') return 'EXPECTED';
-                        if (col.key === 'totalHours') return employee.expectedHours !== undefined ? String(employee.expectedHours) : '0';
-                        return ''; // Empty for other columns
+                        if (col.key === 'totalHours') return employee.expectedHours !== undefined ? String(employee.expectedHours) : '0'; // Corrected: expectedHours
+                        return '';
                     });
                     ws.addRow(summaryExpectedValues);
 
                     const summaryOvertimeValues = activeReportColumns.map(col => {
                         if (col.key === 'leaveType') return 'OVERTIME';
                          if (col.key === 'totalHours') {
-                            // Calculate overtime based on total hours for this project/employee and expected hours
-                            // This calculation might need refinement if expectedHours is weekly and this is a project-specific report
-                            // For simplicity, using 0 here as it's a project-level summary line
-                            return '0'; // Placeholder
+                            return '0';
                          }
-                        return ''; // Empty for other columns
+                        return '';
                     });
                     ws.addRow(summaryOvertimeValues);
 
                     const summaryTotalHoursValues = activeReportColumns.map(col => {
                         if (col.key === 'notes') return 'TOTAL HOURS';
                         if (col.key === 'totalHours') return employeeProjectTotalHours.toFixed(2);
-                        return ''; // Empty for other columns
+                        return '';
                     });
                      ws.addRow(summaryTotalHoursValues);
 
                     const summaryTotalIncomeValues = activeReportColumns.map(col => {
                         if (col.key === 'notes') return 'TOTAL INCOME EARNED';
                         if (col.key === 'totalHours') return `$${employeeProjectTotalIncome.toFixed(2)}`;
-                        return ''; // Empty for other columns
+                        return '';
                     });
                     ws.addRow(summaryTotalIncomeValues);
-                    ws.addRow([]); // Blank row after each employee's summary
+                    ws.addRow([]);
                 }
             });
-            if (activeReportColumns.length > 0) ws.addRow([]); // Extra blank row after each project section
+            if (activeReportColumns.length > 0) ws.addRow([]);
         });
 
-    } else { // Default to 'employee' grouping or other groupings if ever introduced
+    } else {
         const formattedData = formatDataForReport(timesheets, reportTimezone);
         const groupedData = formattedData.reduce((acc, entry) => {
-            const groupKey = entry.employee || `Unknown Employee`; // Use formatted employee name
+            const groupKey = entry.employee || `Unknown Employee`;
             (acc[groupKey] = acc[groupKey] || []).push(entry);
             return acc;
         }, {});
-        populateWorksheetForEmployeeGrouping(groupedData, ws, activeReportColumns); // Pass activeReportColumns
+        populateWorksheetForEmployeeGrouping(groupedData, ws, activeReportColumns);
     }
 
     const buffer = await workbook.xlsx.writeBuffer();
 
-    // Filename generation needs to be robust
     let nameLabel = `${groupBy.charAt(0).toUpperCase() + groupBy.slice(1)}_Report`;
     if (groupBy === 'project' && projectIds && projectIds.length === 1 && projectDetailsMap.has(projectIds[0])) {
         nameLabel = projectDetailsMap.get(projectIds[0]);
@@ -889,20 +859,112 @@ export const sendProjectTimesheetEmail = (req, res) => handleReportAction(req, r
 
 // Populates the worksheet for employee-grouped data
 const populateWorksheetForEmployeeGrouping = (groupedByEmployeeName, ws, activeColumns) => {
-    // ws.columns is already set to activeColumns by the caller
-    if (activeColumns.length === 0) return; // Don't add data if no columns are active
+    if (activeColumns.length === 0) return;
 
     Object.entries(groupedByEmployeeName).forEach(([employeeName, entries]) => {
         entries.forEach((entry, index) => {
             const rowValues = activeColumns.map(col => entry[col.key]);
-            // Override the employee name for grouping display if 'employee' is the first active column
             if (activeColumns.length > 0 && activeColumns[0].key === 'employee') {
                 rowValues[0] = (index === 0) ? employeeName : '';
             }
             ws.addRow(rowValues);
         });
-        if (Object.keys(groupedByEmployeeName).length > 1 && entries.length > 0) { // Add spacer if multiple employees and current employee had entries
-            ws.addRow({}); // Add a blank row as a spacer
+        if (Object.keys(groupedByEmployeeName).length > 1 && entries.length > 0) {
+            ws.addRow({});
         }
     });
+};
+
+// --- Weekly Report Automation ---
+
+/**
+ * Calculates the start and end dates for the previous week based on a given start day.
+ * @param {string} startDayOfWeekSetting - The day the week starts on (e.g., "Monday", "Sunday").
+ * @returns {{startDate: string, endDate: string}} - The start and end dates in 'YYYY-MM-DD' format.
+ */
+const getPreviousWeekDateRange = (startDayOfWeekSetting = 'Monday') => {
+    const today = moment();
+    // Moment's week starts on Sunday (0) by default. Adjust if startDayOfWeekSetting is different.
+    // .day() sets the day of the week. If the given day is before the current day in the current week, it moves to the next week.
+    // So, we first go to the start of the "current" week according to moment's default (Sunday).
+    // Then, we adjust to the *actual* start of the current week based on the setting.
+
+    let startOfCurrentWeek;
+    if (moment.localeData().firstDayOfWeek() === moment.weekdays(true).indexOf(startDayOfWeekSetting)) {
+        // If moment's default first day of week matches the setting
+        startOfCurrentWeek = today.clone().startOf('week');
+    } else {
+        // Manually find the start of the current week based on the setting
+        startOfCurrentWeek = today.clone().day(startDayOfWeekSetting);
+        if (startOfCurrentWeek.isAfter(today, 'day')) { // If .day() moved to next week's start day
+            startOfCurrentWeek.subtract(1, 'week');
+        }
+    }
+
+    const startDateOfPreviousWeek = startOfCurrentWeek.clone().subtract(1, 'week');
+    const endDateOfPreviousWeek = startDateOfPreviousWeek.clone().endOf('week'); // endOf('week') respects locale's end of week.
+                                                                            // If startDay is Monday, endOf('week') is Sunday.
+
+    return {
+        startDate: startDateOfPreviousWeek.format('YYYY-MM-DD'),
+        endDate: endDateOfPreviousWeek.format('YYYY-MM-DD'),
+    };
+};
+
+/**
+ * @desc    Automated task to send weekly timesheet reports to configured employers.
+ *          This function is intended to be called by a scheduler (e.g., node-cron).
+ */
+export const sendWeeklyTimesheetReports = async () => {
+    console.log(`[WeeklyReportTask] Starting job at ${moment().format()}`);
+    try {
+        const allSettings = await EmployerSetting.find({
+            weeklyReportEmail: { $exists: true, $ne: null, $ne: "" }
+        }).lean();
+
+        if (!allSettings.length) {
+            console.log("[WeeklyReportTask] No employers configured for weekly reports.");
+            return;
+        }
+
+        for (const settings of allSettings) {
+            if (!settings.weeklyReportEmail || !/\S+@\S+\.\S+/.test(settings.weeklyReportEmail)) {
+                console.warn(`[WeeklyReportTask] Invalid or missing weeklyReportEmail for employerId ${settings.employerId}. Skipping.`);
+                continue;
+            }
+
+            console.log(`[WeeklyReportTask] Processing report for employerId: ${settings.employerId}, email: ${settings.weeklyReportEmail}`);
+
+            const { startDate, endDate } = getPreviousWeekDateRange(settings.timesheetStartDayOfWeek);
+            const reportTimezone = settings.timezone || 'UTC'; // Assuming employer settings might have a timezone field
+
+            // We need to fetch all employee IDs for this employer to pass to handleReportAction
+            const employees = await Employee.find({ employerId: settings.employerId }).select('_id').lean();
+            const employeeIds = employees.map(emp => emp._id.toString());
+
+            if (employeeIds.length === 0) {
+                console.log(`[WeeklyReportTask] No employees found for employerId ${settings.employerId}. Skipping report.`);
+                continue;
+            }
+
+            const mockReq = {
+                user: { id: settings.employerId.toString() }, // handleReportAction expects employerId here
+                body: {
+                    email: settings.weeklyReportEmail,
+                    employeeIds: employeeIds, // Send all employees for this employer
+                    startDate,
+                    endDate,
+                    timezone: reportTimezone,
+                }
+            };
+            // handleReportAction sends responses, but for a cron job, we just log.
+            // We can create a simple mockRes or adapt handleReportAction if it becomes complex.
+            // For now, handleReportAction's own logging should suffice for success/failure of email sending.
+            await handleReportAction(mockReq, { status: () => ({ json: () => {} }), send: () => {} }, false, 'employee');
+            console.log(`[WeeklyReportTask] Attempted to send report for employerId: ${settings.employerId} to ${settings.weeklyReportEmail} for period ${startDate} to ${endDate}`);
+        }
+        console.log("[WeeklyReportTask] Finished processing all configured employers.");
+    } catch (error) {
+        console.error("[WeeklyReportTask] Error during weekly report generation:", error);
+    }
 };

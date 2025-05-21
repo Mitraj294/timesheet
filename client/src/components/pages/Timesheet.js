@@ -972,11 +972,7 @@ const Timesheet = () => {
                                                         {entry.endTime && (<>
                                                           <div className="detail-section"><span className="detail-label work-time-label">End:</span><span className="detail-value work-time-value">{formatTimeFromISO(entry.endTime, entryTimezone)}</span></div>
                                                           {/* Show updatedAt if different, otherwise show createdAt if entry was completed in one go */}
-                                                          {/* Display actualEndTime if available */}
-                                                          {entry.actualEndTime && <div className="detail-section sub-detail"><span className="detail-label actual-time-label">Actual End:</span><span className="detail-value actual-time-value">{formatTimeFromISO(entry.actualEndTime, entryTimezone)}</span></div>}
-                                                          {/* Fallback for older entries or if actualEndTime is somehow not set but endTime is; show updatedAt.
-                                                              This might be less relevant with the new actualEndTime field but kept for robustness. */}
-                                                          {!entry.actualEndTime && entry.updatedAt && entry.updatedAt !== entry.createdAt && <div className="detail-section sub-detail"><span className="detail-label actual-time-label">Actual (Updated):</span><span className="detail-value actual-time-value">{formatTimeFromISO(entry.updatedAt, entryTimezone)}</span></div>}
+                                                       {entry.actualEndTime && <div className="detail-section sub-detail"><span className="detail-label actual-time-label">Actual End:</span><span className="detail-value actual-time-value">{formatTimeFromISO(entry.actualEndTime, entryTimezone)}</span></div>}
                                                         </>)}
                                                         <div className="detail-section"><span className="detail-label">Lunch:</span><span className="detail-value">{entry.lunchBreak === 'Yes' ? formatLunchDuration(entry.lunchDuration) : 'No break'}</span></div>
                                                         {(user?.role === 'employer' || (user?.role === 'employee' && employerSettings?.timesheetHideWage === false)) && entry.hourlyWage != null && (
