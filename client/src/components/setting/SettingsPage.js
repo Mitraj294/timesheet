@@ -21,6 +21,7 @@ import UserSettingsSection from './UserSettingsSection.js';
 import EmployerDetailsSection from '../pages/EmployerDetailsSection.js';
 import VehicleSettingsSection from './VehicleSettingsSection.js';
 import TabletViewSettingsSection from './TabletViewSettingsSection.js'; // This is the one we just created/verified
+import TimesheetSettingsSection from './TimesheetSettingsSection.js'; // Import the new component
 
 import { selectAuthUser } from '../../redux/slices/authSlice.js';
 import { fetchEmployerSettings, selectSettingsStatus } from '../../redux/slices/settingsSlice.js'; // Import fetchEmployerSettings
@@ -69,7 +70,7 @@ const SettingsPage = () => {
       return [
         { key: 'account', label: 'Account Information', icon: faUserCog, component: <UserSettingsSection /> },
         { key: 'invitations', label: 'Manage Invitations', icon: faEnvelopeOpenText, component: <ManageInvitations /> },
-        { key: 'timesheets', label: 'Timesheets', icon: faFileInvoiceDollar, component: <PlaceholderSection title="Timesheet Settings" /> },
+        { key: 'timesheets', label: 'Timesheets', icon: faFileInvoiceDollar, component: <TimesheetSettingsSection /> },
         { key: 'tabletView', label: 'Tablet View', icon: faTabletAlt, component: <TabletViewSettingsSection /> },
         { 
           key: 'vehicles', 

@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { useNavigate, Link, useParams } from 'react-router-dom'; // Use useParams to get IDs from URL
 import { useSelector, useDispatch } from 'react-redux';
-import { fetchClients, selectAllClients } from '../../redux/slices/clientSlice';
+import { fetchClients, selectAllClients, selectClientStatus } from '../../redux/slices/clientSlice'; // Added selectClientStatus
 import { fetchEmployees, selectAllEmployees,selectEmployeeStatus} from '../../redux/slices/employeeSlice';
 import {
   fetchProjects,
@@ -38,6 +38,7 @@ import {
 } from '@fortawesome/free-solid-svg-icons';
 import '../../styles/Forms.scss'; // Ensure this path is correct
 import { setAlert } from '../../redux/slices/alertSlice';
+import { selectEmployerSettings, fetchEmployerSettings, selectSettingsStatus } from '../../redux/slices/settingsSlice'; // Import settings
 import Alert from '../layout/Alert';
 import { DateTime } from 'luxon';
 
@@ -82,6 +83,7 @@ const CreateProjectTimesheet = () => {
   const employees = useSelector(selectAllEmployees); // For employee dropdown
   const employeeStatus = useSelector(selectEmployeeStatus); // For checking if employees are loaded
   const clients = useSelector(selectAllClients); // Used for displaying client name
+  const clientStatus = useSelector(selectClientStatus); // Get client loading status
   const allProjects = useSelector(selectProjectItems); // Used for displaying project name and filtering
   const projectStatus = useSelector(selectProjectStatus);
   const projectError = useSelector(selectProjectError);
@@ -92,6 +94,9 @@ const CreateProjectTimesheet = () => {
   // Use selectors for fetching single timesheet if editing
   const timesheetToEdit = useSelector(selectCurrentTimesheet);
   const currentTimesheetStatus = useSelector(selectCurrentTimesheetStatus);
+  // Settings
+  const employerSettings = useSelector(selectEmployerSettings);
+  const settingsStatus = useSelector(selectSettingsStatus);
 
   const isLeaveSelected = formData.leaveType !== 'None';
 
@@ -143,18 +148,31 @@ const CreateProjectTimesheet = () => {
     };
   }, [projectError, createError, updateError, isEditing, currentTimesheetStatus, timesheetToEdit, dispatch]);
 
+  // Fetch settings if not already loaded
+  useEffect(() => {
+    if (settingsStatus === 'idle') {
+      dispatch(fetchEmployerSettings());
+    }
+  }, [dispatch, settingsStatus]);
+
   // Fetches initial data: employees, and the specific timesheet if in edit mode
   useEffect(() => {
-    if (employees.length === 0) dispatch(fetchEmployees());
+    // Fetch employees if not already loaded or loading
+    if (employeeStatus === 'idle' || (employeeStatus !== 'loading' && employees.length === 0)) {
+        dispatch(fetchEmployees());
+    }
+    // Fetch clients if not already loaded or loading
+    if (clientStatus === 'idle' || (clientStatus !== 'loading' && clients.length === 0)) {
+        dispatch(fetchClients());
+    }
+
     // Fetch timesheet data if editing
     if (isEditing && timesheetIdForEdit) {
-        // Fetch the specific timesheet to edit
-        // Fetch only if idle or if the wrong timesheet is currently loaded
         if (currentTimesheetStatus === 'idle' || timesheetToEdit?._id !== timesheetIdForEdit) {
              dispatch(fetchTimesheetById(timesheetIdForEdit)); // Assumes this thunk exists
         }
     } // No else needed here, form init for create mode is handled in another useEffect
-  }, [dispatch, clientIdFromUrl, projectIdFromUrl, isEditing, timesheetIdForEdit, employees.length]);
+  }, [dispatch, isEditing, timesheetIdForEdit, employeeStatus, employees.length, clientStatus, clients.length, currentTimesheetStatus, timesheetToEdit?._id]);
 
   // Fetches projects for the current client if client selection is dynamic and not a leave entry
   useEffect(() => { // This effect might be simplified if client/project are always fixed from URL
@@ -221,21 +239,26 @@ const CreateProjectTimesheet = () => {
           setError(`Error calculating initial hours: ${calcError.message}`);
       }
     } else if (!isEditing) {
-        // Create mode: Pre-fill employee if logged-in user is an employee
+      // Create mode: Wait for settings and employee record (if applicable)
+      if (settingsStatus === 'succeeded' && (user?.role !== 'employee' || (user?.role === 'employee' && loggedInEmployeeRecord))) {
+        const defaultLunchBreakFromSettings = employerSettings?.timesheetIsLunchBreakDefault === true ? 'Yes' : 'No';
+        let initialCreateData = {
+          ...DEFAULT_FORM_DATA,
+          lunchBreak: defaultLunchBreakFromSettings,
+          lunchDuration: defaultLunchBreakFromSettings === 'Yes' ? (employerSettings?.timesheetDefaultLunchDuration || '00:30') : '00:30',
+          clientId: clientIdFromUrl || '',
+          projectId: projectIdFromUrl || '',
+          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        };
+
         if (user?.role === 'employee' && loggedInEmployeeRecord) {
-            setFormData(prev => ({
-                ...DEFAULT_FORM_DATA,
-                clientId: clientIdFromUrl || '',
-                projectId: projectIdFromUrl || '',
-                employeeId: loggedInEmployeeRecord._id,
-                hourlyWage: loggedInEmployeeRecord.wage || '',
-                timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-            }));
-        } else { // For employer or if employee record not yet loaded
-            setFormData(prev => ({ ...DEFAULT_FORM_DATA, clientId: clientIdFromUrl || '', projectId: projectIdFromUrl || '' }));
+          initialCreateData.employeeId = loggedInEmployeeRecord._id;
+          initialCreateData.hourlyWage = loggedInEmployeeRecord.wage || '';
         }
+        setFormData(initialCreateData);
+      }
     }
-  }, [timesheetToEdit, currentTimesheetStatus, timesheetIdForEdit, calculateHoursPure, isEditing, clientIdFromUrl, projectIdFromUrl, dispatch, employees, user, loggedInEmployeeRecord]); // Added user, loggedInEmployeeRecord
+  }, [timesheetToEdit, currentTimesheetStatus, timesheetIdForEdit, calculateHoursPure, isEditing, clientIdFromUrl, projectIdFromUrl, dispatch, employees, user, loggedInEmployeeRecord, settingsStatus, employerSettings]);
 
   // Recalculates total hours whenever relevant time inputs or leave status change
   useEffect(() => {
@@ -296,6 +319,7 @@ const CreateProjectTimesheet = () => {
       } catch (e) { return 'Error validating time inputs.'; }
       if (formData.lunchBreak === 'Yes' && !/^\d{2}:\d{2}$/.test(formData.lunchDuration)) return 'Invalid Lunch Duration format (HH:MM).';
       if (parseFloat(formData.totalHours) > 16) return 'Total hours seem high (> 16). Please verify.';
+      if (employerSettings?.timesheetAreNotesRequired && !formData.notes.trim()) return 'Work Notes are required.';
     }
     return null;
   };
@@ -387,8 +411,25 @@ const CreateProjectTimesheet = () => {
   const isProjectLoading = projectStatus === 'loading';
 
   // Memoized client and project names for display in header/breadcrumbs
-  const clientName = useMemo(() => clients.find(c => c._id === clientIdFromUrl)?.name || 'Loading Client...', [clients, clientIdFromUrl]);
-  const projectName = useMemo(() => allProjects.find(p => p._id === projectIdFromUrl)?.name || 'Loading Project...', [allProjects, projectIdFromUrl]);
+  const clientName = useMemo(() => {
+    if (clientStatus === 'loading' && !clients.find(c => c._id === clientIdFromUrl)) {
+      return 'Loading Client...';
+    }
+    const client = clients.find(c => c._id === clientIdFromUrl);
+    if (client) return client.name;
+    if (clientStatus === 'succeeded' && !client) return 'Client Not Found';
+    return 'Loading Client...'; // Default or if status is 'idle' and client not yet found
+  }, [clients, clientIdFromUrl, clientStatus]);
+
+  const projectName = useMemo(() => {
+    if (projectStatus === 'loading' && !allProjects.find(p => p._id === projectIdFromUrl)) {
+      return 'Loading Project...';
+    }
+    const project = allProjects.find(p => p._id === projectIdFromUrl);
+    if (project) return project.name;
+    if (projectStatus === 'succeeded' && !project) return 'Project Not Found';
+    return 'Loading Project...'; // Default or if status is 'idle' and project not yet found
+  }, [allProjects, projectIdFromUrl, projectStatus]);
 
   // Render
   return (
@@ -499,7 +540,10 @@ const CreateProjectTimesheet = () => {
               )}
 
               <div className='form-group'>
-                <label htmlFor='notes'><FontAwesomeIcon icon={faStickyNote} /> Work Notes</label>
+                <label htmlFor='notes'>
+                  <FontAwesomeIcon icon={faStickyNote} /> Work Notes
+                  {!isLeaveSelected && employerSettings?.timesheetAreNotesRequired && '*'}
+                </label>
                 <textarea id='notes' name='notes' value={formData.notes} onChange={handleChange} placeholder='Add any work-related notes' disabled={isLoading} rows='3' />
               </div>
             </>

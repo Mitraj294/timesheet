@@ -64,7 +64,28 @@ const settingsSlice = createSlice({
   initialState: {
     employerSettings: {
       // Set to undefined initially; its true value will come from the DB.
-      showVehiclesTabInSidebar: undefined, 
+      // General Settings
+      showVehiclesTabInSidebar: undefined, // No default in model, will be undefined until set
+      // Tablet View Settings
+      tabletViewRecordingType: 'Automatically Record', // Default from model
+      tabletViewPasswordRequired: false, // Default from model
+      // Timesheet Settings (ensure all new fields are here with sensible defaults)
+      timesheetStartDayOfWeek: 'Monday', // Default from model
+      timesheetStartDate: null, // Default from model
+      timesheetIsLunchBreakDefault: true, // Default from model
+      isTravelChargeByDefault: true, // Default from model
+      is24Hour: false, // Default from model
+      isProjectClient: false, // Default from model
+      isNoteNeeded: false, // Default from model (corrected)
+      isWorkPerformed: false, // Default from model
+      reassignTimesheet: true, // Default from model
+      showXero: false, // Default from model
+      showLocation: false, // Default from model
+      employeeCanCreateProject: true, // Default from model
+      narrowTitles: true, // Default from model (added from HTML structure)
+      timesheetHideWage: false, // Default from model
+      defaultTimesheetViewType: 'Weekly', // Default from model
+      reportColumns: [], // Default for new setting
     },
     status: 'idle', // 'idle' | 'loading' | 'succeeded' | 'failed'
     error: null,

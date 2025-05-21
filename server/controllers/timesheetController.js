@@ -5,6 +5,7 @@ import moment from "moment-timezone"; // Keep for report formatting consistency 
 import nodemailer from "nodemailer";
 import Employee from "../models/Employee.js"; // Import Employee model
 import Project from "../models/Project.js"; // Import Project model
+import EmployerSetting from "../models/EmployerSetting.js"; // Import EmployerSetting model
 import dotenv from "dotenv";
 dotenv.config();
 
@@ -147,7 +148,30 @@ const buildTimesheetData = (body) => {
 // @access  Private (e.g., Employee, Employer)
 export const createTimesheet = async (req, res) => {
   try {
+    // Fetch employer settings first
+    const employeeCreatingTimesheet = await Employee.findById(req.body.employeeId);
+    if (!employeeCreatingTimesheet || !employeeCreatingTimesheet.employerId) {
+      return res.status(400).json({ message: "Cannot determine employer for settings." });
+    }
+    const settings = await EmployerSetting.findOne({ employerId: employeeCreatingTimesheet.employerId });
+
     const timesheetData = buildTimesheetData(req.body);
+
+    // Validation based on settings (only if settings are found and it's not a leave entry)
+    const isLeaveEntry = timesheetData.leaveType && timesheetData.leaveType !== "None";
+    if (settings && !isLeaveEntry) {
+      if (settings.timesheetIsProjectClientRequired && !timesheetData.clientId) {
+        return res.status(400).json({ message: "Client is required based on employer settings." });
+      }
+      // If client is required and present, then project is also required
+      if (settings.timesheetIsProjectClientRequired && timesheetData.clientId && !timesheetData.projectId) {
+        return res.status(400).json({ message: "Project is required." });
+      }
+      if (settings.timesheetAreNotesRequired && (!timesheetData.notes || timesheetData.notes.trim() === "")) {
+        return res.status(400).json({ message: "Work Notes are required based on employer settings." });
+      }
+    }
+
     const newTimesheet = new Timesheet(timesheetData);
     const saved = await newTimesheet.save();
     res.status(201).json({ message: "Timesheet created successfully", data: saved });
@@ -320,13 +344,63 @@ export const updateTimesheet = async (req, res) => {
     }
 
     // Fetch the existing timesheet document
-    const timesheet = await Timesheet.findById(id);
+    const timesheet = await Timesheet.findById(id).populate('employeeId', 'employerId userId'); // Populate employeeId to get employerId and userId
     if (!timesheet) return res.status(404).json({ message: "Timesheet not found" });
+
+    // Check if employeeId is populated and has an employerId
+    if (!timesheet.employeeId || !timesheet.employeeId._id || !timesheet.employeeId.employerId) {
+      return res.status(400).json({ message: "Cannot determine employer for settings for this timesheet." });
+    }
+
+    // Fetch employer settings
+    const employerIdForSettings = timesheet.employeeId.employerId;
+    const settings = await EmployerSetting.findOne({ employerId: employerIdForSettings });
+    if (!settings) {
+      console.warn(`[Server Update] Settings not found for employer ${employerIdForSettings}. Proceeding without settings-based validation.`);
+    }
+
+    // Authorization: Check if employee is allowed to edit this timesheet
+    if (req.user.role === 'employee') {
+      // Ensure employee is only updating their own timesheet
+      // Compare the userId on the populated employeeId with the logged-in user's ID
+      if (!timesheet.employeeId.userId || timesheet.employeeId.userId.toString() !== req.user.id.toString()) {
+          return res.status(403).json({ message: "Forbidden: You can only update your own timesheets." });
+      }
+
+      if (settings && settings.timesheetAllowOldEdits === false) {
+        const timesheetDate = moment.utc(timesheet.date, 'YYYY-MM-DD');
+        if (moment.utc().diff(timesheetDate, 'days') > 15) {
+          return res.status(403).json({ message: "Forbidden: Editing of timesheets older than 15 days is not allowed." });
+        }
+      }
+    } else if (req.user.role === 'employer') {
+      // Ensure employer is updating a timesheet for one of their employees
+      if (timesheet.employeeId.employerId.toString() !== req.user.id.toString()) {
+        return res.status(403).json({ message: "Forbidden: You can only update timesheets for your own employees." });
+      }
+    }
 
     // For a sign-out, the req.body will typically contain:
     // { date (original), endTime, lunchBreak, lunchDuration, notes }
     // We need to preserve other fields like startTime, hourlyWage, timezone, etc.
     // from the existing 'timesheet' document.
+
+    // Re-build/validate data before applying selective updates, considering settings
+    // We use req.body combined with existing timesheet data for fields not being updated
+    const potentialUpdateData = buildTimesheetData({ ...timesheet.toObject(), ...req.body });
+
+    const isLeaveEntry = potentialUpdateData.leaveType && potentialUpdateData.leaveType !== "None";
+    if (settings && !isLeaveEntry) {
+      if (settings.timesheetIsProjectClientRequired && !potentialUpdateData.clientId) {
+        return res.status(400).json({ message: "Client is required based on employer settings." });
+      }
+      if (settings.timesheetIsProjectClientRequired && potentialUpdateData.clientId && !potentialUpdateData.projectId) {
+        return res.status(400).json({ message: "Project is required." });
+      }
+      if (settings.timesheetAreNotesRequired && (!potentialUpdateData.notes || potentialUpdateData.notes.trim() === "")) {
+        return res.status(400).json({ message: "Work Notes are required based on employer settings." });
+      }
+    }
 
     // Selectively update fields from req.body
     // This ensures that fields not present in req.body (like startTime, hourlyWage, original timezone) are preserved.
@@ -335,7 +409,11 @@ export const updateTimesheet = async (req, res) => {
     if (req.body.lunchBreak !== undefined) timesheet.lunchBreak = req.body.lunchBreak;
     if (req.body.lunchDuration !== undefined) timesheet.lunchDuration = req.body.lunchDuration;
     if (req.body.notes !== undefined) timesheet.notes = req.body.notes;
-    
+    // Apply other fields from potentialUpdateData if they are part of the update scope
+    if (req.body.clientId !== undefined) timesheet.clientId = potentialUpdateData.clientId;
+    if (req.body.projectId !== undefined) timesheet.projectId = potentialUpdateData.projectId;
+    if (req.body.leaveType !== undefined) timesheet.leaveType = potentialUpdateData.leaveType;
+    if (req.body.description !== undefined) timesheet.description = potentialUpdateData.description;
     // If other fields like clientId, projectId, leaveType, description could be updated by this endpoint,
     // they should also be handled conditionally:
     // if (req.body.clientId !== undefined) timesheet.clientId = req.body.clientId ? req.body.clientId : null;
@@ -345,14 +423,13 @@ export const updateTimesheet = async (req, res) => {
     // if (req.body.hourlyWage !== undefined) timesheet.hourlyWage = parseFloat(req.body.hourlyWage) || 0;
     // if (req.body.timezone && moment.tz.zone(req.body.timezone)) timesheet.timezone = req.body.timezone;
 
-
     // Recalculate totalHours using the (preserved) startTime and new endTime
     if (timesheet.startTime && timesheet.endTime) {
         timesheet.totalHours = calculateTotalHours(
             timesheet.startTime, // Preserved from the fetched document
             timesheet.endTime,   // Updated from req.body
             timesheet.lunchBreak,
-            timesheet.lunchDuration
+            timesheet.lunchDuration // This would have been updated from req.body if present
         );
     } else {
         timesheet.totalHours = 0; // Or handle as an error if startTime is missing
@@ -514,11 +591,11 @@ const standardReportColumns = [
       { header: 'Total Hours', key: 'totalHours', width: 12, style: { numFmt: '0.00' } },
 ];
 
-// handleReportAction function remains the same
+// handleReportAction function
 const handleReportAction = async (req, res, isDownload, groupBy) => {
-  const actionType = isDownload ? 'download' : 'send'; // Renamed to avoid conflict with action variable if any
+  const actionType = isDownload ? 'download' : 'send';
   const { email, employeeIds: requestedEmployeeIdsParam = [], projectIds = [], startDate, endDate, timezone = 'UTC' } = req.body;
-  const employerId = req.user.id; // Get employerId from authenticated user
+  const employerId = req.user.id;
 
   if (!isDownload && (!email || !/\S+@\S+\.\S+/.test(email))) {
       return res.status(400).json({ message: 'Valid recipient email is required for sending.' });
@@ -529,6 +606,9 @@ const handleReportAction = async (req, res, isDownload, groupBy) => {
   }
 
   try {
+    // Fetch employer settings to get reportColumns
+    const employerSettings = await EmployerSetting.findOne({ employerId: employerId }).lean();
+
     let employeesOfEmployer;
     // Determine the list of employee IDs to filter by, ALWAYS scoped to the employer
     if (requestedEmployeeIdsParam && requestedEmployeeIdsParam.length > 0) {
@@ -596,9 +676,23 @@ const handleReportAction = async (req, res, isDownload, groupBy) => {
     const workbook = new ExcelJS.Workbook();
     workbook.creator = "Timesheet App";
     const ws = workbook.addWorksheet(groupBy === 'project' ? 'Project Timesheets' : 'Employee Timesheets');
-    ws.columns = standardReportColumns; // Use the existing columns
 
-    ws.getRow(1).font = { bold: true, alignment: { vertical: 'middle', horizontal: 'center' }, fill: { type: 'pattern', pattern:'solid', fgColor:{argb:'FFD3D3D3'} }, border: { bottom: { style: 'thin' } }};
+    let activeReportColumns = standardReportColumns; // Default to all standard columns
+
+   // If employerSettings.reportColumns is explicitly set by the user and is not empty, use the selected columns.
+    // If it's undefined (never set) or an empty array (initial default or user deselected all but wants default), show all.
+    if (employerSettings && Array.isArray(employerSettings.reportColumns)) {
+      // If the user has made a specific selection (reportColumns is not empty)
+      if (employerSettings.reportColumns.length > 0) {
+        activeReportColumns = standardReportColumns.filter(col => employerSettings.reportColumns.includes(col.key));
+      } // If employerSettings.reportColumns is an empty array [], activeReportColumns remains standardReportColumns (show all)
+    }
+    ws.columns = activeReportColumns; // Set the final columns for the worksheet, could be empty.
+
+    // Only apply header styling if there are columns to display
+    if (activeReportColumns.length > 0) {
+      ws.getRow(1).font = { bold: true, alignment: { vertical: 'middle', horizontal: 'center' }, fill: { type: 'pattern', pattern:'solid', fgColor:{argb:'FFD3D3D3'} }, border: { bottom: { style: 'thin' } }};
+    }
 
     if (groupBy === 'project') {
         // Create a map of projects from the fetched timesheets or requested projectIds
@@ -615,16 +709,18 @@ const handleReportAction = async (req, res, isDownload, groupBy) => {
             });
         }
 
-        if (projectDetailsMap.size === 0) {
+        if (projectDetailsMap.size === 0 && activeReportColumns.length > 0) { // Only error if columns were expected
              return res.status(404).json({ message: "No projects found for the report criteria." });
         }
 
         projectDetailsMap.forEach((projectName, currentProjectIdString) => {
-            const projectHeaderRow = ws.addRow([projectName]);
-            projectHeaderRow.font = { bold: true, size: 14 };
-            ws.mergeCells(projectHeaderRow.number, 1, projectHeaderRow.number, standardReportColumns.length);
-            projectHeaderRow.getCell(1).alignment = { horizontal: 'center' };
-            ws.addRow([]); // Blank row after project header
+            if (activeReportColumns.length > 0) { // Only add project header if there are columns
+                const projectHeaderRow = ws.addRow([projectName]);
+                projectHeaderRow.font = { bold: true, size: 14 };
+                ws.mergeCells(projectHeaderRow.number, 1, projectHeaderRow.number, activeReportColumns.length);
+                projectHeaderRow.getCell(1).alignment = { horizontal: 'center' };
+                ws.addRow([]); // Blank row after project header
+            }
 
             employeesData.forEach(employee => {
                 const employeeTimesheetsForProject = timesheets.filter(
@@ -638,48 +734,68 @@ const handleReportAction = async (req, res, isDownload, groupBy) => {
 
                 if (formattedEmployeeTimesheets.length > 0) {
                     formattedEmployeeTimesheets.forEach((entry, index) => {
-                        const rowData = {};
-                        standardReportColumns.forEach(col => { rowData[col.key] = entry[col.key]; });
-                        rowData.employee = index === 0 ? employee.name : '';
-                        ws.addRow(rowData);
+                        const rowDataValues = activeReportColumns.map(col => entry[col.key]);
+                        // Ensure employee name is correctly placed if 'employee' is the first active column
+                        if (activeReportColumns.length > 0 && activeReportColumns[0].key === 'employee') {
+                            rowDataValues[0] = index === 0 ? employee.name : '';
+                        }
+                        if (activeReportColumns.length > 0) ws.addRow(rowDataValues); // Only add row if columns exist
                         employeeProjectTotalHours += parseFloat(entry.totalHours || 0);
                         employeeProjectTotalIncome += parseFloat(entry.totalHours || 0) * (employee.wage || 0);
                     });
-                } else {
-                    const emptyRowData = {};
-                    standardReportColumns.forEach(col => { emptyRowData[col.key] = (col.key === 'employee') ? employee.name : ''; });
-                    ws.addRow(emptyRowData);
+                } else if (activeReportColumns.length > 0) { // Add empty row only if columns are active
+                    const emptyRowDataValues = activeReportColumns.map(col => (col.key === 'employee') ? employee.name : '');
+                    ws.addRow(emptyRowDataValues);
                 }
 
-                // Add summary rows for the employee for this project
-                const summaryExpected = {}; standardReportColumns.forEach(col => summaryExpected[col.key] = '');
-                summaryExpected.leaveType = 'EXPECTED'; summaryExpected.totalHours = employee.expectedHours !== undefined ? String(employee.expectedHours) : '0';
-                ws.addRow(summaryExpected);
+                if (activeReportColumns.length > 0) { // Only add summaries if there are columns
+                    // Create summary row data as an array based on active columns
+                    const summaryExpectedValues = activeReportColumns.map(col => {
+                        if (col.key === 'leaveType') return 'EXPECTED';
+                        if (col.key === 'totalHours') return employee.expectedHours !== undefined ? String(employee.expectedHours) : '0';
+                        return ''; // Empty for other columns
+                    });
+                    ws.addRow(summaryExpectedValues);
 
-                const summaryOvertime = {}; standardReportColumns.forEach(col => summaryOvertime[col.key] = '');
-                summaryOvertime.leaveType = 'OVERTIME'; summaryOvertime.totalHours = '0';
-                ws.addRow(summaryOvertime);
+                    const summaryOvertimeValues = activeReportColumns.map(col => {
+                        if (col.key === 'leaveType') return 'OVERTIME';
+                         if (col.key === 'totalHours') {
+                            // Calculate overtime based on total hours for this project/employee and expected hours
+                            // This calculation might need refinement if expectedHours is weekly and this is a project-specific report
+                            // For simplicity, using 0 here as it's a project-level summary line
+                            return '0'; // Placeholder
+                         }
+                        return ''; // Empty for other columns
+                    });
+                    ws.addRow(summaryOvertimeValues);
 
-                const summaryTotalHours = {}; standardReportColumns.forEach(col => summaryTotalHours[col.key] = '');
-                summaryTotalHours.notes = 'TOTAL HOURS'; summaryTotalHours.totalHours = employeeProjectTotalHours.toFixed(2);
-                ws.addRow(summaryTotalHours);
+                    const summaryTotalHoursValues = activeReportColumns.map(col => {
+                        if (col.key === 'notes') return 'TOTAL HOURS';
+                        if (col.key === 'totalHours') return employeeProjectTotalHours.toFixed(2);
+                        return ''; // Empty for other columns
+                    });
+                     ws.addRow(summaryTotalHoursValues);
 
-                const summaryTotalIncome = {}; standardReportColumns.forEach(col => summaryTotalIncome[col.key] = '');
-                summaryTotalIncome.notes = 'TOTAL INCOME EARNED'; summaryTotalIncome.totalHours = `$${employeeProjectTotalIncome.toFixed(2)}`;
-                ws.addRow(summaryTotalIncome);
-                ws.addRow([]); // Blank row after each employee's summary
+                    const summaryTotalIncomeValues = activeReportColumns.map(col => {
+                        if (col.key === 'notes') return 'TOTAL INCOME EARNED';
+                        if (col.key === 'totalHours') return `$${employeeProjectTotalIncome.toFixed(2)}`;
+                        return ''; // Empty for other columns
+                    });
+                    ws.addRow(summaryTotalIncomeValues);
+                    ws.addRow([]); // Blank row after each employee's summary
+                }
             });
-            ws.addRow([]); // Extra blank row after each project section
+            if (activeReportColumns.length > 0) ws.addRow([]); // Extra blank row after each project section
         });
 
     } else { // Default to 'employee' grouping or other groupings if ever introduced
         const formattedData = formatDataForReport(timesheets, reportTimezone);
         const groupedData = formattedData.reduce((acc, entry) => {
-            const groupKey = entry[groupBy] || `Unknown ${groupBy}`; // 'employee' or 'project'
+            const groupKey = entry.employee || `Unknown Employee`; // Use formatted employee name
             (acc[groupKey] = acc[groupKey] || []).push(entry);
             return acc;
         }, {});
-        populateWorksheetForEmployeeGrouping(groupedData, ws);
+        populateWorksheetForEmployeeGrouping(groupedData, ws, activeReportColumns); // Pass activeReportColumns
     }
 
     const buffer = await workbook.xlsx.writeBuffer();
@@ -754,17 +870,17 @@ export const downloadProjectTimesheets = (req, res) => handleReportAction(req, r
 export const sendProjectTimesheetEmail = (req, res) => handleReportAction(req, res, false, 'project');
 
 // Populates the worksheet for employee-grouped data
-const populateWorksheetForEmployeeGrouping = (groupedByEmployeeName, ws) => {
-    // ws.columns is already set to standardReportColumns
+const populateWorksheetForEmployeeGrouping = (groupedByEmployeeName, ws, activeColumns) => {
+    // ws.columns is already set to activeColumns by the caller
+    if (activeColumns.length === 0) return; // Don't add data if no columns are active
+
     Object.entries(groupedByEmployeeName).forEach(([employeeName, entries]) => {
         entries.forEach((entry, index) => {
-            const rowValues = {};
-            // Map entryData to the keys defined in standardReportColumns
-            standardReportColumns.forEach(col => {
-                rowValues[col.key] = entry[col.key];
-            });
-            // Override the employee name for grouping display
-            rowValues.employee = (index === 0) ? employeeName : '';
+            const rowValues = activeColumns.map(col => entry[col.key]);
+            // Override the employee name for grouping display if 'employee' is the first active column
+            if (activeColumns.length > 0 && activeColumns[0].key === 'employee') {
+                rowValues[0] = (index === 0) ? employeeName : '';
+            }
             ws.addRow(rowValues);
         });
         if (Object.keys(groupedByEmployeeName).length > 1 && entries.length > 0) { // Add spacer if multiple employees and current employee had entries

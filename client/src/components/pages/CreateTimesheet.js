@@ -39,6 +39,7 @@ import {
 } from '@fortawesome/free-solid-svg-icons';
 import '../../styles/Forms.scss'; // Ensure this path is correct
 import { setAlert } from "../../redux/slices/alertSlice";
+import { selectEmployerSettings, fetchEmployerSettings, selectSettingsStatus } from '../../redux/slices/settingsSlice'; // Import settings
 import Alert from '../layout/Alert';
 import { DateTime } from 'luxon';
 
@@ -95,6 +96,9 @@ const CreateTimesheet = () => {
   const updateError = useSelector(selectTimesheetUpdateError);
   const timesheetToEdit = useSelector(selectCurrentTimesheet);
   const currentTimesheetStatus = useSelector(selectCurrentTimesheetStatus);
+  // Settings
+  const employerSettings = useSelector(selectEmployerSettings);
+  const settingsStatus = useSelector(selectSettingsStatus);
 
   const isLeaveSelected = formData.leaveType !== 'None';
 
@@ -148,6 +152,13 @@ const CreateTimesheet = () => {
       dispatch(setAlert(reduxError, 'danger'));
     }
   }, [projectError, checkError, createError, updateError, isEditing, currentTimesheetStatus, timesheetToEdit, dispatch]);
+
+  // Fetch settings if not already loaded
+  useEffect(() => {
+    if (settingsStatus === 'idle') {
+      dispatch(fetchEmployerSettings());
+    }
+  }, [dispatch, settingsStatus]);
 
   // Fetches initial data: employees, clients.
   // Fetches the specific timesheet if in edit mode and it hasn't been fetched or has changed.
@@ -256,28 +267,33 @@ const CreateTimesheet = () => {
         }));
       }
     } else { // Create mode
-      if (user?.role === 'employee' && loggedInEmployeeRecord) {
-        setFormData(prev => ({
+      // Wait for settings and employee record (if applicable) to be loaded
+      if (settingsStatus === 'succeeded' && (user?.role !== 'employee' || (user?.role === 'employee' && loggedInEmployeeRecord))) {
+        const defaultLunchBreakFromSettings = employerSettings?.timesheetIsLunchBreakDefault === true ? 'Yes' : 'No';
+        let initialCreateData = {
           ...DEFAULT_FORM_DATA,
-          employeeId: loggedInEmployeeRecord._id,
-          hourlyWage: loggedInEmployeeRecord.wage || '',
+          lunchBreak: defaultLunchBreakFromSettings,
+          lunchDuration: defaultLunchBreakFromSettings === 'Yes' ? (employerSettings?.timesheetDefaultLunchDuration || '00:30') : '00:30', // Assuming you might add timesheetDefaultLunchDuration
           clientId: clientIdFromUrl || preselectedClientId || '',
           projectId: projectIdFromUrl || preselectedProjectId || '',
           timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-        }));
-      } else {
-        setFormData(prev => ({ // Default for employer or if employee record not yet loaded
-          ...DEFAULT_FORM_DATA,
-          clientId: clientIdFromUrl || preselectedClientId || '',
-          projectId: projectIdFromUrl || preselectedProjectId || '',
-          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-        }));
+        };
+
+        if (user?.role === 'employee' && loggedInEmployeeRecord) {
+          initialCreateData.employeeId = loggedInEmployeeRecord._id;
+          initialCreateData.hourlyWage = loggedInEmployeeRecord.wage || '';
+        }
+        setFormData(initialCreateData);
+      } else if (settingsStatus === 'idle' || settingsStatus === 'loading' || (user?.role === 'employee' && !loggedInEmployeeRecord && employeeStatus !== 'failed')) {
+        // Settings or essential data are still loading.
+        // formData will use DEFAULT_FORM_DATA initially and update when settings arrive due to dependency change.
       }
     }
   }, [
       isEditing, currentTimesheetStatus, timesheetToEdit, timesheetIdForEdit,
       clientIdFromUrl, preselectedClientId, projectIdFromUrl, preselectedProjectId,
-      calculateHoursPure, dispatch, employees
+      calculateHoursPure, dispatch, employees, user, loggedInEmployeeRecord, // Added user, loggedInEmployeeRecord
+      settingsStatus, employerSettings // Added settings dependencies
     ]);
   
   useEffect(() => {
@@ -343,10 +359,13 @@ const CreateTimesheet = () => {
     if (isLeave) {
       if (!dataToValidate.description.trim()) return 'Leave Description is required.';
     } else {
+      // Client and Project requirements based on settings
+      if (employerSettings?.timesheetIsProjectClientRequired && !dataToValidate.clientId) return 'Client is required.';
+      if (employerSettings?.timesheetIsProjectClientRequired && dataToValidate.clientId && !dataToValidate.projectId) {
+        return 'Project is required.';
+      }
       if (!dataToValidate.startTime) return 'Start Time is required.';
       if (!dataToValidate.endTime) return 'End Time is required.';
-      // Client and Project are now optional for general entries.
-      // They will be present if source === 'projectTimesheet' due to pre-filling.
       if (!/^\d{2}:\d{2}$/.test(dataToValidate.startTime) || !/^\d{2}:\d{2}$/.test(dataToValidate.endTime)) {
         return 'Invalid Start or End Time format (HH:MM).';
       }
@@ -366,6 +385,7 @@ const CreateTimesheet = () => {
       if (parseFloat(dataToValidate.totalHours) <= 0 && dataToValidate.startTime && dataToValidate.endTime) {
         return 'Total hours cannot be zero or less for a work entry. Check times/lunch.';
       }
+      if (employerSettings?.timesheetAreNotesRequired && !dataToValidate.notes.trim()) return 'Work Notes are required.';
     }
     return null;
   };
@@ -391,7 +411,7 @@ const CreateTimesheet = () => {
 
     if (validationError) {
       setError(validationError);
-      dispatch(setAlert(validationError, 'warning'));
+      dispatch(setAlert(validationError, 'danger')); // Ensure 'danger' for blocking errors
       return;
     }
 
@@ -597,14 +617,22 @@ const CreateTimesheet = () => {
               {source !== 'projectTimesheet' && (
                 <>
                   <div className='form-group'>
-                    <label htmlFor='clientId'><FontAwesomeIcon icon={faBuilding} /> Client</label>
+                    <label htmlFor='clientId'>
+                      <FontAwesomeIcon icon={faBuilding} /> Client
+                      {!isLeaveSelected && employerSettings?.timesheetIsProjectClientRequired && '*'}
+                    </label>
                     <select id='clientId' name='clientId' value={formData.clientId || ''} onChange={handleChange} disabled={isLoading}>
                       <option value=''>-- Select Client --</option>
                       {clients.map((c) => (<option key={c._id} value={c._id}>{c.name}</option>))}
                     </select>
                   </div>
                   <div className='form-group'>
-                    <label htmlFor='projectId'><FontAwesomeIcon icon={faProjectDiagram} /> Project</label>
+                    <label htmlFor='projectId'>
+                      <FontAwesomeIcon icon={faProjectDiagram} /> Project
+                      {/* Project might be considered required if a client is selected and the main setting is true */}
+                      {/* For simplicity, we'll just mark it if the main setting is true and a client is selected */}
+                      {!isLeaveSelected && employerSettings?.timesheetIsProjectClientRequired && formData.clientId && '*'}
+                    </label>
                     <select id='projectId' name='projectId' value={formData.projectId || ''} onChange={handleChange} disabled={isLoading || isProjectLoading || !formData.clientId}>
                       <option value=''>{isProjectLoading ? 'Loading projects...' : (!formData.clientId ? 'Select Client First' : '-- Select Project --')}</option>
                       {filteredProjects.map((p) => (<option key={p._id} value={p._id}>{p.name}</option>))}
@@ -643,7 +671,10 @@ const CreateTimesheet = () => {
                 </div>
               )}
               <div className='form-group'>
-                <label htmlFor='notes'><FontAwesomeIcon icon={faStickyNote} /> Work Notes</label>
+                <label htmlFor='notes'>
+                  <FontAwesomeIcon icon={faStickyNote} /> Work Notes
+                  {!isLeaveSelected && employerSettings?.timesheetAreNotesRequired && '*'}
+                </label>
                 <textarea id='notes' name='notes' value={formData.notes} onChange={handleChange} placeholder='Add any work-related notes' disabled={isLoading} rows='3' />
               </div>
             </>

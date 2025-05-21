@@ -3,6 +3,7 @@ import React, { useEffect, useState, useRef, useMemo } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { fetchEmployees, selectAllEmployees, selectEmployeeStatus, selectEmployeeError } from "../../redux/slices/employeeSlice";
 import { useNavigate, useLocation } from "react-router-dom";
+import { selectEmployerSettings, fetchEmployerSettings, selectSettingsStatus } from "../../redux/slices/settingsSlice";
 import { fetchTimesheets, selectAllTimesheets, selectTimesheetStatus, selectTimesheetError, clearTimesheetError } from "../../redux/slices/timesheetSlice";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { setAlert } from "../../redux/slices/alertSlice";
@@ -26,6 +27,12 @@ import Chart from "chart.js/auto";
 import ChartDataLabels from 'chartjs-plugin-datalabels';
 import "../../styles/Dashboard.scss";
 import { DateTime } from "luxon";
+
+// Helper to map day names to Luxon weekday numbers
+const dayNameToLuxonWeekday = {
+  'Monday': 1, 'Tuesday': 2, 'Wednesday': 3, 'Thursday': 4,
+  'Friday': 5, 'Saturday': 6, 'Sunday': 7,
+};
 
 // Helper to convert decimal hours to HH:MM format
 const convertDecimalToTime = (decimalHours) => {
@@ -51,49 +58,66 @@ const groupBy = (key, data = []) => {
   }, {});
 };
 
-// Helper to get date range based on selected view (Weekly, Fortnightly, Monthly)
-const getPeriodRange = (view) => {
+// Helper to get a custom week's start and end
+const getCustomWeekPeriod = (date, startDayOfWeekName = 'Monday') => {
+    const targetWeekdayNum = dayNameToLuxonWeekday[startDayOfWeekName] || 1; // Default to Monday
+    const currentDt = DateTime.isDateTime(date) ? date : DateTime.fromJSDate(date);
+
+    const daysToSubtract = (currentDt.weekday - targetWeekdayNum + 7) % 7;
+    const customWeekStart = currentDt.minus({ days: daysToSubtract }).startOf('day');
+    const customWeekEnd = customWeekStart.plus({ days: 6 }).endOf('day');
+    return { start: customWeekStart, end: customWeekEnd };
+};
+
+// Helper to get date range based on selected view and custom start day
+const getPeriodRange = (view, startDayOfWeekName = 'Monday') => {
   const today = DateTime.local();
   let startDt, endDt;
+  const { start: currentCustomWeekStart, end: currentCustomWeekEnd } = getCustomWeekPeriod(today, startDayOfWeekName);
+
   if (view === "Weekly") {
-    startDt = today.startOf('week');
-    endDt = startDt.endOf('week');
+    startDt = currentCustomWeekStart;
+    endDt = currentCustomWeekEnd;
   } else if (view === "Fortnightly") {
-    startDt = today.minus({ weeks: 1 }).startOf('week');
-    endDt = startDt.plus({ days: 13 }).endOf('day');
-  } else if (view === "Monthly") {
-    endDt = today.endOf('week');
-    startDt = today.minus({ weeks: 3 }).startOf('week');
-  } else {
-    startDt = today.startOf('week');
-    endDt = startDt.endOf('week');
+    // Current custom week + previous custom week
+    startDt = currentCustomWeekStart.minus({ weeks: 1 });
+    endDt = currentCustomWeekEnd; // End of the current custom week
+  } else if (view === "Monthly") { // Represents a 4-week period ending with the current custom week
+    startDt = currentCustomWeekStart.minus({ weeks: 3 });
+    endDt = currentCustomWeekEnd; // End of the current custom week
+  } else { // Default to Weekly
+    startDt = currentCustomWeekStart;
+    endDt = currentCustomWeekEnd;
   }
   return { start: startDt.toJSDate(), end: endDt.toJSDate() };
 };
 
 // Helper to get the previous period's date range
-const getPreviousPeriodRange = (currentRange, view) => {
-  const startDt = DateTime.fromJSDate(currentRange.start);
-  let prevStartDt, prevEndDt;
-  const duration = DateTime.fromJSDate(currentRange.end).diff(startDt, ['days']).days;
+const getPreviousPeriodRange = (currentRange, view, startDayOfWeekName = 'Monday') => {
+  const currentStartDt = DateTime.fromJSDate(currentRange.start); // This is already a custom start day
+  let prevStartDt, prevEndDt, durationWeeks = 1;
 
   if (view === "Weekly") {
-    prevStartDt = startDt.minus({ weeks: 1 });
+    durationWeeks = 1;
+    prevStartDt = currentStartDt.minus({ weeks: 1 });
   } else if (view === "Fortnightly") {
-    prevStartDt = startDt.minus({ weeks: 2 });
+    durationWeeks = 2;
+    prevStartDt = currentStartDt.minus({ weeks: 2 });
   } else if (view === "Monthly") {
-    prevStartDt = startDt.minus({ weeks: 4 });
+    durationWeeks = 4; // 4-week period
+    prevStartDt = currentStartDt.minus({ weeks: 4 });
   } else {
-    prevStartDt = startDt.minus({ weeks: 1 });
+    durationWeeks = 1; // Default to Weekly
+    prevStartDt = currentStartDt.minus({ weeks: 1 });
   }
-  prevEndDt = prevStartDt.plus({ days: Math.round(duration) }).endOf('day');
+  prevEndDt = prevStartDt.plus({ days: (durationWeeks * 7) - 1 }).endOf('day');
   return { start: prevStartDt.toJSDate(), end: prevEndDt.toJSDate() };
 };
 
 // Helper to calculate total hours for each day of the week
-const getDayTotals = (data, periodStart) => {
+const getDayTotals = (data, periodStart, startDayOfWeekName = 'Monday') => { // startDayOfWeekName added for consistency, periodStart is key
   const dailyTotals = [];
-  const startDt = DateTime.fromJSDate(periodStart);
+  const startDt = DateTime.fromJSDate(periodStart); // This will be the custom start day of the week
   for (let i = 0; i < 7; i++) {
     const currentDay = startDt.plus({ days: i });
     const total = data
@@ -111,12 +135,12 @@ const getDayTotals = (data, periodStart) => {
 };
 
 // Helper to calculate total hours for each week in a given period
-const getWeeklyTotals = (data, periodStart, weeks) => {
+const getWeeklyTotals = (data, periodStart, weeks, startDayOfWeekName = 'Monday') => { // startDayOfWeekName added
   const weeklyTotals = [];
-  const startDt = DateTime.fromJSDate(periodStart);
+  const startDt = DateTime.fromJSDate(periodStart); // This is the custom start of the first week of the period
   for (let w = 0; w < weeks; w++) {
     const weekStartDt = startDt.plus({ weeks: w });
-    const weekEndDt = weekStartDt.endOf('week');
+    const weekEndDt = weekStartDt.plus({ days: 6 }).endOf('day'); // Custom week end
     const weekTotal = data
       .filter((t) => {
         if (!t || !t.date) return false;
@@ -131,6 +155,17 @@ const getWeeklyTotals = (data, periodStart, weeks) => {
   return weeklyTotals;
 };
 
+// Helper to get ordered day names
+const getOrderedDays = (startDayName = 'Monday') => {
+  const allDays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+  const startIndex = allDays.indexOf(startDayName);
+  if (startIndex === -1) {
+    console.warn(`Invalid startDayName: ${startDayName}, defaulting to Monday order.`);
+    return allDays;
+  }
+  return [...allDays.slice(startIndex), ...allDays.slice(0, startIndex)];
+};
+
 const Dashboard = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
@@ -141,6 +176,9 @@ const Dashboard = () => {
   const allTimesheetsFromStore = useSelector(selectAllTimesheets);
   const timesheetStatus = useSelector(selectTimesheetStatus);
   const timesheetError = useSelector(selectTimesheetError);
+  const employerSettings = useSelector(selectEmployerSettings);
+  const settingsStatus = useSelector(selectSettingsStatus);
+
   const { token, isLoading: isAuthLoading, isAuthenticated, user } = useSelector((state) => state.auth || {});
 
   // Local component state
@@ -152,18 +190,40 @@ const Dashboard = () => {
   const clientsChartRef = useRef(null);
   const projectsChartRef = useRef(null);
 
+  // Memoized options for view type dropdowns
+  const viewOptions = useMemo(() => [
+    { value: "Weekly", label: "View by Weekly" },
+    { value: "Fortnightly", label: "View by Fortnightly" },
+    { value: "Monthly", label: "View by Monthly" },
+  ], []);
+
   // Effects
   useEffect(() => {
     if (!isAuthLoading && token) {
       dispatch(fetchEmployees());
+      if (settingsStatus === 'idle') dispatch(fetchEmployerSettings());
     }
-  }, [dispatch, token, isAuthLoading]);
+  }, [dispatch, token, isAuthLoading, settingsStatus]);
 
   useEffect(() => {
     if (!isAuthLoading && token) {
       dispatch(fetchTimesheets());
+      // Settings might already be fetched by the above useEffect
     }
   }, [token, isAuthLoading, dispatch]);
+
+  // Set default view type from settings once loaded
+  useEffect(() => {
+    if (settingsStatus === 'succeeded' && employerSettings?.defaultTimesheetViewType) {
+      const defaultView = viewOptions.find(option => option.value === employerSettings.defaultTimesheetViewType);
+      if (defaultView) {
+        setViewType(defaultView);
+      } else {
+        // Fallback if the setting is somehow invalid, though unlikely with a select dropdown
+        setViewType({ value: "Weekly", label: "View by Weekly" });
+      }
+    }
+  }, [settingsStatus, employerSettings, viewOptions]); // Added viewOptions to dependency array
 
   // Find the Employee record for the logged-in user if their role is 'employee'
   const loggedInEmployeeRecord = useMemo(() => {
@@ -219,12 +279,6 @@ const Dashboard = () => {
     return [];
   }, [user, employerScopedEmployees, loggedInEmployeeRecord]);
 
-  const viewOptions = useMemo(() => [
-    { value: "Weekly", label: "View by Weekly" },
-    { value: "Fortnightly", label: "View by Fortnightly" },
-    { value: "Monthly", label: "View by Monthly" },
-  ], []);
-
   // Adjust selectedEmployee state based on role and available data
   useEffect(() => {
     if (user?.role === 'employee' && loggedInEmployeeRecord) {
@@ -253,10 +307,11 @@ const Dashboard = () => {
     return [];
   }, [user, loggedInEmployeeRecord, selectedEmployee.value, trulyScopedAllTimesheets]);
 
+  const startDayOfWeekSetting = useMemo(() => employerSettings?.timesheetStartDayOfWeek || 'Monday', [employerSettings]);
 
   // Memoized date ranges for current and previous periods
-  const currentPeriod = useMemo(() => getPeriodRange(viewType.value), [viewType.value]);
-  const previousPeriod = useMemo(() => getPreviousPeriodRange(currentPeriod, viewType.value), [currentPeriod, viewType.value]);
+  const currentPeriod = useMemo(() => getPeriodRange(viewType.value, startDayOfWeekSetting), [viewType.value, startDayOfWeekSetting]);
+  const previousPeriod = useMemo(() => getPreviousPeriodRange(currentPeriod, viewType.value, startDayOfWeekSetting), [currentPeriod, viewType.value, startDayOfWeekSetting]);
 
   // Memoized filtered timesheets for the current period (all employees under employer, or single employee)
   const filteredAllCurrentTimesheets = useMemo(() => {
@@ -319,31 +374,20 @@ const Dashboard = () => {
 
 
   const avgHoursAllPeriodSummary = useMemo(() => {
-    // Collect all unique dates (formatted as ISO strings, assuming t.date is ISO)
-    // from all timesheets in the filteredAllCurrentTimesheets for the current period.
-    const uniqueDates = new Set(filteredAllCurrentTimesheets.map(t => {
-        // Ensure the date is valid and format it consistently (e.g., to 'YYYY-MM-DD')
-        // to count unique days, not unique times.
-        try {
-            return DateTime.fromISO(t.date).toISODate(); // Ensures only date part is considered
-        } catch (e) {
-            console.warn("Invalid date format in timesheet entry:", t.date);
-            return null; // Ignore invalid dates for counting
-        }
-    }).filter(Boolean)); // Filter out any nulls from invalid dates
+    // Calculate based on the number of entries for all employees in the period
+    const numberOfEntries = filteredAllCurrentTimesheets.length;
 
-    const numberOfUniqueDaysWorkedAcrossAllEmployees = uniqueDates.size;
-
-    return numberOfUniqueDaysWorkedAcrossAllEmployees > 0
-        ? (totalHoursAllPeriodSummary / numberOfUniqueDaysWorkedAcrossAllEmployees)
+    return numberOfEntries > 0
+        ? (totalHoursAllPeriodSummary / numberOfEntries)
         : 0;
 }, [totalHoursAllPeriodSummary, filteredAllCurrentTimesheets]);
 
   // Memoized summary calculations for selected/logged-in employee view
   const totalHoursEmployeeSummary = useMemo(() => filteredCurrentTimesheets.reduce((acc, sheet) => acc + (parseFloat(sheet.totalHours) || 0), 0), [filteredCurrentTimesheets]);
   const avgHoursEmployeeSummary = useMemo(() => {
-      const uniqueDaysWorked = new Set(filteredCurrentTimesheets.map(t => t.date)).size;
-      return uniqueDaysWorked > 0 ? (totalHoursEmployeeSummary / uniqueDaysWorked) : 0;
+      // Calculate based on the number of entries for the selected/logged-in employee
+      const numberOfEntries = filteredCurrentTimesheets.length;
+      return numberOfEntries > 0 ? (totalHoursEmployeeSummary / numberOfEntries) : 0;
   }, [totalHoursEmployeeSummary, filteredCurrentTimesheets]);
 
   // Formatted time strings for display
@@ -364,7 +408,7 @@ const Dashboard = () => {
   const totalLeaves = useMemo(() => {
       const start = DateTime.fromJSDate(currentPeriod.start);
       const end = DateTime.fromJSDate(currentPeriod.end);
-      return employeeTimesheets.filter(t => { // Use employeeTimesheets (already scoped)
+      return employeeTimesheets.filter(t => {
           if (!t?.date || !t.leaveType || t.leaveType === "None") return false;
           try {
               const d = DateTime.fromISO(t.date);
@@ -440,7 +484,7 @@ const Dashboard = () => {
 
   // Memoized data for the main bar chart (hours comparison)
   const { labels, currentData, previousData, thisPeriodLabel, lastPeriodLabel, currentBarSpecificLabels, previousBarSpecificLabels } = useMemo(() => {
-    if (showLoading || combinedError) {
+    if (showLoading || combinedError || settingsStatus !== 'succeeded') { // Wait for settings
         return { labels: [], currentData: [], previousData: [], thisPeriodLabel: "", lastPeriodLabel: "", currentBarSpecificLabels: [], previousBarSpecificLabels: [] };
     }
     let labels = [], currentData = [], previousData = [], weeks = 1;
@@ -449,17 +493,13 @@ const Dashboard = () => {
     const currentEnd = currentPeriod.end;
     const previousStart = previousPeriod.start;
     // const previousEnd = previousPeriod.end; // Not used directly for label
-
-    const formatRange = (start, end) => `${DateTime.fromJSDate(start).toFormat('MMM d')} - ${DateTime.fromJSDate(end).toFormat('MMM d, yyyy')}`;
-    // const currentRangeStr = formatRange(currentStart, currentEnd); // Not used directly for label
-    // const previousRangeStr = formatRange(previousStart, previousEnd); // Not used directly for label
+    const currentStartDayName = employerSettings?.timesheetStartDayOfWeek || 'Monday';
 
       let relativeThisLabel = "";
       let relativeLastLabel = "";
 
       let currentBarSpecificLabels = [];
       let previousBarSpecificLabels = [];
-
       const calculateSpecificLabels = (start, numItems, view) => {
         const specificLabels = [];
         const startDt = DateTime.fromJSDate(start);
@@ -471,7 +511,7 @@ const Dashboard = () => {
         } else { // Fortnightly or Monthly
           for (let w = 0; w < numItems; w++) {
             const weekStart = startDt.plus({ weeks: w });
-            const weekEnd = weekStart.endOf('week');
+            const weekEnd = weekStart.plus({ days: 6 }); // Use custom week end
             specificLabels.push(`${weekStart.toFormat('MMM d')} - ${weekEnd.toFormat('MMM d')}`);
           }
         }
@@ -479,35 +519,35 @@ const Dashboard = () => {
       };
 
     if (viewType.value === "Weekly") {
-      labels = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-      currentData = getDayTotals(filteredCurrentTimesheets, currentStart);
-      previousData = getDayTotals(filteredPreviousTimesheets, previousStart);
+      labels = getOrderedDays(currentStartDayName).map(day => day.substring(0, 3));
+      currentData = getDayTotals(filteredCurrentTimesheets, currentStart, currentStartDayName);
+      previousData = getDayTotals(filteredPreviousTimesheets, previousStart, currentStartDayName);
       relativeThisLabel = "This Week"; relativeLastLabel = "Last Week";
-      currentBarSpecificLabels = calculateSpecificLabels(currentStart, 7, "Weekly");
-      previousBarSpecificLabels = calculateSpecificLabels(previousStart, 7, "Weekly");
+      currentBarSpecificLabels = calculateSpecificLabels(currentStart, 7, "Weekly", currentStartDayName);
+      previousBarSpecificLabels = calculateSpecificLabels(previousStart, 7, "Weekly", currentStartDayName);
 
     } else if (viewType.value === "Fortnightly") {
       labels = ["Week 1", "Week 2"]; weeks = 2;
-      currentData = getWeeklyTotals(filteredCurrentTimesheets, currentStart, weeks);
-      previousData = getWeeklyTotals(filteredPreviousTimesheets, previousStart, weeks);
+      currentData = getWeeklyTotals(filteredCurrentTimesheets, currentStart, weeks, currentStartDayName);
+      previousData = getWeeklyTotals(filteredPreviousTimesheets, previousStart, weeks, currentStartDayName);
       relativeThisLabel = "This Fortnight"; relativeLastLabel = "Last Fortnight";
-      currentBarSpecificLabels = calculateSpecificLabels(currentStart, weeks, "Fortnightly");
-      previousBarSpecificLabels = calculateSpecificLabels(previousStart, weeks, "Fortnightly");
+      currentBarSpecificLabels = calculateSpecificLabels(currentStart, weeks, "Fortnightly", currentStartDayName);
+      previousBarSpecificLabels = calculateSpecificLabels(previousStart, weeks, "Fortnightly", currentStartDayName);
 
     } else if (viewType.value === "Monthly") {
       labels = ["Week 1", "Week 2", "Week 3", "Week 4"]; weeks = 4;
-      currentData = getWeeklyTotals(filteredCurrentTimesheets, currentStart, weeks);
-      previousData = getWeeklyTotals(filteredPreviousTimesheets, previousStart, weeks);
+      currentData = getWeeklyTotals(filteredCurrentTimesheets, currentStart, weeks, currentStartDayName);
+      previousData = getWeeklyTotals(filteredPreviousTimesheets, previousStart, weeks, currentStartDayName);
       relativeThisLabel = "This Month"; relativeLastLabel = "Last Month";
-      currentBarSpecificLabels = calculateSpecificLabels(currentStart, weeks, "Monthly");
-      previousBarSpecificLabels = calculateSpecificLabels(previousStart, weeks, "Monthly");
+      currentBarSpecificLabels = calculateSpecificLabels(currentStart, weeks, "Monthly", currentStartDayName);
+      previousBarSpecificLabels = calculateSpecificLabels(previousStart, weeks, "Monthly", currentStartDayName);
     }
 
      const thisPeriodLabelText = relativeThisLabel;
      const lastPeriodLabelText = relativeLastLabel;
 
     return { labels, currentData, previousData, thisPeriodLabel: thisPeriodLabelText, lastPeriodLabel: lastPeriodLabelText, currentBarSpecificLabels, previousBarSpecificLabels };
-  }, [viewType.value, filteredCurrentTimesheets, filteredPreviousTimesheets, currentPeriod, previousPeriod, showLoading, combinedError]);
+  }, [viewType.value, filteredCurrentTimesheets, filteredPreviousTimesheets, currentPeriod, previousPeriod, showLoading, combinedError, settingsStatus, employerSettings]);
 
   // Memoized data for the "Hours by Client" pie chart
   const clientChartData = useMemo(() => {
@@ -519,7 +559,7 @@ const Dashboard = () => {
     const data = Object.values(hoursByValidClient).map(item => item.totalHours);
     const labels = Object.values(hoursByClient).map(item => item.name);
     return { labels, data };
-  }, [filteredCurrentTimesheets, showLoading, combinedError]);
+  }, [filteredCurrentTimesheets, showLoading, combinedError, settingsStatus]); // Added settingsStatus
 
   // Memoized data for the "Hours by Project" pie chart
   const projectChartData = useMemo(() => {
@@ -531,7 +571,7 @@ const Dashboard = () => {
     const data = Object.values(hoursByValidProject).map(item => item.totalHours);
     const labels = Object.values(hoursByValidProject).map(item => item.name);
     return { labels, data };
-  }, [projectCardFilteredTimesheets, showLoading, combinedError]);
+  }, [projectCardFilteredTimesheets, showLoading, combinedError, settingsStatus]); // Added settingsStatus
 
   // Effect to render/update the main bar chart
   useEffect(() => {
@@ -544,7 +584,7 @@ const Dashboard = () => {
         chartRef.current = null;
     }
 
-    if (showLoading || combinedError || !labels.length) {
+    if (showLoading || combinedError || !labels.length || settingsStatus !== 'succeeded') { // Wait for settings
         return;
     }
 
@@ -584,7 +624,7 @@ const Dashboard = () => {
         }
         Chart.unregister(ChartDataLabels);
     };
-  }, [labels, currentData, previousData, thisPeriodLabel, lastPeriodLabel, currentBarSpecificLabels, previousBarSpecificLabels, showLoading, combinedError]);
+  }, [labels, currentData, previousData, thisPeriodLabel, lastPeriodLabel, currentBarSpecificLabels, previousBarSpecificLabels, showLoading, combinedError, settingsStatus]);
 
   // Effect to render/update the "Hours by Client" pie chart
   useEffect(() => {
@@ -595,7 +635,7 @@ const Dashboard = () => {
     clientCtx.clearRect(0, 0, clientCtx.canvas.width, clientCtx.canvas.height);
     Chart.unregister(ChartDataLabels);
 
-    if (showLoading || combinedError) return;
+    if (showLoading || combinedError || settingsStatus !== 'succeeded') return; // Wait for settings
 
     if (!clientChartData.labels.length || clientChartData.data.every(d => d === 0)) {
         clientCtx.font = "16px Arial"; clientCtx.fillStyle = "#888"; clientCtx.textAlign = "center";
@@ -617,7 +657,7 @@ const Dashboard = () => {
       },
     });
      return () => { if (clientsChartRef.current) { clientsChartRef.current.destroy(); clientsChartRef.current = null; } };
-  }, [clientChartData, showLoading, combinedError]);
+  }, [clientChartData, showLoading, combinedError, settingsStatus]);
 
   // Effect to render/update the "Hours by Project" pie chart
   useEffect(() => {
@@ -628,7 +668,7 @@ const Dashboard = () => {
     projectCtx.clearRect(0, 0, projectCtx.canvas.width, projectCtx.canvas.height);
     Chart.unregister(ChartDataLabels);
 
-    if (showLoading || combinedError) return;
+    if (showLoading || combinedError || settingsStatus !== 'succeeded') return; // Wait for settings
 
     if (!projectChartData.labels.length || projectChartData.data.every(d => d === 0)) {
         projectCtx.font = "16px Arial"; projectCtx.fillStyle = "#888"; projectCtx.textAlign = "center";
@@ -650,7 +690,7 @@ const Dashboard = () => {
       },
     });
      return () => { if (projectsChartRef.current) { projectsChartRef.current.destroy(); projectsChartRef.current = null; } };
-  }, [projectChartData, showLoading, combinedError]);
+  }, [projectChartData, showLoading, combinedError, settingsStatus]);
 
   // Render
   return (
@@ -695,7 +735,7 @@ const Dashboard = () => {
       {showLoading && (
         <div className='loading-indicator'>
           <FontAwesomeIcon icon={faSpinner} spin size='2x' />
-          <p>{isAuthLoading ? 'Authenticating...' : (isEmployeeLoading ? 'Loading employees...' : (isTimesheetLoading ? 'Loading timesheets...' : 'Loading...'))}</p>
+          <p>{isAuthLoading ? 'Authenticating...' : (settingsStatus === 'loading' ? 'Loading settings...' : (isEmployeeLoading ? 'Loading employees...' : (isTimesheetLoading ? 'Loading timesheets...' : 'Loading...')))}</p>
         </div>
       )}
 
@@ -731,7 +771,7 @@ const Dashboard = () => {
               <div className="summary-content">
                 <h3>{displayAvgHours}</h3>
                 <p>
-                  Avg. Daily Hours Worked
+                  Avg. Employee Hours
                 </p>
               </div>
             </div>

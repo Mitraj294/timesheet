@@ -274,7 +274,10 @@ const TabletView = () => {
     setShowExitPasswordModal(false);
     setExitPasswordInput('');
     setExitPasswordError(null);
-    dispatch(setTabletViewUnlocked(false)); // App.js will handle navigation
+    dispatch(setTabletViewUnlocked(false));
+    // Use a timeout to ensure the navigate call happens after the current event loop tick,
+    // giving Redux state update a chance to propagate fully.
+    setTimeout(() => navigate('/dashboard'), 0);
   };
 
   const handleEmployeeActionTrigger = (employee) => {

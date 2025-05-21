@@ -1084,3 +1084,60 @@
         }
     }
 }
+
+.react-select-container {
+    // ... existing styles
+    position: relative; // Needed for z-index to work
+    z-index: 100; // Example value, adjust as needed
+}
+
+
+// Styles for the time displays
+
+// Styles for Work Times (Start/End)
+.work-time-label {
+    font-weight: bold; // Ensure the label is bold
+}
+
+.work-time-value {
+    font-weight: bold; // Ensure the value is bold
+}
+
+// Styles for Actual Times (Created/Updated)
+.actual-time-label {
+    font-weight: normal; // Ensure the label is NOT bold
+    color: #777; // Example: Make the label text lighter
+}
+
+.actual-time-value {
+    font-weight: normal; // Ensure the value is NOT bold
+    color: #777; // Example: Make the value text lighter
+}
+
+// Existing styles for stacking/indentation (adjust padding/margins as needed)
+.detail-item.stacked-time {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    margin-bottom: 5px;
+
+    .actual-time-sub-item {
+        padding-left: 22px; // Indent "Actual" time under the icon + label
+        font-size: 0.9em;
+        margin-top: -3px;
+    }
+}
+
+.detail-section.sub-detail {
+    padding-left: 15px; // Indent "Actual" time in expanded rows
+    margin-top: -5px;
+    margin-bottom: 5px;
+    font-size: 0.95em;
+}
+
+// Optional: Adjust spacing if needed
+.detail-item,
+.detail-section {
+    // Add some bottom margin if needed to space out items
+    // margin-bottom: 8px;
+}

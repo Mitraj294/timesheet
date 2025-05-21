@@ -18,3 +18,4 @@ router.get('/employer', protect, getEmployerSettings);
 router.put('/employer', protect, employerOnly, updateEmployerSettings);
 
 export default router;
+//https://timesheet-slpc.onrender.com/api/settings/employer

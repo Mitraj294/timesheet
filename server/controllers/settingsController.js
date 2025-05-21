@@ -42,7 +42,25 @@ export const getEmployerSettings = async (req, res) => {
         // showVehiclesTabInSidebar is intentionally omitted, will be undefined by default
         tabletViewRecordingType: 'Automatically Record',
         tabletViewPasswordRequired: false,
+        timesheetStartDayOfWeek: 'Monday',
+        timesheetIsLunchBreakDefault: true,
+        timesheetHideWage: false, // Default for new settings documents
+        timesheetAllowOldEdits: false,
+        timesheetStartDate: null, // Default for the date picker
+        isTravelChargeByDefault: true,
+        is24Hour: false,
+        isProjectClient: false,
+        isNoteNeeded: false,
+        isWorkPerformed: false,
+        reassignTimesheet: true,
+        showXero: false,
+        showLocation: false,
+        employeeCanCreateProject: true,
+        defaultTimesheetViewType: 'Weekly',
       };
+      // Add new fields to defaultSettings to be explicit, though Mongoose schema defaults would apply
+      defaultSettings.timesheetIsProjectClientRequired = false;
+      defaultSettings.timesheetAreNotesRequired = false;
       settings = new EmployerSetting(defaultSettings);
       await settings.save();
       return res.json(settings);

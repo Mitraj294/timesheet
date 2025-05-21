@@ -12,6 +12,7 @@ import {
 import {
   fetchTimesheets, selectAllTimesheets, selectTimesheetStatus
 } from "../../redux/slices/timesheetSlice";
+import { selectEmployerSettings, fetchEmployerSettings, selectSettingsStatus } from "../../redux/slices/settingsSlice"; // Import settings
 import { setAlert } from "../../redux/slices/alertSlice";
 import {
   faUser,
@@ -47,6 +48,8 @@ const ViewClient = () => {
   const allTimesheets = useSelector(selectAllTimesheets);
   const timesheetStatus = useSelector(selectTimesheetStatus);
   const { user } = useSelector((state) => state.auth || {});
+  const employerSettings = useSelector(selectEmployerSettings); // Add settings selector
+  const settingsStatus = useSelector(selectSettingsStatus); // Add settings status selector
 
   // Local component state
   const [clientTotalHours, setClientTotalHours] = useState(0);
@@ -98,6 +101,9 @@ const ViewClient = () => {
         if (timesheetStatus !== 'succeeded' && timesheetStatus !== 'loading') {
             dispatch(fetchTimesheets());
         }
+        if (settingsStatus === 'idle' && user?.role === 'employee') { // Fetch settings if employee, for the new permission
+          dispatch(fetchEmployerSettings());
+        }
       } catch (err) {
         console.error("Error fetching data:", err);
         dispatch(setAlert(err.message || "Failed to fetch data.", 'danger'));
@@ -109,7 +115,7 @@ const ViewClient = () => {
         dispatch(clearProjects());
         dispatch(clearProjectError());
     };
-  }, [clientId, dispatch, timesheetStatus]);
+  }, [clientId, dispatch, timesheetStatus, settingsStatus, user?.role]);
 
   useEffect(() => {
     if (timesheetStatus === 'succeeded' && clientId) {
@@ -155,8 +161,11 @@ const ViewClient = () => {
   };
 
   const isLoading = useMemo(() =>
-    clientStatus === 'loading' || projectStatus === 'loading' || timesheetStatus === 'loading',
-    [clientStatus, projectStatus, timesheetStatus]
+    clientStatus === 'loading' || 
+    projectStatus === 'loading' || 
+    timesheetStatus === 'loading' ||
+    (user?.role === 'employee' && settingsStatus === 'loading'), // Consider settings loading for employee
+    [clientStatus, projectStatus, timesheetStatus, user?.role, settingsStatus]
   );
   const isDeletingProject = projectStatus === 'loading';
 
@@ -210,7 +219,10 @@ const ViewClient = () => {
               <FontAwesomeIcon icon={faPen} /> Edit Client
             </button>
           )}
-          {(user?.role === "employer" || user?.role === "employee") && (
+          {(
+            user?.role === "employer" || 
+            (user?.role === "employee" && settingsStatus === 'succeeded' && employerSettings?.employeeCanCreateProject === true)
+          ) && (
             <button
               className="btn btn-success"
               onClick={() => navigate(`/clients/${clientId}/create-project`)}
