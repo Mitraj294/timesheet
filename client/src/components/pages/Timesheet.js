@@ -574,6 +574,10 @@ const Timesheet = () => {
         if (!timesheet || !timesheet.employeeId || !timesheet.date || !/^\d{4}-\d{2}-\d{2}$/.test(timesheet.date)) {
             return;
         }
+        // console.log('Processing timesheet:', JSON.stringify(timesheet, null, 2)); 
+        // console.log(`Timesheet ID: ${timesheet._id}, Date: ${timesheet.date}, Start: ${timesheet.startTime}, End: ${timesheet.endTime}, Backend Status: ${timesheet.status}`);
+
+
         const entryLocalDate = timesheet.date;
         if (!currentViewDates.has(entryLocalDate)) return;
 
@@ -593,7 +597,7 @@ const Timesheet = () => {
         if (!grouped[employeeIdValue]) {
           grouped[employeeIdValue] = {
             id: employeeIdValue, name: employeeName, status: employeeStatus,
-            hoursPerDay: {}, details: [], expectedHours: employeeExpectedHours,
+            hoursPerDay: {}, details: [], expectedHours: employeeExpectedHours
           };
           dateColumns.forEach(day => (grouped[employeeIdValue].hoursPerDay[day.isoDate] = 0));
         }
@@ -601,6 +605,7 @@ const Timesheet = () => {
         grouped[employeeIdValue].hoursPerDay[entryLocalDate] += parseFloat(timesheet.totalHours || 0);
         grouped[employeeIdValue].details.push({
           ...timesheet,
+          // timesheet.isActiveStatus (stored field) will be used to determine group.displayStatus
           clientName, projectName,
           formattedLocalDate: entryLocalDate,
         });
@@ -614,6 +619,11 @@ const Timesheet = () => {
               const timeB = b.startTime ? DateTime.fromISO(b.startTime, { zone: 'utc' }).toMillis() : 0;
               return timeA - timeB;
           });
+          // console.log(`Details for group ${group.name}:`, JSON.stringify(group.details.map(d => ({id: d._id, date: d.date, status: d.status, start: d.startTime, end: d.endTime })), null, 2));
+         // Determine overall displayStatus for the row based on its entries using the stored status
+          const hasActiveEntry = group.details.some(entry => entry.isActiveStatus === 'Active');
+          // console.log(`[Timesheet] Group for ${group.name}: hasActiveEntry = ${hasActiveEntry}`);
+          group.displayStatus = hasActiveEntry ? 'Active' : 'Inactive';
       });
 
       return Object.values(grouped).sort((a, b) => a.name.localeCompare(b.name));
@@ -643,6 +653,7 @@ const Timesheet = () => {
 
     const headers = [
         <th key="expand" className="col-expand"></th>,
+        <th key="status" className="col-status center-text">Status</th>,
         <th key="name" className="col-name">Name</th>,
     ];
     const orderedDayNames = getOrderedDays(startDayOfWeekSetting);
@@ -910,6 +921,17 @@ const Timesheet = () => {
                                       <FontAwesomeIcon icon={isExpanded ? faChevronUp : faChevronDown} />
                                     </button>
                                   </td>
+                                  <td rowSpan={useRowSpan ? numWeeks : 1} className="col-status center-text">
+                                    {employeeGroup.displayStatus === 'Active' ? (
+                                      <div className="styles_Badge___green__Rj6L3">
+                                        <span className="styles_Badge_text___noIcon__RsIVg">Active</span>
+                                      </div>
+                                    ) : (
+                                      <div className="styles_Badge___gray__20re2">
+                                        <span className="styles_Badge_text___noIcon__RsIVg">Inactive</span>
+                                      </div>
+                                    )}
+                                  </td>
                                   <td rowSpan={useRowSpan ? numWeeks : 1} className="col-name employee-name-cell">{employeeGroup.name}</td>
                                 </>
                               )}
@@ -965,8 +987,8 @@ const Timesheet = () => {
                                                         <div className="detail-separator"></div>
                                                         {/* Display Start Time and Actual Creation Time */}
                                                         {entry.startTime && (<>
-                                                          <div className="detail-section"><span className="detail-label work-time-label">Start:</span><span className="detail-value work-time-value">{formatTimeFromISO(entry.startTime, entryTimezone)}</span></div>
-                                                          {entry.createdAt && <div className="detail-section sub-detail"><span className="detail-label actual-time-label">Actual Start:</span><span className="detail-value actual-time-value">{formatTimeFromISO(entry.createdAt, entryTimezone)}</span></div>}
+                                                         <div className="detail-section"><span className="detail-label work-time-label">Start:</span><span className="detail-value work-time-value">{formatTimeFromISO(entry.startTime, entryTimezone)}</span></div> {/* Corrected typo */}
+                                                           {entry.createdAt && <div className="detail-section sub-detail"><span className="detail-label actual-time-label">Actual Start:</span><span className="detail-value actual-time-value">{formatTimeFromISO(entry.createdAt, entryTimezone)}</span></div>}
                                                         </>)}
                                                         {/* Display End Time and Actual Update Time */}
                                                         {entry.endTime && (<>

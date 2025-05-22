@@ -6,6 +6,8 @@ import nodemailer from "nodemailer";
 import Employee from "../models/Employee.js"; // Import Employee model
 import Project from "../models/Project.js";
 import EmployerSetting from "../models/EmployerSetting.js"; // Import EmployerSetting model
+import User from "../models/User.js"; // Import User model to get employer details if needed
+import ScheduledNotification from '../models/ScheduledNotification.js'; // Import new model
 import dotenv from "dotenv";
 dotenv.config();
 
@@ -102,6 +104,10 @@ const buildTimesheetData = (body) => {
            throw new Error(`Error parsing End Time: ${endTime}`);
       }
   }
+  
+  // Calculate isActiveStatus based on startTime and endTime
+  const isActiveStatus = (utcStartTime instanceof Date && !isNaN(utcStartTime.getTime()) && (!utcEndTime || isNaN(utcEndTime.getTime())))
+                         ? 'Active' : 'Inactive';
 
   const calculatedTotalHours = isWorkDay && utcStartTime instanceof Date && utcEndTime instanceof Date
     ? calculateTotalHours(utcStartTime, utcEndTime, lunchBreak, lunchDuration)
@@ -123,6 +129,7 @@ const buildTimesheetData = (body) => {
     hourlyWage: parseFloat(hourlyWage) || 0,
     timezone: userTimezone,
     // actualEndTime is NOT set here anymore. It's handled in create/update.
+    isActiveStatus: isActiveStatus, // Include the calculated status
   };
 
   if (!isWorkDay) {
@@ -137,6 +144,133 @@ const buildTimesheetData = (body) => {
   }
 
   return finalData;
+};
+
+// --- Helper function for Timesheet Action Notifications ---
+const sendImmediateNotificationEmail = async (details) => {
+  const { recipientEmail, employeeName, action, timesheetDate, employerName } = details;
+  
+  if (!recipientEmail) {
+    console.warn('[Notification] No recipient email provided for immediate notification.');
+    return;
+  }
+  if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
+    console.error('[Notification] Email credentials (EMAIL_USER, EMAIL_PASS) are not configured in .env. Cannot send email.');
+    return;
+  }
+
+  const transporter = nodemailer.createTransport({
+    host: process.env.EMAIL_HOST, // Use configured host
+    port: parseInt(process.env.EMAIL_PORT || '587', 10),
+    secure: parseInt(process.env.EMAIL_PORT || '587', 10) === 465, // true for 465, false for other ports
+    auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS },
+  });
+
+  const mailOptions = {
+    from: `"Timesheet App" <${process.env.EMAIL_USER}>`,
+    to: recipientEmail,
+    subject: `Timesheet ${action} by ${employeeName}`,
+    text: `Hello ${employerName || 'Employer'},\n\nA timesheet for employee ${employeeName} on ${moment(timesheetDate).format('MMM DD, YYYY')} was ${action.toLowerCase()}.\n\nThank you,\nTimesheet App`,
+    // html: `<p>Hello ${employerName || 'Employer'},</p><p>A timesheet for employee <strong>${employeeName}</strong> on <strong>${moment(timesheetDate).format('MMM DD, YYYY')}</strong> was <strong>${action}</strong>.</p><p>Thank you,<br/>Timesheet App</p>`
+  };
+
+  try {
+    await transporter.sendMail(mailOptions);
+    console.log(`[Notification] Immediate notification email sent to ${recipientEmail} for ${employeeName}'s timesheet ${action}.`);
+  } catch (error) {
+    console.error(`[Notification] Failed to send immediate email to ${recipientEmail}:`, error);
+  }
+};
+
+const handleTimesheetActionNotification = async (timesheet, action, employerIdForTimesheet) => {
+  try {
+    if (!timesheet || !timesheet.employeeId) return;
+
+    // Fetch the employee to check their notification preference and get their employerId
+    const employee = await Employee.findById(timesheet.employeeId)
+                                   .select('name email receivesActionNotifications employerId')
+                                   .lean(); 
+
+    // If employee not found or has notifications disabled (receivesActionNotifications is explicitly false)
+    if (!employee || employee.receivesActionNotifications === false) { 
+      console.log(`[Notification] Notifications disabled for employee ${employee?.name || timesheet.employeeId} or employee not found. Skipping.`);
+      return;
+    }
+
+    // Use employerIdForTimesheet if provided (e.g., from populated employee during update), otherwise use employee.employerId
+    const employerIdToUse = employerIdForTimesheet || employee.employerId;
+    if (!employerIdToUse) {
+        console.warn(`[Notification] Could not determine employer ID for employee ${employee.name}. Skipping notification.`);
+        return;
+    }
+
+    const employerSettings = await EmployerSetting.findOne({ employerId: employerIdToUse })
+                                  .select('globalNotificationTimes actionNotificationEmail timezone') // Include timezone
+                                  .populate('employerId', 'name') // Populate employer user to get name
+                                  .lean();
+    const employerUser = await User.findById(employerIdToUse).select('name').lean(); // Get employer name for email
+
+    if (!employerSettings || !employerSettings.actionNotificationEmail) {
+      console.log(`[Notification] Action notification email not configured for employer ${employerIdToUse}. Skipping.`);
+      return;
+    }
+
+    const dayOfWeek = moment(timesheet.date).format('dddd').toLowerCase(); // e.g., 'monday'
+    const notificationTimeForDay = employerSettings.globalNotificationTimes?.[dayOfWeek];
+
+    if (!notificationTimeForDay || notificationTimeForDay === '') { // If time is blank, send immediately
+      const notificationDetails = {
+        recipientEmail: employerSettings.actionNotificationEmail,
+        employeeName: employee.name,
+        action: action,
+        timesheetDate: moment(timesheet.date).format('YYYY-MM-DD'),
+        employerName: employerUser?.name
+      };
+      await sendImmediateNotificationEmail(notificationDetails);
+    } else {
+      // --- Schedule the notification ---
+      const employerTimezone = employerSettings.timezone || process.env.SERVER_TIMEZONE || 'UTC';
+      const [hours, minutes] = notificationTimeForDay.split(':').map(Number);
+
+      // Create the scheduled time in the employer's timezone for the date of the timesheet
+      let scheduledMoment = moment.tz(timesheet.date, employerTimezone)
+                                 .hours(hours)
+                                 .minutes(minutes)
+                                 .seconds(0)
+                                 .milliseconds(0);
+
+      // If the calculated scheduled time is in the past (e.g., timesheet created late in the day after scheduled time),
+      // schedule it for the next available slot (e.g., same time next day if it's a recurring daily thing, or handle as per policy)
+      // For now, if it's in the past for today, it might get picked up almost immediately by the cron if the cron runs frequently.
+      // Or, more robustly, schedule for the *next* occurrence of that time if it's already passed for the timesheet's date.
+      // For simplicity here, we'll schedule it for the specified time on the timesheet's date.
+      // The cron job will pick up anything due.
+
+      const scheduledTimeUTC = scheduledMoment.utc().toDate();
+
+      const emailSubject = `Timesheet ${action} by ${employee.name}`;
+      const emailMessageBody = `Hello ${employerUser?.name || 'Employer'},\n\nA timesheet for employee ${employee.name} on ${moment(timesheet.date).format('MMM DD, YYYY')} was ${action.toLowerCase()}.\n\nThank you,\nTimesheet App`;
+
+      await ScheduledNotification.create({
+        employerId: employerIdToUse,
+        recipientEmail: employerSettings.actionNotificationEmail,
+        subject: emailSubject,
+        messageBody: emailMessageBody,
+        scheduledTimeUTC: scheduledTimeUTC,
+        status: 'pending',
+        // Store some context if needed for more complex summary emails later
+        // context: {
+        //   employeeName: employee.name,
+        //   timesheetAction: action,
+        //   timesheetDate: moment(timesheet.date).format('YYYY-MM-DD'),
+        // }
+      });
+      console.log(`[Notification] Queued: Action for ${employee.name} on ${dayOfWeek}. To be sent at ${scheduledMoment.format()} (${employerTimezone}) to ${employerSettings.actionNotificationEmail}.`);
+    }
+  } catch (error) {
+    console.error('[Notification] Error in handleTimesheetActionNotification:', error);
+    // Important: Don't let notification errors break the main timesheet operation
+  }
 };
 
 // @desc    Create a new timesheet entry
@@ -172,9 +306,14 @@ export const createTimesheet = async (req, res) => {
 
     const newTimesheet = new Timesheet({
         ...timesheetDataFromBuild,
-        actualEndTime: actualEndTimeForNewEntry // Add actualEndTime here
+        actualEndTime: actualEndTimeForNewEntry, // Add actualEndTime here
+        isActiveStatus: timesheetDataFromBuild.isActiveStatus, // Ensure status from build is used
     });
     const saved = await newTimesheet.save();
+
+    // Send notification after successful save
+    await handleTimesheetActionNotification(saved, 'created', employeeCreatingTimesheet.employerId);
+
     res.status(201).json({ message: "Timesheet created successfully", data: saved });
   } catch (error) {
      if (error.code === 11000) {
@@ -416,6 +555,7 @@ export const updateTimesheet = async (req, res) => {
     if (req.body.timezone !== undefined) timesheet.timezone = validatedData.timezone;
 
     if (timesheet.startTime && timesheet.endTime) {
+        timesheet.isActiveStatus = 'Inactive'; // Set status based on end time presence
         timesheet.totalHours = calculateTotalHours(
             timesheet.startTime,
             timesheet.endTime,
@@ -423,12 +563,19 @@ export const updateTimesheet = async (req, res) => {
             timesheet.lunchDuration
         );
     } else if (timesheet.leaveType && timesheet.leaveType !== "None") {
+        timesheet.isActiveStatus = 'Inactive'; // Leave entries are not "Active" work entries
         timesheet.totalHours = 0; 
     } else {
+        // If startTime exists but endTime is null, it's Active. Otherwise, Inactive.
+        timesheet.isActiveStatus = (timesheet.startTime && !timesheet.endTime) ? 'Active' : 'Inactive';
         timesheet.totalHours = 0;
     }
 
     const savedTimesheet = await timesheet.save();
+
+    // Send notification after successful update
+    await handleTimesheetActionNotification(savedTimesheet, 'updated', employerIdForSettings);
+
     res.json({ message: "Timesheet updated successfully", timesheet: savedTimesheet });
   } catch (error) {
      if (error.code === 11000) {
@@ -450,7 +597,7 @@ export const getIncompleteTimesheetsByEmployee = async (req, res) => {
 
         const incompleteTimesheets = await Timesheet.find({
             employeeId: employeeId,
-            startTime: { $ne: null },
+            isActiveStatus: 'Active', // Filter by the new stored status field
             endTime: null
         })
         .sort({ date: 1, startTime: 1 })
@@ -521,6 +668,8 @@ export const getTimesheetsByClient = async (req, res) => {
         res.status(500).json({ message: `Error fetching timesheets by client: ${error.message}` });
     }
 };
+
+
 
 // @desc    Delete a timesheet entry by ID
 // @route   DELETE /api/timesheets/:id

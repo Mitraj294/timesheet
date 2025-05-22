@@ -25,8 +25,13 @@ const timesheetSchema = new mongoose.Schema({
   hourlyWage: { type: Number, default: 0 },
   timezone: { type: String, default: 'UTC' }, // User's local timezone identifier
   actualEndTime: { type: Date, default: null }, // Actual timestamp when endTime was recorded
+  isActiveStatus: { type: String, enum: ['Active', 'Inactive'], default: 'Inactive' }, // Stored status
   // createdAt and updatedAt will be handled by timestamps option
-}, { timestamps: true });
+}, { 
+  timestamps: true,
+  toJSON: {}, // No virtuals to include
+  toObject: {} // No virtuals to include
+});
 
 // Ensure a unique timesheet entry per employee per day.
 timesheetSchema.index({ employeeId: 1, date: 1 }, { unique: true });

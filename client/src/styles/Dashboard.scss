@@ -104,9 +104,10 @@ $breakpoint-sm: 576px;
             }
 
             .react-select__menu {
+                // This targets the dropdown menu specifically
+                z-index: 1051; // Set a high z-index to ensure it appears above other elements
                 border-radius: 4px;
                 box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
-                z-index: 10; // Ensure dropdown is above other content
             }
 
             .react-select__option {

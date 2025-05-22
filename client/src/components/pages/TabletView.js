@@ -157,7 +157,7 @@ const TabletView = () => {
             dispatch(clearCheckStatus());
             const checkAction = await dispatch(checkTimesheetExists({ employee: emp._id, date: todayDate })).unwrap();
 
-            if (checkAction.exists && checkAction.timesheet) {
+            if (checkAction.exists && checkAction.timesheet) { // checkAction.timesheet will now have isActiveStatus
               if (!checkAction.timesheet.endTime) { // Incomplete for today
                 if (employerSettings?.tabletViewRecordingType === 'Automatically Record') {
                   newActiveClockIns[emp._id] = { id: checkAction.timesheet._id, date: checkAction.timesheet.date };
@@ -439,7 +439,7 @@ const TabletView = () => {
         const checkAction = await dispatch(checkTimesheetExists({ employee: employee._id, date: todayDate })).unwrap();
         if (checkAction.exists && checkAction.timesheet) {
           if (!checkAction.timesheet.endTime) {
-            setActiveClockIns(prev => ({ ...prev, [employee._id]: { id: checkAction.timesheet._id, date: checkAction.timesheet.date } }));
+            setActiveClockIns(prev => ({ ...prev, [employee._id]: { id: checkAction.timesheet._id, date: checkAction.timesheet.date, isActiveStatus: checkAction.timesheet.isActiveStatus } })); // Store status
             setSignInSuccessMessage(`${employee.name} is already signed in.`);
             setShowSignInSuccessModal(true);
             setIsSubmittingLogTime(false);
@@ -468,6 +468,7 @@ const TabletView = () => {
           lunchDuration: '00:00',
           totalHours: 0,
           notes: 'Clocked in via Tablet View',
+          isActiveStatus: 'Active', // Set status for new clock-in
           timezone: userTimezone,
           leaveType: 'None',
           clientId: null,
@@ -477,7 +478,7 @@ const TabletView = () => {
         const createdTimesheetAction = await dispatch(createTimesheet(timesheetPayload)).unwrap();
         if (createdTimesheetAction && createdTimesheetAction.data) {
             setActiveClockIns(prev => ({
-                ...prev,
+                ...prev, // Keep existing active clock-ins
                 [employee._id]: { id: createdTimesheetAction.data._id, date: createdTimesheetAction.data.date }
             }));
             setSignInSuccessMessage(`${employee.name} signed in successfully at ${currentTimeStr}.`);
@@ -510,6 +511,7 @@ const TabletView = () => {
         const updatePayload = {
             endTime: localTimeToUtcISO(currentTimeStr, originalTimesheetDate, userTimezone),
             notes: (currentEmployee?.tabletViewSignOutNotes || "") + " Clocked out via Tablet View",
+            isActiveStatus: 'Inactive', // Set status to Inactive on sign out
         };
         await dispatch(updateTimesheet({ id: timesheetIdToUpdate, timesheetData: updatePayload })).unwrap();
         setActiveClockIns(prev => {
@@ -641,6 +643,7 @@ const TabletView = () => {
         leaveType: 'None',
         clientId: null, projectId: null,
         hourlyWage: selectedEmployeeForAction?.wage || 0,
+        isActiveStatus: 'Active', // Default to Active when starting a manual entry
       };
 
       let timesheetPayload;
@@ -661,6 +664,7 @@ const TabletView = () => {
           lunchBreak: 'No',
           lunchDuration: '00:00',
           totalHours: 0,
+          isActiveStatus: 'Active', // Ensure status is Active for start-only entry
           notes: logTimeData.notes || 'Manually started entry.',
         };
         const createdAction = await dispatch(createTimesheet(timesheetPayload)).unwrap();
@@ -685,6 +689,7 @@ const TabletView = () => {
           lunchBreak: logTimeData.lunchBreak,
           lunchDuration: actualLunchDuration,
           totalHours: parseFloat(logTimeCalculatedHours) || 0,
+          isActiveStatus: 'Inactive', // Set status to Inactive when completing
           notes: logTimeData.notes,
         };
 
@@ -1182,7 +1187,7 @@ const TabletView = () => {
                   filteredEmployees.map(emp => {
                     const employeeId = emp._id || emp.id;
                     const isClockedIn = !!activeClockIns[employeeId]; // Automatic mode clock-in
-                    const hasIncompleteToday = activeManualEntries[employeeId] && activeManualEntries[employeeId].date === new Date().toISOString().split('T')[0];
+                    const hasIncompleteToday = activeManualEntries[employeeId] && activeManualEntries[employeeId].date === new Date().toISOString().split('T')[0]; // Still check for today's incomplete manual entry
                     // Check if there's *any* incomplete entry (today or older) to change button text
                     const hasAnyIncomplete = (incompleteTimesheetsForSelected && incompleteTimesheetsForSelected.length > 0 && selectedEmployeeForAction?._id === employeeId) || hasIncompleteToday;
 

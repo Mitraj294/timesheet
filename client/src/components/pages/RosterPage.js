@@ -527,10 +527,12 @@ const RosterPage = () => {
                           isEqual(currentWeekStart, addWeeks(startOfWeek(new Date(), { weekStartsOn: 1 }), 1));
 
   const shouldDisplaySidebars = user?.role === 'employer' && canShowSidebarsForDate;
-  // Determines if the "Rollout to Next Week" button should be enabled
-  const canRollout = shouldDisplaySidebars && (isEqual(currentWeekStart, startOfWeek(new Date(), { weekStartsOn: 1 })) ||
-                     isEqual(currentWeekStart, addWeeks(startOfWeek(new Date(), { weekStartsOn: 1 }), -1))) &&
-                     user?.role === 'employer';
+  // Determines if the "Rollout to Next Week" button should be visible/enabled
+  // It should be visible for the current week and the previous week, for employers.
+  const canRollout = user?.role === 'employer' && (
+                     isEqual(currentWeekStart, startOfWeek(new Date(), { weekStartsOn: 1 })) || // Current week
+                     isEqual(currentWeekStart, addWeeks(startOfWeek(new Date(), { weekStartsOn: 1 }), -1)) // Previous week
+                   );
 
   return (
     <div className='roster-page'>

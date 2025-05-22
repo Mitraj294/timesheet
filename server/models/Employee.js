@@ -28,6 +28,11 @@ const EmployeeSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId, 
     ref: 'User', 
     required: true 
+  },
+  // Field to control if this employee's timesheet actions trigger notifications to the employer
+  receivesActionNotifications: {
+    type: Boolean,
+    default: true // By default, employees will trigger notifications if employer has them enabled
   }
 });
 

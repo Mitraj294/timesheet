@@ -369,6 +369,8 @@ const CreateProjectTimesheet = () => {
       const timezoneToSend = formData.timezone && DateTime.local().setZone(formData.timezone).isValid
                              ? formData.timezone : Intl.DateTimeFormat().resolvedOptions().timeZone;
 
+      const isActiveStatus = !isLeaveSelected && startTimeUTC && !endTimeUTC ? 'Active' : 'Inactive';
+
       const requestData = {
         employeeId: formData.employeeId,
         clientId: formData.clientId, // Already set from URL param
@@ -382,6 +384,7 @@ const CreateProjectTimesheet = () => {
         description: isLeaveSelected ? formData.description : "",
         notes: !isLeaveSelected ? formData.notes : "",
         hourlyWage: parseFloat(formData.hourlyWage) || 0,
+        isActiveStatus: isActiveStatus, // Include the calculated status
         timezone: timezoneToSend,
       };
 

@@ -535,12 +535,16 @@ const handleDownload = useCallback(async () => {
         if (!timesheet || !timesheet.employeeId || !timesheet.date || !/^\d{4}-\d{2}-\d{2}$/.test(timesheet.date)) {
             return;
         }
+        // console.log('Processing timesheet:', JSON.stringify(timesheet, null, 2));
+        // console.log(`Timesheet ID: ${timesheet._id}, Date: ${timesheet.date}, Start: ${timesheet.startTime}, End: ${timesheet.endTime}, Backend Status: ${timesheet.status}`);
+
         const entryLocalDate = timesheet.date;
         if (!currentViewDates.has(entryLocalDate)) return;
 
         const employeeIdValue = timesheet.employeeId?._id || timesheet.employeeId;
         const employee = employees.find((emp) => emp._id === employeeIdValue);
         const employeeName = employee?.name || `Unknown (${String(employeeIdValue).slice(-4)})`;
+        const employeeModelStatus = employee?.status || 'Unknown'; // Employee's own status from model
         const employeeExpectedHours = employee?.expectedWeeklyHours || 40;
 
         const clientIdValue = timesheet.clientId?._id || timesheet.clientId;
@@ -550,8 +554,8 @@ const handleDownload = useCallback(async () => {
 
         if (!grouped[employeeIdValue]) {
           grouped[employeeIdValue] = {
-            id: employeeIdValue, name: employeeName,
-            hoursPerDay: {}, details: [], expectedHours: employeeExpectedHours,
+            id: employeeIdValue, name: employeeName, status: employeeModelStatus, // Store employee's own status
+            hoursPerDay: {}, details: [], expectedHours: employeeExpectedHours
           };
           dateColumns.forEach(day => (grouped[employeeIdValue].hoursPerDay[day.isoDate] = 0));
         }
@@ -559,7 +563,8 @@ const handleDownload = useCallback(async () => {
         grouped[employeeIdValue].hoursPerDay[entryLocalDate] += parseFloat(timesheet.totalHours || 0);
         grouped[employeeIdValue].details.push({
           ...timesheet,
-          clientName, projectName,
+           // timesheet.isActiveStatus (stored field) will be used to determine group.displayStatus
+         clientName, projectName,
           formattedLocalDate: entryLocalDate,
         });
       });
@@ -572,6 +577,11 @@ const handleDownload = useCallback(async () => {
               const timeB = b.startTime ? DateTime.fromISO(b.startTime, { zone: 'utc' }).toMillis() : 0;
               return timeA - timeB;
           });
+          // console.log(`Details for group ${group.name}:`, JSON.stringify(group.details.map(d => ({id: d._id, date: d.date, status: d.status, start: d.startTime, end: d.endTime })), null, 2));
+          // Determine overall displayStatus for the row based on its entries using the stored status
+          const hasActiveEntry = group.details.some(entry => entry.isActiveStatus === 'Active');
+          // console.log(`[ProjectTimesheet] Group for ${group.name}: hasActiveEntry = ${hasActiveEntry}`);
+          group.displayStatus = hasActiveEntry ? 'Active' : 'Inactive';
       });
 
       return Object.values(grouped).sort((a, b) => a.name.localeCompare(b.name));
@@ -628,6 +638,11 @@ const handleDownload = useCallback(async () => {
       return projectOptions.find(opt => opt.value === selectedProjectId) || null;
   }, [projectOptions, selectedProjectId]);
 
+  const selectedProjectObject = useMemo(() => {
+    if (!selectedProjectId || selectedProjectId === ALL_PROJECTS_VALUE || !Array.isArray(projects)) return null;
+    return projects.find(p => p._id === selectedProjectId);
+  }, [projects, selectedProjectId]);
+
   // Display label for the current period type (e.g., "Week", "Month")
   const periodLabel = useMemo(() => getPeriodLabel(viewType), [viewType]);
 
@@ -637,6 +652,7 @@ const handleDownload = useCallback(async () => {
 
     const headers = [
         <th key="expand" className="col-expand"></th>,
+        <th key="status" className="col-status center-text">Status</th>,
         <th key="name" className="col-name">Employee</th>,
     ];
     const orderedDayNames = getOrderedDays(startDayOfWeekSetting);
@@ -872,9 +888,9 @@ const handleDownload = useCallback(async () => {
           </button>
         </div>
         <Link
-          to={`/timesheet/project/create/${projects.find(p => p._id === selectedProjectId)?.clientId?._id}/${selectedProjectId}`}
-          className={`btn btn-success create-timesheet-link ${!selectedProjectId || selectedProjectId === ALL_PROJECTS_VALUE ? 'disabled-link' : ''}`}
-          aria-disabled={!selectedProjectId || selectedProjectId === ALL_PROJECTS_VALUE || !projects.find(p => p._id === selectedProjectId)?.clientId?._id}
+          to={selectedProjectObject ? `/timesheet/project/create/${selectedProjectObject.clientId?._id || selectedProjectObject.clientId}/${selectedProjectObject._id}` : '#'}
+          className={`btn btn-success create-timesheet-link ${!selectedProjectObject ? 'disabled-link' : ''}`}
+          aria-disabled={!selectedProjectObject}
         >
           <FontAwesomeIcon icon={faPlus} /> Create Timesheet
         </Link>
@@ -917,6 +933,17 @@ const handleDownload = useCallback(async () => {
                                     <button onClick={() => toggleExpand(employeeGroup.id)} className='expand-btn' aria-expanded={isExpanded} aria-label={isExpanded ? 'Collapse row' : 'Expand row'}>
                                       <FontAwesomeIcon icon={isExpanded ? faChevronUp : faChevronDown} />
                                     </button>
+                                  </td>
+                                  <td rowSpan={useRowSpan ? numWeeks : 1} className="col-status center-text">
+                                    {employeeGroup.displayStatus === 'Active' ? (
+                                      <div className="styles_Badge___green__Rj6L3">
+                                        <span className="styles_Badge_text___noIcon__RsIVg">Active</span>
+                                      </div>
+                                    ) : (
+                                      <div className="styles_Badge___gray__20re2">
+                                        <span className="styles_Badge_text___noIcon__RsIVg">Inactive</span>
+                                      </div>
+                                    )}
                                   </td>
                                   <td rowSpan={useRowSpan ? numWeeks : 1} className="col-name employee-name-cell">{employeeGroup.name}</td>
                                 </>
@@ -972,7 +999,8 @@ const handleDownload = useCallback(async () => {
                                                         <div className="detail-separator"></div>
                                                         {/* Display Start Time and Actual Creation Time */}
                                                         {entry.startTime && (<>
-                                                          <div className="detail-section"><span className="detail-label work-time-label">Start:</span><span className="detail-value work-time-value">{formatTimeFromISO(entry.startTime, entryTimezone)}</span></div>
+                                                               <div className="detail-section"><span className="detail-label work-time-label">Start:</span><span className="detail-value work-time-value">{formatTimeFromISO(entry.startTime, entryTimezone)}</span></div> {/* Corrected typo */}
+                                                         
                                                           {entry.createdAt && <div className="detail-section sub-detail"><span className="detail-label actual-time-label">Actual Start:</span><span className="detail-value actual-time-value">{formatTimeFromISO(entry.createdAt, entryTimezone)}</span></div>}
                                                         </>)}
                                                         {/* Display End Time and Actual Update Time */}

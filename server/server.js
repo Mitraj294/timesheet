@@ -23,9 +23,11 @@ import projectRoutes from "./routes/projectRoutes.js";
 import roleRoutes from "./routes/roleRoutes.js";
 import scheduleRoutes from "./routes/scheduleRoutes.js";
 import vehicleRoutes from "./routes/vehicleRoutes.js";
+import { errorHandler } from './middleware/errorMiddleware.js'; // Error handling middleware
 import userRoutes from './routes/userRoutes.js'; 
 import { sendWeeklyTimesheetReports } from './controllers/timesheetController.js'; // Import the scheduler function
 import settingsRoutes from './routes/settingsRoutes.js'; // Import the new settings routes
+import { startNotificationScheduler } from './scheduler/notificationScheduler.js'; // Import new notification scheduler
 
 const app = express();
 
@@ -67,8 +69,13 @@ app.use(`${BASE_API_URL}/schedules`, scheduleRoutes);
 app.use(`${BASE_API_URL}/vehicles`, vehicleRoutes);
 app.use(`${BASE_API_URL}/users`, userRoutes); // Mount userRoutes consistently
 app.use(`${BASE_API_URL}/settings`, settingsRoutes); // Mount the new settings routes
-// Root Route
 
+// Root Route
+app.get("/", (req, res) => {
+  res.send("TimeSheet Backend is Running...");
+});
+
+// --- Schedulers ---
 // Schedule the weekly report email
 // CRON Pattern: 'minute hour day-of-month month day-of-week'
 
@@ -88,16 +95,17 @@ if (cron.validate(weeklyReportSchedule)) {
   console.error(`[Scheduler] Invalid CRON pattern specified for weekly reports: "${weeklyReportSchedule}". Job not scheduled.`);
 }
 
-app.get("/", (req, res) => {
-  res.send("TimeSheet Backend is Running...");
-});
+// Start the notification scheduler for daily/specific time notifications
+startNotificationScheduler();
+
+// Note: If you have startLockScreenCleanupScheduler, ensure it's also called here or where appropriate.
+// For example:
+// import { startLockScreenCleanupScheduler } from './scheduler/lockScreenCleanupScheduler.js';
+// startLockScreenCleanupScheduler();
 
 // Global Error Handler
-// This should be the last piece of middleware.
-app.use((err, req, res, next) => {
-  console.error("Unhandled Error:", err.stack);
-  res.status(err.status || 500).json({ message: err.message || "Something went wrong. Please try again." });
-});
+// This should be the last piece of middleware before app.listen.
+app.use(errorHandler);
 
 // Start Server
 const PORT = process.env.PORT || 5000;

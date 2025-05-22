@@ -1,0 +1,198 @@
+// /home/digilab/timesheet/client/src/styles/NotificationSettings.scss
+
+$primary-color: #007bff; // Example primary color (Bootstrap blue)
+$secondary-color: #6c757d; // Example secondary color
+$light-gray: #f8f9fa;
+$medium-gray: #e9ecef;
+$dark-gray: #343a40;
+$text-color: #212529;
+$border-color: #ced4da;
+$card-bg: #ffffff;
+$input-bg: #ffffff;
+$danger-color: #dc3545;
+
+.notification-settings-card {
+    background-color: $card-bg;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    padding: 25px 30px;
+    margin-bottom: 30px;
+    color: $text-color;
+
+    .notification-settings-title {
+        font-size: 1.75rem;
+        font-weight: 600;
+        color: $dark-gray;
+        margin-bottom: 25px;
+        padding-bottom: 15px;
+        border-bottom: 1px solid $medium-gray;
+    }
+
+    .settings-section {
+        margin-bottom: 30px;
+        padding-bottom: 20px;
+        border-bottom: 1px dashed $border-color;
+
+        &:last-of-type {
+            border-bottom: none;
+            margin-bottom: 0;
+            padding-bottom: 0;
+        }
+
+        .section-subtitle {
+            font-size: 1.25rem;
+            font-weight: 500;
+            color: $primary-color;
+            margin-bottom: 8px;
+        }
+
+        .section-description {
+            font-size: 0.9rem;
+            color: $secondary-color;
+            margin-bottom: 20px;
+            line-height: 1.6;
+        }
+    }
+
+    .settings-input-group {
+        display: flex;
+        align-items: center;
+        margin-bottom: 18px;
+        flex-wrap: wrap; // Allow wrapping on small screens
+
+        .settings-input-group-label {
+            flex-basis: 200px; // Fixed width for labels
+            margin-right: 15px;
+            font-weight: 500;
+            font-size: 0.95rem;
+            color: $text-color;
+            min-width: 150px; // Ensure label doesn't get too squished
+        }
+
+        .settings-text-input,
+        .settings-time-input,
+        .settings-select-input {
+            flex-grow: 1;
+            padding: 10px 12px;
+            border: 1px solid $border-color;
+            border-radius: 5px;
+            font-size: 0.95rem;
+            background-color: $input-bg;
+            color: $text-color;
+            min-width: 180px; // Minimum width for inputs
+
+            &:focus {
+                outline: none;
+                border-color: $primary-color;
+                box-shadow: 0 0 0 0.2rem rgba($primary-color, 0.25);
+            }
+
+            &:disabled {
+                background-color: $light-gray;
+                cursor: not-allowed;
+            }
+        }
+
+        .settings-time-input {
+            max-width: 150px; // Specific width for time inputs
+        }
+
+        .settings-select-input {
+            // Specific styles for select if needed, often handled by browser defaults or select libraries
+        }
+
+        // For employee specific rows to align label and select nicely
+        &.employee-specific-group {
+            .employee-name-label {
+                flex-basis: auto; // Allow label to take more space
+                flex-grow: 1; // Grow to fill available space
+                margin-right: 10px;
+            }
+
+            .select-container {
+                flex-basis: 120px; // Fixed width for the select dropdown
+                flex-grow: 0;
+
+                .settings-select-input {
+                    width: 100%; // Make select fill its container
+                }
+            }
+        }
+    }
+
+    .settings-button-group {
+        margin-top: 30px;
+        text-align: right;
+
+        .btn {
+            // Assuming you have base .btn styles from Bootstrap or similar
+            padding: 10px 20px;
+            font-size: 1rem;
+            font-weight: 500;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px; // Space between icon and text
+
+            svg {
+                // For FontAwesomeIcon
+                margin-right: 0; // Reset if button-text handles gap
+            }
+        }
+    }
+}
+
+// Responsive adjustments
+@media (max-width: 768px) {
+    .notification-settings-card {
+        padding: 20px;
+
+        .notification-settings-title {
+            font-size: 1.5rem;
+        }
+
+        .settings-section .section-subtitle {
+            font-size: 1.1rem;
+        }
+
+        .settings-input-group {
+            flex-direction: column;
+            align-items: flex-start;
+
+            .settings-input-group-label {
+                flex-basis: auto;
+                width: 100%;
+                margin-bottom: 8px;
+                margin-right: 0;
+            }
+
+            .settings-text-input,
+            .settings-time-input,
+            .settings-select-input,
+            .select-container {
+                width: 100%;
+                max-width: none; // Override max-width for time input on small screens
+                flex-basis: auto;
+            }
+        }
+
+        .settings-button-group {
+            text-align: center;
+
+            .btn {
+                width: 100%;
+            }
+        }
+    }
+}
+
+@media (max-width: 480px) {
+    .notification-settings-card {
+        .notification-settings-title {
+            font-size: 1.3rem;
+        }
+
+        .settings-section .section-subtitle {
+            font-size: 1rem;
+        }
+    }
+}

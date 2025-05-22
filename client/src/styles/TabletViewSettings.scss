@@ -59,10 +59,7 @@
         }
     }
 
-    // If you added tablet-view-input-field to the input and need specific styles for it:
-    .tablet-view-input-field {
-        // Add any specific overrides for elements with this class here
-    }
+
 }
 
 .tablet-view-button-group {
@@ -70,14 +67,7 @@
     justify-content: flex-end;
     margin-top: 1.5rem;
 
-    .btn-primary {
-        // Assuming you have global .btn and .btn-primary styles
-        // If not, define them here or in a global stylesheet
-        // Example:
-        // padding: 0.65rem 1.25rem;
-        // font-size: 0.9rem;
-        // font-weight: 500;
-    }
+
 
     .button-text {
         margin-left: 0.5rem;

@@ -18,16 +18,17 @@ import {
 // Ensure these components are correctly exported as default from their files
 import ManageInvitations from './ManageInvitations.js';
 import UserSettingsSection from './UserSettingsSection.js';
-import EmployerDetailsSection from '../pages/EmployerDetailsSection.js';
+import EmployerDetailsSection from '../pages/EmployerDetailsSection.js'; // Assuming this path is correct
 import VehicleSettingsSection from './VehicleSettingsSection.js';
-import TabletViewSettingsSection from './TabletViewSettingsSection.js'; // This is the one we just created/verified
-import TimesheetSettingsSection from './TimesheetSettingsSection.js'; // Import the new component
+import TabletViewSettingsSection from './TabletViewSettingsSection.js';
+import TimesheetSettingsSection from './TimesheetSettingsSection.js';
+import NotificationSettingsSection from './NotificationSettingsSection.js'; // Import the new Notification settings component
 
 import { selectAuthUser } from '../../redux/slices/authSlice.js';
-import { fetchEmployerSettings, selectSettingsStatus } from '../../redux/slices/settingsSlice.js'; // Import fetchEmployerSettings
-import { setAlert } from '../../redux/slices/alertSlice.js';
+import { fetchEmployerSettings, selectSettingsStatus } from '../../redux/slices/settingsSlice.js';
+// import { setAlert } from '../../redux/slices/alertSlice.js'; // Not directly used here, but Alert component is
 import '../../styles/SettingsPage.scss';
-import Alert from '../layout/Alert.js'; // Assuming Alert component exists
+import Alert from '../layout/Alert.js';
 
 // Define the Placeholder component inline
 const PlaceholderSection = ({ title }) => {
@@ -48,7 +49,7 @@ const SettingsPage = () => {
 
   const initialActiveSection = useMemo(() => {
     if (user?.role === 'employee') return 'account';
-    if (user?.role === 'employer') return 'account';
+    if (user?.role === 'employer') return 'account'; // Default to account for employer too
     return null;
   }, [user]);
 
@@ -72,20 +73,21 @@ const SettingsPage = () => {
         { key: 'invitations', label: 'Manage Invitations', icon: faEnvelopeOpenText, component: <ManageInvitations /> },
         { key: 'timesheets', label: 'Timesheets', icon: faFileInvoiceDollar, component: <TimesheetSettingsSection /> },
         { key: 'tabletView', label: 'Tablet View', icon: faTabletAlt, component: <TabletViewSettingsSection /> },
-        { 
-          key: 'vehicles', 
-          label: 'Vehicles', 
-          icon: faCar, 
-          component: <VehicleSettingsSection /> 
+        {
+          key: 'vehicles',
+          label: 'Vehicles',
+          icon: faCar,
+          component: <VehicleSettingsSection />
         },
-        { key: 'notifications', label: 'Notifications', icon: faBell, component: <PlaceholderSection title="Notification Settings" /> },
+        { key: 'notifications', label: 'Notification Settings', icon: faBell, component: <NotificationSettingsSection /> },
         { key: 'subscription', label: 'Subscription', icon: faCreditCard, component: <PlaceholderSection title="Subscription Management" /> },
       ];
     }
     return [];
-  }, [user]); 
+  }, [user]);
 
   useEffect(() => {
+    // If activeSection is not valid for current menuItems, reset to the first item or null
     if (menuItems.length > 0 && !menuItems.find(item => item.key === activeSection)) {
       setActiveSection(menuItems[0].key);
     } else if (menuItems.length === 0 && activeSection !== null) {
@@ -94,20 +96,31 @@ const SettingsPage = () => {
   }, [menuItems, activeSection]);
 
   const renderSection = () => {
+    if (!activeSection && menuItems.length > 0) {
+        // If no active section but menu items exist, default to the first one's component
+        // This can happen if initialActiveSection was null but user role loaded later
+        const firstItem = menuItems[0];
+        if (firstItem && React.isValidElement(firstItem.component)) {
+            return firstItem.component;
+        }
+        return <PlaceholderSection title="Select a setting" />;
+    }
     if (!activeSection) return <PlaceholderSection title="Settings" />;
+
     const selectedItem = menuItems.find(item => item.key === activeSection);
 
     if (selectedItem && React.isValidElement(selectedItem.component)) {
         return selectedItem.component;
     }
 
-    // Fallback or error handling if component is not valid
     console.error("Invalid component for section:", activeSection, selectedItem);
     return <PlaceholderSection title="Error: Component not found" />;
   };
 
 
-  if (!user || (user.role === 'employer' && settingsStatus === 'loading' && !activeSection)) {
+  if (!user || (user?.role === 'employer' && settingsStatus === 'loading' && !activeSection && menuItems.length === 0)) {
+    // Show loading only if user exists, is employer, settings are loading, AND there's no active section yet (initial load)
+    // and menuItems haven't been populated (which depends on user role)
     return (
         <div className="settings-page-container">
             <div className="settings-content-panel" style={{display: 'flex', justifyContent: 'center', alignItems: 'center', height: 'calc(100vh - 120px)'}}>
@@ -130,8 +143,7 @@ const SettingsPage = () => {
                 key={item.key}
                 className={`settings-menu-item ${activeSection === item.key ? 'active' : ''}`}
                 onClick={() => {
-                  if (item.action) item.action(); // For items that might have direct actions
-                  else setActiveSection(item.key);
+                  setActiveSection(item.key);
                 }}
                 >
                 <FontAwesomeIcon icon={item.icon} className="menu-item-icon" />

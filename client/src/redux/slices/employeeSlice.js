@@ -1,5 +1,6 @@
 // /home/digilab/timesheet/client/src/redux/slices/employeeSlice.js
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
+import { setAlert } from './alertSlice'; // For dispatching success/error notifications
 import axios from 'axios';
 const API_URL = process.env.REACT_APP_API_URL || 'https://timesheet-slpc.onrender.com/api';
 
@@ -112,11 +113,46 @@ export const deleteEmployee = createAsyncThunk(
   }
 );
 
+// Async Thunk for updating notification preferences for multiple employees
+export const updateEmployeesNotificationPreferences = createAsyncThunk(
+  'employees/updateNotificationPreferences',
+  async (employeePreferences, { getState, dispatch, rejectWithValue }) => {
+    // employeePreferences is expected to be an array: [{ employeeId: 'id', receivesNotifications: true/false }, ...]
+    try {
+      const { token } = getState().auth;
+      if (!token) {
+        console.error("updateEmployeesNotificationPreferences: No token found.");
+        return rejectWithValue('Not authorized, no token provided');
+      }
+
+      // The component sends { employeeId: empId, receivesNotifications: boolean }
+      // The API might expect a slightly different structure, e.g., { preferences: [...] }
+      // Assuming the API endpoint /api/employees/batch-update-notifications expects { preferences: employeePreferencesArray }
+      const response = await axios.patch(
+        `${API_URL}/employees/batch-update-notifications`,
+        { preferences: employeePreferences }, // Ensure payload matches backend expectation
+        getAuthHeaders(token)
+      );
+
+      dispatch(setAlert('Employee notification preferences updated successfully!', 'success'));
+      // If the backend returns the updated employee objects, you can merge them here.
+      // For example, if response.data is an array of updated employees:
+      // return response.data; 
+      return response.data; // Or simply a success message/status from backend
+    } catch (error) {
+      const message = getErrorMessage(error);
+      dispatch(setAlert(message, 'error'));
+      return rejectWithValue(message);
+    }
+  }
+);
+
 // Defines the initial state for the employees slice.
 const initialState = {
   employees: [], // Holds the list of all employees.
   status: 'idle', // General status for async operations ('idle' | 'loading' | 'succeeded' | 'failed').
   error: null, // Stores any error message related to employee operations.
+  updateNotificationStatus: 'idle', // Status for the batch notification update operation
 };
 
 // Creates the employee slice with reducers and extraReducers for async thunks.
@@ -190,6 +226,28 @@ const employeeSlice = createSlice({
       .addCase(deleteEmployee.rejected, (state, action) => {
         state.status = 'failed';
         state.error = action.payload;
+      })
+      // Cases for updating employee notification preferences
+      .addCase(updateEmployeesNotificationPreferences.pending, (state) => {
+        state.updateNotificationStatus = 'loading';
+        state.error = null; // Clear previous errors
+      })
+      .addCase(updateEmployeesNotificationPreferences.fulfilled, (state, action) => {
+        state.updateNotificationStatus = 'succeeded';
+        // If action.payload contains the updated employee details, merge them.
+        // This is a simple merge assuming action.payload is an array of updated employees.
+        if (Array.isArray(action.payload)) {
+          action.payload.forEach(updatedEmp => {
+            const index = state.employees.findIndex(emp => emp._id === updatedEmp._id);
+            if (index !== -1) {
+              state.employees[index] = { ...state.employees[index], ...updatedEmp };
+            }
+          });
+        }
+      })
+      .addCase(updateEmployeesNotificationPreferences.rejected, (state, action) => {
+        state.updateNotificationStatus = 'failed';
+        state.error = action.payload;
       });
   },
 });
@@ -214,3 +272,6 @@ export const selectEmployeeByUserId = (state, userId) =>
   Array.isArray(state?.employees?.employees)
     ? state.employees.employees.find(emp => emp.userId === userId)
     : undefined;
+
+// Selector for the status of the notification preferences update
+export const selectEmployeeNotificationUpdateStatus = (state) => state.employees.updateNotificationStatus;

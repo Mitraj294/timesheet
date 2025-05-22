@@ -1135,9 +1135,33 @@
     font-size: 0.95em;
 }
 
-// Optional: Adjust spacing if needed
-.detail-item,
-.detail-section {
-    // Add some bottom margin if needed to space out items
-    // margin-bottom: 8px;
+
+
+// Styles for Status Badges (as per provided HTML structure)
+.styles_Badge___green__Rj6L3 {
+    background-color: #28a745; // Green
+    color: white;
+    padding: 0.25em 0.6em;
+    border-radius: 0.25rem;
+    display: inline-block;
+    font-size: 0.75em;
+    font-weight: bold;
+    line-height: 1;
+    text-align: center;
+    white-space: nowrap;
+    vertical-align: baseline;
+}
+
+.styles_Badge___gray__20re2 {
+    background-color: #6c757d; // Gray
+    color: white;
+    padding: 0.25em 0.6em;
+    border-radius: 0.25rem;
+    display: inline-block;
+    font-size: 0.75em;
+    font-weight: bold;
+    line-height: 1;
+    text-align: center;
+    white-space: nowrap;
+    vertical-align: baseline;
 }

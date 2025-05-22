@@ -1,5 +1,6 @@
 // /home/digilab/timesheet/server/controllers/employeeController.js
 import mongoose from "mongoose";
+import asyncHandler from 'express-async-handler'; // Import asyncHandler
 import Employee from "../models/Employee.js";
 import Role from "../models/Role.js";
 import User from "../models/User.js"; // Import User model
@@ -194,6 +195,69 @@ export const updateEmployee = async (req, res) => {
     res.status(500).json({ message: "Server error while updating employee." });
   }
 };
+
+
+// @desc    Batch update notification preferences for employees
+// @route   PATCH /api/employees/batch-update-notifications
+// @access  Private (Assumes an employer is making this request, further secured by req.user.employerId)
+export const batchUpdateEmployeeNotificationPreferences = asyncHandler(async (req, res) => {
+  // Frontend (employeeSlice) sends data as { preferences: [...] }
+  // Adjust to access the array from req.body.preferences
+  const updates = req.body.preferences; 
+  if (!updates) {
+    return res.status(400).json({ message: "Invalid request payload: 'preferences' array is missing." });
+  }
+
+  // Determine the employerId to use for filtering.
+  // If the logged-in user is an employer, their own ID is the employerId.
+  let employerIdForFilter;
+  if (req.user && req.user.role === 'employer') {
+    employerIdForFilter = req.user.id; // or req.user._id, depending on your JWT payload
+  } else if (req.user && req.user.employerId) { // For other user types that might have an employerId
+    employerIdForFilter = req.user.employerId;
+  }
+
+  if (!req.user || !employerIdForFilter) {
+    res.status(401); // Unauthorized or Forbidden
+    throw new Error('User not authorized or employer context missing.');
+  }
+
+  if (!Array.isArray(updates) || updates.length === 0) {
+    res.status(400);
+    throw new Error('No notification preferences provided for update.');
+  }
+
+  try {
+    const bulkOps = updates.map(update => {
+      if (!update.employeeId || typeof update.receivesNotifications !== 'boolean') {
+        console.warn(`Invalid update data skipped: ${JSON.stringify(update)}`);
+        return null; // Skip invalid entries
+      }
+      return {
+        updateOne: { // Ensure employee belongs to the authenticated employer
+          filter: { _id: update.employeeId, employerId: employerIdForFilter }, // Use employerIdForFilter and match Employee model field
+          update: { $set: { receivesActionNotifications: update.receivesNotifications } }, 
+        },
+      };
+    }).filter(op => op !== null); // Filter out any null operations from invalid data
+
+    if (bulkOps.length > 0) {
+      const result = await Employee.bulkWrite(bulkOps);
+      res.status(200).json({
+        message: 'Employee notification preferences updated successfully.',
+        modifiedCount: result.modifiedCount,
+      });
+    } else {
+      res.status(400).json({ message: 'No valid employee notification preferences to update.' });
+    }
+  } catch (error) {
+    console.error('Error batch updating employee notification preferences:', error);
+    res.status(500).json({ message: 'Server error during batch update of notification preferences.' });
+  }
+});
+
+
+
 
 // @desc    Delete an employee
 // @route   DELETE /api/employees/:id
