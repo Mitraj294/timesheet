@@ -27,6 +27,7 @@ import NotificationSettingsSection from './NotificationSettingsSection.js'; // I
 import { selectAuthUser } from '../../redux/slices/authSlice.js';
 import { fetchEmployerSettings, selectSettingsStatus } from '../../redux/slices/settingsSlice.js';
 // import { setAlert } from '../../redux/slices/alertSlice.js'; // Not directly used here, but Alert component is
+import axios from 'axios'; // Import axios for API calls
 import '../../styles/SettingsPage.scss';
 import Alert from '../layout/Alert.js';
 
@@ -47,6 +48,10 @@ const SettingsPage = () => {
   const settingsStatus = useSelector(selectSettingsStatus);
   const dispatch = useDispatch();
 
+  const [pendingInvitationsCount, setPendingInvitationsCount] = useState(0);
+  // Use environment variable for API base URL, with a fallback, similar to ManageInvitations.js
+  const API_BASE_URL = process.env.REACT_APP_API_URL || 'https://timesheet-slpc.onrender.com';
+
   const initialActiveSection = useMemo(() => {
     if (user?.role === 'employee') return 'account';
     if (user?.role === 'employer') return 'account'; // Default to account for employer too
@@ -61,6 +66,36 @@ const SettingsPage = () => {
     }
   }, [user, settingsStatus, dispatch]);
 
+  useEffect(() => {
+    const fetchPendingInvitationsCount = async () => {
+      if (user?.role === 'employer') {
+        try {
+          const token = localStorage.getItem('token');
+          if (!token) {
+            console.warn("No token found, cannot fetch invitation count.");
+            return;
+          }
+          const config = {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+            },
+          };
+          const res = await axios.get(`${API_BASE_URL}/auth/invitations/pending`, config);
+          setPendingInvitationsCount(res.data.length);
+        } catch (error) {
+          console.error("Error fetching pending invitations count for badge:", error);
+          // Optionally, dispatch an alert if this failure is critical to notify
+          // dispatch(setAlert('Could not load invitation count for badge.', 'warning'));
+          setPendingInvitationsCount(0); // Default to 0 on error
+        }
+      } else {
+        setPendingInvitationsCount(0); // Reset if user is not employer or no user
+      }
+    };
+
+    fetchPendingInvitationsCount();
+  }, [user, dispatch, API_BASE_URL]); // dispatch is included in case you add setAlert
+
   const menuItems = useMemo(() => {
     if (user?.role === 'employee') {
       return [
@@ -68,11 +103,8 @@ const SettingsPage = () => {
         { key: 'employerDetails', label: 'Employer Details', icon: faBuilding, component: <EmployerDetailsSection /> },
       ];
     } else if (user?.role === 'employer') {
-      return [
+      const employerItems = [
         { key: 'account', label: 'Account Information', icon: faUserCog, component: <UserSettingsSection /> },
-        { key: 'invitations', label: 'Manage Invitations', icon: faEnvelopeOpenText, component: <ManageInvitations /> },
-        { key: 'timesheets', label: 'Timesheets', icon: faFileInvoiceDollar, component: <TimesheetSettingsSection /> },
-        { key: 'tabletView', label: 'Tablet View', icon: faTabletAlt, component: <TabletViewSettingsSection /> },
         {
           key: 'vehicles',
           label: 'Vehicles',
@@ -82,9 +114,26 @@ const SettingsPage = () => {
         { key: 'notifications', label: 'Notification Settings', icon: faBell, component: <NotificationSettingsSection /> },
         { key: 'subscription', label: 'Subscription', icon: faCreditCard, component: <PlaceholderSection title="Subscription Management" /> },
       ];
+      // Dynamically insert/update invitation and timesheet related items
+      employerItems.splice(1, 0, { // Insert at index 1
+        key: 'invitations',
+        label: (
+          <>
+            Manage Invitations
+            {pendingInvitationsCount > 0 && (
+              <span className="notification-badge">{pendingInvitationsCount}</span>
+            )}
+          </>
+        ),
+        icon: faEnvelopeOpenText,
+        component: <ManageInvitations />
+      });
+      employerItems.splice(2, 0, { key: 'timesheets', label: 'Timesheets', icon: faFileInvoiceDollar, component: <TimesheetSettingsSection /> });
+      employerItems.splice(3, 0, { key: 'tabletView', label: 'Tablet View', icon: faTabletAlt, component: <TabletViewSettingsSection /> });
+      return employerItems;
     }
     return [];
-  }, [user]);
+  }, [user, pendingInvitationsCount]); // Add pendingInvitationsCount as a dependency
 
   useEffect(() => {
     // If activeSection is not valid for current menuItems, reset to the first item or null

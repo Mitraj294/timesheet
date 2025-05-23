@@ -6,14 +6,14 @@ const errorHandler = (err, req, res, next) => {
 
   console.error("Global Error Handler Caught:", {
     message: err.message,
-    stack: process.env.NODE_ENV === 'production' ? '🥞' : err.stack, // Only show stack in dev
+    stack: process.env.NODE_ENV === 'production' ? '' : err.stack, 
     url: req.originalUrl,
     method: req.method,
   });
 
   res.json({
     message: err.message,
-    stack: process.env.NODE_ENV === 'production' ? null : err.stack, // Only send stack in dev
+    stack: process.env.NODE_ENV === 'production' ? null : err.stack, 
   });
 };
 

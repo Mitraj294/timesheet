@@ -100,6 +100,15 @@ $placeholder-text-size: 1.05rem;
                 transition: color 0.2s ease;
             }
 
+            >span {
+                // Target the direct span child that holds the label text and badge
+                flex-grow: 1; // Allow this span to take up available horizontal space
+                min-width: 0; // Crucial for flex item shrinking
+                white-space: nowrap; // Keep content on a single line
+                overflow: hidden; // Hide overflowing content
+                text-overflow: ellipsis; // Show ellipsis for truncated content
+            }
+
             &:hover {
                 background-color: $background-hover;
                 color: darken($primary-color, 10%);
@@ -118,6 +127,33 @@ $placeholder-text-size: 1.05rem;
                 .menu-item-icon {
                     color: $text-color-on-active;
                 }
+
+                .notification-badge {
+                    // Slightly more vibrant red for the badge when item is active
+                    background-color: #e74c3c; // Example: Alizarin red
+                    color: #ffffff; // Ensure text remains white
+                    // You could add a subtle shadow if desired, but the parent already has one
+                    // box-shadow: 0 1px 2px rgba(0,0,0,0.2);
+                }
+            }
+
+            // General notification badge styles, nested correctly
+            .notification-badge {
+                background-color: #dc3545; // Standard red for notifications
+                color: white;
+                border-radius: 50%;
+                padding: 2px 6px;
+                font-size: 0.75em; // Relative to parent span's font size
+                margin-left: 8px;
+                // vertical-align: super; // Removed as it might cause issues; rely on parent flex align-items
+                min-width: 1.5em; // Ensures a decent width even for single digits
+                height: 1.5em; // Ensures a decent height
+                display: inline-flex;
+                justify-content: center;
+                align-items: center;
+                line-height: 1; // Crucial for vertical centering of text in badge
+                font-weight: bold;
+                transition: background-color 0.2s ease, color 0.2s ease; // Smooth transition
             }
         }
     }
@@ -307,6 +343,10 @@ $placeholder-text-size: 1.05rem;
         flex: 0 0 auto;
         width: 100%;
         margin-bottom: $panel-gap;
+        // Ensure the navigation panel can scroll if its content overflows on smaller heights
+        // when stacked, though typically content height isn't an issue here.
+        // max-height: 50vh; // Example: if it could get too tall
+        // overflow-y: auto;
     }
 }
 
@@ -317,11 +357,13 @@ $placeholder-text-size: 1.05rem;
         .settings-panel-title {
             font-size: $nav-title-font-size * 0.9;
             margin-bottom: $nav-title-margin-bottom * 0.8;
-            padding-bottom: $nav-title-padding-bottom * 0.8;
+            padding-bottom: $nav-title-padding-bottom * 0.7; // Slightly less padding
         }
 
         .settings-menu-item {
             padding: (nth($menu-item-padding, 1) * 0.9) (nth($menu-item-padding, 2) * 0.9);
+            // Ensure badge doesn't cause overflow issues if text is long
+            // The span for label text should handle wrapping naturally.
 
             span {
                 font-size: 0.9rem;
@@ -334,7 +376,7 @@ $placeholder-text-size: 1.05rem;
     }
 
     .settings-content-panel {
-        padding: $content-panel-padding / 1.3;
+        padding: $content-panel-padding / 1.5; // Reduce padding further
     }
 
     .settings-placeholder-content {
@@ -348,6 +390,158 @@ $placeholder-text-size: 1.05rem;
 
         p {
             font-size: $placeholder-text-size * 0.95;
+        }
+    }
+
+    .settings-section {
+        h3 {
+            font-size: 1.3rem; // Smaller section titles
+            margin-bottom: 1.2rem;
+            padding-bottom: 0.6rem;
+        }
+
+        .settings-form {
+            .form-group {
+                margin-bottom: 1.2rem;
+
+                label {
+                    font-size: 0.9rem; // Slightly smaller labels
+                }
+
+                .form-control,
+                select {
+                    padding: 0.6rem 0.7rem;
+                    font-size: 0.9rem;
+                }
+            }
+
+            .form-footer {
+                // Buttons in form footers might need to stack if there are multiple
+                flex-wrap: wrap; // Allow buttons to wrap
+
+                .btn {
+                    // Ensure buttons have some breathing room when wrapped
+                    margin-bottom: 0.5rem;
+                }
+            }
+        }
+    }
+
+    .simple-card {
+        padding: 1.5rem; // Reduce padding
+
+        h2 {
+            font-size: 20px; // Smaller heading
+            margin-bottom: 1.2rem;
+        }
+
+        .form-control {
+            padding: 0.45rem;
+            font-size: 15px;
+        }
+
+        .btn.btn-primary {
+            padding: 0.45rem 1.2rem;
+        }
+    }
+}
+
+@media (max-width: 576px) {
+    .settings-page-container {
+        padding: $settings-page-padding / 2; // Minimal padding
+    }
+
+    .settings-navigation-panel {
+        padding: $nav-panel-padding / 1.5;
+
+        .settings-panel-title {
+            font-size: $nav-title-font-size * 0.8;
+            text-align: center; // Center title on very small screens
+        }
+
+        .settings-menu-item {
+            padding: (nth($menu-item-padding, 1) * 0.8) (nth($menu-item-padding, 2) * 0.8);
+            font-size: 0.85rem; // Smaller menu item text
+
+            .menu-item-icon {
+                margin-right: $menu-item-icon-margin-right * 0.8;
+                font-size: $menu-item-icon-font-size * 0.9;
+            }
+        }
+    }
+
+    .settings-content-panel {
+        padding: $content-panel-padding / 2; // Minimal padding for content
+    }
+
+    .settings-placeholder-content {
+        .placeholder-icon {
+            font-size: $placeholder-icon-size * 0.7;
+        }
+
+        .placeholder-title {
+            font-size: $placeholder-title-size * 0.8;
+        }
+
+        p {
+            font-size: $placeholder-text-size * 0.9;
+        }
+    }
+
+    .settings-section {
+        h3 {
+            font-size: 1.2rem;
+            justify-content: center; // Center section title if it has an icon
+        }
+
+        .settings-form {
+            .form-group {
+                label {
+                    font-size: 0.85rem;
+                }
+
+                .form-control,
+                select {
+                    font-size: 0.85rem;
+                }
+            }
+
+            .form-footer {
+                justify-content: center; // Center form buttons
+
+                .btn {
+                    width: 100%; // Make buttons full width for easier tapping
+                    margin-bottom: 0.75rem;
+
+                    &:last-child {
+                        margin-bottom: 0;
+                    }
+                }
+            }
+        }
+    }
+
+    .simple-card {
+        padding: 1rem;
+
+        h2 {
+            font-size: 18px;
+        }
+
+        .btn.btn-primary {
+            width: 100%; // Full width button
+        }
+    }
+
+    .logout-confirm-dialog {
+        padding: 20px;
+
+        h4 {
+            font-size: 1.15rem;
+        }
+
+        p {
+            font-size: 0.9rem;
         }
     }
 }

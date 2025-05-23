@@ -1,25 +1,20 @@
-// /home/digilab/timesheet/server/scheduler/notificationScheduler.js
 import cron from 'node-cron';
 import moment from 'moment-timezone';
 import ScheduledNotification from '../models/ScheduledNotification.js';
-import sendEmailUtil from '../utils/sendEmail.js'; // Assuming your sendEmail utility is default export
+import sendEmailUtil from '../utils/sendEmail.js';
+
+const NOTIFICATION_BATCH_SIZE = 10;
 
 const processScheduledNotifications = async () => {
-  // console.log(`[Scheduler] Running processScheduledNotifications job at ${moment().format()}`); // Keep commented for less noise
   const nowUTC = new Date();
 
-  // Find pending notifications that are due
-  // The fiveMinutesAgo variable is not strictly necessary for the current query logic ($lte: nowUTC)
-  // but can be useful if you implement more complex windowed queries or retry logic.
-  // const fiveMinutesAgo = moment(nowUTC).subtract(5, 'minutes').toDate();
-
+  // Find pending notifications that are due, processing them in batches.
   const notificationsToSend = await ScheduledNotification.find({
     status: 'pending',
     scheduledTimeUTC: { $lte: nowUTC },
-  }).limit(50); // Process in batches to avoid overwhelming the system
+  }).limit(NOTIFICATION_BATCH_SIZE);
 
   if (notificationsToSend.length === 0) {
-    // No pending notifications, so we don't log anything to keep the console clean.
     return;
   }
 
@@ -36,7 +31,6 @@ const processScheduledNotifications = async () => {
         to: notification.recipientEmail,
         subject: notification.subject,
         text: notification.messageBody,
-        // html: can be added if your ScheduledNotification stores HTML
       });
 
       notification.status = 'sent';
@@ -45,19 +39,17 @@ const processScheduledNotifications = async () => {
       console.error(`[Scheduler] Failed to send scheduled notification ID: ${notification._id}. Error: ${error.message}`);
       notification.status = 'failed';
       notification.lastAttemptError = error.message;
-      // Future enhancement: Implement retry logic based on notification.attempts
+      // TODO: Implement more sophisticated retry logic based on notification.attempts.
       // For example, if notification.attempts < MAX_RETRY_ATTEMPTS, don't mark as 'failed' yet,
       // but perhaps set a new, slightly later scheduledTimeUTC.
     } finally {
-      // Ensure the notification status is saved regardless of success or failure of sending.
       await notification.save();
     }
   }
 };
 
 export const startNotificationScheduler = () => {
-  // Run the job every minute. Adjust as needed.
-  // For testing, you might run it more frequently. For production, every minute or every 5 minutes is common.
+  // Default cron schedule runs every minute. Configurable via environment variable.
   const cronSchedule = process.env.NOTIFICATION_SCHEDULER_CRON || '* * * * *';
   
   if (cron.validate(cronSchedule)) {
