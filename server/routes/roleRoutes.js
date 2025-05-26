@@ -4,7 +4,6 @@ import {
   getRoles,
   getRoleById,
   updateRole,
-  deleteByDateRange,
   deleteRole,
   deleteScheduleFromRole 
 } from '../controllers/roleController.js';
@@ -23,9 +22,6 @@ router.get('/:id', protect, getRoleById);
 
 // PUT /api/roles/:id - Update a specific role (protected, employer only)
 router.put('/:id', protect, employerOnly, updateRole);  
-
-// DELETE /api/roles/deleteByDateRange - (Note: This route seems misplaced in roleRoutes, might be for schedules or timesheets)
-router.delete('/deleteByDateRange', protect, deleteByDateRange);
 
 // DELETE /api/roles/:id - Delete a specific role (protected, employer only)
 router.delete('/:id', protect, employerOnly, deleteRole);

@@ -12,8 +12,8 @@ import {
 } from 'date-fns';
 
 import { fetchEmployees, selectAllEmployees, selectEmployeeStatus, selectEmployeeError } from '../../redux/slices/employeeSlice';
-import { fetchRoles, deleteRole, deleteRoleScheduleEntry, updateRole, selectAllRoles, selectRoleStatus, selectRoleError, clearRoleError } from '../../redux/slices/roleSlice'; // Added updateRole
-import { fetchSchedules, bulkCreateSchedules, deleteSchedule, deleteSchedulesByDateRange, selectAllSchedules, selectScheduleStatus, selectScheduleError, clearScheduleError } from '../../redux/slices/scheduleSlice';
+import { fetchRoles, deleteRole, deleteRoleScheduleEntry, updateRole, selectAllRoles, selectRoleStatus, selectRoleError, clearRoleError, sendRoleUpdateNotificationEmail } from '../../redux/slices/roleSlice'; // Added sendRoleUpdateNotificationEmail
+import { fetchSchedules, bulkCreateSchedules, deleteSchedule, deleteSchedulesByDateRange, selectAllSchedules, selectScheduleStatus, selectScheduleError, clearScheduleError, sendScheduleUpdateNotificationEmail } from '../../redux/slices/scheduleSlice'; // Added sendScheduleUpdateNotificationEmail
 import { selectAuthUser } from '../../redux/slices/authSlice';
 import { setAlert } from '../../redux/slices/alertSlice';
 import Alert from '../layout/Alert';
@@ -108,8 +108,9 @@ const RosterPage = () => {
   // Local component state
   const [currentWeekStart, setCurrentWeekStart] = useState(
     startOfWeek(new Date(), { weekStartsOn: 1 })
-  );
-  const [isLoading, setIsLoading] = useState(true); // Local loading state, primarily for rollout
+);
+  const [isLoading, setIsLoading] = useState(true); // General loading state for async operations
+  const [isAssigningShift, setIsAssigningShift] = useState(false); // Specific loading state for assigning shift
 
   // Find the Employee record for the logged-in user if their role is 'employee'
   const loggedInEmployeeRecord = useMemo(() => {
@@ -342,16 +343,6 @@ const RosterPage = () => {
       // Delete existing employee schedules in the next week range
       await dispatch(deleteSchedulesByDateRange({ startDate: nextWeekStartStr, endDate: nextWeekEndStr })).unwrap();
 
-       // Clean role schedule entries only within the next week to avoid duplication
-       await Promise.all(
-         roles.map(async (role) => {
-           const currentEntries = role.schedule?.filter(entry =>
-                entry.day < nextWeekStartStr || entry.day > nextWeekEndStr
-             ) || [];
-            // Update role with schedule entries outside the next week
-            await dispatch(updateRole({ id: role._id, roleData: { schedule: currentEntries } })).unwrap();
-         })
-       );
 
       // 3. Create new employee schedules for the next week
       const newEmployeeSchedules = schedules
@@ -374,33 +365,110 @@ const RosterPage = () => {
 
       if (newEmployeeSchedules.length > 0) {
         await dispatch(bulkCreateSchedules(newEmployeeSchedules)).unwrap();
+         // Notify employees about their rolled-out direct shifts
+        const employeeDirectShiftNotifications = newEmployeeSchedules.reduce((acc, sch) => {
+          if (!acc[sch.employee]) {
+            acc[sch.employee] = [];
+          }
+          acc[sch.employee].push({
+            date: format(parseISO(sch.date), 'EEE, MMM d'),
+            startTime: formatTimeUTCtoLocal(sch.startTime, sch.date),
+            endTime: formatTimeUTCtoLocal(sch.endTime, sch.date),
+          });
+          return acc;
+        }, {});
+
+        for (const employeeId in employeeDirectShiftNotifications) {
+          const employeeDetail = employees.find(emp => emp._id === employeeId);
+          if (employeeDetail) {
+            dispatch(sendScheduleUpdateNotificationEmail({
+              recipientId: employeeId,
+              subject: `Your Schedule for Week of ${format(nextWeekStart, 'MMM d')}`,
+              message: `Hi ${employeeDetail.name},\n\nYour direct shifts for the week starting ${format(nextWeekStart, 'MMM d, yyyy')} have been published. Please log in to view your roster.`,
+              details: {
+                employeeName: employeeDetail.name,
+                week: format(nextWeekStart, 'MMM d, yyyy'),
+                shifts: employeeDirectShiftNotifications[employeeId],
+              }
+            }));
+          }
+        }
+        console.log('[RosterPage] executeRollout: Finished processing direct employee shift notifications.');
       }
 
-      // Clone role schedule entries from current week to the next week
+      // Process Role Schedules for Rollout
       await Promise.all(
         roles.map(async (role) => {
-          const currentWeekEntries = role.schedule?.filter(entry =>
+          const originalRoleSchedule = role.schedule || [];
+
+          // 1. Filter out entries that are *within* the next week from the original schedule.
+          // These are the entries from other weeks that we want to keep.
+          const scheduleForOtherWeeks = originalRoleSchedule.filter(entry =>
+            entry.day < nextWeekStartStr || entry.day > nextWeekEndStr
+          );
+
+          // 2. Identify entries from the *current* week to be cloned.
+          const currentWeekEntriesToClone = originalRoleSchedule.filter(entry =>
               entry.day >= format(currentWeekStart, 'yyyy-MM-dd') &&
               entry.day <= format(endOfWeek(currentWeekStart, { weekStartsOn: 1 }), 'yyyy-MM-dd') &&
               entry.startTime && entry.endTime
-          ) || [];
+          );
 
-          if (currentWeekEntries.length === 0) return;
+          if (currentWeekEntriesToClone.length === 0) {
+            // If no entries in current week to clone, just ensure the role schedule
+            // only contains entries from other weeks (effectively cleaning the next week if it had entries).
+            // This handles the case where a role might have had future entries manually added to the next week
+            // which now need to be cleared because nothing is being rolled out from the current week for this role.
+            if (originalRoleSchedule.length !== scheduleForOtherWeeks.length) {
+                 await dispatch(updateRole({ id: role._id, roleData: { schedule: scheduleForOtherWeeks } })).unwrap();
+            }
+            return; // Nothing to clone for this role
+          }
 
-          const clonedEntries = currentWeekEntries.map((entry) => {
+          // 3. Create cloned entries for the next week.
+          const clonedEntriesForNextWeek = currentWeekEntriesToClone.map((entry) => {
             const newDay = addDays(DateTime.fromISO(entry.day).toJSDate(), 7);
             return {
               day: format(newDay, 'yyyy-MM-dd'),
               startTime: entry.startTime,
               endTime: entry.endTime,
+              // _id will be generated by MongoDB if not provided, which is fine for new entries
             };
           });
 
-          // Combine existing schedule (outside next week) with cloned entries for next week
-          const existingSchedule = roles.find(r => r._id === role._id)?.schedule || [];
-          const updatedSchedule = [...existingSchedule, ...clonedEntries];
+          // 4. Combine the kept entries from other weeks with the new cloned entries for the next week.
+          const newFullScheduleForRole = [...scheduleForOtherWeeks, ...clonedEntriesForNextWeek];
 
-          await dispatch(updateRole({ id: role._id, roleData: { schedule: updatedSchedule } })).unwrap();
+          await dispatch(updateRole({ id: role._id, roleData: { schedule: newFullScheduleForRole } })).unwrap();
+
+          // 5. Notify assigned employees about the rolled-out role schedule
+          if (clonedEntriesForNextWeek.length > 0 && role.assignedEmployees && role.assignedEmployees.length > 0) {
+            const newRoleScheduleDetails = clonedEntriesForNextWeek.map(entry => ({
+              day: format(parseISO(entry.day), 'EEE, MMM d'), // entry.day is already yyyy-MM-dd
+              startTime: formatTimeUTCtoLocal(entry.startTime, entry.day),
+              endTime: formatTimeUTCtoLocal(entry.endTime, entry.day),
+            }));
+
+            role.assignedEmployees.forEach(empIdentifier => {
+              const empId = typeof empIdentifier === 'object' && empIdentifier !== null ? empIdentifier._id : empIdentifier;
+              const employeeDetail = employees.find(e => e._id === empId);
+              if (employeeDetail) {
+                dispatch(sendRoleUpdateNotificationEmail({
+                  recipientId: empId,
+                  subject: `Schedule Update for Role: ${role.roleName} - Week of ${format(nextWeekStart, 'MMM d')}`,
+                  message: `Hi ${employeeDetail.name},\n\nThe schedule for your role "${role.roleName}" for the week starting ${format(nextWeekStart, 'MMM d, yyyy')} has been published.`,
+                  details: {
+                    employeeName: employeeDetail.name,
+                    roleName: role.roleName,
+                    week: format(nextWeekStart, 'MMM d, yyyy'),
+                    newScheduleEntries: newRoleScheduleDetails,
+                  }
+                }));
+                console.log(`[RosterPage] executeRollout: Dispatched role update notification for ${employeeDetail.name} for role ${role.roleName}`);
+              }
+            });
+          }
+          console.log(`[RosterPage] executeRollout: Finished processing role ${role.roleName}`);
         })
       );
 
@@ -409,7 +477,7 @@ const RosterPage = () => {
       dispatch(setAlert("Schedule successfully rolled out to the next week!", 'success'));
 
     } catch (err) {
-      console.error('Error during rollout:', err.response?.data || err.message, err);
+      console.error('[RosterPage] Error during rollout:', err.response?.data || err.message, err);
       dispatch(setAlert(`Error during rollout: ${err}`, 'danger'));
     } finally {
         setIsLoading(false);
@@ -427,6 +495,7 @@ const RosterPage = () => {
 
   // Handles submission of the assign shift modal
   const handleAssignShift = async () => {
+  if (isAssigningShift) return; // Prevent multiple submissions
     if (selectedDays.length === 0) {
         dispatch(setAlert("Please select at least one day.", 'warning'));
         return;
@@ -443,6 +512,7 @@ const RosterPage = () => {
              return;
          }
     }
+  setIsAssigningShift(true); // Set loading state
     dispatch(clearScheduleError());
     try {
       const dayOrder = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
@@ -470,11 +540,37 @@ const RosterPage = () => {
       setEndTime({});
       dispatch(setAlert('Shift(s) assigned successfully.', 'success'));
 
+      // Notify employee about new shifts
+      const employeeToNotify = employees.find(emp => emp._id === selectedEmployee._id);
+      if (employeeToNotify) {
+        const notificationPayload = {
+          recipientId: employeeToNotify._id,
+          subject: 'New Shifts Assigned',
+          message: `Hi ${employeeToNotify.name},\n\nYou have been assigned new shifts for the week starting ${format(currentWeekStart, 'MMM d, yyyy')}. Please log in to the portal to view your updated roster.`,
+          details: {
+            employeeName: employeeToNotify.name,
+            week: format(currentWeekStart, 'MMM d, yyyy'),
+            shifts: schedulePayloads.map(s => ({
+              date: format(parseISO(s.date), 'EEE, MMM d'),
+              startTime: formatTimeUTCtoLocal(s.startTime, s.date),
+              endTime: formatTimeUTCtoLocal(s.endTime, s.date),
+            }))
+          }
+        };
+        console.log('[RosterPage] handleAssignShift: Preparing to send schedule assignment notification. Data:', notificationPayload);
+        dispatch(sendScheduleUpdateNotificationEmail(notificationPayload));
+      } else {
+        console.warn('[RosterPage] handleAssignShift: Employee to notify not found. Selected Employee ID:', selectedEmployee?._id, 'All employees:', employees);
+      }
+
+      console.log('[RosterPage] handleAssignShift: Refetching schedules after assignment.');
       dispatch(fetchSchedules({ weekStart: format(currentWeekStart, 'yyyy-MM-dd') }));
 
     } catch (err) {
       console.error('Error assigning/updating shift:', err.response?.data?.message || err.message);
        dispatch(setAlert(`Error assigning shift: ${err.response?.data?.message || err.message}`, 'danger'));
+  } finally {
+    setIsAssigningShift(false); // Reset loading state
     }
   };
 
@@ -768,10 +864,11 @@ const RosterPage = () => {
               <button
                 type="button" // Ensure this is type="button" if not submitting a form
                 className='btn btn-success'
-                disabled={selectedDays.length === 0 || selectedDays.some(day => !startTime[day] || !endTime[day])}
+            disabled={isAssigningShift || selectedDays.length === 0 || selectedDays.some(day => !startTime[day] || !endTime[day])}
                 onClick={handleAssignShift}
               >
-                <FontAwesomeIcon icon={faSave} /> Confirm Shift
+            <FontAwesomeIcon icon={isAssigningShift ? faSpinner : faSave} spin={isAssigningShift} /> 
+            {isAssigningShift ? 'Assigning...' : 'Confirm Shift'}
               </button>
             </div>
           </div>

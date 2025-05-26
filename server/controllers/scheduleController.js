@@ -2,6 +2,7 @@ import Schedule from '../models/Schedule.js';
 import Employee from '../models/Employee.js'; // For fetching employerId for employee users
 import mongoose from 'mongoose';
 import { DateTime } from 'luxon';
+import sendEmail from '../utils/sendEmail.js'; // Import the email utility
 
 // @desc    Create schedules in bulk
 // @route   POST /api/schedules/bulk
@@ -39,6 +40,33 @@ export const createBulkSchedules = async (req, res) => {
     });
 
     const createdSchedules = await Schedule.insertMany(schedulesToSave);
+
+    // Send notifications for bulk created schedules
+    // Group schedules by employee to send one email per employee if multiple shifts are assigned
+    const employeeNotifications = {};
+    for (const sch of createdSchedules) {
+      const empId = sch.employee.toString();
+      if (!employeeNotifications[empId]) {
+        const employee = await Employee.findById(empId).populate('userId', 'email name');
+        if (employee && employee.userId && employee.userId.email) {
+          employeeNotifications[empId] = { email: employee.userId.email, name: employee.userId.name, shifts: [] };
+        }
+      }
+      if (employeeNotifications[empId]) {
+        employeeNotifications[empId].shifts.push(`Date: ${DateTime.fromJSDate(sch.date).toLocal().toFormat('EEE, MMM d')}, Time: ${sch.startTime} - ${sch.endTime}`);
+      }
+    }
+
+    for (const empId in employeeNotifications) {
+      const { email, name, shifts } = employeeNotifications[empId];
+      await sendEmail({
+        to: email,
+        subject: 'New Shifts Assigned',
+        html: `<p>Hi ${name || 'Employee'},</p><p>You have been assigned new shifts:</p><ul>${shifts.map(s => `<li>${s}</li>`).join('')}</ul><p>Please log in to the portal to view your updated roster.</p>`,
+      }).catch(emailError => console.error(`Failed to send bulk schedule notification to ${email}:`, emailError));
+    }
+
+
     res.status(201).json(createdSchedules); // Return the created schedules
   } catch (err) {
     console.error('Error creating schedules:', err);
@@ -152,6 +180,24 @@ export const updateSchedule = async (req, res) => {
     }
 
     const updatedSchedule = await schedule.save();
+
+    // Send notification to the assigned employee for individual shift update
+    if (updatedSchedule.employee) {
+      try {
+        const employee = await Employee.findById(updatedSchedule.employee).populate('userId', 'email name');
+        if (employee && employee.userId && employee.userId.email) {
+          await sendEmail({
+            to: employee.userId.email,
+            subject: 'Your Shift Has Been Updated',
+            html: `<p>Hi ${employee.userId.name || 'Employee'},</p>
+                   <p>A shift assigned to you for date ${DateTime.fromJSDate(updatedSchedule.date).toLocal().toFormat('EEE, MMM d')} (${updatedSchedule.startTime} - ${updatedSchedule.endTime}) has been updated.</p>
+                   <p>Please log in to the portal to view your updated roster.</p>`,
+          });
+        }
+      } catch (emailError) {
+        console.error(`Failed to send schedule update notification to employee ${updatedSchedule.employee}:`, emailError);
+      }
+    }
 
     res.status(200).json({ message: 'Schedule updated successfully', schedule: updatedSchedule });
   } catch (err) {

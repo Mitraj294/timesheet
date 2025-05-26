@@ -90,7 +90,49 @@ export const deleteSchedulesByDateRange = createAsyncThunk(
   }
 );
 
+// Updates an existing schedule entry. Requires authentication.
+// params.id: ID of the schedule to update.
+// params.scheduleData: New data for the schedule.
+export const updateSchedule = createAsyncThunk(
+  'schedules/updateSchedule',
+  async ({ id, scheduleData }, { getState, rejectWithValue }) => { // Removed dispatch
+    try {
+      const { token } = getState().auth;
+      if (!token) return rejectWithValue('Authentication required.');
+      const response = await axios.put(`${API_URL}/schedules/${id}`, scheduleData, getAuthHeaders(token));
+      const updatedSchedule = response.data.schedule; // Assuming backend returns { message, schedule }
+      return updatedSchedule; // Return the updated schedule for the reducer
+    } catch (error) {
+      console.error("Error updating schedule:", error);
+      return rejectWithValue(getErrorMessage(error));
+    }
+  }
+);
+
+// Async Thunk for sending an email notification related to schedule changes/assignments
+export const sendScheduleUpdateNotificationEmail = createAsyncThunk(
+  'schedules/sendScheduleUpdateNotificationEmail',
+  async (notificationData, { getState, rejectWithValue }) => {
+    // notificationData: { recipientId, subject, message, details (optional) }
+    try {
+      const { token } = getState().auth;
+      if (!token) {
+        return rejectWithValue('Authentication required to send schedule notifications.');
+      }
+      // This thunk will call the generic notification endpoint
+      const response = await axios.post(`${API_URL}/notifications/email`, notificationData, getAuthHeaders(token));
+      return response.data; // e.g., { message: 'Notification sent successfully' }
+    } catch (error) {
+      console.error("Error sending schedule update email notification:", error);
+      return rejectWithValue(getErrorMessage(error));
+    }
+  }
+);
+
 //  Slice Definition 
+
+// Note: We are not adding specific state for sendScheduleUpdateNotificationEmail status/error
+// in this slice, as it's a fire-and-forget action from the component's perspective.
 
 const initialState = {
   items: [], // List of all schedule entries for the selected period.
@@ -173,6 +215,26 @@ const scheduleSlice = createSlice({
       .addCase(deleteSchedulesByDateRange.rejected, (state, action) => {
         state.status = 'failed';
         state.error = action.payload;
+      })
+      // Update Schedule
+      .addCase(updateSchedule.pending, (state) => {
+        state.status = 'loading'; // Or a specific updateStatus
+        state.error = null;
+      })
+      .addCase(updateSchedule.fulfilled, (state, action) => {
+        state.status = 'succeeded';
+        const index = state.items.findIndex(sch => sch._id === action.payload._id);
+        if (index !== -1) {
+          state.items[index] = action.payload;
+        }
+      })
+      .addCase(updateSchedule.rejected, (state, action) => {
+        state.status = 'failed';
+        state.error = action.payload;
+      })
+      // Cases for sendScheduleUpdateNotificationEmail (optional, if you need to track status)
+      .addCase(sendScheduleUpdateNotificationEmail.fulfilled, (state, action) => {
+        console.log('Schedule notification email sent:', action.payload?.message);
       });
   },
 });

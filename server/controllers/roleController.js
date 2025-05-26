@@ -1,6 +1,7 @@
 import Role from '../models/Role.js';
 import Employee from '../models/Employee.js'; // Assuming Employee model for getRoles logic
 import { DateTime } from 'luxon';
+import sendEmail from '../utils/sendEmail.js'; // Import the email utility
 
 // @desc    Create a new role
 // @route   POST /api/roles
@@ -41,6 +42,28 @@ export const createRole = async (req, res) => {
     });
 
     await newRole.save();
+
+    // Send notifications to assigned employees
+    if (newRole.assignedEmployees && newRole.assignedEmployees.length > 0) {
+      for (const empId of newRole.assignedEmployees) {
+        try {
+          const employee = await Employee.findById(empId).populate('userId', 'email name'); // Populate email from User model
+          if (employee && employee.userId && employee.userId.email) {
+            await sendEmail({
+              to: employee.userId.email,
+              subject: `New Role Assignment: ${newRole.roleName}`,
+              html: `<p>Hi ${employee.userId.name || 'Employee'},</p>
+                     <p>You have been assigned to a new role: "<strong>${newRole.roleName}</strong>".</p>
+                     <p>Please check the portal for your schedule and role details.</p>`,
+            });
+          }
+        } catch (emailError) {
+          console.error(`Failed to send new role notification to employee ${empId}:`, emailError);
+          // Decide if you want to collect these errors and report them, or just log
+        }
+      }
+    }
+
     res.status(201).json({ message: 'Role created successfully', role: newRole });
   } catch (err) {
     console.error('Error creating role:', err);
@@ -133,12 +156,15 @@ export const updateRole = async (req, res) => {
     const { id } = req.params;
     const employerId = req.user._id;
     const updateData = req.body;
+    const significantChange = updateData.hasOwnProperty('schedule') || updateData.hasOwnProperty('assignedEmployees');
 
     // Prevent employerId from being changed
     if (updateData.employerId) {
       delete updateData.employerId;
     }
     // TODO: Add validation to ensure assignedEmployees in updateData belong to this employerId
+
+    const originalRole = await Role.findOne({ _id: id, employerId: employerId });
 
     const updatedRole = await Role.findOneAndUpdate(
       { _id: id, employerId: employerId }, // Ensure role belongs to the employer
@@ -155,6 +181,31 @@ export const updateRole = async (req, res) => {
       return res.status(404).json({ message: 'Role not found.' });
     }
 
+    // Send notifications if schedule or assignments changed
+    if (significantChange && updatedRole.assignedEmployees && updatedRole.assignedEmployees.length > 0) {
+      for (const empId of updatedRole.assignedEmployees) {
+        try {
+          const employee = await Employee.findById(empId).populate('userId', 'email name');
+          if (employee && employee.userId && employee.userId.email) {
+            // Check if the employee was newly assigned or if it's just an update for an existing one
+            // This is a simplified check. For more complex logic, compare originalRole.assignedEmployees
+            const isNewlyAssigned = originalRole && !originalRole.assignedEmployees.map(String).includes(String(empId));
+            const subject = isNewlyAssigned ? `New Role Assignment: ${updatedRole.roleName}` : `Role Updated: ${updatedRole.roleName}`;
+            const messageBody = isNewlyAssigned ?
+              `<p>You have been assigned to a new role: "<strong>${updatedRole.roleName}</strong>".</p>` :
+              `<p>The role "<strong>${updatedRole.roleName}</strong>" you are assigned to has been updated. This may include changes to its schedule or assignments.</p>`;
+
+            await sendEmail({
+              to: employee.userId.email,
+              subject: subject,
+              html: `<p>Hi ${employee.userId.name || 'Employee'},</p>${messageBody}<p>Please check the portal for details.</p>`,
+            });
+          }
+        } catch (emailError) {
+          console.error(`Failed to send role update notification to employee ${empId}:`, emailError);
+        }
+      }
+    }
     res.status(200).json({ message: 'Role updated successfully', role: updatedRole });
   } catch (err) {
     console.error('Error updating role:', err);
@@ -243,31 +294,5 @@ export const deleteScheduleFromRole = async (req, res) => {
         return res.status(404).json({ message: 'Resource not found (invalid ID format)' });
     }
     res.status(500).json({ message: 'Server error while deleting schedule entry from role: ' + err.message });
-  }
-};
-
-// @desc    Delete schedules by date range (Note: Operates on Schedule model directly)
-// @route   DELETE /api/schedules/by-date-range (Or a more role-specific route if applicable)
-// @access  Private (Employer)
-export const deleteByDateRange = async (req, res) => {
-  const { startDate, endDate } = req.body;
-  const employerId = req.user._id;
-
-  if (req.user.role !== 'employer') {
-    return res.status(403).json({ message: 'Forbidden: Only employers can delete schedules by date range.' });
-  }
-
-  try {
-    const result = await Schedule.deleteMany({
-      employerId: employerId, // Filter by employerId
-      date: { $gte: new Date(startDate), $lte: new Date(endDate) }
-    });
-
-    res.status(200).json({
-      message: `${result.deletedCount} schedules deleted successfully`
-    });
-  } catch (error) {
-    console.error('Error deleting schedules by date range:', error);
-    res.status(500).json({ message: 'Server error while deleting schedules: ' + error.message });
   }
 };

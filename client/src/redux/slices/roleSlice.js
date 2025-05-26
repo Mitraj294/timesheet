@@ -51,12 +51,14 @@ export const fetchRoleById = createAsyncThunk(
 // roleData: Data for the new role.
 export const createRole = createAsyncThunk(
   'roles/createRole',
-  async (roleData, { getState, rejectWithValue }) => {
+  async (roleData, { getState, rejectWithValue }) => { // Removed dispatch
     try {
       const { token } = getState().auth;
       if (!token) return rejectWithValue('Authentication required.');
       const response = await axios.post(`${API_URL}/roles`, roleData, getAuthHeaders(token));
-      return response.data;
+      const createdRole = response.data.role; // Assuming backend returns { message, role }
+      // The thunk should return the created role for the reducer
+      return createdRole;
     } catch (error) {
       console.error("Error creating role:", error);
       return rejectWithValue(getErrorMessage(error));
@@ -69,12 +71,15 @@ export const createRole = createAsyncThunk(
 // params.roleData: New data for the role.
 export const updateRole = createAsyncThunk(
   'roles/updateRole',
-  async ({ id, roleData }, { getState, rejectWithValue }) => {
+  async ({ id, roleData }, { getState, rejectWithValue }) => { // Removed dispatch
     try {
       const { token } = getState().auth;
       if (!token) return rejectWithValue('Authentication required.');
       const response = await axios.put(`${API_URL}/roles/${id}`, roleData, getAuthHeaders(token));
-      return response.data;
+      const updatedRole = response.data.role; // Assuming backend returns { message, role }
+
+      // The thunk should return the updated role for the reducer
+      return updatedRole;
     } catch (error) {
       console.error("Error updating role:", error);
       return rejectWithValue(getErrorMessage(error));
@@ -119,6 +124,29 @@ export const deleteRoleScheduleEntry = createAsyncThunk(
   }
 );
 
+// Async Thunk for sending an email notification related to role changes/assignments
+export const sendRoleUpdateNotificationEmail = createAsyncThunk(
+  'roles/sendRoleUpdateNotificationEmail',
+  async (notificationData, { getState, rejectWithValue }) => {
+    // notificationData: { recipientId, subject, message, details (optional) }
+    try {
+      const { token } = getState().auth;
+      if (!token) {
+        return rejectWithValue('Authentication required to send role notifications.');
+      }
+      // This thunk will call the generic notification endpoint
+      const response = await axios.post(`${API_URL}/notifications/email`, notificationData, getAuthHeaders(token));
+      return response.data; // e.g., { message: 'Notification sent successfully' }
+    } catch (error) {
+      console.error("Error sending role update email notification:", error);
+      // We typically don't dispatch setAlert from here to avoid alert fatigue,
+      // as the primary action (e.g., roster update) usually has its own alert.
+      // Log the error; backend should handle retries or critical failure alerts if needed.
+      return rejectWithValue(getErrorMessage(error));
+    }
+  }
+);
+
 // --- Slice Definition ---
 
 const initialState = {
@@ -130,6 +158,9 @@ const initialState = {
   currentRoleStatus: 'idle', // Loading status for a single role ('idle' | 'loading' | 'succeeded' | 'failed').
   currentRoleError: null, // Error message for single role operations.
 };
+
+// Note: We are not adding specific state for sendRoleUpdateNotificationEmail status/error
+// in this slice, as it's a fire-and-forget action from the component's perspective.
 
 const roleSlice = createSlice({
   name: 'roles',
@@ -261,6 +292,11 @@ const roleSlice = createSlice({
       .addCase(deleteRoleScheduleEntry.rejected, (state, action) => {
         state.status = 'failed';
         state.error = action.payload;
+      })
+      // Cases for sendRoleUpdateNotificationEmail (optional, if you need to track status)
+      // For now, we'll assume it's fire-and-forget and doesn't modify roleSlice state directly.
+      .addCase(sendRoleUpdateNotificationEmail.fulfilled, (state, action) => {
+        console.log('Role notification email sent:', action.payload?.message);
       });
   },
 });

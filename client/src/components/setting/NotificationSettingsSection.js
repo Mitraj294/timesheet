@@ -16,10 +16,18 @@ import {
   selectEmployerSettings, 
   selectSettingsStatus 
 } from '../../redux/slices/settingsSlice'; 
+// import { setAlert } from '../../redux/slices/alertSlice'; // Kept for reference, thunks usually handle alerts
 import '../../styles/NotificationSettings.scss';
+// Hypothetically, if a separate action is needed to trigger schedule updates:
+// import { rescheduleGlobalNotifications } from '../../redux/slices/settingsSlice'; // or a new notificationSlice
+
 
 const daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
+const booleanOptions = [
+  { value: 'true', label: 'Yes' },
+  { value: 'false', label: 'No' },
+];
 const NotificationSettingsSection = () => {
   const dispatch = useDispatch();
   const employees = useSelector(selectAllEmployees);
@@ -41,43 +49,48 @@ const NotificationSettingsSection = () => {
   }, [employeeStatus, dispatch]);
 
   useEffect(() => {
-    // Initialize dailyNotificationTimes
-    const initialDailyTimes = {};
-    daysOfWeek.forEach(day => {
-      initialDailyTimes[day.toLowerCase()] = currentEmployerSettings?.globalNotificationTimes?.[day.toLowerCase()] || ''; 
-    });
-    setDailyNotificationTimes(initialDailyTimes);
+    // Initialize or update dailyNotificationTimes and actionNotificationEmail when currentEmployerSettings change
+    if (currentEmployerSettings) {
+      const initialDailyTimes = {};
+      daysOfWeek.forEach(day => {
+        initialDailyTimes[day.toLowerCase()] = currentEmployerSettings.globalNotificationTimes?.[day.toLowerCase()] || '';
+      });
+      setDailyNotificationTimes(initialDailyTimes);
+      setActionNotificationEmail(currentEmployerSettings.actionNotificationEmail || '');
+    }
+  }, [currentEmployerSettings]);
 
-    // Initialize actionNotificationEmail
-    setActionNotificationEmail(currentEmployerSettings?.actionNotificationEmail || '');
-
-    // Initialize employeeNotificationEnabled when employees are loaded
+  useEffect(() => {
+    // Initialize or update employeeNotificationEnabled when employees list changes
     if (employees.length > 0) {
       const initialEmployeeStatus = {};
       employees.forEach(emp => {
         // Assumes employee object has 'receivesActionNotifications' boolean property
-        // Defaults to 'true' (Yes) if the property is undefined or true
-        initialEmployeeStatus[emp._id] = emp.receivesActionNotifications === false ? 'false' : 'true';
+        // Defaults to true if the property is undefined or true
+        initialEmployeeStatus[emp._id] = emp.receivesActionNotifications !== false; // Store as boolean
       });
       setEmployeeNotificationEnabled(initialEmployeeStatus);
+    } else {
+      setEmployeeNotificationEnabled({}); // Clear if no employees
     }
-  }, [employees, currentEmployerSettings]); 
+  }, [employees]);
 
   const handleActionEmailChange = (e) => {
     setActionNotificationEmail(e.target.value);
   };
 
   const handleDailyTimeChange = (day, time) => {
+    // time will be '' if cleared, or 'HH:mm' if set
     setDailyNotificationTimes(prev => ({
       ...prev,
-      [day.toLowerCase()]: time, // time will be '' if cleared, or 'HH:mm' if set
+      [day.toLowerCase()]: time,
     }));
   };
 
   const handleEmployeeToggleChange = (employeeId, value) => {
     setEmployeeNotificationEnabled(prev => ({
       ...prev,
-      [employeeId]: value, // value will be 'true' or 'false' (string)
+      [employeeId]: value === 'true', // Convert string from select to boolean
     }));
   };
 
@@ -91,36 +104,62 @@ const NotificationSettingsSection = () => {
 
     const employeeNotificationPreferencesToSave = Object.keys(employeeNotificationEnabled).map(empId => ({
         employeeId: empId,
-        receivesNotifications: employeeNotificationEnabled[empId] === 'true' 
+        receivesNotifications: employeeNotificationEnabled[empId] // Already a boolean
     }));
 
     // console.log('Submitting Employer Notification Settings:', employerNotificationSettingsToSave);
     // console.log('Submitting Employee Notification Preferences:', employeeNotificationPreferencesToSave);
 
     try {
-      // Update employer-wide settings
+      // Step 1: Update employer-wide settings (e.g., save to Employer model/settings document)
+      // This action sends `globalNotificationTimes` to the backend.
       await dispatch(updateEmployerSettings(employerNotificationSettingsToSave)).unwrap();
       
-      // Update individual employee notification preferences
+      // SERVER-SIDE REQUIREMENT FOR UPDATING SCHEDULED NOTIFICATIONS:
+      // The backend logic for the 'updateEmployerSettings' endpoint (or a subsequent triggered process
+      // within the same handler) needs to be enhanced to handle the cascading update to
+      // ScheduledNotification documents.
+      // When 'globalNotificationTimes' are updated via the call above, the backend should:
+      // 1. After successfully saving the employer settings, retrieve the employer's timezone.
+      // 2. Identify all 'pending' ScheduledNotification documents for this employer whose scheduling
+      //    is intrinsically linked to these global daily times (e.g., daily summary notifications).
+      //    This might require a 'notificationType' or 'referenceDayOfWeek' field on ScheduledNotification.
+      // 3. For each such identified notification, recalculate its 'scheduledTimeUTC' based on the
+      //    newly provided 'globalNotificationTimes' and the employer's timezone.
+      //    For instance, if Monday's notification time changes from 09:00 to 10:00 local time,
+      //    all relevant pending Monday notifications should be rescheduled to the next 10:00
+      //    (converted to UTC) on a Monday.
+      // This server-side logic, integrated into the existing `updateEmployerSettings` handler,
+      // is crucial for the changes in global notification times to correctly adjust future scheduled sends.
+
+      // OPTIONAL CLIENT-SIDE TRIGGER (Less Ideal if backend can handle it directly):
+      // If, for some architectural reason, the backend's `updateEmployerSettings` endpoint
+      // cannot directly handle the rescheduling, a separate action dispatched from the client
+      // would be a fallback. This would require a new backend endpoint and a corresponding
+      // Redux thunk (e.g., `rescheduleGlobalNotifications`).
+      // Example:
+      //   await dispatch(rescheduleGlobalNotifications({
+      //       globalNotificationTimes: employerNotificationSettingsToSave.globalNotificationTimes
+      //   })).unwrap();
+      // However, integrating into the existing `updateEmployerSettings` backend flow is preferred.
+
+      // Step 2: Update individual employee notification preferences
       if (employeeNotificationPreferencesToSave.length > 0) {
         await dispatch(updateEmployeesNotificationPreferences(employeeNotificationPreferencesToSave)).unwrap();
       }
-      // Success alerts are typically handled within the thunks themselves
+      // Success alerts are typically handled within the thunks themselves.
+      // If not, a general success alert could be dispatched here, e.g.:
+      // dispatch(setAlert('Notification settings updated. Scheduled notifications will be adjusted accordingly by the server.', 'success'));
     } catch (error) {
-      // Error alerts are also typically handled within the thunks.
-      // You might dispatch a generic error alert here if thunks don't cover all cases.
-      console.error('Failed to update one or more notification settings:', error);
+      // Error alerts are also typically handled within the thunks. If not, a generic one can be added.
+      console.error('Failed to update one or more notification settings. Scheduled notifications may not be updated if the primary setting update failed or the backend logic is not in place:', error);
+      // dispatch(setAlert('Failed to update notification settings. Please ensure backend is configured to update schedules.', 'danger'));
     }
   };
 
   if (employeeStatus === 'loading' && !employees.length) {
     return <div className="settings-placeholder-content" style={{ textAlign: 'center', padding: '20px' }}><FontAwesomeIcon icon={faSpinner} spin size="2x" /><p>Loading employees...</p></div>;
   }
-
-const booleanOptions = [
-  { value: 'true', label: 'Yes' },
-  { value: 'false', label: 'No' },
-];
 
   return (
     <div className="notification-settings-card"> {/* Main card container */}
@@ -169,7 +208,7 @@ const booleanOptions = [
             </div>
           ))}
         </div>
-
+          
         {/* Section 2: Per-Employee Notification Toggle */}
         <div className="settings-section">
           <h4 className="section-subtitle">Employee Specific Notifications</h4>
@@ -183,7 +222,11 @@ const booleanOptions = [
                 <select
                   id={`notify-${employee._id}`}
                   className="settings-select-input" // General class for select inputs
-                  value={employeeNotificationEnabled[employee._id] || 'true'} // Default to 'true' if not set
+                  // Convert boolean state to string for select value. Default to 'true' if undefined.
+                  value={
+                    employeeNotificationEnabled[employee._id] !== undefined 
+                    ? String(employeeNotificationEnabled[employee._id]) 
+                    : 'true'}
                   onChange={(e) => handleEmployeeToggleChange(employee._id, e.target.value)}
                   disabled={employerSettingsUpdateStatus === 'loading' || employeePrefsUpdateStatus === 'loading'}
                 >
