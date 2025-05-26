@@ -3,7 +3,7 @@ import ScheduledNotification from '../models/ScheduledNotification.js';
 import sendEmailUtil from '../utils/sendEmail.js';
 import moment from 'moment-timezone';
 
-const NOTIFICATION_BATCH_LIMIT = 1000; 
+const NOTIFICATION_BATCH_LIMIT = 100; // Process notifications in batches of 100 for email sending
 
 const processScheduledNotifications = async () => {
   const nowUTC = new Date();
@@ -18,9 +18,10 @@ const processScheduledNotifications = async () => {
       return;
     }
 
-    // Logs will only start if notifications are found
-    console.log(`[SchedulerV2] Starting notification processing job at ${moment().toISOString()}`);
-    console.log(`[SchedulerV2] Found ${notificationsToSend.length} pending notifications. Starting batch processing.`);
+    // Logs for the current batch processing run
+    const batchRunTimestamp = moment().toISOString();
+    console.log(`[Scheduler] Batch run started at ${batchRunTimestamp}. Configured batch limit: ${NOTIFICATION_BATCH_LIMIT}.`);
+    console.log(`[Scheduler] Found ${notificationsToSend.length} notifications for this batch run.`);
 
     let successCount = 0;
     let failureCount = 0;
@@ -40,7 +41,7 @@ const processScheduledNotifications = async () => {
         notification.sentAt = new Date();
         successCount++;
       } catch (error) {
-        console.error(`[SchedulerV2] Failed to process email for notification ID ${notification._id}. Error: ${error.message}`);
+        console.error(`[Scheduler] Failed to process email for notification ID ${notification._id}. Error: ${error.message}`);
         notification.status = 'failed';
         notification.lastAttemptError = error.message;
         failureCount++;
@@ -49,7 +50,7 @@ const processScheduledNotifications = async () => {
         try {
           await notification.save();
         } catch (saveError) {
-          console.error(`[SchedulerV2] CRITICAL: Failed to save notification status for ID ${notification._id} after processing. Error: ${saveError.message}`);
+          console.error(`[Scheduler] CRITICAL: Failed to save notification status for ID ${notification._id} after processing. Error: ${saveError.message}`);
         }
       }
       return notification;
@@ -57,10 +58,10 @@ const processScheduledNotifications = async () => {
 
     await Promise.all(emailProcessingPromises);
 
-    console.log(`[SchedulerV2] Batch processing complete. Total processed: ${notificationsToSend.length}. Sent successfully: ${successCount}. Failed: ${failureCount}.`);
+    console.log(`[Scheduler] Batch run at ${batchRunTimestamp} completed. Processed in this batch: ${notificationsToSend.length} (Sent: ${successCount}, Failed: ${failureCount}).`);
 
   } catch (error) {
-    console.error('[SchedulerV2] General error during processing scheduled notifications:', error);
+    console.error('[Scheduler] General error during processing scheduled notifications:', error);
   }
 };
 
@@ -70,11 +71,11 @@ export const startNotificationScheduler = () => {
   if (cron.validate(cronSchedule)) {
     cron.schedule(cronSchedule, () => {
       processScheduledNotifications().catch(err => {
-        console.error('[SchedulerV2] Unhandled error in processScheduledNotifications cron job:', err);
+        console.error('[Scheduler] Unhandled error in processScheduledNotifications cron job:', err);
       });
     });
-    console.log(`[SchedulerV2] Notification scheduler started. Will run with pattern "${cronSchedule}".`);
+    console.log(`[Scheduler] Notification scheduler started. Will run with pattern "${cronSchedule}".`);
   } else {
-    console.error(`[SchedulerV2] Invalid CRON pattern for notification scheduler: "${cronSchedule}". Job not started.`);
+    console.error(`[Scheduler] Invalid CRON pattern for notification scheduler: "${cronSchedule}". Job not started.`);
   }
 };
