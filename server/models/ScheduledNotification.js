@@ -15,30 +15,30 @@ const ScheduledNotificationSchema = new mongoose.Schema({
     type: String,
     required: true,
   },
-  messageBody: { // Storing the plain text body
+  messageBody: {
     type: String,
     required: true,
   },
-  scheduledTimeUTC: { // When the notification should be sent, in UTC
+  scheduledTimeUTC: {
     type: Date,
     required: true,
     index: true,
   },
   status: {
     type: String,
-    enum: ['pending', 'sent', 'failed', 'processing'],
+    enum: ['pending', 'sent', 'failed', 'processing', 'cancelled_by_settings'],
     default: 'pending',
     index: true,
   },
-  notificationType: { // To categorize notifications
+  notificationType: {
     type: String,
-    enum: ['daily_summary', 'action_alert', 'other'], // Add other types as needed
-    default: 'action_alert', // Or a more appropriate default
+    enum: ['daily_summary', 'action_alert', 'other'],
+    default: 'action_alert',
   },
-  referenceDayOfWeek: { // For daily_summary, which day's global setting it refers to
+  referenceDayOfWeek: {
     type: String,
     enum: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday', null],
-    default: null, // Null if not applicable (e.g., for action_alert)
+    default: null,
   },
   attempts: { type: Number, default: 0 },
   lastAttemptError: { type: String },

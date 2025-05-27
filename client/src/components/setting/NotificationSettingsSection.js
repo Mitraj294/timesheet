@@ -1,5 +1,6 @@
 // /home/digilab/timesheet/client/src/components/setting/NotificationSettingsSection.js
 import React, { useState, useEffect } from 'react';
+import moment from 'moment-timezone'; // Import moment-timezone
 import { useDispatch, useSelector } from 'react-redux';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faSave, faSpinner } from '@fortawesome/free-solid-svg-icons';
@@ -10,16 +11,12 @@ import {
   updateEmployeesNotificationPreferences,
   selectEmployeeNotificationUpdateStatus // Selector for the employee notification update status
 } from '../../redux/slices/employeeSlice';
-// import { setAlert } from '../../redux/slices/alertSlice'; // Kept for reference, thunks usually handle alerts
 import { 
   updateEmployerSettings,
   selectEmployerSettings, 
   selectSettingsStatus 
 } from '../../redux/slices/settingsSlice'; 
-// import { setAlert } from '../../redux/slices/alertSlice'; // Kept for reference, thunks usually handle alerts
 import '../../styles/NotificationSettings.scss';
-// Hypothetically, if a separate action is needed to trigger schedule updates:
-// import { rescheduleGlobalNotifications } from '../../redux/slices/settingsSlice'; // or a new notificationSlice
 
 
 const daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
@@ -35,12 +32,10 @@ const NotificationSettingsSection = () => {
   const employerSettingsUpdateStatus = useSelector(selectSettingsStatus); // Status for updating employer settings
   const currentEmployerSettings = useSelector(selectEmployerSettings); 
   const employeePrefsUpdateStatus = useSelector(selectEmployeeNotificationUpdateStatus); // Status for updating employee preferences
-
-  // State for global daily notification times. Empty string means "immediate".
-  const [dailyNotificationTimes, setDailyNotificationTimes] = useState({}); // { monday: '09:00' or '', ... }
-  // State for per-employee notification enabled/disabled status
-  const [employeeNotificationEnabled, setEmployeeNotificationEnabled] = useState({}); // { employeeId: 'true'/'false' }
+  const [dailyNotificationTimes, setDailyNotificationTimes] = useState({});
+  const [employeeNotificationEnabled, setEmployeeNotificationEnabled] = useState({});
   const [actionNotificationEmail, setActionNotificationEmail] = useState('');
+  const [selectedTimezone, setSelectedTimezone] = useState(moment.tz.guess() || 'UTC'); // State for timezone
 
   useEffect(() => {
     if (employeeStatus === 'idle') {
@@ -49,11 +44,22 @@ const NotificationSettingsSection = () => {
   }, [employeeStatus, dispatch]);
 
   useEffect(() => {
-    // Initialize or update dailyNotificationTimes and actionNotificationEmail when currentEmployerSettings change
     if (currentEmployerSettings) {
       const initialDailyTimes = {};
+      // Ensure employer's timezone is available, fallback to UTC or a sensible default
+      const employerTimezone = currentEmployerSettings.timezone || selectedTimezone; // Use selectedTimezone as fallback
+      setSelectedTimezone(employerTimezone); // Set initial timezone from settings
+
       daysOfWeek.forEach(day => {
-        initialDailyTimes[day.toLowerCase()] = currentEmployerSettings.globalNotificationTimes?.[day.toLowerCase()] || '';
+        const dayKey = day.toLowerCase();
+        const utcDateString = currentEmployerSettings.globalNotificationTimes?.[dayKey];
+        if (utcDateString) { // utcDateString is an ISO date string from backend
+          // Convert UTC date string to moment object, then to employer's local time, then format
+          const displayTime = moment(utcDateString).tz(employerTimezone).format('HH:mm');
+          initialDailyTimes[dayKey] = displayTime;
+        } else {
+          initialDailyTimes[dayKey] = ''; // No date set, so empty time string
+        }
       });
       setDailyNotificationTimes(initialDailyTimes);
       setActionNotificationEmail(currentEmployerSettings.actionNotificationEmail || '');
@@ -61,17 +67,14 @@ const NotificationSettingsSection = () => {
   }, [currentEmployerSettings]);
 
   useEffect(() => {
-    // Initialize or update employeeNotificationEnabled when employees list changes
     if (employees.length > 0) {
       const initialEmployeeStatus = {};
       employees.forEach(emp => {
-        // Assumes employee object has 'receivesActionNotifications' boolean property
-        // Defaults to true if the property is undefined or true
-        initialEmployeeStatus[emp._id] = emp.receivesActionNotifications !== false; // Store as boolean
+        initialEmployeeStatus[emp._id] = emp.receivesActionNotifications !== false;
       });
       setEmployeeNotificationEnabled(initialEmployeeStatus);
     } else {
-      setEmployeeNotificationEnabled({}); // Clear if no employees
+      setEmployeeNotificationEnabled({});
     }
   }, [employees]);
 
@@ -80,17 +83,20 @@ const NotificationSettingsSection = () => {
   };
 
   const handleDailyTimeChange = (day, time) => {
-    // time will be '' if cleared, or 'HH:mm' if set
     setDailyNotificationTimes(prev => ({
       ...prev,
       [day.toLowerCase()]: time,
     }));
   };
 
+  const handleTimezoneChange = (e) => {
+    setSelectedTimezone(e.target.value);
+  };
+
   const handleEmployeeToggleChange = (employeeId, value) => {
     setEmployeeNotificationEnabled(prev => ({
       ...prev,
-      [employeeId]: value === 'true', // Convert string from select to boolean
+      [employeeId]: value === 'true',
     }));
   };
 
@@ -100,19 +106,15 @@ const NotificationSettingsSection = () => {
     const employerNotificationSettingsToSave = {
         globalNotificationTimes: dailyNotificationTimes,
         actionNotificationEmail: actionNotificationEmail,
+        timezone: selectedTimezone, // Include selected timezone
     };
 
     const employeeNotificationPreferencesToSave = Object.keys(employeeNotificationEnabled).map(empId => ({
         employeeId: empId,
-        receivesNotifications: employeeNotificationEnabled[empId] // Already a boolean
+        receivesNotifications: employeeNotificationEnabled[empId]
     }));
 
-    // console.log('Submitting Employer Notification Settings:', employerNotificationSettingsToSave);
-    // console.log('Submitting Employee Notification Preferences:', employeeNotificationPreferencesToSave);
-
     try {
-      // Step 1: Update employer-wide settings (e.g., save to Employer model/settings document)
-      // This action sends `globalNotificationTimes` to the backend.
       await dispatch(updateEmployerSettings(employerNotificationSettingsToSave)).unwrap();
       
       // SERVER-SIDE REQUIREMENT FOR UPDATING SCHEDULED NOTIFICATIONS:
@@ -131,29 +133,13 @@ const NotificationSettingsSection = () => {
       //    (converted to UTC) on a Monday.
       // This server-side logic, integrated into the existing `updateEmployerSettings` handler,
       // is crucial for the changes in global notification times to correctly adjust future scheduled sends.
+      // (The optional client-side trigger comment block was removed as the preferred method is server-side)
 
-      // OPTIONAL CLIENT-SIDE TRIGGER (Less Ideal if backend can handle it directly):
-      // If, for some architectural reason, the backend's `updateEmployerSettings` endpoint
-      // cannot directly handle the rescheduling, a separate action dispatched from the client
-      // would be a fallback. This would require a new backend endpoint and a corresponding
-      // Redux thunk (e.g., `rescheduleGlobalNotifications`).
-      // Example:
-      //   await dispatch(rescheduleGlobalNotifications({
-      //       globalNotificationTimes: employerNotificationSettingsToSave.globalNotificationTimes
-      //   })).unwrap();
-      // However, integrating into the existing `updateEmployerSettings` backend flow is preferred.
-
-      // Step 2: Update individual employee notification preferences
       if (employeeNotificationPreferencesToSave.length > 0) {
         await dispatch(updateEmployeesNotificationPreferences(employeeNotificationPreferencesToSave)).unwrap();
       }
-      // Success alerts are typically handled within the thunks themselves.
-      // If not, a general success alert could be dispatched here, e.g.:
-      // dispatch(setAlert('Notification settings updated. Scheduled notifications will be adjusted accordingly by the server.', 'success'));
     } catch (error) {
-      // Error alerts are also typically handled within the thunks. If not, a generic one can be added.
       console.error('Failed to update one or more notification settings. Scheduled notifications may not be updated if the primary setting update failed or the backend logic is not in place:', error);
-      // dispatch(setAlert('Failed to update notification settings. Please ensure backend is configured to update schedules.', 'danger'));
     }
   };
 
@@ -162,7 +148,7 @@ const NotificationSettingsSection = () => {
   }
 
   return (
-    <div className="notification-settings-card"> {/* Main card container */}
+    <div className="notification-settings-card">
       <h3 className="notification-settings-title">Notification Preferences</h3>
       <form onSubmit={handleSubmit}>
 
@@ -177,13 +163,35 @@ const NotificationSettingsSection = () => {
                 <input
                     type="email"
                     id="actionNotificationEmail"
-                    className="settings-text-input" // Use a general class for text inputs
+                    className="settings-text-input"
                     value={actionNotificationEmail}
                     onChange={handleActionEmailChange}
                     disabled={employerSettingsUpdateStatus === 'loading' || employeePrefsUpdateStatus === 'loading'}
                     placeholder="e.g., manager@example.com"
                 />
             </div>
+        </div>
+
+        {/* Section for Timezone */}
+        <div className="settings-section">
+          <h4 className="section-subtitle">Timezone</h4>
+          <p className="section-description">
+            Select your primary timezone. This will ensure notification times are scheduled correctly.
+          </p>
+          <div className="settings-input-group">
+            <label htmlFor="timezone-select" className="settings-input-group-label">Timezone:</label>
+            <div className="select-container">
+              <select
+                id="timezone-select"
+                className="settings-select-input"
+                value={selectedTimezone}
+                onChange={handleTimezoneChange}
+                disabled={employerSettingsUpdateStatus === 'loading' || employeePrefsUpdateStatus === 'loading'}
+              >
+                {moment.tz.names().map(tzName => <option key={tzName} value={tzName}>{tzName}</option>)}
+              </select>
+            </div>
+          </div>
         </div>
         {/* Section 1: Global Daily Notification Times */}
         <div className="settings-section">
@@ -195,12 +203,12 @@ const NotificationSettingsSection = () => {
           {daysOfWeek.map(day => (
             <div key={day} className="settings-input-group">
               <label htmlFor={`time-${day}`} className="settings-input-group-label">{day}:</label>
-              <div className="time-picker-container"> {/* Mimicking structure from example */}
+              <div className="time-picker-container">
                 <input
                   type="time"
                   id={`time-${day}`}
-                  className="settings-time-input" // General class for time inputs
-                  value={dailyNotificationTimes[day.toLowerCase()] || ''} // Handles empty string for blank input
+                  className="settings-time-input"
+                  value={dailyNotificationTimes[day.toLowerCase()] || ''}
                   onChange={(e) => handleDailyTimeChange(day, e.target.value)}
                   disabled={employerSettingsUpdateStatus === 'loading' || employeePrefsUpdateStatus === 'loading'}
                 />
@@ -218,11 +226,10 @@ const NotificationSettingsSection = () => {
               <label htmlFor={`notify-${employee._id}`} className="settings-input-group-label employee-name-label">
                 {employee.name} ({employee.email}):
               </label>
-              <div className="select-container"> {/* Mimicking structure from example */}
+              <div className="select-container">
                 <select
                   id={`notify-${employee._id}`}
-                  className="settings-select-input" // General class for select inputs
-                  // Convert boolean state to string for select value. Default to 'true' if undefined.
+                  className="settings-select-input"
                   value={
                     employeeNotificationEnabled[employee._id] !== undefined 
                     ? String(employeeNotificationEnabled[employee._id]) 

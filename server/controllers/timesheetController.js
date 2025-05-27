@@ -1,17 +1,16 @@
 import Timesheet from "../models/Timesheet.js";
 import ExcelJS from 'exceljs';
 import mongoose from "mongoose";
-import moment from "moment-timezone"; // Keep for report formatting consistency for now
+import moment from "moment-timezone";
 import nodemailer from "nodemailer";
-import Employee from "../models/Employee.js"; // Import Employee model
+import Employee from "../models/Employee.js";
 import Project from "../models/Project.js";
-import EmployerSetting from "../models/EmployerSetting.js"; // Import EmployerSetting model
-import User from "../models/User.js"; // Import User model to get employer details if needed
-import ScheduledNotification from '../models/ScheduledNotification.js'; // Import new model
+import EmployerSetting from "../models/EmployerSetting.js";
+import User from "../models/User.js";
+import ScheduledNotification from '../models/ScheduledNotification.js';
 import dotenv from "dotenv";
 dotenv.config();
 
-// calculateTotalHours function remains the same
 const calculateTotalHours = (startTime, endTime, lunchBreak, lunchDuration) => {
   if (!(startTime instanceof Date) || !(endTime instanceof Date) || isNaN(startTime.getTime()) || isNaN(endTime.getTime())) {
       return 0;
@@ -29,13 +28,9 @@ const calculateTotalHours = (startTime, endTime, lunchBreak, lunchDuration) => {
     const [h, m] = lunchDuration.split(":").map(Number);
     const lunchMinutes = h * 60 + m;
     if (lunchMinutes > 0) {
-      // Only deduct lunch if the actual work duration is greater than the lunch duration
       if (totalMinutes > lunchMinutes) {
         totalMinutes -= lunchMinutes;
       } else {
-        // If work duration is less than or equal to lunch, implies no work time, or lunch wasn't effectively taken from this short period.
-        // In this case, totalMinutes remains the short work duration.
-        // If policy dictates it should be 0, then this 'else' isn't needed and Math.max will handle it.
       }
     }
   }
@@ -44,10 +39,9 @@ const calculateTotalHours = (startTime, endTime, lunchBreak, lunchDuration) => {
   return totalHours;
 };
 
-// buildTimesheetData function: actualEndTime is removed from here
 const buildTimesheetData = (body) => {
   const {
-    employeeId, clientId, projectId, // These can be undefined, null, or a string from req.body
+    employeeId, clientId, projectId,
     date,
     startTime, endTime,
     lunchBreak, lunchDuration, leaveType, // leaveType can be undefined
@@ -62,18 +56,14 @@ const buildTimesheetData = (body) => {
       console.warn(`[Server Build] Invalid or missing timezone received: '${timezone}'. Falling back to UTC.`);
   }
 
-  // Determine if it's a work day. Handles undefined leaveType as a work day.
   const isWorkDay = !leaveType || leaveType === "None";
 
-  // Core Validations
   if (!employeeId || !mongoose.Types.ObjectId.isValid(employeeId)) {
       throw new Error("Invalid or missing Employee ID");
   }
   if (!date || !moment(date, "YYYY-MM-DD", true).isValid()) {
       throw new Error(`Invalid or missing Date string (YYYY-MM-DD format required): '${date}'`);
   }
-
-  // Validate optional clientId and projectId ONLY if they are provided as non-empty strings
   if (clientId && typeof clientId === 'string' && clientId.trim() !== '' && !mongoose.Types.ObjectId.isValid(clientId)) {
       throw new Error("Invalid Client ID format provided. Must be a valid ObjectId if not empty.");
   }
@@ -105,7 +95,6 @@ const buildTimesheetData = (body) => {
       }
   }
   
-  // Calculate isActiveStatus based on startTime and endTime
   const isActiveStatus = (utcStartTime instanceof Date && !isNaN(utcStartTime.getTime()) && (!utcEndTime || isNaN(utcEndTime.getTime())))
                          ? 'Active' : 'Inactive';
 
@@ -128,8 +117,7 @@ const buildTimesheetData = (body) => {
     description: !isWorkDay ? (description || "") : "",
     hourlyWage: parseFloat(hourlyWage) || 0,
     timezone: userTimezone,
-    // actualEndTime is NOT set here anymore. It's handled in create/update.
-    isActiveStatus: isActiveStatus, // Include the calculated status
+    isActiveStatus: isActiveStatus,
   };
 
   if (!isWorkDay) {
@@ -146,7 +134,6 @@ const buildTimesheetData = (body) => {
   return finalData;
 };
 
-// --- Helper function for Timesheet Action Notifications ---
 const sendImmediateNotificationEmail = async (details) => {
   const { recipientEmail, employeeName, action, timesheetDate, employerName } = details;
   
@@ -171,7 +158,6 @@ const sendImmediateNotificationEmail = async (details) => {
     to: recipientEmail,
     subject: `Timesheet ${action} by ${employeeName}`,
     text: `Hello ${employerName || 'Employer'},\n\nA timesheet for employee ${employeeName} on ${moment(timesheetDate).format('MMM DD, YYYY')} was ${action.toLowerCase()}.\n\nThank you,\nTimesheet App`,
-    // html: `<p>Hello ${employerName || 'Employer'},</p><p>A timesheet for employee <strong>${employeeName}</strong> on <strong>${moment(timesheetDate).format('MMM DD, YYYY')}</strong> was <strong>${action}</strong>.</p><p>Thank you,<br/>Timesheet App</p>`
   };
 
   try {
@@ -185,28 +171,23 @@ const sendImmediateNotificationEmail = async (details) => {
 const handleTimesheetActionNotification = async (timesheet, action, employerIdForTimesheet) => {
   try {
     if (!timesheet || !timesheet.employeeId) return;
-
-    // Fetch the employee to check their notification preference and get their employerId
     const employee = await Employee.findById(timesheet.employeeId)
                                    .select('name email receivesActionNotifications employerId')
                                    .lean(); 
 
-    // If employee not found or has notifications disabled (receivesActionNotifications is explicitly false)
     if (!employee || employee.receivesActionNotifications === false) { 
       console.log(`[Notification] Notifications disabled for employee ${employee?.name || timesheet.employeeId} or employee not found. Skipping.`);
       return;
     }
 
-    // Use employerIdForTimesheet if provided (e.g., from populated employee during update), otherwise use employee.employerId
     const employerIdToUse = employerIdForTimesheet || employee.employerId;
     if (!employerIdToUse) {
         console.warn(`[Notification] Could not determine employer ID for employee ${employee.name}. Skipping notification.`);
         return;
     }
-
     const employerSettings = await EmployerSetting.findOne({ employerId: employerIdToUse })
-                                  .select('globalNotificationTimes actionNotificationEmail timezone') // Include timezone
-                                  .populate('employerId', 'name') // Populate employer user to get name
+                                  .select('globalNotificationTimes actionNotificationEmail timezone')
+                                  .populate('employerId', 'name')
                                   .lean();
     const employerUser = await User.findById(employerIdToUse).select('name').lean(); // Get employer name for email
 
@@ -215,61 +196,65 @@ const handleTimesheetActionNotification = async (timesheet, action, employerIdFo
       return;
     }
 
-    const dayOfWeek = moment(timesheet.date).format('dddd').toLowerCase(); // e.g., 'monday'
-    const notificationTimeForDay = employerSettings.globalNotificationTimes?.[dayOfWeek];
+    const employerTimezone = employerSettings.timezone || 'UTC';
+    const dayOfWeekOfAction = moment().tz(employerTimezone).format('dddd').toLowerCase(); 
 
-    if (!notificationTimeForDay || notificationTimeForDay === '') { // If time is blank, send immediately
-      const notificationDetails = {
-        recipientEmail: employerSettings.actionNotificationEmail,
-        employeeName: employee.name,
-        action: action,
-        timesheetDate: moment(timesheet.date).format('YYYY-MM-DD'),
-        employerName: employerUser?.name
-      };
-      await sendImmediateNotificationEmail(notificationDetails);
+    const scheduledTimeFromSettings = employerSettings.globalNotificationTimes?.[dayOfWeekOfAction];
+
+    const nowUTC = moment.utc(); // Current time in UTC
+    let finalScheduledTimeUTC;
+    let refDayOfWeek = null;
+
+    if (scheduledTimeFromSettings instanceof Date && moment(scheduledTimeFromSettings).isValid()) {
+        if (moment.utc(scheduledTimeFromSettings).isSame(nowUTC, 'day') && moment.utc(scheduledTimeFromSettings).isAfter(nowUTC)) {
+            finalScheduledTimeUTC = scheduledTimeFromSettings;
+            refDayOfWeek = dayOfWeekOfAction;
+            console.log(`[Notification] Queued: Action for ${employee.name}. Will follow daily schedule for ${dayOfWeekOfAction} (today). Scheduled at ${finalScheduledTimeUTC.toISOString()} to ${employerSettings.actionNotificationEmail}.`);
+        } else {
+            let foundNextDay = false;
+            for (let i = 1; i <= 7; i++) {
+                const nextActionDay = moment().tz(employerTimezone).add(i, 'days');
+                const nextDayKey = nextActionDay.format('dddd').toLowerCase();
+                const nextDayScheduledTimeFromSettings = employerSettings.globalNotificationTimes?.[nextDayKey];
+
+                if (nextDayScheduledTimeFromSettings instanceof Date && moment(nextDayScheduledTimeFromSettings).isValid()) {
+                    finalScheduledTimeUTC = nextDayScheduledTimeFromSettings;
+                    refDayOfWeek = nextDayKey;
+                    console.log(`[Notification] Queued: Action for ${employee.name}. Today's time passed. Rolled over to ${nextDayKey}. Scheduled at ${finalScheduledTimeUTC.toISOString()} to ${employerSettings.actionNotificationEmail}.`);
+                    foundNextDay = true;
+                    break;
+                }
+            }
+            if (!foundNextDay) { // If no scheduled time in the next 7 days, schedule for "immediate" processing relative to now.
+                finalScheduledTimeUTC = nowUTC.toDate();
+                console.log(`[Notification] Queued: Action for ${employee.name}. No specific future daily schedule found within 7 days. Scheduled for immediate delivery at ${finalScheduledTimeUTC.toISOString()} to ${employerSettings.actionNotificationEmail}.`);
+            }
+        }
     } else {
-      // --- Schedule the notification ---
-      const employerTimezone = employerSettings.timezone || process.env.SERVER_TIMEZONE || 'UTC';
-      const [hours, minutes] = notificationTimeForDay.split(':').map(Number);
-
-      // Create the scheduled time in the employer's timezone for the date of the timesheet
-      let scheduledMoment = moment.tz(timesheet.date, employerTimezone)
-                                 .hours(hours)
-                                 .minutes(minutes)
-                                 .seconds(0)
-                                 .milliseconds(0);
-
-      // If the calculated scheduled time is in the past (e.g., timesheet created late in the day after scheduled time),
-      // schedule it for the next available slot (e.g., same time next day if it's a recurring daily thing, or handle as per policy)
-      // For now, if it's in the past for today, it might get picked up almost immediately by the cron if the cron runs frequently.
-      // Or, more robustly, schedule for the *next* occurrence of that time if it's already passed for the timesheet's date.
-      // For simplicity here, we'll schedule it for the specified time on the timesheet's date.
-      // The cron job will pick up anything due.
-
-      const scheduledTimeUTC = scheduledMoment.utc().toDate();
-
-      const emailSubject = `Timesheet ${action} by ${employee.name}`;
-      const emailMessageBody = `Hello ${employerUser?.name || 'Employer'},\n\nA timesheet for employee ${employee.name} on ${moment(timesheet.date).format('MMM DD, YYYY')} was ${action.toLowerCase()}.\n\nThank you,\nTimesheet App`;
-
-      await ScheduledNotification.create({
-        employerId: employerIdToUse,
-        recipientEmail: employerSettings.actionNotificationEmail,
-        subject: emailSubject,
-        messageBody: emailMessageBody,
-        scheduledTimeUTC: scheduledTimeUTC,
-        status: 'pending',
-        // Store some context if needed for more complex summary emails later
-        // context: {
-        //   employeeName: employee.name,
-        //   timesheetAction: action,
-        //   timesheetDate: moment(timesheet.date).format('YYYY-MM-DD'),
-        // }
-      });
-      console.log(`[Notification] Queued: Action for ${employee.name} on ${dayOfWeek}. To be sent at ${scheduledMoment.format()} (${employerTimezone}) to ${employerSettings.actionNotificationEmail}.`);
+        finalScheduledTimeUTC = nowUTC.toDate();
+        refDayOfWeek = null;
+        console.log(`[Notification] Queued: Action for ${employee.name}. Scheduled for immediate delivery at ${finalScheduledTimeUTC.toISOString()} to ${employerSettings.actionNotificationEmail}.`);
     }
+
+    const emailSubject = `Timesheet ${action} by ${employee.name}`;
+    const emailMessageBody = `Hello ${employerUser?.name || 'Employer'},\n\nA timesheet for employee ${employee.name} on ${moment(timesheet.date).tz(employerTimezone).format('MMM DD, YYYY')} was ${action.toLowerCase()}.\n\nThank you,\nTimesheet App`;
+
+    const newNotification = new ScheduledNotification({
+      employerId: employerIdToUse,
+      recipientEmail: employerSettings.actionNotificationEmail,
+      subject: emailSubject,
+      messageBody: emailMessageBody,
+      scheduledTimeUTC: finalScheduledTimeUTC,
+      status: 'pending',
+      notificationType: 'action_alert',
+      referenceDayOfWeek: refDayOfWeek, 
+    });
+
+    await newNotification.save();
+    console.log(`[Notification] ScheduledNotification document ${newNotification._id} created for ${employee.name}'s timesheet ${action}.`);
+
   } catch (error) {
     console.error('[Notification] Error in handleTimesheetActionNotification:', error);
-    // Important: Don't let notification errors break the main timesheet operation
   }
 };
 
@@ -306,12 +291,11 @@ export const createTimesheet = async (req, res) => {
 
     const newTimesheet = new Timesheet({
         ...timesheetDataFromBuild,
-        actualEndTime: actualEndTimeForNewEntry, // Add actualEndTime here
-        isActiveStatus: timesheetDataFromBuild.isActiveStatus, // Ensure status from build is used
+        actualEndTime: actualEndTimeForNewEntry,
+        isActiveStatus: timesheetDataFromBuild.isActiveStatus,
     });
     const saved = await newTimesheet.save();
 
-    // Send notification after successful save
     await handleTimesheetActionNotification(saved, 'created', employeeCreatingTimesheet.employerId);
 
     res.status(201).json({ message: "Timesheet created successfully", data: saved });
@@ -469,7 +453,6 @@ export const updateTimesheet = async (req, res) => {
     if (!timesheet) {
       return res.status(404).json({ message: "Timesheet not found" });
     }
-    // Store the original endTime from the database for comparison
     const originalDbEndTime = timesheet.endTime ? new Date(timesheet.endTime.getTime()) : null;
 
     const originalEmployeeIdString = timesheet.employeeId.toString();
@@ -521,7 +504,6 @@ export const updateTimesheet = async (req, res) => {
       }
     }
 
-    // Apply validated data
     if (req.body.date !== undefined) timesheet.date = validatedData.date;
     if (req.body.startTime !== undefined) timesheet.startTime = validatedData.startTime;
     
@@ -540,9 +522,7 @@ export const updateTimesheet = async (req, res) => {
                 timesheet.actualEndTime = null; // Clear actualEndTime if endTime is cleared
             }
         }
-        // If endTime was in req.body but its value didn't change, actualEndTime is NOT updated.
     }
-    // If 'endTime' is not in req.body, timesheet.endTime and timesheet.actualEndTime are not touched.
 
     if (req.body.lunchBreak !== undefined) timesheet.lunchBreak = validatedData.lunchBreak;
     if (req.body.lunchDuration !== undefined) timesheet.lunchDuration = validatedData.lunchDuration;
@@ -555,7 +535,7 @@ export const updateTimesheet = async (req, res) => {
     if (req.body.timezone !== undefined) timesheet.timezone = validatedData.timezone;
 
     if (timesheet.startTime && timesheet.endTime) {
-        timesheet.isActiveStatus = 'Inactive'; // Set status based on end time presence
+        timesheet.isActiveStatus = 'Inactive';
         timesheet.totalHours = calculateTotalHours(
             timesheet.startTime,
             timesheet.endTime,
@@ -563,17 +543,14 @@ export const updateTimesheet = async (req, res) => {
             timesheet.lunchDuration
         );
     } else if (timesheet.leaveType && timesheet.leaveType !== "None") {
-        timesheet.isActiveStatus = 'Inactive'; // Leave entries are not "Active" work entries
+        timesheet.isActiveStatus = 'Inactive';
         timesheet.totalHours = 0; 
     } else {
-        // If startTime exists but endTime is null, it's Active. Otherwise, Inactive.
         timesheet.isActiveStatus = (timesheet.startTime && !timesheet.endTime) ? 'Active' : 'Inactive';
         timesheet.totalHours = 0;
     }
 
     const savedTimesheet = await timesheet.save();
-
-    // Send notification after successful update
     await handleTimesheetActionNotification(savedTimesheet, 'updated', employerIdForSettings);
 
     res.json({ message: "Timesheet updated successfully", timesheet: savedTimesheet });
@@ -597,7 +574,7 @@ export const getIncompleteTimesheetsByEmployee = async (req, res) => {
 
         const incompleteTimesheets = await Timesheet.find({
             employeeId: employeeId,
-            isActiveStatus: 'Active', // Filter by the new stored status field
+            isActiveStatus: 'Active',
             endTime: null
         })
         .sort({ date: 1, startTime: 1 })
@@ -691,8 +668,6 @@ export const deleteTimesheet = async (req, res) => {
         res.status(500).json({ message: `Error deleting timesheet: ${error.message}` });
       }
  };
-
-// formatDataForReport function remains the same
 const formatDataForReport = (timesheets, defaultTimezone = 'UTC') => {
     if (!Array.isArray(timesheets)) return [];
     return timesheets.map(ts => {
@@ -737,7 +712,6 @@ const formatDataForReport = (timesheets, defaultTimezone = 'UTC') => {
     });
 };
 
-// standardReportColumns remains the same
 const standardReportColumns = [
       { header: 'Full Name', key: 'employee', width: 25 },
       { header: 'Date', key: 'date', width: 15, style: { numFmt: 'yyyy-mm-dd' } },
@@ -754,7 +728,6 @@ const standardReportColumns = [
       { header: 'Total Hours', key: 'totalHours', width: 12, style: { numFmt: '0.00' } },
 ];
 
-// handleReportAction function
 const handleReportAction = async (req, res, isDownload, groupBy) => {
   const actionType = isDownload ? 'download' : 'send';
   const { email, employeeIds: requestedEmployeeIdsParam = [], projectIds = [], startDate, endDate, timezone = 'UTC' } = req.body;
@@ -788,7 +761,7 @@ const handleReportAction = async (req, res, isDownload, groupBy) => {
         return res.status(404).json({ message: "No employees found for this employer matching the criteria." });
     }
     const employeesData = await Employee.find({ _id: { $in: finalEmployeeIds } })
-                                        .select('name wage expectedHours') // Corrected: expectedHours instead of expectedWeeklyHours
+                                        .select('name wage expectedHours')
                                         .lean();
     const employeeMap = new Map(employeesData.map(emp => [emp._id.toString(), emp]));
 
@@ -797,9 +770,7 @@ const handleReportAction = async (req, res, isDownload, groupBy) => {
     const filterIds = (ids) => ids.filter(id => mongoose.Types.ObjectId.isValid(id));
 
     filter.employeeId = { $in: finalEmployeeIds };
-
     if (groupBy === 'employee') {
-        // No additional filtering needed beyond employer's employees
     } else if (groupBy === 'project' && Array.isArray(projectIds) && projectIds.length > 0) {
         const validIds = filterIds(projectIds);
         if (validIds.length > 0) filter.projectId = { $in: validIds };
@@ -893,7 +864,7 @@ const handleReportAction = async (req, res, isDownload, groupBy) => {
                 if (activeReportColumns.length > 0) {
                     const summaryExpectedValues = activeReportColumns.map(col => {
                         if (col.key === 'leaveType') return 'EXPECTED';
-                        if (col.key === 'totalHours') return employee.expectedHours !== undefined ? String(employee.expectedHours) : '0'; // Corrected: expectedHours
+                        if (col.key === 'totalHours') return employee.expectedHours !== undefined ? String(employee.expectedHours) : '0';
                         return '';
                     });
                     ws.addRow(summaryExpectedValues);
@@ -1006,7 +977,6 @@ export const downloadProjectTimesheets = (req, res) => handleReportAction(req, r
 // @access  Private (e.g., Employer)
 export const sendProjectTimesheetEmail = (req, res) => handleReportAction(req, res, false, 'project');
 
-// Populates the worksheet for employee-grouped data
 const populateWorksheetForEmployeeGrouping = (groupedByEmployeeName, ws, activeColumns) => {
     if (activeColumns.length === 0) return;
 
@@ -1024,8 +994,6 @@ const populateWorksheetForEmployeeGrouping = (groupedByEmployeeName, ws, activeC
     });
 };
 
-// --- Weekly Report Automation ---
-
 /**
  * Calculates the start and end dates for the previous week based on a given start day.
  * @param {string} startDayOfWeekSetting - The day the week starts on (e.g., "Monday", "Sunday").
@@ -1033,26 +1001,17 @@ const populateWorksheetForEmployeeGrouping = (groupedByEmployeeName, ws, activeC
  */
 const getPreviousWeekDateRange = (startDayOfWeekSetting = 'Monday') => {
     const today = moment();
-    // Moment's week starts on Sunday (0) by default. Adjust if startDayOfWeekSetting is different.
-    // .day() sets the day of the week. If the given day is before the current day in the current week, it moves to the next week.
-    // So, we first go to the start of the "current" week according to moment's default (Sunday).
-    // Then, we adjust to the *actual* start of the current week based on the setting.
-
     let startOfCurrentWeek;
     if (moment.localeData().firstDayOfWeek() === moment.weekdays(true).indexOf(startDayOfWeekSetting)) {
-        // If moment's default first day of week matches the setting
         startOfCurrentWeek = today.clone().startOf('week');
     } else {
-        // Manually find the start of the current week based on the setting
         startOfCurrentWeek = today.clone().day(startDayOfWeekSetting);
-        if (startOfCurrentWeek.isAfter(today, 'day')) { // If .day() moved to next week's start day
+        if (startOfCurrentWeek.isAfter(today, 'day')) {
             startOfCurrentWeek.subtract(1, 'week');
         }
     }
-
     const startDateOfPreviousWeek = startOfCurrentWeek.clone().subtract(1, 'week');
-    const endDateOfPreviousWeek = startDateOfPreviousWeek.clone().endOf('week'); // endOf('week') respects locale's end of week.
-                                                                            // If startDay is Monday, endOf('week') is Sunday.
+    const endDateOfPreviousWeek = startDateOfPreviousWeek.clone().endOf('week');
 
     return {
         startDate: startDateOfPreviousWeek.format('YYYY-MM-DD'),
@@ -1062,7 +1021,6 @@ const getPreviousWeekDateRange = (startDayOfWeekSetting = 'Monday') => {
 
 /**
  * @desc    Automated task to send weekly timesheet reports to configured employers.
- *          This function is intended to be called by a scheduler (e.g., node-cron).
  */
 export const sendWeeklyTimesheetReports = async () => {
     console.log(`[WeeklyReportTask] Starting job at ${moment().format()}`);
@@ -1085,7 +1043,7 @@ export const sendWeeklyTimesheetReports = async () => {
             console.log(`[WeeklyReportTask] Processing report for employerId: ${settings.employerId}, email: ${settings.weeklyReportEmail}`);
 
             const { startDate, endDate } = getPreviousWeekDateRange(settings.timesheetStartDayOfWeek);
-            const reportTimezone = settings.timezone || 'UTC'; // Assuming employer settings might have a timezone field
+            const reportTimezone = settings.timezone || 'UTC';
 
             // We need to fetch all employee IDs for this employer to pass to handleReportAction
             const employees = await Employee.find({ employerId: settings.employerId }).select('_id').lean();
@@ -1097,18 +1055,15 @@ export const sendWeeklyTimesheetReports = async () => {
             }
 
             const mockReq = {
-                user: { id: settings.employerId.toString() }, // handleReportAction expects employerId here
+                user: { id: settings.employerId.toString() },
                 body: {
                     email: settings.weeklyReportEmail,
-                    employeeIds: employeeIds, // Send all employees for this employer
+                    employeeIds: employeeIds,
                     startDate,
                     endDate,
                     timezone: reportTimezone,
                 }
             };
-            // handleReportAction sends responses, but for a cron job, we just log.
-            // We can create a simple mockRes or adapt handleReportAction if it becomes complex.
-            // For now, handleReportAction's own logging should suffice for success/failure of email sending.
             await handleReportAction(mockReq, { status: () => ({ json: () => {} }), send: () => {} }, false, 'employee');
             console.log(`[WeeklyReportTask] Attempted to send report for employerId: ${settings.employerId} to ${settings.weeklyReportEmail} for period ${startDate} to ${endDate}`);
         }

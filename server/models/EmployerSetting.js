@@ -66,17 +66,17 @@ const EmployerSettingSchema = new mongoose.Schema({
   },
   globalNotificationTimes: {
     type: {
-      monday: { type: String, trim: true, default: '' },
-      tuesday: { type: String, trim: true, default: '' },
-      wednesday: { type: String, trim: true, default: '' },
-      thursday: { type: String, trim: true, default: '' },
-      friday: { type: String, trim: true, default: '' },
-      saturday: { type: String, trim: true, default: '' },
-      sunday: { type: String, trim: true, default: '' },
+      monday: { type: Date, default: null },
+      tuesday: { type: Date, default: null },
+      wednesday: { type: Date, default: null },
+      thursday: { type: Date, default: null },
+      friday: { type: Date, default: null },
+      saturday: { type: Date, default: null },
+      sunday: { type: Date, default: null },
     },
     default: () => ({ // Use a function for default object
-      monday: '', tuesday: '', wednesday: '', thursday: '',
-      friday: '', saturday: '', sunday: ''
+      monday: null, tuesday: null, wednesday: null, thursday: null,
+      friday: null, saturday: null, sunday: null
     }),
   },
   actionNotificationEmail: { // Email to receive notifications for timesheet actions
@@ -87,7 +87,7 @@ const EmployerSettingSchema = new mongoose.Schema({
   timezone: { // To interpret globalNotificationTimes correctly
     type: String,
     trim: true,
-    default: 'UTC', // Default to UTC, employer should set their specific timezone
+    default: 'Asia/Kolkata', // Default to Indian Standard Time
   },
 }, {
   timestamps: true,

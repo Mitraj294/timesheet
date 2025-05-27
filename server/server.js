@@ -5,9 +5,9 @@ import mongoose from "mongoose";
 import helmet from "helmet";
 import cookieParser from "cookie-parser";
 import dotenv from "dotenv";
-import cron from 'node-cron'; // Import node-cron
-import path from 'path'; // Import path module
-import { fileURLToPath } from 'url'; // Import fileURLToPath for ES modules
+import cron from 'node-cron';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
 // Initialize environment variables
 const __filename = fileURLToPath(import.meta.url);
@@ -23,9 +23,9 @@ import projectRoutes from "./routes/projectRoutes.js";
 import roleRoutes from "./routes/roleRoutes.js";
 import scheduleRoutes from "./routes/scheduleRoutes.js";
 import vehicleRoutes from "./routes/vehicleRoutes.js";
-import { errorHandler } from './middleware/errorMiddleware.js'; // Error handling middleware
-import userRoutes from './routes/userRoutes.js'; 
-import { sendWeeklyTimesheetReports } from './controllers/timesheetController.js'; // Import the scheduler function
+import { errorHandler } from './middleware/errorMiddleware.js';
+import userRoutes from './routes/userRoutes.js';
+import { sendWeeklyTimesheetReports } from './controllers/timesheetController.js';
 import settingsRoutes from './routes/settingsRoutes.js'; // Import the new settings routes
 import { startNotificationScheduler } from './scheduler/notificationScheduler.js'; // Import new notification scheduler
 
@@ -54,7 +54,7 @@ const connectDB = async () => {
   }
 };
 
-connectDB(); // Initialize MongoDB connection
+connectDB();
 
 // Use BASE_API_URL for all routes
 const BASE_API_URL = process.env.BASE_API_URL || '/api';
@@ -67,8 +67,8 @@ app.use(`${BASE_API_URL}/projects`, projectRoutes);
 app.use(`${BASE_API_URL}/roles`, roleRoutes);
 app.use(`${BASE_API_URL}/schedules`, scheduleRoutes);
 app.use(`${BASE_API_URL}/vehicles`, vehicleRoutes);
-app.use(`${BASE_API_URL}/users`, userRoutes); // Mount userRoutes consistently
-app.use(`${BASE_API_URL}/settings`, settingsRoutes); // Mount the new settings routes
+app.use(`${BASE_API_URL}/users`, userRoutes);
+app.use(`${BASE_API_URL}/settings`, settingsRoutes);
 
 // Root Route
 app.get("/", (req, res) => {
@@ -76,11 +76,10 @@ app.get("/", (req, res) => {
 });
 
 // --- Schedulers ---
-// Schedule the weekly report email
-// CRON Pattern: 'minute hour day-of-month month day-of-week'
 
+// CRON Pattern: 'minute hour day-of-month month day-of-week'
 const weeklyReportSchedule = process.env.WEEKLY_REPORT_CRON_SCHEDULE || '00 19 * * 6'; // Default to Sat 7 PM if not set
-const serverTimezone = process.env.SERVER_TIMEZONE || 'Asia/Kolkata'; 
+const serverTimezone = process.env.SERVER_TIMEZONE || 'Asia/Kolkata';
 
 if (cron.validate(weeklyReportSchedule)) {
   cron.schedule(weeklyReportSchedule, () => {
@@ -95,11 +94,9 @@ if (cron.validate(weeklyReportSchedule)) {
   console.error(`[Scheduler] Invalid CRON pattern specified for weekly reports: "${weeklyReportSchedule}". Job not scheduled.`);
 }
 
-// Start the notification scheduler for daily/specific time notifications
 startNotificationScheduler();
 
-// Note: If you have startLockScreenCleanupScheduler, ensure it's also called here or where appropriate.
-// For example:
+// TODO: Uncomment and implement if lock screen cleanup is needed
 // import { startLockScreenCleanupScheduler } from './scheduler/lockScreenCleanupScheduler.js';
 // startLockScreenCleanupScheduler();
 

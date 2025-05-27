@@ -3,6 +3,8 @@ import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import ScheduledNotification from '../models/ScheduledNotification.js';
+import EmployerSetting from '../models/EmployerSetting.js';
+import moment from 'moment-timezone';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -23,25 +25,72 @@ const connectDB = async () => {
   }
 };
 
+const calculateNextScheduledUTCFromSettings = (dayOfWeekStr, localTimeHHMM, timezoneStr) => {
+  if (!localTimeHHMM || typeof localTimeHHMM !== 'string' || !localTimeHHMM.includes(':')) {
+    return null;
+  }
+  const [hours, minutes] = localTimeHHMM.split(':').map(Number);
+  const nowInEmployerTZ = moment.tz(timezoneStr);
+  const dayMapping = {
+    sunday: 0, monday: 1, tuesday: 2, wednesday: 3,
+    thursday: 4, friday: 5, saturday: 6,
+  };
+  const targetDayNumber = dayMapping[dayOfWeekStr.toLowerCase()];
+  if (typeof targetDayNumber !== 'number') {
+    return null;
+  }
+  let scheduledMomentInEmployerTZ = nowInEmployerTZ.clone().day(targetDayNumber).hour(hours).minute(minutes).second(0).millisecond(0);
+  if (scheduledMomentInEmployerTZ.isBefore(nowInEmployerTZ)) {
+    scheduledMomentInEmployerTZ.add(1, 'week');
+  }
+  return scheduledMomentInEmployerTZ.utc().toDate();
+};
+
+
 const seedNotifications = async () => {
   await connectDB();
 
   try {
-    const numberOfEntries = 1000;
+    const numberOfEntries = 10;
     const employerId = new mongoose.Types.ObjectId("67dab2b51670251b9de4ba0a");
     const recipientEmail = "meetrajsinhjadeja04@gmail.com";
-    const subject = "Timesheet updated by MITRAJ";
-    const messageBody = "Hello Meetraj Jadeja,\n\nA timesheet for employee MITRAJ on May 26, 2025 was updated.\n\nThank you,\nTimesheet App";
-    const scheduledTimeUTC = new Date("2025-05-26T16:00:00.000Z");
+    const subject = "Seeded Test Notification";
     const status = "pending";
     const notificationType = "action_alert";
-    const referenceDayOfWeek = null;
     const attempts = 0;
+
+    const settings = await EmployerSetting.findOne({ employerId });
+    if (!settings) {
+      console.error(`Employer settings not found for employerId: ${employerId}. Cannot seed notifications based on settings.`);
+      return;
+    }
+
+    const employerTimezone = settings.timezone || 'UTC';
+    let scheduledTimeUTC;
+    let referenceDayOfWeekForSeed = 'monday'; // Using Monday as an example for seeding
+
+    const mondaySettingDate = settings.globalNotificationTimes?.monday;
+
+    if (mondaySettingDate instanceof Date) {
+        scheduledTimeUTC = mondaySettingDate; // Use the pre-calculated next occurrence
+    } else {
+        // Fallback if Monday is not set or is null: seed for tomorrow 10 AM local time
+        console.warn(`Monday notification time not set for employer ${employerId} or is invalid. Seeding for tomorrow 10:00 local time in timezone ${employerTimezone}.`);
+        const tomorrowAt10AM = moment.tz(employerTimezone).add(1, 'day').hour(10).minute(0).second(0).millisecond(0);
+        scheduledTimeUTC = tomorrowAt10AM.utc().toDate();
+        referenceDayOfWeekForSeed = tomorrowAt10AM.format('dddd').toLowerCase();
+    }
+
+    const today = new Date();
+    const options = { year: 'numeric', month: 'long', day: 'numeric' };
+    const formattedDateForMessage = today.toLocaleDateString('en-US', options);
+
+    const messageBody = `Hello Meetraj Jadeja,\n\nA timesheet for employee MITRAJ on ${formattedDateForMessage} was updated.\n\nThank you,\nTimesheet App`;
 
     let documentsToInsert = [];
     const batchSize = 100;
 
-    console.log(`Starting to generate ${numberOfEntries} identical scheduled notifications...`);
+    console.log(`Starting to generate ${numberOfEntries} scheduled notifications for ${referenceDayOfWeekForSeed} at ${scheduledTimeUTC.toISOString()}...`);
 
     for (let i = 0; i < numberOfEntries; i++) {
       documentsToInsert.push({
@@ -52,7 +101,7 @@ const seedNotifications = async () => {
         scheduledTimeUTC: scheduledTimeUTC,
         status: status,
         notificationType: notificationType,
-        referenceDayOfWeek: referenceDayOfWeek,
+        referenceDayOfWeek: referenceDayOfWeekForSeed,
         attempts: attempts,
       });
 
