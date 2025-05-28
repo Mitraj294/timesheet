@@ -63,9 +63,8 @@ export const createBulkSchedules = async (req, res) => {
         to: email,
         subject: 'New Shifts Assigned',
         html: `<p>Hi ${name || 'Employee'},</p><p>You have been assigned new shifts:</p><ul>${shifts.map(s => `<li>${s}</li>`).join('')}</ul><p>Please log in to the portal to view your updated roster.</p>`,
-      }).catch(emailError => console.error(`Failed to send bulk schedule notification to ${email}:`, emailError));
+      }).catch(emailError => console.error(`[ScheduleCtrl] Failed to send bulk schedule notification to ${email}:`, emailError));
     }
-
 
     res.status(201).json(createdSchedules); // Return the created schedules
   } catch (err) {
@@ -195,7 +194,7 @@ export const updateSchedule = async (req, res) => {
           });
         }
       } catch (emailError) {
-        console.error(`Failed to send schedule update notification to employee ${updatedSchedule.employee}:`, emailError);
+        console.error(`[ScheduleCtrl] Failed to send schedule update notification to employee ${updatedSchedule.employee}:`, emailError);
       }
     }
 

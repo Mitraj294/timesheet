@@ -365,35 +365,6 @@ const RosterPage = () => {
 
       if (newEmployeeSchedules.length > 0) {
         await dispatch(bulkCreateSchedules(newEmployeeSchedules)).unwrap();
-         // Notify employees about their rolled-out direct shifts
-        const employeeDirectShiftNotifications = newEmployeeSchedules.reduce((acc, sch) => {
-          if (!acc[sch.employee]) {
-            acc[sch.employee] = [];
-          }
-          acc[sch.employee].push({
-            date: format(parseISO(sch.date), 'EEE, MMM d'),
-            startTime: formatTimeUTCtoLocal(sch.startTime, sch.date),
-            endTime: formatTimeUTCtoLocal(sch.endTime, sch.date),
-          });
-          return acc;
-        }, {});
-
-        for (const employeeId in employeeDirectShiftNotifications) {
-          const employeeDetail = employees.find(emp => emp._id === employeeId);
-          if (employeeDetail) {
-            dispatch(sendScheduleUpdateNotificationEmail({
-              recipientId: employeeId,
-              subject: `Your Schedule for Week of ${format(nextWeekStart, 'MMM d')}`,
-              message: `Hi ${employeeDetail.name},\n\nYour direct shifts for the week starting ${format(nextWeekStart, 'MMM d, yyyy')} have been published. Please log in to view your roster.`,
-              details: {
-                employeeName: employeeDetail.name,
-                week: format(nextWeekStart, 'MMM d, yyyy'),
-                shifts: employeeDirectShiftNotifications[employeeId],
-              }
-            }));
-          }
-        }
-        console.log('[RosterPage] executeRollout: Finished processing direct employee shift notifications.');
       }
 
       // Process Role Schedules for Rollout
@@ -443,30 +414,6 @@ const RosterPage = () => {
 
           // 5. Notify assigned employees about the rolled-out role schedule
           if (clonedEntriesForNextWeek.length > 0 && role.assignedEmployees && role.assignedEmployees.length > 0) {
-            const newRoleScheduleDetails = clonedEntriesForNextWeek.map(entry => ({
-              day: format(parseISO(entry.day), 'EEE, MMM d'), // entry.day is already yyyy-MM-dd
-              startTime: formatTimeUTCtoLocal(entry.startTime, entry.day),
-              endTime: formatTimeUTCtoLocal(entry.endTime, entry.day),
-            }));
-
-            role.assignedEmployees.forEach(empIdentifier => {
-              const empId = typeof empIdentifier === 'object' && empIdentifier !== null ? empIdentifier._id : empIdentifier;
-              const employeeDetail = employees.find(e => e._id === empId);
-              if (employeeDetail) {
-                dispatch(sendRoleUpdateNotificationEmail({
-                  recipientId: empId,
-                  subject: `Schedule Update for Role: ${role.roleName} - Week of ${format(nextWeekStart, 'MMM d')}`,
-                  message: `Hi ${employeeDetail.name},\n\nThe schedule for your role "${role.roleName}" for the week starting ${format(nextWeekStart, 'MMM d, yyyy')} has been published.`,
-                  details: {
-                    employeeName: employeeDetail.name,
-                    roleName: role.roleName,
-                    week: format(nextWeekStart, 'MMM d, yyyy'),
-                    newScheduleEntries: newRoleScheduleDetails,
-                  }
-                }));
-                console.log(`[RosterPage] executeRollout: Dispatched role update notification for ${employeeDetail.name} for role ${role.roleName}`);
-              }
-            });
           }
           console.log(`[RosterPage] executeRollout: Finished processing role ${role.roleName}`);
         })
@@ -539,29 +486,6 @@ const RosterPage = () => {
       setStartTime({});
       setEndTime({});
       dispatch(setAlert('Shift(s) assigned successfully.', 'success'));
-
-      // Notify employee about new shifts
-      const employeeToNotify = employees.find(emp => emp._id === selectedEmployee._id);
-      if (employeeToNotify) {
-        const notificationPayload = {
-          recipientId: employeeToNotify._id,
-          subject: 'New Shifts Assigned',
-          message: `Hi ${employeeToNotify.name},\n\nYou have been assigned new shifts for the week starting ${format(currentWeekStart, 'MMM d, yyyy')}. Please log in to the portal to view your updated roster.`,
-          details: {
-            employeeName: employeeToNotify.name,
-            week: format(currentWeekStart, 'MMM d, yyyy'),
-            shifts: schedulePayloads.map(s => ({
-              date: format(parseISO(s.date), 'EEE, MMM d'),
-              startTime: formatTimeUTCtoLocal(s.startTime, s.date),
-              endTime: formatTimeUTCtoLocal(s.endTime, s.date),
-            }))
-          }
-        };
-        console.log('[RosterPage] handleAssignShift: Preparing to send schedule assignment notification. Data:', notificationPayload);
-        dispatch(sendScheduleUpdateNotificationEmail(notificationPayload));
-      } else {
-        console.warn('[RosterPage] handleAssignShift: Employee to notify not found. Selected Employee ID:', selectedEmployee?._id, 'All employees:', employees);
-      }
 
       console.log('[RosterPage] handleAssignShift: Refetching schedules after assignment.');
       dispatch(fetchSchedules({ weekStart: format(currentWeekStart, 'yyyy-MM-dd') }));

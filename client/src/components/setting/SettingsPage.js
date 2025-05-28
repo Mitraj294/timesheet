@@ -23,6 +23,7 @@ import VehicleSettingsSection from './VehicleSettingsSection.js';
 import TabletViewSettingsSection from './TabletViewSettingsSection.js';
 import TimesheetSettingsSection from './TimesheetSettingsSection.js';
 import NotificationSettingsSection from './NotificationSettingsSection.js'; // Import the new Notification settings component
+import SubscriptionSection from './SubscriptionSection.js'; // Import the new Subscription section component
 
 import { selectAuthUser } from '../../redux/slices/authSlice.js';
 import { fetchEmployerSettings, selectSettingsStatus } from '../../redux/slices/settingsSlice.js';
@@ -111,8 +112,8 @@ const SettingsPage = () => {
           icon: faCar,
           component: <VehicleSettingsSection />
         },
-        { key: 'notifications', label: 'Notification Settings', icon: faBell, component: <NotificationSettingsSection /> },
-        { key: 'subscription', label: 'Subscription', icon: faCreditCard, component: <PlaceholderSection title="Subscription Management" /> },
+        { key: 'notifications', label: 'Notification Settings', icon: faBell, component: <NotificationSettingsSection /> }, // Keep existing notifications
+        { key: 'subscription', label: 'Subscription', icon: faCreditCard, component: <SubscriptionSection /> }, // Use the new component
       ];
       // Dynamically insert/update invitation and timesheet related items
       employerItems.splice(1, 0, { // Insert at index 1

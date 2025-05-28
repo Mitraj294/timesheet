@@ -58,8 +58,7 @@ export const createRole = async (req, res) => {
             });
           }
         } catch (emailError) {
-          console.error(`Failed to send new role notification to employee ${empId}:`, emailError);
-          // Decide if you want to collect these errors and report them, or just log
+          console.error(`[RoleCtrl] Failed to send new role notification to employee ${empId}:`, emailError);
         }
       }
     }
@@ -188,7 +187,6 @@ export const updateRole = async (req, res) => {
           const employee = await Employee.findById(empId).populate('userId', 'email name');
           if (employee && employee.userId && employee.userId.email) {
             // Check if the employee was newly assigned or if it's just an update for an existing one
-            // This is a simplified check. For more complex logic, compare originalRole.assignedEmployees
             const isNewlyAssigned = originalRole && !originalRole.assignedEmployees.map(String).includes(String(empId));
             const subject = isNewlyAssigned ? `New Role Assignment: ${updatedRole.roleName}` : `Role Updated: ${updatedRole.roleName}`;
             const messageBody = isNewlyAssigned ?
@@ -202,10 +200,11 @@ export const updateRole = async (req, res) => {
             });
           }
         } catch (emailError) {
-          console.error(`Failed to send role update notification to employee ${empId}:`, emailError);
+          console.error(`[RoleCtrl] Failed to send role update notification to employee ${empId}:`, emailError);
         }
       }
     }
+
     res.status(200).json({ message: 'Role updated successfully', role: updatedRole });
   } catch (err) {
     console.error('Error updating role:', err);

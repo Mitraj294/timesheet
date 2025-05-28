@@ -23,6 +23,7 @@ import projectRoutes from "./routes/projectRoutes.js";
 import roleRoutes from "./routes/roleRoutes.js";
 import scheduleRoutes from "./routes/scheduleRoutes.js";
 import vehicleRoutes from "./routes/vehicleRoutes.js";
+// import notificationRoutes from './routes/notificationRoutes.js'; // - No longer needed
 import { errorHandler } from './middleware/errorMiddleware.js';
 import userRoutes from './routes/userRoutes.js';
 import { sendWeeklyTimesheetReports } from './controllers/timesheetController.js';
@@ -68,6 +69,7 @@ app.use(`${BASE_API_URL}/roles`, roleRoutes);
 app.use(`${BASE_API_URL}/schedules`, scheduleRoutes);
 app.use(`${BASE_API_URL}/vehicles`, vehicleRoutes);
 app.use(`${BASE_API_URL}/users`, userRoutes);
+// app.use(`${BASE_API_URL}/notifications`, notificationRoutes); // - No longer needed
 app.use(`${BASE_API_URL}/settings`, settingsRoutes);
 
 // Root Route
