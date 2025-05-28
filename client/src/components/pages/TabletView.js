@@ -142,6 +142,31 @@ const TabletView = () => {
     }
   }, [dispatch, currentUser, employerSettings, employerSettingsStatus]);
 
+  // Helper function to get current geolocation
+  const getCurrentLocation = useCallback(() => {
+    return new Promise((resolve, reject) => {
+      if (!navigator.geolocation) {
+        reject(new Error('Geolocation is not supported by your browser.'));
+        return;
+      }
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          // Geolocation API returns [latitude, longitude]
+          // MongoDB GeoJSON Point expects [longitude, latitude]
+          resolve({
+            type: 'Point',
+            coordinates: [position.coords.longitude, position.coords.latitude],
+            // Optionally add address if you perform reverse geocoding
+            // address: '...' 
+          });
+        },
+        (error) => {
+          reject(error);
+        },
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+      );
+    });
+  }, []);
   // Effect to check initial timesheet statuses (clocked-in or incomplete manual for *today*)
   useEffect(() => {
     if (isTabletViewUnlocked && employees.length > 0 && !initialStatusChecked && employerSettingsStatus === 'succeeded') {
@@ -434,6 +459,7 @@ const TabletView = () => {
     } else { // Automatically Record
       setIsSubmittingLogTime(true);
       dispatch(clearCheckStatus());
+      let startLocation = null;
       try {
         const now = new Date();
         const checkAction = await dispatch(checkTimesheetExists({ employee: employee._id, date: todayDate })).unwrap();
@@ -457,6 +483,13 @@ const TabletView = () => {
             setSelectedEmployeeForAction(null);
             return;
         }
+
+        // Attempt to get current location for startLocation
+        try {
+            startLocation = await getCurrentLocation();
+        } catch (geoError) {
+            console.warn("Failed to get start location:", geoError.message);
+        }
         const currentDate = now.toISOString().split('T')[0];
         const currentTimeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
         const timesheetPayload = {
@@ -474,6 +507,7 @@ const TabletView = () => {
           clientId: null,
           projectId: null,
           hourlyWage: employee?.wage || 0,
+          startLocation: startLocation, // Include start location
         };
         const createdTimesheetAction = await dispatch(createTimesheet(timesheetPayload)).unwrap();
         if (createdTimesheetAction && createdTimesheetAction.data) {
@@ -503,21 +537,30 @@ const TabletView = () => {
     const timesheetIdToUpdate = activeClockIns[employeeId].id;
     const originalTimesheetDate = activeClockIns[employeeId].date;
     const currentEmployee = selectedEmployeeForAction || employees.find(emp => (emp._id || emp.id) === employeeId);
+    let endLocation = null;
     setIsSubmittingLogTime(true);
     try {
         const now = new Date();
         const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
         const currentTimeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+
+        // Attempt to get current location for endLocation
+        try {
+            endLocation = await getCurrentLocation();
+        } catch (geoError) {
+            console.warn("Failed to get end location:", geoError.message);
+        }
+
         const updatePayload = {
             endTime: localTimeToUtcISO(currentTimeStr, originalTimesheetDate, userTimezone),
             notes: (currentEmployee?.tabletViewSignOutNotes || "") + " Clocked out via Tablet View",
             isActiveStatus: 'Inactive', // Set status to Inactive on sign out
+            endLocation: endLocation, // Include end location
         };
         await dispatch(updateTimesheet({ id: timesheetIdToUpdate, timesheetData: updatePayload })).unwrap();
         setActiveClockIns(prev => {
-            const newState = { ...prev };
-            delete newState[employeeId];
-            return newState;
+            const { [employeeId]: _, ...rest } = prev; // Remove the signed-out employee
+            return rest;
         });
         dispatch(setAlert(`${currentEmployee?.name || 'Employee'} signed out successfully at ${currentTimeStr}.`, 'success', 4000));
     } catch (error) {
@@ -633,6 +676,7 @@ const TabletView = () => {
     }
 
     setIsSubmittingLogTime(true);
+    let locationData = null; // For manual entries, location might not be captured automatically
     try {
       const basePayload = {
         employeeId: employeeId,
@@ -644,6 +688,7 @@ const TabletView = () => {
         clientId: null, projectId: null,
         hourlyWage: selectedEmployeeForAction?.wage || 0,
         isActiveStatus: 'Active', // Default to Active when starting a manual entry
+        // startLocation and endLocation will be added below if available/needed
       };
 
       let timesheetPayload;
@@ -665,6 +710,7 @@ const TabletView = () => {
           lunchDuration: '00:00',
           totalHours: 0,
           isActiveStatus: 'Active', // Ensure status is Active for start-only entry
+          startLocation: locationData, // Include location if captured (optional for manual)
           notes: logTimeData.notes || 'Manually started entry.',
         };
         const createdAction = await dispatch(createTimesheet(timesheetPayload)).unwrap();
@@ -689,6 +735,7 @@ const TabletView = () => {
           lunchBreak: logTimeData.lunchBreak,
           lunchDuration: actualLunchDuration,
           totalHours: parseFloat(logTimeCalculatedHours) || 0,
+          endLocation: locationData, // Include location if captured (optional for manual)
           isActiveStatus: 'Inactive', // Set status to Inactive when completing
           notes: logTimeData.notes,
         };

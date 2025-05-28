@@ -21,6 +21,7 @@
     "date-fns-tz": "^3.2.0",
     "express-async-handler": "^1.2.0",
     "moment-timezone": "^0.5.48",
-    "node-cron": "^4.0.6"
+    "node-cron": "^4.0.6",
+    "overlapping-marker-spiderfier": "^1.1.4"
   }
 }

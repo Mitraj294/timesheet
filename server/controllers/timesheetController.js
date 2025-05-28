@@ -1,3 +1,4 @@
+//home/digilab/timesheet/server/controllers/timesheetController.js
 import Timesheet from "../models/Timesheet.js";
 import ExcelJS from 'exceljs';
 import mongoose from "mongoose";
@@ -46,7 +47,9 @@ const buildTimesheetData = (body) => {
     startTime, endTime,
     lunchBreak, lunchDuration, leaveType, // leaveType can be undefined
     notes, description, hourlyWage,
-    timezone
+    timezone,
+    startLocation, // Expect startLocation from req.body
+    endLocation    // Expect endLocation from req.body
   } = body;
 
   let userTimezone = 'UTC';
@@ -95,6 +98,16 @@ const buildTimesheetData = (body) => {
       }
   }
   
+  // Validate and structure location data if provided
+  const validatedStartLocation = startLocation && startLocation.coordinates && Array.isArray(startLocation.coordinates) && startLocation.coordinates.length >= 2
+    ? { type: 'Point', coordinates: startLocation.coordinates, address: startLocation.address || '' }
+    : undefined;
+
+  const validatedEndLocation = endLocation && endLocation.coordinates && Array.isArray(endLocation.coordinates) && endLocation.coordinates.length >= 2
+    ? { type: 'Point', coordinates: endLocation.coordinates, address: endLocation.address || '' }
+    : undefined;
+
+
   const isActiveStatus = (utcStartTime instanceof Date && !isNaN(utcStartTime.getTime()) && (!utcEndTime || isNaN(utcEndTime.getTime())))
                          ? 'Active' : 'Inactive';
 
@@ -118,6 +131,8 @@ const buildTimesheetData = (body) => {
     hourlyWage: parseFloat(hourlyWage) || 0,
     timezone: userTimezone,
     isActiveStatus: isActiveStatus,
+    startLocation: validatedStartLocation, // Add to finalData
+    endLocation: validatedEndLocation,     // Add to finalData
   };
 
   if (!isWorkDay) {
@@ -129,6 +144,8 @@ const buildTimesheetData = (body) => {
       finalData.lunchDuration = "00:00";
       finalData.notes = "";
       finalData.totalHours = 0;
+      finalData.startLocation = undefined; // Ensure locations are not set for leave
+      finalData.endLocation = undefined;
   }
 
   return finalData;
@@ -534,6 +551,13 @@ export const updateTimesheet = async (req, res) => {
     if (req.body.hourlyWage !== undefined) timesheet.hourlyWage = validatedData.hourlyWage;
     if (req.body.timezone !== undefined) timesheet.timezone = validatedData.timezone;
 
+    // Handle location updates if provided in the request body
+    if (req.body.hasOwnProperty('startLocation')) { // Check if key exists, even if value is null
+        timesheet.startLocation = validatedData.startLocation; // validatedData.startLocation will be undefined if input was null/invalid
+    }
+    if (req.body.hasOwnProperty('endLocation')) {
+        timesheet.endLocation = validatedData.endLocation; // validatedData.endLocation will be undefined if input was null/invalid
+    }
     if (timesheet.startTime && timesheet.endTime) {
         timesheet.isActiveStatus = 'Inactive';
         timesheet.totalHours = calculateTotalHours(

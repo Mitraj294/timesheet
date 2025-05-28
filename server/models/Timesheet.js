@@ -26,6 +26,23 @@ const timesheetSchema = new mongoose.Schema({
   timezone: { type: String, default: 'UTC' }, // User's local timezone identifier
   actualEndTime: { type: Date, default: null }, // Actual timestamp when endTime was recorded
   isActiveStatus: { type: String, enum: ['Active', 'Inactive'], default: 'Inactive' }, // Stored status
+  startLocation: {
+    type: {
+      type: String,
+      enum: ['Point'],
+      default: 'Point',
+    },
+    coordinates: { // [longitude, latitude]
+      type: [Number],
+      default: undefined, // Or [] if you prefer, but undefined means it won't be set if no coords
+    },
+    address: { type: String, trim: true, default: '' } // Optional: Store reverse-geocoded address
+  },
+  endLocation: { // Same structure as startLocation
+    type: { type: String, enum: ['Point'], default: 'Point' },
+    coordinates: { type: [Number], default: undefined },
+    address: { type: String, trim: true, default: '' }
+  },
   // createdAt and updatedAt will be handled by timestamps option
 }, { 
   timestamps: true,

@@ -28,6 +28,39 @@ L.Icon.Default.mergeOptions({
   shadowUrl: shadowUrl,
 });
 
+// Define custom icons for different location types
+// IMPORTANT: Replace 'path/to/your/...' with actual paths to your colored marker images.
+// If you don't have different colored images, these will all use the default marker image.
+const blueIcon = new L.Icon({
+  iconUrl: iconUrl, // Reverted to default Leaflet icon
+  iconRetinaUrl: iconRetinaUrl, // Reverted to default Leaflet icon
+  shadowUrl: shadowUrl,
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+  popupAnchor: [1, -34],
+  shadowSize: [41, 41]
+});
+
+const redIcon = new L.Icon({
+  iconUrl: iconUrl, // Reverted to default Leaflet icon
+  iconRetinaUrl: iconRetinaUrl, // Reverted to default Leaflet icon
+  shadowUrl: shadowUrl,
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+  popupAnchor: [1, -34],
+  shadowSize: [41, 41]
+});
+
+const greenIcon = new L.Icon({
+  iconUrl: iconUrl, // Reverted to default Leaflet icon
+  iconRetinaUrl: iconRetinaUrl, // Reverted to default Leaflet icon
+  shadowUrl: shadowUrl,
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+  popupAnchor: [1, -34],
+  shadowSize: [41, 41]
+});
+
 const API_URL = process.env.REACT_APP_API_URL || 'https://timesheet-slpc.onrender.com/api';
 
 // Default map center, e.g., company HQ or a general area
@@ -38,7 +71,7 @@ const Map = () => {
 
   // Local component state
   const [viewType, setViewType] = useState('Daily');
-  const [selectedEmployee, setSelectedEmployee] = useState('All');
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState('All'); // Changed to store ID
   const [employees, setEmployees] = useState([]);
   const [dateRange, setDateRange] = useState('');
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -46,6 +79,7 @@ const Map = () => {
   const [isLocating, setIsLocating] = useState(false); // Tracks if geolocation is active
   const [showStartLocation, setShowStartLocation] = useState(true); // Checkbox for start location markers
   const [showEndLocation, setShowEndLocation] = useState(true);   // Checkbox for end location markers
+  const [locationData, setLocationData] = useState([]); // To store fetched location points for markers
 
   // Effects
   useEffect(() => {
@@ -121,6 +155,197 @@ const Map = () => {
     updateDateRange();
   }, [viewType, currentDate, dispatch]);
 
+  // Helper function to get start and end dates for the API query
+  const getQueryDateRange = useCallback((baseDateInput, viewTypeInput) => {
+    let startDate = new Date(baseDateInput);
+    let endDate = new Date(baseDateInput);
+
+    if (viewTypeInput === 'Daily') {
+        startDate.setHours(0, 0, 0, 0);
+        endDate.setHours(23, 59, 59, 999);
+    } else if (viewTypeInput === 'Weekly') {
+        const dayOfWeek = startDate.getDay(); // 0 (Sun) - 6 (Sat)
+        const diff = startDate.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1); // Monday start
+        startDate.setDate(diff);
+        startDate.setHours(0, 0, 0, 0);
+
+        endDate = new Date(startDate); // Start from the calculated Monday
+        endDate.setDate(startDate.getDate() + 6);
+        endDate.setHours(23, 59, 59, 999);
+    } else if (viewTypeInput === 'Fortnightly') {
+        const dayOfWeek = startDate.getDay();
+        const diff = startDate.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1); // Monday start
+        startDate.setDate(diff);
+        startDate.setHours(0, 0, 0, 0);
+
+        endDate = new Date(startDate);
+        endDate.setDate(startDate.getDate() + 13);
+        endDate.setHours(23, 59, 59, 999);
+    } else if (viewTypeInput === 'Monthly') {
+        startDate = new Date(startDate.getFullYear(), startDate.getMonth(), 1);
+        startDate.setHours(0, 0, 0, 0);
+
+        endDate = new Date(startDate.getFullYear(), startDate.getMonth() + 1, 0); // Last day of the month
+        endDate.setHours(23, 59, 59, 999);
+    }
+    return { startDate, endDate };
+  }, []);
+
+  useEffect(() => {
+    const fetchLocationData = async () => {
+        let employeeIdsToQuery;
+        if (selectedEmployeeId === 'All') {
+            employeeIdsToQuery = employees.map(emp => emp._id);
+        } else {
+            employeeIdsToQuery = [selectedEmployeeId];
+        }
+
+        if (!employeeIdsToQuery || employeeIdsToQuery.length === 0) {
+            setLocationData([]);
+            if (employees.length > 0) { // Only show "no employees selected" if there are employees to select from
+              // dispatch(setAlert('Please select an employee or "All Employees".', 'info'));
+            } else if (employees.length === 0 && selectedEmployeeId === 'All') {
+              // dispatch(setAlert('No employees available to display.', 'info'));
+            }
+            return;
+        }
+
+
+        let employeesToFetch = [];
+        if (selectedEmployeeId === 'All') {
+            employeesToFetch = employees;
+        } else {
+            const singleEmployee = employees.find(emp => emp._id === selectedEmployeeId);
+            if (singleEmployee) {
+                employeesToFetch = [singleEmployee];
+            }
+        }
+
+        const { startDate, endDate } = getQueryDateRange(currentDate, viewType);
+        const queryParams = new URLSearchParams();
+        employeeIdsToQuery.forEach(id => queryParams.append('employeeIds', id));
+        queryParams.append('startDate', startDate.toISOString());
+        queryParams.append('endDate', endDate.toISOString());
+
+        try {
+            const token = localStorage.getItem('token');
+            const response = await fetch(
+                `${API_URL}/timesheets?${queryParams.toString()}`,
+                {
+                    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+                }
+            );
+            if (!response.ok) {
+                const errorText = await response.text();
+                console.error(`HTTP error! status: ${response.status}, message: ${errorText}`);
+                dispatch(setAlert(`Failed to fetch timesheets. Status: ${response.status}.`, 'danger'));
+                setLocationData([]); // Clear existing data on error
+                return; // Exit the function
+            }
+            const responseData = await response.json();
+            console.log('[Map.js] API Response Data for Timesheets (raw):', JSON.stringify(responseData, null, 2));
+
+            let timesheetsArray = []; // Initialize as empty array
+            // The API for /timesheets returns an object { timesheets: [], totalHours: 0, avgHours: 0 }
+            if (responseData && Array.isArray(responseData.timesheets)) {
+                timesheetsArray = responseData.timesheets;
+            } else {
+                 console.warn("[Map.js] API response for timesheets did not contain a 'timesheets' array. Raw response:", responseData);
+            }
+
+            const groupedLocations = {}; // Key: "lat_lng_type", Value: { lat, lng, type, employeeNames: Set, popupNotes: [], timestamps: [], address }
+
+            console.log(`[Map.js] Processing ${timesheetsArray.length} timesheets for selected criteria.`);
+
+            for (const ts of timesheetsArray) {
+                // ts.employeeId should be populated by the backend with at least _id and name
+                const employeeName = ts.employeeId?.name || 'Unknown Employee';
+
+                const hasStart = ts && ts.startLocation && ts.startLocation.coordinates && Array.isArray(ts.startLocation.coordinates) && ts.startLocation.coordinates.length >= 2;
+                const hasEnd = ts && ts.endLocation && ts.endLocation.coordinates && Array.isArray(ts.endLocation.coordinates) && ts.endLocation.coordinates.length >= 2;
+
+                if (hasStart && hasEnd &&
+                    ts.startLocation.coordinates[0] === ts.endLocation.coordinates[0] &&
+                    ts.startLocation.coordinates[1] === ts.endLocation.coordinates[1]) {
+                    // Combined Location
+                    const lat = ts.startLocation.coordinates[1];
+                    const lng = ts.startLocation.coordinates[0];
+                    const key = `${lat}_${lng}_combined`;
+                    if (!groupedLocations[key]) {
+                        groupedLocations[key] = {
+                            lat, lng, type: 'Combined Location',
+                            employeeNames: new Set(), popupNotes: [], timestamps: [],
+                            address: ts.startLocation.address || 'N/A',
+                        };
+                    }
+                    groupedLocations[key].employeeNames.add(employeeName);
+                    groupedLocations[key].popupNotes.push(`Start & End: ${new Date(ts.startTime).toLocaleTimeString()} - ${ts.endTime ? new Date(ts.endTime).toLocaleTimeString() : 'Ongoing'} (${employeeName})`);
+                    groupedLocations[key].timestamps.push(ts.startTime || ts.date);
+                } else {
+                    // Separate Start Location
+                    if (hasStart) {
+                        const lat = ts.startLocation.coordinates[1];
+                        const lng = ts.startLocation.coordinates[0];
+                        const key = `${lat}_${lng}_start`;
+                        if (!groupedLocations[key]) {
+                            groupedLocations[key] = {
+                                lat, lng, type: 'Start Location',
+                                employeeNames: new Set(), popupNotes: [], timestamps: [],
+                                address: ts.startLocation.address || 'N/A',
+                            };
+                        }
+                        groupedLocations[key].employeeNames.add(employeeName);
+                        groupedLocations[key].popupNotes.push(`Start: ${new Date(ts.startTime).toLocaleTimeString()} (${employeeName})`);
+                        groupedLocations[key].timestamps.push(ts.startTime || ts.date);
+                    }
+                    // Separate End Location
+                    if (hasEnd) {
+                        const lat = ts.endLocation.coordinates[1];
+                        const lng = ts.endLocation.coordinates[0];
+                        const key = `${lat}_${lng}_end`;
+                        if (!groupedLocations[key]) {
+                            groupedLocations[key] = {
+                                lat, lng, type: 'End Location',
+                                employeeNames: new Set(), popupNotes: [], timestamps: [],
+                                address: ts.endLocation.address || 'N/A',
+                            };
+                        }
+                        groupedLocations[key].employeeNames.add(employeeName);
+                        groupedLocations[key].popupNotes.push(`End: ${ts.endTime ? new Date(ts.endTime).toLocaleTimeString() : 'N/A'} (${employeeName})`);
+                        groupedLocations[key].timestamps.push(ts.endTime || ts.date);
+                    }
+                }
+                if (!hasStart && !hasEnd) {
+                    console.log(`[Map.js] Timesheet ${ts._id} for ${employeeName} has no start or end location data.`);
+                }
+            }
+
+            const newLocationData = Object.entries(groupedLocations).map(([key, data]) => ({
+                id: key,
+                ...data,
+                employeeNames: Array.from(data.employeeNames),
+                timestamp: data.timestamps.length > 0 ? data.timestamps.sort((a,b) => new Date(a) - new Date(b))[0] : new Date().toISOString(),
+            })).sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+            console.log('[Map.js] Processed newLocationData:', newLocationData);
+            setLocationData(newLocationData);
+
+            if (newLocationData.length > 0) {
+                const lastLocation = newLocationData[0];
+                setMapCenter({ lat: lastLocation.lat, lng: lastLocation.lng });
+                dispatch(setAlert(`Showing ${newLocationData.length} location point(s) for selected period.`, 'info'));
+            } else {
+                dispatch(setAlert(`No location data found for selected criteria.`, 'warning'));
+            }
+        } catch (error) {
+            console.error('[Map.js] Error fetching or processing location data:', error);
+            dispatch(setAlert(`Error fetching location data: ${error.message}`, 'danger'));
+            setLocationData([]);
+        }
+    };
+
+    fetchLocationData();
+  }, [selectedEmployeeId, currentDate, viewType, employees, dispatch, getQueryDateRange]);
   // Handlers
   const handleLocateMe = useCallback(() => {
     if (navigator.geolocation) {
@@ -179,18 +404,6 @@ const Map = () => {
     }, [center, map]);
     return null;
   };
-
-  // Placeholder for where you would fetch/filter actual location points
-  // const [locationData, setLocationData] = useState([]);
-  // useEffect(() => {
-  //    const fetchLocationData = async () => {
-  //        // Fetch data based on selectedEmployee, dateRange (derived from currentDate and viewType)
-  //        // Example: const response = await fetch(`${API_URL}/locations?employee=${selectedEmployee}&startDate=...&endDate=...`);
-  //        // const data = await response.json();
-  //        // setLocationData(data);
-  //    }
-  //    fetchLocationData();
-  // }, [selectedEmployee, currentDate, viewType]);
 
   // Render
   return (
@@ -257,13 +470,13 @@ const Map = () => {
              <label htmlFor='employee' className='visually-hidden'>Employee</label>
             <select
               id='employee'
-              value={selectedEmployee}
-              onChange={(e) => setSelectedEmployee(e.target.value)}
+              value={selectedEmployeeId} // Use selectedEmployeeId
+              onChange={(e) => setSelectedEmployeeId(e.target.value)} // Update selectedEmployeeId
               aria-label="Select employee to view"
             >
               <option value='All'>All Employees</option>
               {Array.isArray(employees) && employees.map((employee) => (
-                  <option key={employee._id || employee.id} value={employee.name}>
+                  <option key={employee._id || employee.id} value={employee._id}> {/* Value is now employee._id */}
                     {employee.name}
                   </option>
                 ))}
@@ -293,26 +506,42 @@ const Map = () => {
           attribution='&copy; <a href="https://openstreetmap.org/copyright">OpenStreetMap</a> contributors'
           url='https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'
         />
-        <Marker position={[mapCenter.lat, mapCenter.lng]}>
-          <Popup>Current Map Center</Popup>
-        </Marker>
-
-        {/* Placeholder for rendering actual location markers based on fetched data */}
-        {/* Example: {locationData
+        {locationData
             .filter(loc => {
-                // Filter based on showStartLocation / showEndLocation checkboxes
-                if (!showStartLocation && loc.type === 'start') return false;
-                if (!showEndLocation && loc.type === 'end') return false;
+                if (loc.type === 'Start Location') return showStartLocation;
+                if (loc.type === 'End Location') return showEndLocation;
+                // For 'Combined Location', show if both start and end are enabled
+                if (loc.type === 'Combined Location') return showStartLocation && showEndLocation;
                 return true;
              })
-            .map(loc => (
-              <Marker key={loc.id} position={[loc.latitude, loc.longitude]}>
-                  <Popup>
-                      {loc.employeeName || selectedEmployee} <br />
-                      {loc.type === 'start' ? 'Start' : 'End'}: {new Date(loc.timestamp).toLocaleString()}
-                  </Popup>
-              </Marker>
-          ))} */}
+            .map(loc => {
+                let iconToUse;
+                if (loc.type === 'Start Location') {
+                    iconToUse = blueIcon;
+                } else if (loc.type === 'End Location') {
+                    iconToUse = redIcon;
+                } else if (loc.type === 'Combined Location') {
+                    iconToUse = greenIcon;
+                } else {
+                    iconToUse = L.Icon.Default(); // Fallback to default
+                }
+                return (
+                  <Marker key={loc.id} position={[loc.lat, loc.lng]} icon={iconToUse}>
+                     <Popup>
+                        <strong>{loc.employeeNames.join(', ')}</strong> <br />
+                        {loc.type} {loc.address && loc.address !== 'N/A' ? `at ${loc.address}` : ''}
+                        {loc.popupNotes.length > 0 && <hr style={{margin: '5px 0'}}/>}
+                        {loc.popupNotes.map((note, index) => (
+                            <div key={index} style={{fontSize: '0.9em', marginBottom: '3px'}}>
+                                {note}
+                            </div>
+                        ))}
+                        {/* Timestamp of first event at this grouped location: {new Date(loc.timestamp).toLocaleString()} */}
+                      </Popup>
+                  </Marker>
+              );
+          })}
+
         <ChangeMapCenter center={mapCenter} />
       </MapContainer>
     </div>
