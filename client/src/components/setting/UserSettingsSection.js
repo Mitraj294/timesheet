@@ -349,7 +349,7 @@ const UserSettingsSection = () => {
                             <button type="button" className="btn btn-secondary" onClick={handleInfoEditToggle} disabled={isSubmittingInfo}>
                                 <FontAwesomeIcon icon={faTimes} /> Cancel
                             </button>
-                            <button type="submit" className="btn btn-success" disabled={isSubmittingInfo || !infoFormData.name || !infoFormData.email}>
+                            <button type="submit" className="btn btn-green" disabled={isSubmittingInfo || !infoFormData.name || !infoFormData.email}>
                                 {isSubmittingInfo ? <><FontAwesomeIcon icon={faSpinner} spin /> Saving...</> : <><FontAwesomeIcon icon={faSave} /> Save Changes</>}
                             </button>
                         </div>
@@ -424,7 +424,7 @@ const UserSettingsSection = () => {
                         </div>
                     </div>
                     <div className="form-footer">
-                        <button type="submit" className="btn btn-success" disabled={isSubmittingPassword}>
+                        <button type="submit" className="btn  btn-green" disabled={isSubmittingPassword}>
                             {isSubmittingPassword ? (
                                 <><FontAwesomeIcon icon={faSpinner} spin /> Updating...</>
                             ) : (

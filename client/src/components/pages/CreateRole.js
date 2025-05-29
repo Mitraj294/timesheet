@@ -447,7 +447,7 @@ const CreateRole = () => {
                         </button>
                         <button
                             type="submit"
-                            className="btn btn-success"
+                            className="btn btn-green"
                             disabled={isLoading}
                         >
                             {isLoading ? (

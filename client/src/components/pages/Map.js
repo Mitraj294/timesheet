@@ -11,12 +11,15 @@ import { // Import FontAwesome icons
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import { ZoomControl } from 'react-leaflet'; // Import ZoomControl
 import { setAlert } from '../../redux/slices/alertSlice';
+import MarkerClusterGroup from 'react-leaflet-cluster'; // Import MarkerClusterGroup from react-leaflet-cluster
 import Alert from '../layout/Alert';
 import L from 'leaflet';
 
+import { DateTime } from 'luxon'; // Ensure DateTime is imported from luxon
 import 'leaflet/dist/leaflet.css';
 import '../../styles/Map.scss'; // Import your custom SCSS styles
 import iconRetinaUrl from 'leaflet/dist/images/marker-icon-2x.png';
+// Import MarkerCluster CSS
 import iconUrl from 'leaflet/dist/images/marker-icon.png';
 import shadowUrl from 'leaflet/dist/images/marker-shadow.png';
 
@@ -188,8 +191,11 @@ const Map = () => {
         endDate = new Date(startDate.getFullYear(), startDate.getMonth() + 1, 0); // Last day of the month
         endDate.setHours(23, 59, 59, 999);
     }
-    return { startDate, endDate };
-  }, []);
+    return {
+        startDate: DateTime.fromJSDate(startDate).toFormat('yyyy-MM-dd'),
+        endDate: DateTime.fromJSDate(endDate).toFormat('yyyy-MM-dd')
+    };
+  }, []); // Return YYYY-MM-DD strings
 
   useEffect(() => {
     const fetchLocationData = async () => {
@@ -224,8 +230,8 @@ const Map = () => {
         const { startDate, endDate } = getQueryDateRange(currentDate, viewType);
         const queryParams = new URLSearchParams();
         employeeIdsToQuery.forEach(id => queryParams.append('employeeIds', id));
-        queryParams.append('startDate', startDate.toISOString());
-        queryParams.append('endDate', endDate.toISOString());
+        queryParams.append('startDate', startDate); // Already YYYY-MM-DD
+        queryParams.append('endDate', endDate);     // Already YYYY-MM-DD
 
         try {
             const token = localStorage.getItem('token');
@@ -269,11 +275,17 @@ const Map = () => {
                     ts.startLocation.coordinates[1] === ts.endLocation.coordinates[1]) {
                     // Combined Location
                     const lat = ts.startLocation.coordinates[1];
-                    const lng = ts.startLocation.coordinates[0];
-                    const key = `${lat}_${lng}_combined`;
+                    const lng = ts.startLocation.coordinates[0];                    
+                    const precision = 5; // 5 decimal places = ~1.1 meter precision. Adjust if needed.
+                    const roundedLat = parseFloat(lat.toFixed(precision));
+                    const roundedLng = parseFloat(lng.toFixed(precision));
+                    const key = `${roundedLat}_${roundedLng}_combined`;
+
                     if (!groupedLocations[key]) {
                         groupedLocations[key] = {
-                            lat, lng, type: 'Combined Location',
+                            lat: roundedLat, // Use rounded coordinates for the marker
+                            lng: roundedLng, // Use rounded coordinates for the marker
+                            type: 'Combined Location',
                             employeeNames: new Set(), popupNotes: [], timestamps: [],
                             address: ts.startLocation.address || 'N/A',
                         };
@@ -286,10 +298,16 @@ const Map = () => {
                     if (hasStart) {
                         const lat = ts.startLocation.coordinates[1];
                         const lng = ts.startLocation.coordinates[0];
-                        const key = `${lat}_${lng}_start`;
+                        const precision = 5; 
+                        const roundedLat = parseFloat(lat.toFixed(precision));
+                        const roundedLng = parseFloat(lng.toFixed(precision));
+                        const key = `${roundedLat}_${roundedLng}_start`;
+
                         if (!groupedLocations[key]) {
                             groupedLocations[key] = {
-                                lat, lng, type: 'Start Location',
+                                lat: roundedLat,
+                                lng: roundedLng,
+                                type: 'Start Location',
                                 employeeNames: new Set(), popupNotes: [], timestamps: [],
                                 address: ts.startLocation.address || 'N/A',
                             };
@@ -302,10 +320,16 @@ const Map = () => {
                     if (hasEnd) {
                         const lat = ts.endLocation.coordinates[1];
                         const lng = ts.endLocation.coordinates[0];
-                        const key = `${lat}_${lng}_end`;
+                        const precision = 5;
+                        const roundedLat = parseFloat(lat.toFixed(precision));
+                        const roundedLng = parseFloat(lng.toFixed(precision));
+                        const key = `${roundedLat}_${roundedLng}_end`;
+
                         if (!groupedLocations[key]) {
                             groupedLocations[key] = {
-                                lat, lng, type: 'End Location',
+                                lat: roundedLat,
+                                lng: roundedLng,
+                                type: 'End Location',
                                 employeeNames: new Set(), popupNotes: [], timestamps: [],
                                 address: ts.endLocation.address || 'N/A',
                             };
@@ -407,37 +431,55 @@ const Map = () => {
 
   // Render
   return (
-    <div className='map-container'>
+    <div className="map-container">
       <Alert />
-      <div className='employees-header'>
-        <h1>
-          <FontAwesomeIcon icon={faMap} /> Map
-        </h1>
+      <div className="map-page-header">
+        <div className="title-breadcrumbs">
+          <h1>
+            <FontAwesomeIcon icon={faMap} /> Map
+          </h1>
+          <div className="breadcrumb">
+            <Link to="/dashboard" className="breadcrumb-link">
+              Dashboard
+            </Link>
+            <span className="breadcrumb-separator"> / </span>
+            <span className="breadcrumb-current">Map</span>
+          </div>
+        </div>
       </div>
 
-      <div className='breadcrumb'>
-        <Link to='/dashboard' className='breadcrumb-link'>Dashboard</Link>
-        <span> / </span>
-        <span>Map</span>
-      </div>
-
-      <div className='date-range'>
+      <div className="date-range">
         <h3>{dateRange}</h3>
       </div>
-      <div className='map-navigation'>
-        <button className='nav-button' onClick={handlePrevClick} aria-label={`Previous ${viewType}`}>
+      <div className="map-navigation">
+        <button
+          className="nav-button"
+          onClick={handlePrevClick}
+          aria-label={`Previous ${viewType}`}
+        >
           <FontAwesomeIcon icon={faArrowLeft} /> Prev
         </button>
-        <div className='select-container'>
-          <label htmlFor='viewType' className='visually-hidden'>View Type</label>
-          <select id='viewType' value={viewType} onChange={(e) => setViewType(e.target.value)} aria-label="Select time period view type">
-            <option value='Daily'>Daily</option>
-            <option value='Weekly'>Weekly</option>
-            <option value='Fortnightly'>Fortnightly</option>
-            <option value='Monthly'>Monthly</option>
+        <div className="select-container">
+          <label htmlFor="viewType" className="visually-hidden">
+            View Type
+          </label>
+          <select
+            id="viewType"
+            value={viewType}
+            onChange={(e) => setViewType(e.target.value)}
+            aria-label="Select time period view type"
+          >
+            <option value="Daily">Daily</option>
+            <option value="Weekly">Weekly</option>
+            <option value="Fortnightly">Fortnightly</option>
+            <option value="Monthly">Monthly</option>
           </select>
         </div>
-         <button className='nav-button' onClick={handleNextClick} aria-label={`Next ${viewType}`}>
+        <button
+          className="nav-button"
+          onClick={handleNextClick}
+          aria-label={`Next ${viewType}`}
+        >
           Next <FontAwesomeIcon icon={faArrowRight} />
         </button>
       </div>
@@ -445,38 +487,48 @@ const Map = () => {
       <div className='map-filters-toolbar'>
         <div className='marker-filters'>
           <h3>Marker Filters:</h3>
-          <div className='check-box'>
+          <div className="check-box">
             <label>
               <input
-                type='checkbox'
+                type="checkbox"
                 name="showStartLocation"
                 checked={showStartLocation}
                 onChange={(e) => setShowStartLocation(e.target.checked)}
-              /> Show Start
+              />{" "}
+              Show Start
             </label>
             <label>
               <input
-                type='checkbox'
+                type="checkbox"
                 name="showEndLocation"
                 checked={showEndLocation}
                 onChange={(e) => setShowEndLocation(e.target.checked)}
-               /> Show End
+              />{" "}
+              Show End
             </label>
           </div>
         </div>
-        <div className='employee-filter'>
+        <div className="employee-filter">
           <h4>Select Employee:</h4>
-          <div className='select-container'>
-             <label htmlFor='employee' className='visually-hidden'>Employee</label>
+          <div className="select-container">
+            <label htmlFor="employee" className="visually-hidden">
+              Employee
+            </label>
             <select
-              id='employee'
+              id="employee"
               value={selectedEmployeeId} // Use selectedEmployeeId
               onChange={(e) => setSelectedEmployeeId(e.target.value)} // Update selectedEmployeeId
               aria-label="Select employee to view"
             >
-              <option value='All'>All Employees</option>
-              {Array.isArray(employees) && employees.map((employee) => (
-                  <option key={employee._id || employee.id} value={employee._id}> {/* Value is now employee._id */}
+              <option value="All">All Employees</option>
+              {Array.isArray(employees) &&
+                employees.map((employee) => (
+                  <option
+                    key={employee._id || employee.id}
+                    value={employee._id}
+                  >
+                    {" "}
+                    {/* Value is now employee._id */}
                     {employee.name}
                   </option>
                 ))}
@@ -484,16 +536,18 @@ const Map = () => {
           </div>
         </div>
         <div className="locate-me-container">
-           <button
-              className="nav-button locate-button"
-              onClick={handleLocateMe}
-              disabled={isLocating}
-              aria-label="Center map on my current location"
-            >
-              <FontAwesomeIcon icon={faLocationCrosshairs} /> {isLocating ? 'Locating...' : 'Center on Me'}
-            </button>
+          <button
+            className="nav-button locate-button"
+            onClick={handleLocateMe}
+            disabled={isLocating}
+            aria-label="Center map on my current location"
+          >
+            <FontAwesomeIcon icon={faLocationCrosshairs} />{" "}
+            {isLocating ? "Locating..." : "Center on Me"}
+          </button>
         </div>
       </div>
+
       <MapContainer
         center={[mapCenter.lat, mapCenter.lng]}
         zoom={12}
@@ -506,41 +560,57 @@ const Map = () => {
           attribution='&copy; <a href="https://openstreetmap.org/copyright">OpenStreetMap</a> contributors'
           url='https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'
         />
-        {locationData
-            .filter(loc => {
-                if (loc.type === 'Start Location') return showStartLocation;
-                if (loc.type === 'End Location') return showEndLocation;
-                // For 'Combined Location', show if both start and end are enabled
-                if (loc.type === 'Combined Location') return showStartLocation && showEndLocation;
-                return true;
-             })
-            .map(loc => {
-                let iconToUse;
-                if (loc.type === 'Start Location') {
-                    iconToUse = blueIcon;
-                } else if (loc.type === 'End Location') {
-                    iconToUse = redIcon;
-                } else if (loc.type === 'Combined Location') {
-                    iconToUse = greenIcon;
-                } else {
-                    iconToUse = L.Icon.Default(); // Fallback to default
+        <MarkerClusterGroup>
+          {locationData
+            .map((loc) => {
+              let iconToUse = null;
+              let shouldRender = false;
+              let displayType = loc.type; // For popup
+
+              if (loc.type === "Combined Location") {
+                if (showStartLocation && showEndLocation) {
+                  iconToUse = greenIcon;
+                  shouldRender = true;
+                } else if (showStartLocation) {
+                  iconToUse = blueIcon;
+                  shouldRender = true;
+                  displayType = "Start Location"; // Override for display
+                } else if (showEndLocation) {
+                  iconToUse = redIcon;
+                  shouldRender = true;
+                  displayType = "End Location"; // Override for display
                 }
-                return (
-                  <Marker key={loc.id} position={[loc.lat, loc.lng]} icon={iconToUse}>
-                     <Popup>
-                        <strong>{loc.employeeNames.join(', ')}</strong> <br />
-                        {loc.type} {loc.address && loc.address !== 'N/A' ? `at ${loc.address}` : ''}
-                        {loc.popupNotes.length > 0 && <hr style={{margin: '5px 0'}}/>}
-                        {loc.popupNotes.map((note, index) => (
-                            <div key={index} style={{fontSize: '0.9em', marginBottom: '3px'}}>
-                                {note}
-                            </div>
-                        ))}
-                        {/* Timestamp of first event at this grouped location: {new Date(loc.timestamp).toLocaleString()} */}
-                      </Popup>
-                  </Marker>
+              } else if (loc.type === "Start Location" && showStartLocation) {
+                iconToUse = blueIcon;
+                shouldRender = true;
+              } else if (loc.type === "End Location" && showEndLocation) {
+                iconToUse = redIcon;
+                shouldRender = true;
+              }
+
+              if (!shouldRender || !iconToUse) return null;
+
+              return (
+                <Marker
+                  key={loc.id + (loc.type === "Combined Location" ? (showStartLocation ? '_as_start' : '_as_end') : '')} // Make key unique if type changes
+                  position={[loc.lat, loc.lng]}
+                  icon={iconToUse}
+                >
+                  <Popup>
+                    <strong>{loc.employeeNames.join(", ")}</strong> <br />
+                    {displayType}{" "}
+                    {loc.address && loc.address !== "N/A"
+                      ? `at ${loc.address}`
+                      : ""}
+                    {loc.popupNotes.length > 0 && <hr style={{ margin: "5px 0" }} />}
+                    {loc.popupNotes.map((note, index) => (
+                      <div key={index} style={{ fontSize: "0.9em", marginBottom: "3px" }} > {note} </div>
+                    ))}
+                  </Popup>
+                </Marker>
               );
-          })}
+            })}
+        </MarkerClusterGroup>
 
         <ChangeMapCenter center={mapCenter} />
       </MapContainer>

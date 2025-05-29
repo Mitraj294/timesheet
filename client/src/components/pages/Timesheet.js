@@ -786,23 +786,26 @@ const Timesheet = () => {
   return (
     <div className='timesheet-page'>
        <Alert /> {/* Render Alert component here */}
-       <div className="timesheet-header">
-        <div className="title-breadcrumbs">
-          <h3><FontAwesomeIcon icon={faPen} /> Timesheets</h3>
-          <div className="breadcrumbs">
-            <Link to="/dashboard" className="breadcrumb-link">Dashboard</Link>
-            <span className="breadcrumb-separator"> / </span>
-            <span className="breadcrumb-current">Timesheets</span>
+       <div className="ts-page-header">
+        <div className="ts-page-header__main-content">
+          <h3 className="ts-page-header__title">
+            <FontAwesomeIcon icon={faPen} className="ts-page-header__title-icon" /> Timesheets
+          </h3>
+          <div className="ts-page-header__breadcrumbs">
+            <Link to="/dashboard" className="ts-page-header__breadcrumb-link">Dashboard</Link>
+            <span className="ts-page-header__breadcrumb-separator"> / </span>
+            <span className="ts-page-header__breadcrumb-current">Timesheets</span>
           </div>
         </div>
         {user?.role === 'employer' && (
-          <div className="header-actions">
-            <button className="btn btn-red" onClick={toggleDownloadReport} aria-expanded={showDownloadFilters} aria-controls="timesheet-download-options">
-              <FontAwesomeIcon icon={faDownload} /> Download Report
+          <div className="ts-page-header__actions">
+            <button className="ts-page-header__action-button ts-page-header__action-button--download" onClick={toggleDownloadReport} aria-expanded={showDownloadFilters} aria-controls="timesheet-download-options">
+              <FontAwesomeIcon icon={faDownload} className="ts-page-header__action-icon" /> Download Report
             </button>
-            <button className="btn btn-purple" onClick={toggleSendReport} aria-expanded={showSendFilters} aria-controls="timesheet-send-options">
-              <FontAwesomeIcon icon={faEnvelope} /> Send Report
+            <button className="ts-page-header__action-button ts-page-header__action-button--send" onClick={toggleSendReport} aria-expanded={showSendFilters} aria-controls="timesheet-send-options">
+              <FontAwesomeIcon icon={faEnvelope} className="ts-page-header__action-icon" /> Send Report
             </button>
+         
           </div>
         )}
       </div>
@@ -854,33 +857,45 @@ const Timesheet = () => {
           </div>
       )}
 
-       <div className='timesheet-navigation-bar general-timesheet-nav'>
-        <div className='period-display'><h4>{periodDisplayText}</h4></div>
-        <div className='navigation-controls'>
-          <button className='nav-button btn btn-blue' onClick={handlePrev} aria-label={`Previous ${periodLabel}`}>
-            <FontAwesomeIcon icon={faArrowLeft} />
-            <span>Prev {periodLabel}</span>
-          </button>
-          <div className='view-type-select-wrapper'>
-            <Select
-              inputId='viewType'
-              options={viewTypeOptions}
-              value={viewTypeOptions.find(option => option.value === viewType)}
-              onChange={option => setViewType(option ? option.value : 'Weekly')}
-              className="react-select-container view-type-select-instance" // Added specific class
-              classNamePrefix="react-select"
-              aria-label="Select View Type"
-              isSearchable={false}
-            />
-          </div>
-          <button className='nav-button btn btn-blue' onClick={handleNext} aria-label={`Next ${periodLabel}`}>
-             <span>Next {periodLabel}</span>
-            <FontAwesomeIcon icon={faArrowRight} />
-          </button>
+      {/* New Timesheet Navigation Bar Structure */}
+      <div className='timesheet-nav'>
+        <div className='timesheet-nav__period'>
+          <h4 className='timesheet-nav__period-text'>{periodDisplayText}</h4>
         </div>
-        <Link to="/timesheet/create" className='btn btn-success create-timesheet-link'>
-          <FontAwesomeIcon icon={faPlus} /> Create Timesheet
-        </Link>
+        <div className='timesheet-nav__controls-container'>
+          <div className='timesheet-nav__controls'>
+            <button className='timesheet-nav__button' onClick={handlePrev} aria-label={`Previous ${periodLabel}`}>
+              <FontAwesomeIcon icon={faArrowLeft} />
+              <span>Prev {periodLabel}</span>
+            </button>
+            <div className='timesheet-nav__view-select-wrapper'>
+              <Select
+                inputId='viewType'
+                options={viewTypeOptions}
+                value={viewTypeOptions.find(option => option.value === viewType)}
+                onChange={option => setViewType(option ? option.value : 'Weekly')}
+                className="timesheet-nav__view-select" // Custom class for react-select container
+                classNamePrefix="react-select" // Keep this for internal react-select styling
+                aria-label="Select View Type"
+                isSearchable={false}
+              />
+            </div>
+            <button className='timesheet-nav__button' onClick={handleNext} aria-label={`Next ${periodLabel}`}>
+              <span>Next {periodLabel}</span>
+              <FontAwesomeIcon icon={faArrowRight} />
+            </button>
+          </div>
+        </div>
+        <div className='timesheet-nav__create-link-container'>
+           <button
+              type="button"
+              className="ts-page-header__action-button ts-page-header__action-button--create"
+              onClick={() => navigate('/timesheet/create')}
+              disabled={isDataLoading}
+            >
+              <FontAwesomeIcon icon={faPlus} className="ts-page-header__action-icon" /> Create Timesheet
+            </button>
+        </div>
       </div>
 
        {isDataLoading ? (

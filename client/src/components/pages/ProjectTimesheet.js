@@ -782,18 +782,21 @@ const handleDownload = useCallback(async () => {
   // Render
   return (
     <div className='project-timesheet-container timesheet-page'>
-       <Alert /> {/* Render Alert component here */}
-       <div className="timesheet-header">
-        <div className="title-breadcrumbs">
-          <h3><FontAwesomeIcon icon={faProjectDiagram} /> Project Timesheet</h3>
+      <Alert />
+      {/* Updated header structure to match ts-page-header from Timesheet.scss */}
+      <div className="ts-page-header">
+        <div className="ts-page-header__main-content">
+          <h3 className="ts-page-header__title">
+            <FontAwesomeIcon icon={faProjectDiagram} className="ts-page-header__title-icon" /> Project Timesheet
+          </h3>
         </div>
         {user?.role === 'employer' && (
-          <div className="header-actions">
-            <button className="btn btn-red" onClick={() => { setShowDownloadFilters(prev => !prev); setShowSendFilters(false); dispatch(clearProjectDownloadStatus()); }} aria-expanded={showDownloadFilters} aria-controls="project-timesheet-download-options">
-              <FontAwesomeIcon icon={faDownload} /> Download Report
+          <div className="ts-page-header__actions">
+            <button className="ts-page-header__action-button ts-page-header__action-button--download" onClick={() => { setShowDownloadFilters(prev => !prev); setShowSendFilters(false); dispatch(clearProjectDownloadStatus()); }} aria-expanded={showDownloadFilters} aria-controls="project-timesheet-download-options">
+              <FontAwesomeIcon icon={faDownload} className="ts-page-header__action-icon" /> Download Report
             </button>
-            <button className="btn btn-purple" onClick={() => { setShowSendFilters(prev => !prev); setShowDownloadFilters(false); dispatch(clearProjectSendStatus()); }} aria-expanded={showSendFilters} aria-controls="project-timesheet-send-options">
-              <FontAwesomeIcon icon={faEnvelope} /> Send Report
+            <button className="ts-page-header__action-button ts-page-header__action-button--send" onClick={() => { setShowSendFilters(prev => !prev); setShowDownloadFilters(false); dispatch(clearProjectSendStatus()); }} aria-expanded={showSendFilters} aria-controls="project-timesheet-send-options">
+              <FontAwesomeIcon icon={faEnvelope} className="ts-page-header__action-icon" /> Send Report
             </button>
           </div>
         )}
@@ -846,56 +849,66 @@ const handleDownload = useCallback(async () => {
            {!selectedProjectId && <small className="error-text">Please select a project first.</small>}
         </div>
       )}
-       <div className='timesheet-navigation-bar project-specific-nav'>
-         {showProjectSelector && (
-             <div className="project-selector-container">
-                <Select
-                    options={projectOptions}
-                    value={selectedProjectOption}
-                    onChange={handleProjectSelectChange}
-                    placeholder="Select a Project..."
-                    className="react-select-container project-select"
-                    classNamePrefix="react-select"
-                    isLoading={isLoading && !projects.length}
-                    isDisabled={isLoading}
-                    isClearable={false} // A project context is always needed for this view
-                />
-             </div>
-         )}
-
-        <div className='period-display'><h4>{periodDisplayText}</h4></div>
-        <div className='navigation-controls'>
-          <button className='nav-button btn btn-blue' onClick={handlePrev} aria-label={`Previous ${periodLabel}`}>
-            <FontAwesomeIcon icon={faArrowLeft} />
-            <span>Prev {periodLabel}</span>
-          </button>
-          <div className='view-type-select-wrapper'>
-            <Select
-              inputId='viewTypeProject' // Ensure unique ID if on same page as other timesheet
-              options={viewTypeOptions}
-              value={viewTypeOptions.find(option => option.value === viewType)}
-              onChange={option => setViewType(option ? option.value : 'Weekly')}
-              className="react-select-container view-type-select-instance" // Use same class as Timesheet.js
-              classNamePrefix="react-select"
-              aria-label="Select View Type"
-              isSearchable={false}
-              isDisabled={isLoading}
-            />
+      {/* Project Selector - now outside and before the main nav bar */}
+      {showProjectSelector && (
+        <div className="project-selector-wrapper">
+          <div className="project-selector-container">
+              <Select
+                  options={projectOptions}
+                  value={selectedProjectOption}
+                  onChange={handleProjectSelectChange}
+                  inputId="projectTimesheetProjectSelect" // Added unique ID
+                  placeholder="Select a Project..."
+                  className="react-select-container project-select" // Existing classes for project select
+                  classNamePrefix="react-select"
+                  isLoading={isLoading && !projects.length}
+                  isDisabled={isLoading}
+                  isClearable={false} // A project context is always needed for this view
+              />
           </div>
-          <button className='nav-button btn btn-blue' onClick={handleNext} aria-label={`Next ${periodLabel}`}>
-             <span>Next {periodLabel}</span>
-            <FontAwesomeIcon icon={faArrowRight} />
-          </button>
         </div>
-        <Link
-          to={selectedProjectObject ? `/timesheet/project/create/${selectedProjectObject.clientId?._id || selectedProjectObject.clientId}/${selectedProjectObject._id}` : '#'}
-          className={`btn btn-success create-timesheet-link ${!selectedProjectObject ? 'disabled-link' : ''}`}
-          aria-disabled={!selectedProjectObject}
-        >
-          <FontAwesomeIcon icon={faPlus} /> Create Timesheet
-        </Link>
-      </div>
+      )}
 
+      {/* Main navigation bar for period, controls, create */}
+      <div className='timesheet-nav'> {/* Removed project-specific-nav class */}
+          <div className='timesheet-nav__period'>
+            <h4 className='timesheet-nav__period-text'>{periodDisplayText}</h4>
+          </div>
+          <div className='timesheet-nav__controls-container'>
+            <div className='timesheet-nav__controls'>
+              <button className='timesheet-nav__button' onClick={handlePrev} aria-label={`Previous ${periodLabel}`}>
+              <FontAwesomeIcon icon={faArrowLeft} />
+              <span>Prev {periodLabel}</span>
+            </button>
+            <div className='timesheet-nav__view-select-wrapper'> {/* Consistent class name */}
+              <Select
+                inputId='projectTimesheetViewType' // Ensure unique ID
+                options={viewTypeOptions}
+                value={viewTypeOptions.find(option => option.value === viewType)}
+                onChange={option => setViewType(option ? option.value : 'Weekly')}
+                className="timesheet-nav__view-select" // Consistent class name
+                classNamePrefix="react-select"
+                aria-label="Select View Type"
+                isSearchable={false}
+                isDisabled={isLoading}
+              />
+            </div>
+              <button className='timesheet-nav__button' onClick={handleNext} aria-label={`Next ${periodLabel}`}>
+               <span>Next {periodLabel}</span>
+              <FontAwesomeIcon icon={faArrowRight} />
+            </button>
+            </div>
+          </div>
+          <div className='timesheet-nav__create-link-container'>
+            <Link
+              to={selectedProjectObject ? `/timesheet/project/create/${selectedProjectObject.clientId?._id || selectedProjectObject.clientId}/${selectedProjectObject._id}` : '#'}
+              className={`timesheet-nav__create-link ${!selectedProjectObject ? 'disabled-link' : ''}`}
+              aria-disabled={!selectedProjectObject}
+            >
+              <FontAwesomeIcon icon={faPlus} /> Create Project Timesheet
+            </Link>
+          </div>
+        </div>
        {isLoading ? (
          <div className='loading-indicator'><FontAwesomeIcon icon={faSpinner} spin size='2x' /> Loading Data...</div>
        ) : !selectedProjectId ? (

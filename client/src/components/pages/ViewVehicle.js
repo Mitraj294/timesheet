@@ -277,7 +277,7 @@ const ViewVehicle = () => {
         </div>
         <div className='header-actions'>
           {(user?.role === 'employer' || user?.role === 'employee') && ( // Allow employees to create reviews
-            <button className='btn btn-success' onClick={handleCreateReviewClick}>
+            <button className='btn btn-green' onClick={handleCreateReviewClick}>
               <FontAwesomeIcon icon={faPlus} /> Create Review
             </button>
           )}

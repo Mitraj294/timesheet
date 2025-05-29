@@ -224,7 +224,7 @@ const ViewClient = () => {
             (user?.role === "employee" && settingsStatus === 'succeeded' && employerSettings?.employeeCanCreateProject === true)
           ) && (
             <button
-              className="btn btn-success"
+              className="btn btn-green"
               onClick={() => navigate(`/clients/${clientId}/create-project`)}
               title="Create New Project for this Client"
             >
@@ -310,6 +310,16 @@ const ViewClient = () => {
                     >
                       <FontAwesomeIcon icon={faEye} />
                     </button>
+                         {(user?.role === "employer" || user?.role === "employee") && (
+                        <button
+                          className="btn-icon btn-icon-yellow"
+                          onClick={() => navigate(`/clients/${clientId}/projects/update/${project._id}`)}
+                          title={`Edit ${project.name}`}
+                          aria-label={`Edit ${project.name}`}
+                        >
+                          <FontAwesomeIcon icon={faPen} />
+                        </button>
+                    )}
                     {user?.role === "employer" && (
                         <button
                         className="btn-icon btn-icon-red"
@@ -321,16 +331,7 @@ const ViewClient = () => {
                         <FontAwesomeIcon icon={faTrash} />
                       </button>
                     )}
-                    {(user?.role === "employer" || user?.role === "employee") && (
-                        <button
-                          className="btn-icon btn-icon-yellow"
-                          onClick={() => navigate(`/clients/${clientId}/projects/update/${project._id}`)}
-                          title={`Edit ${project.name}`}
-                          aria-label={`Edit ${project.name}`}
-                        >
-                          <FontAwesomeIcon icon={faPen} />
-                        </button>
-                    )}
+               
                   </div>
                 )}
               </React.Fragment>

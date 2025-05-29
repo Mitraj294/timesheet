@@ -19,11 +19,13 @@ $breakpoint-md: 768px;
 $breakpoint-sm: 576px;
 
 .btn {
+    // Base styles should match the master .btn from Timesheet.scss
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    padding: 0.5rem 1rem;
-    font-size: 0.9rem;
+    gap: 0.5em; // Standardized gap
+    padding: 0.6rem 1.2rem; // Standardized padding
+    font-size: 0.95rem; // Standardized font size
     font-weight: 500;
     line-height: 1.5;
     text-align: center;
@@ -31,9 +33,8 @@ $breakpoint-sm: 576px;
     vertical-align: middle;
     cursor: pointer;
     user-select: none;
-    background-color: transparent;
-    border: 1px solid transparent;
-    border-radius: 0.25rem;
+    border: 1px solid transparent; // Base border
+    border-radius: 5px; // Standardized border-radius
     transition: color 0.15s ease-in-out, background-color 0.15s ease-in-out, border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
     white-space: nowrap;
 
@@ -42,18 +43,7 @@ $breakpoint-sm: 576px;
         cursor: not-allowed;
     }
 
-    .svg-inline--fa {
-        margin-right: 0.4em;
-    }
-
-    span+.svg-inline--fa {
-        margin-right: 0;
-        margin-left: 0.4em;
-    }
-
-    .svg-inline--fa:only-child {
-        margin-right: 0;
-    }
+    // Icon spacing handled by 'gap' property
 }
 
 .btn-success {
@@ -665,8 +655,8 @@ $breakpoint-sm: 576px;
 
             >.btn,
             >a.btn {
-                flex-basis: 100%;
-                justify-content: center;
+                // Ensure these stack and become full-width
+                width: 100%;
             }
         }
     }
@@ -676,8 +666,7 @@ $breakpoint-sm: 576px;
         .btn,
         a.btn {
             flex-grow: 1;
-            flex-basis: 100%;
-            justify-content: center;
+            width: 100%; // Make them full width
         }
     }
 
@@ -701,24 +690,8 @@ $breakpoint-sm: 576px;
         }
     }
 
-    .vehicles-grid {
-        .vehicles-row.vehicle-card {
-            &>div {
-                // Styles for label/value side-by-side are inherited from breakpoint-md
-                // No need for flex-direction: column override here
-
-                &::before {
-                    // No margin-bottom needed as it's not stacked
-                }
-
-                &.actions {
-                    // Styles for actions row are inherited from breakpoint-md
-                    // No need for flex-direction: row override here
-                    // No need for align-items: flex-end override here
-                }
-            }
-        }
-    }
+    // Styles for label/value side-by-side are inherited from breakpoint-md
+    // No need for flex-direction: column override here
 }
 
 // Add these styles to your SCSS file (e.g., Vehicles.scss or a new Clients.scss)

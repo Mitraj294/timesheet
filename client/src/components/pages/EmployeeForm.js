@@ -327,7 +327,7 @@ const EmployeeForm = () => { // NOSONAR
                <FontAwesomeIcon icon={faTimes} /> Cancel
             </button>
             <button
-              type='submit' className='btn btn-success'
+              type='submit' className='btn btn-green'
               disabled={isSaving}
             >
               {isSaving ? (

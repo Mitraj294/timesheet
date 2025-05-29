@@ -15,6 +15,10 @@ $border-radius: 5px;
 $box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
 $font-family: 'Segoe UI', sans-serif; // Added from Vehicles.scss
 
+// Import MarkerCluster CSS
+@import '~leaflet.markercluster/dist/MarkerCluster.css';
+@import '~leaflet.markercluster/dist/MarkerCluster.Default.css';
+
 // Breakpoints
 $breakpoint-md: 768px;
 $breakpoint-sm: 576px;
@@ -182,7 +186,8 @@ $breakpoint-sm: 576px;
 
                 .breadcrumb-current {
                     // Use class for current page span
-                    color: $dark-grey; // Match Vehicles.scss
+                    color: $text-color; // Darker color for current page, similar to Timesheet.scss
+                    font-weight: 500; // Make current page bold, similar to Timesheet.scss
                     white-space: nowrap;
                 }
             }

@@ -1,23 +1,5 @@
 @use 'sass:color';
-$primary-color: #007bff;
-$secondary-color: #6c757d;
-$success-color: #28a745;
-$warning-color: #ffc107;
-$danger-color: #dc3545;
-$info-color: #17a2b8;
-$purple-color: #8b5cf6;
-$light-grey: #f8f9fa;
-$medium-grey: #e9ecef;
-$dark-grey: #6c757d;
-$text-color: #333;
-$border-color: #dee2e6;
-$border-radius: 5px;
-$box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
-$font-family: 'Segoe UI', sans-serif;
-
-$breakpoint-lg: 1024px;
-$breakpoint-md: 768px;
-$breakpoint-sm: 576px;
+@import 'variables'; // Import shared variables
 
 .btn {
     padding: 0.6rem 1.2rem;
@@ -44,7 +26,7 @@ $breakpoint-sm: 576px;
 
 .btn-primary {
     background-color: $primary-color;
-    color: #fff;
+    color: $white;
 
     &:hover:not(:disabled) {
         background-color: color.adjust($primary-color, $lightness: -10%);
@@ -62,7 +44,7 @@ $breakpoint-sm: 576px;
 
 .btn-danger {
     background-color: $danger-color;
-    color: #fff;
+    color: $white;
 
     &:hover:not(:disabled) {
         background-color: color.adjust($danger-color, $lightness: -10%);
@@ -71,7 +53,7 @@ $breakpoint-sm: 576px;
 
 .btn-secondary {
     background-color: $secondary-color;
-    color: #fff;
+    color: $white;
 
     &:hover:not(:disabled) {
         background-color: color.adjust($secondary-color, $lightness: -10%);
@@ -80,7 +62,7 @@ $breakpoint-sm: 576px;
 
 .btn-success {
     background-color: $success-color;
-    color: #fff;
+    color: $white;
 
     &:hover:not(:disabled) {
         background-color: color.adjust($success-color, $lightness: -10%);
@@ -139,7 +121,7 @@ $breakpoint-sm: 576px;
 
 .view-client-page {
     padding: clamp(1rem, 2vw, 1.5rem);
-    max-width: 1200px;
+    max-width: $breakpoint-xl;
     margin: 0 auto;
     font-family: $font-family;
     background-color: $light-grey;
@@ -154,7 +136,7 @@ $breakpoint-sm: 576px;
     flex-wrap: wrap;
     gap: 1rem;
     padding: 1rem;
-    background-color: #fff;
+    background-color: $white;
     border-radius: $border-radius;
     box-shadow: $box-shadow;
 
@@ -215,7 +197,7 @@ $breakpoint-sm: 576px;
 
 .client-info-card,
 .client-hours-card {
-    background-color: #fff;
+    background-color: $white;
     padding: clamp(1rem, 3vw, 1.5rem);
     border-radius: $border-radius;
     box-shadow: $box-shadow;
@@ -277,7 +259,7 @@ $breakpoint-sm: 576px;
 }
 
 .data-grid {
-    background-color: #fff;
+    background-color: $white;
     border-radius: $border-radius;
     box-shadow: $box-shadow;
     overflow: hidden;
@@ -341,7 +323,7 @@ $breakpoint-sm: 576px;
     justify-content: center;
     padding: 2rem;
     margin: 1.5rem auto;
-    background-color: #fff;
+    background-color: $white;
     border-radius: $border-radius;
     box-shadow: $box-shadow;
     text-align: center;
@@ -381,7 +363,7 @@ $breakpoint-sm: 576px;
 
         .data-row.data-card {
             display: block;
-            background-color: #fff;
+            background-color: $white;
             border: 1px solid $border-color;
             border-radius: $border-radius;
             box-shadow: $box-shadow;
@@ -426,7 +408,7 @@ $breakpoint-sm: 576px;
         }
 
         .data-row.no-results {
-            background-color: #fff;
+            background-color: $white;
             border-radius: $border-radius;
             box-shadow: $box-shadow;
             padding: 1.5rem;

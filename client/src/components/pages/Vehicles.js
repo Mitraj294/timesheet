@@ -227,7 +227,7 @@ const Vehicles = () => {
         </div>
         <div className="header-actions">
           {user?.role === 'employer' && (
-            <Link to='/vehicles/create' className='btn btn-success'>
+            <Link to='/vehicles/create' className='btn btn-green'>
               <FontAwesomeIcon icon={faPlus} /> Create Vehicle
             </Link>
           )}

@@ -1,198 +1,157 @@
 // /home/digilab/timesheet/client/src/styles/NotificationSettings.scss
 
-$primary-color: #007bff; // Example primary color (Bootstrap blue)
-$secondary-color: #6c757d; // Example secondary color
-$light-gray: #f8f9fa;
-$medium-gray: #e9ecef;
-$dark-gray: #343a40;
-$text-color: #212529;
-$border-color: #ced4da;
-$card-bg: #ffffff;
-$input-bg: #ffffff;
-$danger-color: #dc3545;
+// Variables (consider moving to a central variables file if not already done)
+$primary-color: #007bff;
+$text-color-dark: #333;
+$text-color-medium: #555;
+$text-color-light: #6c757d;
+$border-color-light: #eee;
+$border-color-medium: #ced4da;
+$background-color-card: #fff;
+$box-shadow-card: 0 4px 12px rgba(0, 0, 0, 0.08);
+$border-radius-card: 8px;
+$border-radius-input: 0.25rem;
+$font-family-base: 'Segoe UI', sans-serif; // Assuming this is your base font
 
 .notification-settings-card {
-    background-color: $card-bg;
-    border-radius: 8px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-    padding: 25px 30px;
-    margin-bottom: 30px;
-    color: $text-color;
+    font-family: $font-family-base;
+    background-color: $background-color-card;
+    padding: 1.5rem;
+    border-radius: $border-radius-card;
+    box-shadow: $box-shadow-card;
+    margin-bottom: 1.5rem;
 
     .notification-settings-title {
-        font-size: 1.75rem;
+        font-size: 1.25rem;
         font-weight: 600;
-        color: $dark-gray;
-        margin-bottom: 25px;
-        padding-bottom: 15px;
-        border-bottom: 1px solid $medium-gray;
+        color: $text-color-dark;
+        margin-top: 0;
+        margin-bottom: 1.5rem;
+        padding-bottom: 0.75rem;
+        border-bottom: 1px solid $border-color-light;
+    }
+}
+
+.settings-section {
+    margin-bottom: 2rem;
+
+    .section-subtitle {
+        font-size: 1.1rem;
+        font-weight: 500;
+        color: $text-color-dark;
+        margin-top: 0;
+        margin-bottom: 0.5rem;
     }
 
-    .settings-section {
-        margin-bottom: 30px;
-        padding-bottom: 20px;
-        border-bottom: 1px dashed $border-color;
-
-        &:last-of-type {
-            border-bottom: none;
-            margin-bottom: 0;
-            padding-bottom: 0;
-        }
-
-        .section-subtitle {
-            font-size: 1.25rem;
-            font-weight: 500;
-            color: $primary-color;
-            margin-bottom: 8px;
-        }
-
-        .section-description {
-            font-size: 0.9rem;
-            color: $secondary-color;
-            margin-bottom: 20px;
-            line-height: 1.6;
-        }
+    .section-description {
+        font-size: 0.875rem;
+        color: $text-color-light;
+        margin-bottom: 1rem;
+        line-height: 1.5;
     }
+}
 
-    .settings-input-group {
-        display: flex;
+.settings-input-group {
+    margin-bottom: 1rem;
+    display: flex;
+    flex-direction: column; // Stack label and input by default
+    gap: 0.5rem;
+
+    &.employee-specific-group {
+        flex-direction: row; // For employee toggles, keep label and select side-by-side
         align-items: center;
-        margin-bottom: 18px;
-        flex-wrap: wrap; // Allow wrapping on small screens
+        justify-content: space-between; // Pushes select to the right, label takes remaining space
+        padding: 0.75rem 0; // Slightly more vertical padding
+        border-bottom: 1px solid $border-color-light;
+        gap: 1rem; // Add some space between label and select in row layout
 
-        .settings-input-group-label {
-            flex-basis: 200px; // Fixed width for labels
-            margin-right: 15px;
-            font-weight: 500;
-            font-size: 0.95rem;
-            color: $text-color;
-            min-width: 150px; // Ensure label doesn't get too squished
+        &:last-child {
+            border-bottom: none;
         }
 
-        .settings-text-input,
-        .settings-time-input,
-        .settings-select-input {
-            flex-grow: 1;
-            padding: 10px 12px;
-            border: 1px solid $border-color;
-            border-radius: 5px;
-            font-size: 0.95rem;
-            background-color: $input-bg;
-            color: $text-color;
-            min-width: 180px; // Minimum width for inputs
+        // Responsive adjustments for smaller screens
+        @media (max-width: 600px) {
+            // Adjust breakpoint as needed
+            flex-direction: column; // Stack label and select vertically
+            align-items: flex-start; // Align items to the start of the column
+            gap: 0.5rem; // Space between stacked label and select
 
-            &:focus {
-                outline: none;
-                border-color: $primary-color;
-                box-shadow: 0 0 0 0.2rem rgba($primary-color, 0.25);
-            }
-
-            &:disabled {
-                background-color: $light-gray;
-                cursor: not-allowed;
-            }
-        }
-
-        .settings-time-input {
-            max-width: 150px; // Specific width for time inputs
-        }
-
-        .settings-select-input {
-            // Specific styles for select if needed, often handled by browser defaults or select libraries
-        }
-
-        // For employee specific rows to align label and select nicely
-        &.employee-specific-group {
-            .employee-name-label {
-                flex-basis: auto; // Allow label to take more space
-                flex-grow: 1; // Grow to fill available space
-                margin-right: 10px;
+            .settings-input-group-label.employee-name-label {
+                width: 100%; // Ensure label takes full width for text wrapping
+                margin-bottom: 0.25rem; // Optional: small space above select
             }
 
             .select-container {
-                flex-basis: 120px; // Fixed width for the select dropdown
-                flex-grow: 0;
-
-                .settings-select-input {
-                    width: 100%; // Make select fill its container
-                }
+                width: 100%; // Make select container full width
+                min-width: unset; // Remove min-width constraint for stacked layout
             }
         }
     }
 
-    .settings-button-group {
-        margin-top: 30px;
-        text-align: right;
+    .settings-input-group-label {
+        font-size: 0.9rem;
+        font-weight: 500;
+        color: $text-color-medium;
 
-        .btn {
-            // Assuming you have base .btn styles from Bootstrap or similar
-            padding: 10px 20px;
-            font-size: 1rem;
-            font-weight: 500;
-            display: inline-flex;
-            align-items: center;
-            gap: 8px; // Space between icon and text
-
-            svg {
-                // For FontAwesomeIcon
-                margin-right: 0; // Reset if button-text handles gap
-            }
+        &.employee-name-label {
+            flex-grow: 1; // Allow employee name to take space
+            min-width: 0; // Important for flex items to shrink and wrap their content
+            // Handle long text within the label
+            word-break: break-word;
+            overflow-wrap: break-word;
         }
     }
-}
 
-// Responsive adjustments
-@media (max-width: 768px) {
-    .notification-settings-card {
-        padding: 20px;
+    .settings-text-input,
+    .settings-time-input,
+    .settings-select-input {
+        width: 100%;
+        padding: 0.5rem 0.75rem;
+        font-size: 1rem;
+        line-height: 1.5;
+        color: $text-color-dark;
+        background-color: #fff;
+        border: 1px solid $border-color-medium;
+        border-radius: $border-radius-input;
+        transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
 
-        .notification-settings-title {
-            font-size: 1.5rem;
+        &:focus {
+            border-color: lighten($primary-color, 25%);
+            outline: 0;
+            box-shadow: 0 0 0 0.2rem rgba($primary-color, 0.25);
         }
 
-        .settings-section .section-subtitle {
-            font-size: 1.1rem;
+        &:disabled {
+            background-color: #e9ecef;
+            opacity: 1;
         }
+    }
 
-        .settings-input-group {
-            flex-direction: column;
-            align-items: flex-start;
+    .select-container {
+        // Wrapper for select to control its width if needed
+        width: auto; // Default auto width in row layout
+        min-width: 120px; // Min-width for the select (e.g., for "Yes" / "No")
+        flex-shrink: 0; // Prevent select container from shrinking in row layout
+    }
 
-            .settings-input-group-label {
-                flex-basis: auto;
-                width: 100%;
-                margin-bottom: 8px;
-                margin-right: 0;
-            }
-
-            .settings-text-input,
-            .settings-time-input,
-            .settings-select-input,
-            .select-container {
-                width: 100%;
-                max-width: none; // Override max-width for time input on small screens
-                flex-basis: auto;
-            }
-        }
-
-        .settings-button-group {
-            text-align: center;
-
-            .btn {
-                width: 100%;
-            }
-        }
+    .settings-select-input {
+        width: 100%; // Select should fill its container
+        // For employee toggles, it might be better to let .select-container handle width
     }
 }
 
-@media (max-width: 480px) {
-    .notification-settings-card {
-        .notification-settings-title {
-            font-size: 1.3rem;
-        }
+.settings-button-group {
+    display: flex;
+    justify-content: flex-end; // Aligns button(s) to the right
+    margin-top: 1.5rem;
 
-        .settings-section .section-subtitle {
-            font-size: 1rem;
+    .btn {
+        // Assuming .btn and .btn-primary are globally defined (e.g., in Timesheet.scss)
+        width: auto; // CRITICAL: Ensures button takes natural width
+        flex-grow: 0; // CRITICAL: Prevents flex item from growing
+
+        .button-text {
+            margin-left: 0.4em; // Space between icon and text
         }
     }
 }

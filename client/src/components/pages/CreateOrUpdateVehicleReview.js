@@ -523,7 +523,7 @@ const CreateOrUpdateVehicleReview = () => {
               </button>
               <button
                 type='submit'
-                className='btn btn-success'
+                className='btn btn-green'
                 disabled={isSaving || !formData.employeeId || !formData.dateReviewed || formData.hours === ''} // Basic client-side validation for button state
               >
                 {isSaving ? ( // Use isSaving for button state

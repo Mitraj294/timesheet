@@ -247,7 +247,7 @@ const SubscriptionSection = () => {
             </div>
             <button
               type="button"
-              className="btn btn-success"
+              className="btn btn-green"
               // Add actual disable logic based on form validity/Stripe readiness
             >
               Complete Payment

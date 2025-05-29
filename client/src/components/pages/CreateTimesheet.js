@@ -691,14 +691,15 @@ const CreateTimesheet = () => {
              </div>
           )}
 
-          <div className='form-footer'>
-            <button type='button' className='btn btn-danger' onClick={handleCancel} disabled={isLoading}>
-              <FontAwesomeIcon icon={faTimes} /> Cancel
-            </button>
-            <button type='submit' className='btn btn-success' disabled={isLoading || (projectStatus === 'loading' && !isLeaveSelected)}>
-              {isLoading ? (<><FontAwesomeIcon icon={faSpinner} spin /> Saving...</>) : (<><FontAwesomeIcon icon={isEditing ? faPen : faSave} /> {isEditing ? 'Update Timesheet' : 'Save Timesheet'}</>)}
-            </button>
-          </div>
+        <div className='form-actions-bar'>
+  <button type='button' className='form-action-button form-action-button--cancel' onClick={handleCancel} disabled={isLoading}>
+    <FontAwesomeIcon icon={faTimes} /> Cancel
+  </button>
+  <button type='submit' className='form-action-button form-action-button--submit' disabled={isLoading || (projectStatus === 'loading' && !isLeaveSelected)}>
+    {isLoading ? (<><FontAwesomeIcon icon={faSpinner} spin /> Saving...</>) : (<><FontAwesomeIcon icon={isEditing ? faPen : faSave} /> {isEditing ? 'Update Timesheet' : 'Save Timesheet'}</>)}
+  </button>
+</div>
+
         </form>
       </div>
     </div>

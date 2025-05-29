@@ -294,7 +294,7 @@ const CreateClient = () => {
             <button type="button" className="btn btn-danger" onClick={() => navigate("/clients")} disabled={isLoading}>
               <FontAwesomeIcon icon={faTimes} /> Cancel
             </button>
-            <button type="submit" className="btn btn-success" disabled={isLoading}>
+            <button type="submit" className="btn btn-green" disabled={isLoading}>
               {isLoading ? (
                 <>
                   <FontAwesomeIcon icon={faSpinner} spin /> Saving...

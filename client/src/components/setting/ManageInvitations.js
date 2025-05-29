@@ -116,13 +116,7 @@ const ManageInvitations = () => {
           <h2>
           Manage Invitations
           </h2>
-          <div className="breadcrumbs">
-            <Link to="/dashboard" className="breadcrumb-link">Dashboard</Link>
-            <span className="breadcrumb-separator">/</span>
-            <Link to="/settings" className="breadcrumb-link">Settings</Link>
-            <span className="breadcrumb-separator">/</span>
-            <span className="breadcrumb-current">Manage Invitations</span>
-          </div>
+         
         </div>
       </div>
 
@@ -141,7 +135,7 @@ const ManageInvitations = () => {
               <div className="invitation-actions">
                 <button
                   onClick={() => handleAction(invite._id, 'approve')}
-                  className="btn btn-success btn-sm"
+                  className="btn btn-green "
                   disabled={!!actionLoading[invite._id]}
                 >
                   {actionLoading[invite._id] === 'approve' ? <FontAwesomeIcon icon={faSpinner} spin /> : <FontAwesomeIcon icon={faCheckCircle} />}

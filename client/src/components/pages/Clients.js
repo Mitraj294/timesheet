@@ -244,7 +244,7 @@ const Clients = () => {
                 )}
               </button>
               <button
-                className="btn btn-success"
+                className="btn btn-green"
                 onClick={() => navigate('/clients/create')}
               >
                 <FontAwesomeIcon icon={faPlus} /> Add New Client

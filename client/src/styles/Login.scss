@@ -173,14 +173,24 @@
 .styles_Button {
     background: #007bff;
     color: #fff;
-    padding: 12px;
-    font-size: 16px;
-    font-weight: 600;
+    padding: 0.6rem 1.2rem; // Standardized padding
+    font-size: 0.95rem; // Standardized font size
+    font-weight: 500; // Standardized font weight
     border: none;
-    border-radius: 5px;
+    border-radius: 5px; // Standardized
     cursor: pointer;
     transition: background 0.3s ease;
-    margin-top: 1rem; // Keep some top margin for separation
+    margin-top: 1rem;
+    // Add from master .btn if missing and desired:
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5em;
+    line-height: 1.5;
+    text-decoration: none;
+    vertical-align: middle;
+    user-select: none;
+    white-space: nowrap;
 
     &:hover {
         background: #0056b3;
@@ -191,9 +201,7 @@
         cursor: not-allowed;
     }
 
-    .button-icon {
-        margin-right: 8px;
-    }
+
 }
 
 // Signup Prompt/Button - Shared with Register

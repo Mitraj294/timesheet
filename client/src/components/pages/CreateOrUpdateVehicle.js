@@ -267,7 +267,7 @@ const CreateOrUpdateVehicle = () => {
               </button>
               <button
                 type='submit'
-                className='btn btn-success'
+                className='btn btn-green'
                 disabled={isLoading}
               >
                 {operationStatus === 'loading' ? ( // Spinner only during save operation

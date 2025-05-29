@@ -20,8 +20,10 @@
     "date-fns": "^4.1.0",
     "date-fns-tz": "^3.2.0",
     "express-async-handler": "^1.2.0",
+    "leaflet.markercluster": "^1.5.3",
     "moment-timezone": "^0.5.48",
     "node-cron": "^4.0.6",
-    "overlapping-marker-spiderfier": "^1.1.4"
+    "overlapping-marker-spiderfier": "^1.1.4",
+    "react-leaflet-cluster": "^2.1.0"
   }
 }

@@ -328,7 +328,7 @@ const CreateProject = () => {
             >
               <FontAwesomeIcon icon={faTimes} /> Cancel
             </button>
-             <button type="submit" className="btn btn-success" disabled={isLoading}>
+             <button type="submit" className="btn btn-green" disabled={isLoading}>
                {isLoading ? (
                 <>
                   <FontAwesomeIcon icon={faSpinner} spin /> Saving...

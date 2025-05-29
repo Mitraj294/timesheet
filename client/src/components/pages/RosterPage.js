@@ -19,6 +19,7 @@ import { setAlert } from '../../redux/slices/alertSlice';
 import Alert from '../layout/Alert';
 
 // Styles and Icons
+import '../../styles/Timesheet.scss';
 import '../../styles/Forms.scss';
 import '../../styles/RosterPage.scss';
 import { DateTime } from 'luxon';
@@ -566,7 +567,7 @@ const RosterPage = () => {
         </div>
         {canRollout && (
             <button
-              className='btn btn-green'
+              className='ts-page-header__action-button ts-page-header__action-button--create'
               onClick={handleRolloutClick} // Updated onClick
               title={`Copy this week's schedule (${format(currentWeekStart, 'MMM d')}) to next week (${format(addWeeks(currentWeekStart, 1), 'MMM d')})`}
               disabled={isLoading} // Disable during loading/rollout
@@ -578,7 +579,7 @@ const RosterPage = () => {
       </header>
 
       <div className='week-nav'>
-        <button className='btn btn-blue' onClick={handlePrevWeek} disabled={isLoading}>
+        <button className='timesheet-nav__button' onClick={handlePrevWeek} disabled={isLoading}>
           <FontAwesomeIcon icon={faArrowLeft} /> Prev Week
         </button>
         <h4>
@@ -586,7 +587,7 @@ const RosterPage = () => {
           {format(endOfWeek(currentWeekStart, { weekStartsOn: 1 }), 'MMM d, yyyy')}
         </h4>
          <button
-            className='btn btn-blue'
+            className='timesheet-nav__button'
             onClick={handleNextWeek}
             disabled={isLoading || isEqual(currentWeekStart, maxAllowedWeek)}
           >
@@ -601,7 +602,7 @@ const RosterPage = () => {
             <div className='sidebar-header'>
               <p>Roles</p>
               {user?.role === 'employer' && (
-                <button className='btn btn-green' onClick={() => navigate('/createrole')} title="Create a new role">
+                <button className='ts-page-header__action-button ts-page-header__action-button--create' onClick={() => navigate('/createrole')} title="Create a new role">
                   Create <FontAwesomeIcon icon={faPlus} />
                 </button>
               )}
@@ -787,7 +788,7 @@ const RosterPage = () => {
               </button>
               <button
                 type="button" // Ensure this is type="button" if not submitting a form
-                className='btn btn-success'
+                className='btn btn-green'
             disabled={isAssigningShift || selectedDays.length === 0 || selectedDays.some(day => !startTime[day] || !endTime[day])}
                 onClick={handleAssignShift}
               >

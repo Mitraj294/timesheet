@@ -105,13 +105,14 @@ $breakpoint-sm: 576px;
     }
 }
 
-// Button Styles
+// --- Standard Button Styles (Restored) ---
 .btn {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    padding: 0.5rem 1rem;
-    font-size: 0.9rem;
+    gap: 0.5em; // For spacing between icon and text
+    padding: 0.6rem 1.2rem;
+    font-size: 0.95rem;
     font-weight: 500;
     line-height: 1.5;
     text-align: center;
@@ -119,79 +120,60 @@ $breakpoint-sm: 576px;
     vertical-align: middle;
     cursor: pointer;
     user-select: none;
-    background-color: transparent;
     border: 1px solid transparent;
-    border-radius: 0.25rem;
+    border-radius: $border-radius; // Uses local variable (5px)
     transition: color 0.15s ease-in-out, background-color 0.15s ease-in-out, border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
     white-space: nowrap;
+    font-family: $font-family; // Uses local variable
 
     &:disabled {
         opacity: 0.65;
         cursor: not-allowed;
     }
 
-    .svg-inline--fa {
-        margin-right: 0.4em;
-    }
-
-    span+.svg-inline--fa {
-        margin-right: 0;
-        margin-left: 0.4em;
-    }
-
-    .svg-inline--fa:only-child {
-        margin-right: 0;
-    }
-}
-
-// Button Color Variants
-.btn-success {
-    color: #fff;
-    background-color: $success-color;
-    border-color: $success-color;
-
-    &:hover:not(:disabled) {
-        background-color: color.adjust($success-color, $lightness: -7%);
-        border-color: color.adjust($success-color, $lightness: -10%);
-    }
-
-    &:disabled {
+    &.btn-success {
         background-color: $success-color;
+        color: #fff;
         border-color: $success-color;
-    }
-}
 
-.btn-danger {
-    color: #fff;
-    background-color: $danger-color;
-    border-color: $danger-color;
-
-    &:hover:not(:disabled) {
-        background-color: color.adjust($danger-color, $lightness: -7%);
-        border-color: color.adjust($danger-color, $lightness: -10%);
+        &:hover:not(:disabled) {
+            background-color: darken($success-color, 10%);
+            border-color: darken($success-color, 10%);
+        }
     }
 
-    &:disabled {
-        background-color: mix(white, $danger-color, 35%);
-        border-color: mix(white, $danger-color, 35%);
-    }
-}
+    &.btn-danger {
+        background-color: $danger-color;
+        color: #fff;
+        border-color: $danger-color;
 
-.btn-secondary {
-    // Added for potential use (like retry buttons)
-    color: #fff;
-    background-color: $secondary-color;
-    border-color: $secondary-color;
-
-    &:hover:not(:disabled) {
-        background-color: color.adjust($secondary-color, $lightness: -7%);
-        border-color: color.adjust($secondary-color, $lightness: -10%);
+        &:hover:not(:disabled) {
+            background-color: darken($danger-color, 10%);
+            border-color: darken($danger-color, 10%);
+        }
     }
 
-    &:disabled {
+    &.btn-secondary {
         background-color: $secondary-color;
+        color: #fff;
         border-color: $secondary-color;
+
+        &:hover:not(:disabled) {
+            background-color: darken($secondary-color, 10%);
+            border-color: darken($secondary-color, 10%);
+        }
     }
+
+    // Example for .btn-primary, if needed
+    // &.btn-primary {
+    //     background-color: $primary-color;
+    //     color: #fff;
+    //     border-color: $primary-color;
+    //     &:hover:not(:disabled) {
+    //         background-color: darken($primary-color, 10%);
+    //         border-color: darken($primary-color, 10%);
+    //     }
+    // }
 }
 
 // Loading/Error Styles
@@ -374,14 +356,64 @@ $breakpoint-sm: 576px;
     font-size: 0.9rem;
 }
 
-// Form footer for buttons
-.form-footer {
+// New Form Actions Bar Styles
+.form-actions-bar {
     display: flex;
-    justify-content: flex-end; // Align buttons to the right
-    gap: 0.75rem;
-    margin-top: 1.5rem;
-    padding-top: 1.5rem;
-    border-top: 1px solid $border-color;
+    justify-content: center; // Center the buttons
+    gap: 0.75rem; // Space between buttons
+    margin-top: 1.5rem; // Space above the action bar
+    padding-top: 1.5rem; // Padding above the buttons, below the border
+    border-top: 1px solid $border-color; // Separator line
+
+    .form-action-button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5em; // Space between icon and text, matches master .btn
+        padding: 0.6rem 1.2rem; // Standardized padding
+        font-size: 0.95rem; // Standardized font size
+        font-weight: 500; // Standardized font weight
+        line-height: 1.5;
+        text-align: center;
+        text-decoration: none;
+        vertical-align: middle;
+        cursor: pointer;
+        user-select: none;
+        border: 1px solid transparent; // Base border
+        border-radius: $border-radius; // Use variable from Forms.scss (5px)
+        transition: color 0.15s ease-in-out, background-color 0.15s ease-in-out, border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+        white-space: nowrap; // Prevent text wrapping
+        width: 170px; // Ensure both buttons have the same width (adjust as needed for longest text)
+
+        &:disabled {
+            opacity: 0.65;
+            cursor: not-allowed;
+        }
+
+        // Cancel Button (Danger)
+        &--cancel {
+            color: #fff;
+            background-color: $danger-color;
+            border-color: $danger-color;
+
+            &:hover:not(:disabled) {
+                background-color: color.adjust($danger-color, $lightness: -7%);
+                border-color: color.adjust($danger-color, $lightness: -10%);
+            }
+        }
+
+        // Submit Button (Success)
+        &--submit {
+            color: #fff;
+            background-color: $success-color;
+            border-color: $success-color;
+
+            &:hover:not(:disabled) {
+                background-color: color.adjust($success-color, $lightness: -7%);
+                border-color: color.adjust($success-color, $lightness: -10%);
+            }
+        }
+    }
 }
 
 // Styles for CreateRole specific elements
@@ -492,15 +524,6 @@ $breakpoint-sm: 576px;
 
     .form-container {
         padding: 1.5rem; // Reduce padding on small screens
-    }
-
-    .form-footer {
-        flex-direction: column-reverse; // Stack buttons vertically, submit on top
-        gap: 0.5rem;
-
-        .btn {
-            width: 100%; // Make buttons full width
-        }
     }
 
     // Add responsive adjustments for schedule if needed

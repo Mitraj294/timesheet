@@ -184,7 +184,7 @@ const Employees = () => {
         <div className="header-actions">
           {user?.role === 'employer' && (
             <button
-              className='btn btn-success'
+              className='btn btn-green'
               onClick={() => navigate('/employees/add')}
               disabled={showLoading}
             >
