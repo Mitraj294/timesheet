@@ -2,7 +2,7 @@
   "name": "client",
   "version": "0.1.0",
   "private": true,
-  "proxy": "http://192.168.1.47:5000",
+  "proxy": "http://localhost:5000",
   "dependencies": {
     "@fortawesome/fontawesome-svg-core": "^6.7.2",
     "@fortawesome/free-solid-svg-icons": "^6.7.2",
@@ -24,8 +24,8 @@
     "react-leaflet-cluster": "^2.1.0",
     "react-chartjs-2": "^5.3.0",
     "react-datepicker": "^8.3.0",
-    "react": "^18.2.0",         // Correct for react-leaflet-cluster
-    "react-dom": "^18.2.0",       // Correct for react-leaflet-cluster
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
     "react-modal": "^3.16.3",
     "react-redux": "^9.2.0",
     "react-router-dom": "^7.3.0",
@@ -34,7 +34,7 @@
     "react-toastify": "^11.0.5",
     "redux": "^5.0.1",
     "redux-thunk": "^3.1.0",
-    "react-leaflet": "^4.2.1",  // Downgraded to be compatible with React 18 and react-leaflet-cluster
+    "react-leaflet": "^4.2.1",
     "web-vitals": "^2.1.4",
     "xlsx": "^0.18.5"
   },
