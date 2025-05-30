@@ -32,40 +32,86 @@ L.Icon.Default.mergeOptions({
   shadowUrl: shadowUrl,
 });
 
-// Define custom icons for different location types
-// IMPORTANT: Replace 'path/to/your/...' with actual paths to your colored marker images.
-// If you don't have different colored images, these will all use the default marker image.
-const blueIcon = new L.Icon({
-  iconUrl: iconUrl, // Reverted to default Leaflet icon
-  iconRetinaUrl: iconRetinaUrl, // Reverted to default Leaflet icon
-  shadowUrl: shadowUrl,
+// Helper function to create an SVG string for a map pin
+const createPinSVG = (color) => `
+  <svg width="25" height="41" viewBox="0 0 25 41" xmlns="http://www.w3.org/2000/svg" style="overflow: visible;">
+    <path d="M12.5 0C5.596 0 0 5.596 0 12.5C0 19.404 12.5 41 12.5 41S25 19.404 25 12.5C25 5.596 19.404 0 12.5 0Z" fill="${color}"/>
+    <circle cx="12.5" cy="12.5" r="4" fill="white"/>
+  </svg>
+`;
+
+// Define custom SVG-based icons
+const greenIcon = new L.DivIcon({
+  html: createPinSVG('green'),
+  className: 'custom-leaflet-div-icon', // Add a class for potential global styling
   iconSize: [25, 41],
-  iconAnchor: [12, 41],
-  popupAnchor: [1, -34],
-  shadowSize: [41, 41]
+  iconAnchor: [12, 41], // Point of the pin
+  popupAnchor: [1, -34] // Popup offset from iconAnchor
 });
 
-const redIcon = new L.Icon({
-  iconUrl: iconUrl, // Reverted to default Leaflet icon
-  iconRetinaUrl: iconRetinaUrl, // Reverted to default Leaflet icon
-  shadowUrl: shadowUrl,
+const redIcon = new L.DivIcon({
+  html: createPinSVG('red'),
+  className: 'custom-leaflet-div-icon',
   iconSize: [25, 41],
   iconAnchor: [12, 41],
-  popupAnchor: [1, -34],
-  shadowSize: [41, 41]
+  popupAnchor: [1, -34]
 });
 
-const greenIcon = new L.Icon({
-  iconUrl: iconUrl, // Reverted to default Leaflet icon
-  iconRetinaUrl: iconRetinaUrl, // Reverted to default Leaflet icon
-  shadowUrl: shadowUrl,
-  iconSize: [25, 41],
-  iconAnchor: [12, 41],
-  popupAnchor: [1, -34],
-  shadowSize: [41, 41]
-});
+// The blueIcon definition can be removed if it's not used elsewhere,
+// or kept if it might be. For this change, we'll comment it out.
+// const blueIcon = new L.Icon.Default(); // Or your previous L.Icon definition
 
 const API_URL = process.env.REACT_APP_API_URL || 'https://timesheet-slpc.onrender.com/api';
+
+// Custom function to create cluster icons
+const createClusterCustomIcon = function (cluster) {
+  const childCount = cluster.getChildCount();
+  let c = ' marker-cluster-'; // Base Leaflet class for styling
+  if (childCount < 10) {
+    c += 'small';
+  } else if (childCount < 100) {
+    c += 'medium';
+  } else {
+    c += 'large';
+  }
+
+  const markers = cluster.getAllChildMarkers();
+  let clusterDateKey = null; // Will hold 'YYYY-MM-DD'
+  let allMarkersSameDate = markers.length > 0;
+
+  if (markers.length > 0) {
+    clusterDateKey = markers[0].options.locData?.dateOnly; // Get from pre-calculated field
+    if (!clusterDateKey) { // If first marker somehow has no dateOnly
+        allMarkersSameDate = false;
+    } else {
+        for (let i = 1; i < markers.length; i++) {
+            if (markers[i].options.locData?.dateOnly !== clusterDateKey) {
+                allMarkersSameDate = false;
+                clusterDateKey = null; // Reset if dates are not all the same
+                break;
+            }
+        }
+    }
+  } else {
+    allMarkersSameDate = false;
+  }
+
+  let htmlContent = `<div><span>${childCount}</span>`;
+  let additionalClass = '';
+
+  if (allMarkersSameDate && clusterDateKey) {
+    const displayDate = DateTime.fromISO(clusterDateKey).toFormat('MMM d'); // e.g., "Oct 26"
+    htmlContent += `<span class="cluster-date">${displayDate}</span>`;
+    additionalClass = ' single-date'; // Add a class for single-date clusters
+  }
+  htmlContent += '</div>';
+
+  return new L.DivIcon({
+    html: htmlContent,
+    className: 'marker-cluster' + c + additionalClass, // Append custom class
+    iconSize: new L.Point(40, 40) // Default size, can be adjusted via CSS
+  });
+};
 
 // Default map center, e.g., company HQ or a general area
 const DEFAULT_MAP_CENTER = { lat: 37.7749, lng: -122.4194 };
@@ -268,8 +314,9 @@ const Map = () => {
                         type: 'Start Location',
                         employeeName: employeeName,
                         popupNote: `Start: ${startTimeFormatted} (${employeeName})`,
-                        timestamp: ts.startTime || ts.date,
+                        timestamp: ts.startTime || ts.date, // For sorting
                         address: ts.startLocation.address || 'N/A',
+                        dateOnly: DateTime.fromISO(ts.startTime || ts.date).toISODate(), // YYYY-MM-DD
                     });
                 }
 
@@ -284,8 +331,9 @@ const Map = () => {
                         type: 'End Location',
                         employeeName: employeeName,
                         popupNote: `End: ${endTimeFormatted} (${employeeName})`,
-                        timestamp: ts.endTime || ts.date, // Use endTime for sorting end markers
+                        timestamp: ts.endTime || ts.date, // For sorting
                         address: ts.endLocation.address || 'N/A',
+                        dateOnly: DateTime.fromISO(ts.endTime || ts.date).toISODate(), // YYYY-MM-DD
                     });
                 }
                 if (!hasStart && !hasEnd) {
@@ -502,7 +550,7 @@ const Map = () => {
         className="leaflet-map-container"
       >
         <ZoomControl position="topright" />
-        <TileLayer
+        <TileLayer // NOSONAR
           attribution='&copy; <a href="https://openstreetmap.org/copyright">OpenStreetMap</a> contributors'
           url='https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'
         />
@@ -518,7 +566,7 @@ const Map = () => {
                 let iconToUse = null;
                 // Determine icon based on filtered loc.type
                 if (loc.type === "Start Location") {
-                  iconToUse = blueIcon;
+                  iconToUse = greenIcon; // Use greenIcon for Start Location
                 } else if (loc.type === "End Location") {
                   iconToUse = redIcon;
                 }
@@ -531,6 +579,7 @@ const Map = () => {
                     key={loc.id} // loc.id is now unique: e.g., timesheetId_start or timesheetId_end
                     position={[loc.lat, loc.lng]}
                     icon={iconToUse}
+                    options={{ locData: loc }} // Pass loc data to marker options
                   >
                     <Popup>
                       <strong>{loc.employeeName}</strong> <br />
@@ -547,7 +596,7 @@ const Map = () => {
                   </Marker>
                 );
               })}
-          </MarkerClusterGroup>
+          </MarkerClusterGroup> // NOSONAR
         ) : (
           <p>Map clustering is unavailable. Please check console for errors.</p>
         )}

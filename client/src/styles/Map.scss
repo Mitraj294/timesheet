@@ -410,3 +410,56 @@ $breakpoint-sm: 576px;
         }
     }
 }
+
+// /home/digilab/timesheet/client/src/styles/Map.scss
+// ... (keep existing styles)
+
+// Styles for custom cluster icons with dates
+.marker-cluster {
+    // Default Leaflet marker-cluster styles will apply for size and base appearance.
+    // We are adding specific styles for our custom content.
+
+    // Ensure the inner div (our htmlContent) uses flex for easy centering
+    &>div {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        width: 100%;
+        height: 100%;
+        text-align: center; // Fallback for older browsers if flex isn't perfect
+
+        // Style for the count
+        span:first-child {
+            font-weight: bold;
+        }
+    }
+
+    // Style for the date text within the cluster
+    .cluster-date {
+        display: block; // Make it a block to appear on a new line
+        font-size: 0.65em; // Smaller font for the date
+        line-height: 1.1; // Adjust line height
+        margin-top: 1px; // Small space between count and date
+        font-weight: normal;
+        color: #333; // Dark grey color for the date text, adjust as needed
+    }
+
+    // Optional: If you want single-date clusters to look slightly different
+    // &.single-date {
+    //   // Example: make the background slightly different for single-date clusters
+    //   // background-color: rgba(92, 184, 92, 0.6) !important; // Example green tint
+    // }
+}
+
+// Visually hidden class for labels (if not already globally defined)
+.visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    border: 0;
+}
