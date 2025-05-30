@@ -68,13 +68,6 @@ $breakpoint-sm: 576px;
     .select-container {
         flex: 1; // Allow selects to grow
         min-width: 200px; // Minimum width before wrapping
-        position: relative; // Establish stacking context and allow z-index
-
-        // Add a class like 'is-menu-open' via JS when the select menu is open
-        &.is-menu-open {
-            z-index: 2; // Lifts this .select-container (and its dropdown menu) above sibling .select-container elements.
-            // Requires JavaScript to toggle this class.
-        }
 
         label {
             display: block;
@@ -112,8 +105,7 @@ $breakpoint-sm: 576px;
 
             .react-select__menu {
                 // This targets the dropdown menu specifically
-                z-index: 1051; // Ensures the menu is above other content *within* its current stacking context (defined by .select-container or if portalled).
-                // If not portalled, this z-index is relative to elements inside the .select-container.
+                z-index: 1051; // Set a high z-index to ensure it appears above other elements
                 border-radius: 4px;
                 box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
             }
@@ -204,18 +196,6 @@ $breakpoint-sm: 576px;
 
         &.projects {
             background-color: color.adjust($secondary-color, $lightness: -10%);
-        }
-
-        &.client-hours {
-            // New class for client hours icon
-            background-color: rgba($warning-color, 0.2);
-            color: $warning-color;
-        }
-
-        &.project-hours {
-            // New class for project hours icon
-            background-color: rgba($dark-grey, 0.2);
-            color: $dark-grey;
         }
     }
 
@@ -474,6 +454,28 @@ $breakpoint-sm: 576px;
                     border-color: #bd2130;
                 }
             }
+        }
+    }
+}
+
+// Add to your /home/digilab/timesheet/client/src/styles/Dashboard.scss
+
+.summary-card {
+    // ... existing styles ...
+
+    .summary-icon {
+        // ... existing styles ...
+
+        &.client-hours {
+            // New class for client hours icon
+            background-color: rgba(255, 193, 7, 0.2); // Example: Light yellow
+            color: #ffc107; // Example: Yellow
+        }
+
+        &.project-hours {
+            // New class for project hours icon
+            background-color: rgba(108, 117, 125, 0.2); // Example: Light gray
+            color: #6c757d; // Example: Gray
         }
     }
 }
