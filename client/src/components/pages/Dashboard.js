@@ -243,12 +243,14 @@ const Dashboard = () => {
 
   // Filter employees to show only those belonging to the current employer
   const employerScopedEmployees = useMemo(() => {
-    if (user?.role === 'employer') {
-        return employeesFromStore.filter(emp => employerEmployeeIds.has(emp._id));
-    }
-    return employeesFromStore; // For other roles, or if not an employer, return all fetched (backend should scope)
-  }, [employeesFromStore, employerEmployeeIds, user?.role]);
+    // Ensure employeesFromStore is an array before attempting to filter or use it.
+    const safeEmployeesFromStore = Array.isArray(employeesFromStore) ? employeesFromStore : [];
 
+    if (user?.role === 'employer') {
+        return safeEmployeesFromStore.filter(emp => emp._id && employerEmployeeIds.has(emp._id));
+    }
+    return safeEmployeesFromStore; // For other roles, return the safe (potentially empty) array
+  }, [employeesFromStore, employerEmployeeIds, user?.role]);
 
   // Create a "truly scoped" version of allTimesheets based on user role
   const trulyScopedAllTimesheets = useMemo(() => {

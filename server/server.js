@@ -114,12 +114,12 @@ const PORT = process.env.PORT || 5000;
 
 // SSL/TLS Certificate Options
 // Assuming certs are in the parent directory of 'server' (i.e., in 'timesheet/')
-// const sslOptions = {
-//   key: fs.readFileSync(path.join(__dirname, '..', '192.168.1.47+3-key.pem')),
-//   cert: fs.readFileSync(path.join(__dirname, '..', '192.168.1.47+3.pem'))
-// };
+const sslOptions = {
+  key: fs.readFileSync(path.join(__dirname, '..', '192.168.1.47+3-key.pem')),
+  cert: fs.readFileSync(path.join(__dirname, '..', '192.168.1.47+3.pem'))
+};
 
-// Start HTTP server (Render handles SSL termination)
-app.listen(PORT, HOST, () => {
-  console.log(`HTTP Server successfully started on http://${HOST}:${PORT}`);
+// Start HTTPS server
+https.createServer(sslOptions, app).listen(PORT, HOST, () => {
+  console.log(`HTTPS Server successfully started on https://${HOST}:${PORT}`);
 });

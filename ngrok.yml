@@ -1,0 +1,12 @@
+version: 2
+authtoken: 2xoDTdsOWu0xUMdA0KCRPqpISmK_89hH7NGMzSjgyREtp6kPZ
+
+tunnels:
+  frontend:
+    proto: http
+    addr: https://192.168.1.47:3000
+    host_header: rewrite
+  backend:
+    proto: http
+    addr: https://192.168.1.47:5000
+    host_header: rewrite
