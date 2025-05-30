@@ -109,20 +109,17 @@ startNotificationScheduler();
 app.use(errorHandler);
 
 // Start Server
-const HOST = process.env.HOST || '192.168.1.47'; // Match your client .env or use 0.0.0.0
+const HOST = process.env.HOST || '0.0.0.0'; // Listen on all available interfaces
 const PORT = process.env.PORT || 5000;
 
 // SSL/TLS Certificate Options
 // Assuming certs are in the parent directory of 'server' (i.e., in 'timesheet/')
-const sslOptions = {
-  key: fs.readFileSync(path.join(__dirname, '..', '192.168.1.47+3-key.pem')),
-  cert: fs.readFileSync(path.join(__dirname, '..', '192.168.1.47+3.pem'))
-};
+// const sslOptions = {
+//   key: fs.readFileSync(path.join(__dirname, '..', '192.168.1.47+3-key.pem')),
+//   cert: fs.readFileSync(path.join(__dirname, '..', '192.168.1.47+3.pem'))
+// };
 
-// Create HTTPS server
-https.createServer(sslOptions, app).listen(PORT, HOST, () => {
-  console.log(`HTTPS Server successfully started on https://${HOST}:${PORT}`);
+// Start HTTP server (Render handles SSL termination)
+app.listen(PORT, HOST, () => {
+  console.log(`HTTP Server successfully started on http://${HOST}:${PORT}`);
 });
-
-// Fallback for HTTP if needed (usually not for local dev with HTTPS)
-// app.listen(PORT, HOST, () => console.log(`HTTP Server successfully started on http://${HOST}:${PORT}`));
