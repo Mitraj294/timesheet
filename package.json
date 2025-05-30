@@ -12,6 +12,7 @@
   "devDependencies": {
     "chartjs-plugin-datalabels": "^2.2.0",
     "concurrently": "^9.1.2",
+    "cross-env": "^7.0.3",
     "react-app-rewired": "^2.2.1",
     "sass": "^1.86.3",
     "sass-loader": "^13.3.3"

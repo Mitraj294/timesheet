@@ -10,7 +10,7 @@ import { // Import FontAwesome icons
 } from '@fortawesome/free-solid-svg-icons';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import { ZoomControl } from 'react-leaflet'; // Import ZoomControl
-import { setAlert } from '../../redux/slices/alertSlice';
+import { setAlert } from '../../redux/slices/alertSlice'; // Ensure this path is correct
 import MarkerClusterGroup from 'react-leaflet-cluster'; // Import MarkerClusterGroup from react-leaflet-cluster
 import Alert from '../layout/Alert';
 import L from 'leaflet';
@@ -18,8 +18,9 @@ import L from 'leaflet';
 import { DateTime } from 'luxon'; // Ensure DateTime is imported from luxon
 import 'leaflet/dist/leaflet.css';
 import '../../styles/Map.scss'; // Import your custom SCSS styles
+import 'leaflet.markercluster/dist/MarkerCluster.css'; // CSS for MarkerCluster
+import 'leaflet.markercluster/dist/MarkerCluster.Default.css'; // Default theme for MarkerCluster
 import iconRetinaUrl from 'leaflet/dist/images/marker-icon-2x.png';
-// Import MarkerCluster CSS
 import iconUrl from 'leaflet/dist/images/marker-icon.png';
 import shadowUrl from 'leaflet/dist/images/marker-shadow.png';
 
@@ -68,6 +69,10 @@ const API_URL = process.env.REACT_APP_API_URL || 'https://timesheet-slpc.onrende
 
 // Default map center, e.g., company HQ or a general area
 const DEFAULT_MAP_CENTER = { lat: 37.7749, lng: -122.4194 };
+
+// MarkerClusterGroup is imported directly.
+// React can handle components that are functions or special objects (like forwardRef).
+// The previous defensive check for `typeof === 'function'` was too strict for forwardRef components.
 
 const Map = () => {
   const dispatch = useDispatch();
@@ -125,34 +130,28 @@ const Map = () => {
 
     const updateDateRange = () => {
         let startDateStr, endDateStr;
-        const baseDate = new Date(currentDate); // Use a copy
+        const baseDt = DateTime.fromJSDate(new Date(currentDate)); // Use Luxon DateTime
         // Determine date range string based on viewType
         if (viewType === 'Daily') {
-            startDateStr = baseDate.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
-            setDateRange(startDateStr);
+            setDateRange(baseDt.toLocaleString(DateTime.DATE_HUGE)); // e.g., "October 26, 2023"
         } else {
-            let startDate = new Date(baseDate);
-            let endDate = new Date(baseDate);
-            const options = { year: 'numeric', month: 'short', day: 'numeric' };
+            let startDt, endDt;
 
             if (viewType === 'Weekly') {
-                const dayOfWeek = startDate.getDay(); // 0 (Sun) - 6 (Sat)
-                const diff = startDate.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1); // Monday start
-                startDate.setDate(diff);
-                endDate.setDate(startDate.getDate() + 6);
+                // Luxon's startOf('week') defaults to Monday, endOf('week') to Sunday
+                startDt = baseDt.startOf('week');
+                endDt = baseDt.endOf('week');
             } else if (viewType === 'Fortnightly') {
-                const dayOfWeek = startDate.getDay();
-                const diff = startDate.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1); // Monday start
-                startDate.setDate(diff);
-                endDate.setDate(startDate.getDate() + 13);
+                // Assuming week starts on Monday for consistency with previous logic
+                startDt = baseDt.startOf('week'); // Monday
+                endDt = startDt.plus({ days: 13 }).endOf('day'); // Sunday, two weeks later
             } else if (viewType === 'Monthly') {
-                startDate = new Date(baseDate.getFullYear(), baseDate.getMonth(), 1);
-                endDate = new Date(baseDate.getFullYear(), baseDate.getMonth() + 1, 0);
+                startDt = baseDt.startOf('month');
+                endDt = baseDt.endOf('month');
             }
-
-            startDateStr = startDate.toLocaleDateString('en-US', options);
-            endDateStr = endDate.toLocaleDateString('en-US', options);
-            setDateRange(`${startDateStr} - ${endDateStr}`);
+            startDateStr = startDt.toLocaleString(DateTime.DATE_MED); // e.g., "Oct 26, 2023"
+            endDateStr = endDt.toLocaleString(DateTime.DATE_MED);
+            setDateRange(`${startDateStr} - ${endDateStr}`); // e.g., "Oct 23, 2023 - Oct 29, 2023"
         }
     };
     updateDateRange();
@@ -160,40 +159,27 @@ const Map = () => {
 
   // Helper function to get start and end dates for the API query
   const getQueryDateRange = useCallback((baseDateInput, viewTypeInput) => {
-    let startDate = new Date(baseDateInput);
-    let endDate = new Date(baseDateInput);
+    let startDt = DateTime.fromJSDate(new Date(baseDateInput));
+    let endDt = DateTime.fromJSDate(new Date(baseDateInput));
 
     if (viewTypeInput === 'Daily') {
-        startDate.setHours(0, 0, 0, 0);
-        endDate.setHours(23, 59, 59, 999);
+        startDt = startDt.startOf('day');
+        endDt = endDt.endOf('day');
     } else if (viewTypeInput === 'Weekly') {
-        const dayOfWeek = startDate.getDay(); // 0 (Sun) - 6 (Sat)
-        const diff = startDate.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1); // Monday start
-        startDate.setDate(diff);
-        startDate.setHours(0, 0, 0, 0);
-
-        endDate = new Date(startDate); // Start from the calculated Monday
-        endDate.setDate(startDate.getDate() + 6);
-        endDate.setHours(23, 59, 59, 999);
+        // Luxon's startOf('week') defaults to Monday, endOf('week') to Sunday
+        startDt = startDt.startOf('week');
+        endDt = startDt.endOf('week');
     } else if (viewTypeInput === 'Fortnightly') {
-        const dayOfWeek = startDate.getDay();
-        const diff = startDate.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1); // Monday start
-        startDate.setDate(diff);
-        startDate.setHours(0, 0, 0, 0);
-
-        endDate = new Date(startDate);
-        endDate.setDate(startDate.getDate() + 13);
-        endDate.setHours(23, 59, 59, 999);
+        // Assuming week starts on Monday
+        startDt = startDt.startOf('week');
+        endDt = startDt.plus({ days: 13 }).endOf('day'); // Two full weeks from Monday
     } else if (viewTypeInput === 'Monthly') {
-        startDate = new Date(startDate.getFullYear(), startDate.getMonth(), 1);
-        startDate.setHours(0, 0, 0, 0);
-
-        endDate = new Date(startDate.getFullYear(), startDate.getMonth() + 1, 0); // Last day of the month
-        endDate.setHours(23, 59, 59, 999);
+        startDt = startDt.startOf('month');
+        endDt = startDt.endOf('month');
     }
     return {
-        startDate: DateTime.fromJSDate(startDate).toFormat('yyyy-MM-dd'),
-        endDate: DateTime.fromJSDate(endDate).toFormat('yyyy-MM-dd')
+        startDate: startDt.toISODate(), // yyyy-MM-dd
+        endDate: endDt.toISODate()     // yyyy-MM-dd
     };
   }, []); // Return YYYY-MM-DD strings
 
@@ -257,11 +243,12 @@ const Map = () => {
                 timesheetsArray = responseData.timesheets;
             } else {
                  console.warn("[Map.js] API response for timesheets did not contain a 'timesheets' array. Raw response:", responseData);
+                 setLocationData([]); // Clear data if format is unexpected
+                 timesheetsArray = []; // Ensure it's an array for subsequent processing
             }
 
-            const groupedLocations = {}; // Key: "lat_lng_type", Value: { lat, lng, type, employeeNames: Set, popupNotes: [], timestamps: [], address }
-
-            console.log(`[Map.js] Processing ${timesheetsArray.length} timesheets for selected criteria.`);
+            const individualLocationEvents = [];
+            console.log(`[Map.js] Processing ${timesheetsArray.length} timesheets into individual events.`);
 
             for (const ts of timesheetsArray) {
                 // ts.employeeId should be populated by the backend with at least _id and name
@@ -270,94 +257,53 @@ const Map = () => {
                 const hasStart = ts && ts.startLocation && ts.startLocation.coordinates && Array.isArray(ts.startLocation.coordinates) && ts.startLocation.coordinates.length >= 2;
                 const hasEnd = ts && ts.endLocation && ts.endLocation.coordinates && Array.isArray(ts.endLocation.coordinates) && ts.endLocation.coordinates.length >= 2;
 
-                if (hasStart && hasEnd &&
-                    ts.startLocation.coordinates[0] === ts.endLocation.coordinates[0] &&
-                    ts.startLocation.coordinates[1] === ts.endLocation.coordinates[1]) {
-                    // Combined Location
+                if (hasStart) {
                     const lat = ts.startLocation.coordinates[1];
-                    const lng = ts.startLocation.coordinates[0];                    
-                    const precision = 5; // 5 decimal places = ~1.1 meter precision. Adjust if needed.
-                    const roundedLat = parseFloat(lat.toFixed(precision));
-                    const roundedLng = parseFloat(lng.toFixed(precision));
-                    const key = `${roundedLat}_${roundedLng}_combined`;
+                    const lng = ts.startLocation.coordinates[0];
+                    const startTimeFormatted = DateTime.fromISO(ts.startTime).setZone('local').toLocaleString(DateTime.DATETIME_SHORT);
+                    individualLocationEvents.push({
+                        id: `${ts._id}_start`, // Unique ID for the marker event
+                        lat: lat,
+                        lng: lng,
+                        type: 'Start Location',
+                        employeeName: employeeName,
+                        popupNote: `Start: ${startTimeFormatted} (${employeeName})`,
+                        timestamp: ts.startTime || ts.date,
+                        address: ts.startLocation.address || 'N/A',
+                    });
+                }
 
-                    if (!groupedLocations[key]) {
-                        groupedLocations[key] = {
-                            lat: roundedLat, // Use rounded coordinates for the marker
-                            lng: roundedLng, // Use rounded coordinates for the marker
-                            type: 'Combined Location',
-                            employeeNames: new Set(), popupNotes: [], timestamps: [],
-                            address: ts.startLocation.address || 'N/A',
-                        };
-                    }
-                    groupedLocations[key].employeeNames.add(employeeName);
-                    groupedLocations[key].popupNotes.push(`Start & End: ${new Date(ts.startTime).toLocaleTimeString()} - ${ts.endTime ? new Date(ts.endTime).toLocaleTimeString() : 'Ongoing'} (${employeeName})`);
-                    groupedLocations[key].timestamps.push(ts.startTime || ts.date);
-                } else {
-                    // Separate Start Location
-                    if (hasStart) {
-                        const lat = ts.startLocation.coordinates[1];
-                        const lng = ts.startLocation.coordinates[0];
-                        const precision = 5; 
-                        const roundedLat = parseFloat(lat.toFixed(precision));
-                        const roundedLng = parseFloat(lng.toFixed(precision));
-                        const key = `${roundedLat}_${roundedLng}_start`;
-
-                        if (!groupedLocations[key]) {
-                            groupedLocations[key] = {
-                                lat: roundedLat,
-                                lng: roundedLng,
-                                type: 'Start Location',
-                                employeeNames: new Set(), popupNotes: [], timestamps: [],
-                                address: ts.startLocation.address || 'N/A',
-                            };
-                        }
-                        groupedLocations[key].employeeNames.add(employeeName);
-                        groupedLocations[key].popupNotes.push(`Start: ${new Date(ts.startTime).toLocaleTimeString()} (${employeeName})`);
-                        groupedLocations[key].timestamps.push(ts.startTime || ts.date);
-                    }
-                    // Separate End Location
-                    if (hasEnd) {
-                        const lat = ts.endLocation.coordinates[1];
-                        const lng = ts.endLocation.coordinates[0];
-                        const precision = 5;
-                        const roundedLat = parseFloat(lat.toFixed(precision));
-                        const roundedLng = parseFloat(lng.toFixed(precision));
-                        const key = `${roundedLat}_${roundedLng}_end`;
-
-                        if (!groupedLocations[key]) {
-                            groupedLocations[key] = {
-                                lat: roundedLat,
-                                lng: roundedLng,
-                                type: 'End Location',
-                                employeeNames: new Set(), popupNotes: [], timestamps: [],
-                                address: ts.endLocation.address || 'N/A',
-                            };
-                        }
-                        groupedLocations[key].employeeNames.add(employeeName);
-                        groupedLocations[key].popupNotes.push(`End: ${ts.endTime ? new Date(ts.endTime).toLocaleTimeString() : 'N/A'} (${employeeName})`);
-                        groupedLocations[key].timestamps.push(ts.endTime || ts.date);
-                    }
+                if (hasEnd) {
+                    const lat = ts.endLocation.coordinates[1];
+                    const lng = ts.endLocation.coordinates[0];
+                    const endTimeFormatted = ts.endTime ? DateTime.fromISO(ts.endTime).setZone('local').toLocaleString(DateTime.DATETIME_SHORT) : 'Ongoing';
+                    individualLocationEvents.push({
+                        id: `${ts._id}_end`, // Unique ID for the marker event
+                        lat: lat,
+                        lng: lng,
+                        type: 'End Location',
+                        employeeName: employeeName,
+                        popupNote: `End: ${endTimeFormatted} (${employeeName})`,
+                        timestamp: ts.endTime || ts.date, // Use endTime for sorting end markers
+                        address: ts.endLocation.address || 'N/A',
+                    });
                 }
                 if (!hasStart && !hasEnd) {
                     console.log(`[Map.js] Timesheet ${ts._id} for ${employeeName} has no start or end location data.`);
                 }
             }
 
-            const newLocationData = Object.entries(groupedLocations).map(([key, data]) => ({
-                id: key,
-                ...data,
-                employeeNames: Array.from(data.employeeNames),
-                timestamp: data.timestamps.length > 0 ? data.timestamps.sort((a,b) => new Date(a) - new Date(b))[0] : new Date().toISOString(),
-            })).sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+            // Sort by timestamp, most recent first, to ensure consistent map centering if needed
+            const newLocationData = individualLocationEvents.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
 
-            console.log('[Map.js] Processed newLocationData:', newLocationData);
+            console.log('[Map.js] Processed newLocationData (individual events):', newLocationData);
             setLocationData(newLocationData);
 
             if (newLocationData.length > 0) {
-                const lastLocation = newLocationData[0];
-                setMapCenter({ lat: lastLocation.lat, lng: lastLocation.lng });
-                dispatch(setAlert(`Showing ${newLocationData.length} location point(s) for selected period.`, 'info'));
+                // Center map on the most recent event's location
+                const latestEvent = newLocationData[0]; // Array is sorted, latest is first
+                setMapCenter({ lat: latestEvent.lat, lng: latestEvent.lng });
+                dispatch(setAlert(`Showing ${newLocationData.length} location event(s) for selected period.`, 'info'));
             } else {
                 dispatch(setAlert(`No location data found for selected criteria.`, 'warning'));
             }
@@ -560,57 +506,51 @@ const Map = () => {
           attribution='&copy; <a href="https://openstreetmap.org/copyright">OpenStreetMap</a> contributors'
           url='https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'
         />
-        <MarkerClusterGroup>
-          {locationData
-            .map((loc) => {
-              let iconToUse = null;
-              let shouldRender = false;
-              let displayType = loc.type; // For popup
-
-              if (loc.type === "Combined Location") {
-                if (showStartLocation && showEndLocation) {
-                  iconToUse = greenIcon;
-                  shouldRender = true;
-                } else if (showStartLocation) {
+        {MarkerClusterGroup ? ( // Check if MarkerClusterGroup is defined (it should be if import worked)
+          <MarkerClusterGroup>
+            {locationData
+              .filter(loc => { // Pre-filter based on checkboxes for clarity
+                if (loc.type === "Start Location" && showStartLocation) return true;
+                if (loc.type === "End Location" && showEndLocation) return true;
+                return false;
+              })
+              .map((loc) => {
+                let iconToUse = null;
+                // Determine icon based on filtered loc.type
+                if (loc.type === "Start Location") {
                   iconToUse = blueIcon;
-                  shouldRender = true;
-                  displayType = "Start Location"; // Override for display
-                } else if (showEndLocation) {
+                } else if (loc.type === "End Location") {
                   iconToUse = redIcon;
-                  shouldRender = true;
-                  displayType = "End Location"; // Override for display
                 }
-              } else if (loc.type === "Start Location" && showStartLocation) {
-                iconToUse = blueIcon;
-                shouldRender = true;
-              } else if (loc.type === "End Location" && showEndLocation) {
-                iconToUse = redIcon;
-                shouldRender = true;
-              }
 
-              if (!shouldRender || !iconToUse) return null;
+                // This should not happen if filter works, but as a safeguard:
+                if (!iconToUse) return null; 
 
-              return (
-                <Marker
-                  key={loc.id + (loc.type === "Combined Location" ? (showStartLocation ? '_as_start' : '_as_end') : '')} // Make key unique if type changes
-                  position={[loc.lat, loc.lng]}
-                  icon={iconToUse}
-                >
-                  <Popup>
-                    <strong>{loc.employeeNames.join(", ")}</strong> <br />
-                    {displayType}{" "}
-                    {loc.address && loc.address !== "N/A"
-                      ? `at ${loc.address}`
-                      : ""}
-                    {loc.popupNotes.length > 0 && <hr style={{ margin: "5px 0" }} />}
-                    {loc.popupNotes.map((note, index) => (
-                      <div key={index} style={{ fontSize: "0.9em", marginBottom: "3px" }} > {note} </div>
-                    ))}
-                  </Popup>
-                </Marker>
-              );
-            })}
-        </MarkerClusterGroup>
+                return (
+                  <Marker
+                    key={loc.id} // loc.id is now unique: e.g., timesheetId_start or timesheetId_end
+                    position={[loc.lat, loc.lng]}
+                    icon={iconToUse}
+                  >
+                    <Popup>
+                      <strong>{loc.employeeName}</strong> <br />
+                      {loc.type}{" "}
+                      {loc.address && loc.address !== "N/A"
+                        ? `at ${loc.address}`
+                        : ""}
+                      <hr style={{ margin: "5px 0" }} />
+                      {/* loc.popupNote already contains the formatted "Start: ..." or "End: ..." string */}
+                      <div style={{ fontSize: "0.9em", marginBottom: "3px" }} > 
+                        {loc.popupNote} 
+                      </div>
+                    </Popup>
+                  </Marker>
+                );
+              })}
+          </MarkerClusterGroup>
+        ) : (
+          <p>Map clustering is unavailable. Please check console for errors.</p>
+        )}
 
         <ChangeMapCenter center={mapCenter} />
       </MapContainer>

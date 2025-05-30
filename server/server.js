@@ -1,6 +1,8 @@
 // /home/digilab/timesheet/server/server.js
 import express from "express";
 import cors from "cors";
+import https from 'https'; // Import HTTPS module
+import fs from 'fs'; // Import File System module
 import mongoose from "mongoose";
 import helmet from "helmet";
 import cookieParser from "cookie-parser";
@@ -107,5 +109,20 @@ startNotificationScheduler();
 app.use(errorHandler);
 
 // Start Server
+const HOST = process.env.HOST || '192.168.1.47'; // Match your client .env or use 0.0.0.0
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`Server successfully started on port ${PORT}`));
+
+// SSL/TLS Certificate Options
+// Assuming certs are in the parent directory of 'server' (i.e., in 'timesheet/')
+const sslOptions = {
+  key: fs.readFileSync(path.join(__dirname, '..', '192.168.1.47+3-key.pem')),
+  cert: fs.readFileSync(path.join(__dirname, '..', '192.168.1.47+3.pem'))
+};
+
+// Create HTTPS server
+https.createServer(sslOptions, app).listen(PORT, HOST, () => {
+  console.log(`HTTPS Server successfully started on https://${HOST}:${PORT}`);
+});
+
+// Fallback for HTTP if needed (usually not for local dev with HTTPS)
+// app.listen(PORT, HOST, () => console.log(`HTTP Server successfully started on http://${HOST}:${PORT}`));

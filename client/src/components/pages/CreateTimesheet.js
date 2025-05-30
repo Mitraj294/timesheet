@@ -60,6 +60,8 @@ const DEFAULT_FORM_DATA = {
   timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
 };
 
+const DEFAULT_LUNCH_DURATION = '30:00';
+
 const CreateTimesheet = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -200,9 +202,6 @@ const CreateTimesheet = () => {
     } else if (!isLeaveSelected) {
       dispatch(clearProjects());
       setFilteredProjects([]);
-    }
-    if (formData.clientId !== (clientIdFromUrl || preselectedClientId)) {
-        setFormData(prev => ({ ...prev, projectId: '' }));
     }
   }, [formData.clientId, isLeaveSelected, dispatch, clientIdFromUrl, preselectedClientId]);
 
@@ -471,7 +470,7 @@ const CreateTimesheet = () => {
         startTime: startTimeUTC,
         endTime: endTimeUTC,
         lunchBreak: !currentIsLeaveSelected ? finalFormData.lunchBreak : 'No',
-        lunchDuration: !currentIsLeaveSelected && finalFormData.lunchBreak === 'Yes' ? finalFormData.lunchDuration : '00:30',
+        lunchDuration: !currentIsLeaveSelected && finalFormData.lunchBreak === 'Yes' ? finalFormData.lunchDuration : DEFAULT_LUNCH_DURATION,
         leaveType: finalFormData.leaveType,
         description: currentIsLeaveSelected ? finalFormData.description : "",
         notes: !currentIsLeaveSelected ? finalFormData.notes : "",
