@@ -171,8 +171,8 @@ export const requestAccountDeletionLink = createAsyncThunk(
         return rejectWithValue('Authentication required to request account deletion.');
     }
     try {
-      // apiClient in authApi will use the default Authorization header
-      const response = await axios.post('/auth/request-deletion-link', {}); // Assuming authApi will be updated for this
+      // Use the centralized API call
+      const response = await authApi.requestAccountDeletionLink();
       dispatch(setAlert(response.data.message || 'Account deletion link sent. Please check your email.', 'success', 10000));
       return response.data;
     } catch (error) {
@@ -188,7 +188,8 @@ export const confirmAccountDeletion = createAsyncThunk(
   'auth/confirmAccountDeletion',
   async ({ token, password }, { dispatch, rejectWithValue }) => {
     try {
-      const response = await axios.post(`/auth/confirm-delete-account/${token}`, { password }); // Assuming authApi will be updated
+      // Use the centralized API call
+      const response = await authApi.confirmAccountDeletion({ token, password });
       return response.data;
     } catch (error) {
       const message = getErrorMessage(error);
@@ -203,7 +204,8 @@ export const requestCompanyInvitation = createAsyncThunk(
   'auth/requestCompanyInvitation',
   async (invitationData, { dispatch, rejectWithValue }) => {
     try {
-      const response = await axios.post(`/auth/request-invitation`, invitationData); // Assuming authApi will be updated
+      // Use the centralized API call
+      const response = await authApi.requestCompanyInvitation(invitationData);
       dispatch(setAlert(response.data.message || 'Invitation request submitted successfully.', 'success', 7000));
       return response.data;
     } catch (error) {
@@ -223,8 +225,8 @@ export const checkUserByEmailForEmployer = createAsyncThunk(
       return rejectWithValue('Authentication required to check user.');
     }
     try {
-      // apiClient in authApi will use the default Authorization header
-      const response = await axios.post(`/auth/check-user`, emailData); // Assuming authApi will be updated
+      // Use the centralized API call
+      const response = await authApi.checkUserByEmailForEmployer(emailData);
       // Normalize user data if present in the response
       return response.data.user ? { ...response.data, user: normalizeUserData(response.data.user) } : response.data;
     } catch (error) {

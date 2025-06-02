@@ -94,9 +94,48 @@ export const checkProspectiveEmployee = async (emailData) => {
   }
 };
 
-// Add other API functions as needed, following the pattern above:
-// - requestAccountDeletionLink
-// - confirmAccountDeletion
-// - requestCompanyInvitation
-// - checkUserByEmailForEmployer
-// For brevity, I'll stop here, but you should add them all.
+export const requestAccountDeletionLink = async () => {
+  try {
+    // apiClient will use the default Authorization header if set
+    const response = await apiClient.post('/auth/request-deletion-link', {});
+    return response.data;
+  } catch (error) {
+    console.error("Request Account Deletion Link API error:", error.response ? error.response.data : error.message, error);
+    throw error;
+  }
+};
+
+export const confirmAccountDeletion = async ({ token, password }) => {
+  try {
+    const response = await apiClient.post(`/auth/confirm-delete-account/${token}`, { password });
+    return response.data;
+  } catch (error) {
+    console.error("Confirm Account Deletion API error:", error.response ? error.response.data : error.message, error);
+    throw error;
+  }
+};
+
+export const requestCompanyInvitation = async (invitationData) => {
+  try {
+    const response = await apiClient.post('/auth/request-invitation', invitationData);
+    return response.data;
+  } catch (error) {
+    console.error("Request Company Invitation API error:", error.response ? error.response.data : error.message, error);
+    throw error;
+  }
+};
+
+export const checkUserByEmailForEmployer = async (emailData) => {
+  try {
+    // apiClient will use the default Authorization header if set
+    const response = await apiClient.post('/auth/check-user', emailData);
+    return response.data;
+  } catch (error) {
+    console.error("Check User By Email API error:", error.response ? error.response.data : error.message, error);
+    throw error;
+  }
+};
+
+// You might have other API functions to add here if they are called directly
+// via axios in other slices. The principle is to centralize them in an API module
+// like this one or dedicated ones (e.g., userAPI.js, projectAPI.js etc.)
