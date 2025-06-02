@@ -139,3 +139,5 @@ export const checkUserByEmailForEmployer = async (emailData) => {
 // You might have other API functions to add here if they are called directly
 // via axios in other slices. The principle is to centralize them in an API module
 // like this one or dedicated ones (e.g., userAPI.js, projectAPI.js etc.)
+
+export default apiClient;
