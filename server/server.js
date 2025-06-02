@@ -38,8 +38,8 @@ const app = express();
 // Define allowed origins for CORS
 const allowedOrigins = [
   'https://timesheet00.netlify.app', // Your main Netlify production site
-  'https://683d519c600b1300080c9d9c--timesheet00.netlify.app', // Specific deploy preview from logs
-  // Add other Netlify deploy preview wildcard if needed, e.g., /^https:\/\/.*--timesheet00\.netlify\.app$/
+  // Regex to match all Netlify deploy previews for "timesheet00"
+  /^https:\/\/[a-zA-Z0-9-]+--timesheet00\.netlify\.app$/,
   'https://192.168.1.47:3000', // Your local client (from client/.env)
   'http://localhost:3000' // Common local client
 ];
