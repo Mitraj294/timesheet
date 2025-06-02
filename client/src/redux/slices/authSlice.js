@@ -2,8 +2,13 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import { setAlert } from './alertSlice'; // Import setAlert
 import axios from 'axios';
-// Import API methods from authAPI.js
-import * as authApi from '../../api/authAPI';
+
+const API_URL = process.env.REACT_APP_API_URL || 'https://timesheet-slpc.onrender.com/api';
+
+// Helper to get authorization headers (less needed now with default headers)
+const getAuthHeaders = (token) => ({
+  headers: { Authorization: `Bearer ${token}` },
+});
 
 // Helper to extract a user-friendly error message
 const getErrorMessage = (error) => {
@@ -23,11 +28,11 @@ export const login = createAsyncThunk(
   'auth/login',
   async (credentials, { rejectWithValue }) => {
     try {
-      const response = await authApi.login(credentials);
-      localStorage.setItem('token', response.token);
+      const response = await axios.post(`${API_URL}/auth/login`, credentials);
+      localStorage.setItem('token', response.data.token);
       // Set Axios default header immediately after successful login
-      axios.defaults.headers.common['Authorization'] = `Bearer ${response.token}`;
-      return { ...response, user: normalizeUserData(response.user) }; // Normalize user data
+      axios.defaults.headers.common['Authorization'] = `Bearer ${response.data.token}`;
+      return { ...response.data, user: normalizeUserData(response.data.user) }; // Normalize user data
     } catch (error) {
       const message = getErrorMessage(error);
       return rejectWithValue(message);
@@ -40,14 +45,14 @@ export const register = createAsyncThunk(
   'auth/register',
   async (userData, { rejectWithValue }) => {
     try {
-      const response = await authApi.register(userData);
-      if (response.token) {
-         localStorage.setItem('token', response.token);
+      const response = await axios.post(`${API_URL}/auth/register`, userData);
+      if (response.data.token) {
+         localStorage.setItem('token', response.data.token);
          // Set Axios default header if registration also logs in
-         axios.defaults.headers.common['Authorization'] = `Bearer ${response.token}`;
+         axios.defaults.headers.common['Authorization'] = `Bearer ${response.data.token}`;
       }
       // Normalize user data if present in the response (e.g., if registration also logs in)
-      return response.user ? { ...response, user: normalizeUserData(response.user) } : response;
+      return response.data.user ? { ...response.data, user: normalizeUserData(response.data.user) } : response.data;
     } catch (error) {
       const message = getErrorMessage(error);
       return rejectWithValue(message);
@@ -64,8 +69,8 @@ export const changePassword = createAsyncThunk(
             return rejectWithValue('Authentication required.');
         }
         try {
-            // apiClient in authApi will use the default Authorization header
-            const response = await authApi.changePassword(passwordData);
+            // Use default header, no need for getAuthHeaders here if default is set
+            const response = await axios.put(`${API_URL}/auth/change-password`, passwordData, getAuthHeaders(token));
             return response.data;
         } catch (error) {
             const message = getErrorMessage(error);
@@ -88,7 +93,7 @@ export const loadUserFromToken = createAsyncThunk(
         axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
         dispatch(authSlice.actions.setAuthLoading());
         try {
-            const response = await authApi.loadUser(); // Uses default header via apiClient
+            const response = await axios.get(`${API_URL}/auth/me`); // Uses default header now
             const normalizedUser = normalizeUserData(response.data); // Normalize user data
             dispatch(authSlice.actions.setAuth({ user: normalizedUser, token }));
             return normalizedUser;
@@ -110,8 +115,8 @@ export const updateUserProfile = createAsyncThunk(
         return rejectWithValue('Authentication required.');
     }
     try {
-      // apiClient in authApi will use the default Authorization header
-      const response = await authApi.updateUserProfile(userData);
+      // Use default header
+      const response = await axios.put(`${API_URL}/users/profile`, userData, getAuthHeaders(token));
       return normalizeUserData(response.data); // Normalize updated user data
     } catch (err) {
       const message = getErrorMessage(err);
@@ -125,7 +130,7 @@ export const forgotPassword = createAsyncThunk(
   'auth/forgotPassword',
   async (emailData, { rejectWithValue }) => {
     try {
-      const response = await authApi.forgotPassword(emailData);
+      const response = await axios.post(`${API_URL}/auth/forgot-password`, emailData);
       return response.data;
     } catch (err) {
       const message = getErrorMessage(err);
@@ -139,7 +144,7 @@ export const resetPassword = createAsyncThunk(
   'auth/resetPassword',
   async ({ token, newPassword }, { rejectWithValue }) => {
     try {
-      const response = await authApi.resetPassword({ token, newPassword });
+      const response = await axios.put(`${API_URL}/auth/reset-password/${token}`, { newPassword });
       return response.data;
     } catch (err) {
       const message = getErrorMessage(err);
@@ -153,7 +158,7 @@ export const checkProspectiveEmployee = createAsyncThunk(
   'auth/checkProspectiveEmployee',
   async (emailData, { rejectWithValue }) => {
     try {
-      const response = await authApi.checkProspectiveEmployee(emailData);
+      const response = await axios.post(`${API_URL}/auth/check-prospective-employee`, emailData);
       return response.data;
     } catch (error) {
       const errorData = error.response?.data || { message: 'Failed to check email status.' };
@@ -171,8 +176,8 @@ export const requestAccountDeletionLink = createAsyncThunk(
         return rejectWithValue('Authentication required to request account deletion.');
     }
     try {
-      // Use the centralized API call
-      const response = await authApi.requestAccountDeletionLink();
+      // Use default header
+      const response = await axios.post(`${API_URL}/auth/request-deletion-link`, {}, getAuthHeaders(token));
       dispatch(setAlert(response.data.message || 'Account deletion link sent. Please check your email.', 'success', 10000));
       return response.data;
     } catch (error) {
@@ -188,8 +193,7 @@ export const confirmAccountDeletion = createAsyncThunk(
   'auth/confirmAccountDeletion',
   async ({ token, password }, { dispatch, rejectWithValue }) => {
     try {
-      // Use the centralized API call
-      const response = await authApi.confirmAccountDeletion({ token, password });
+      const response = await axios.post(`${API_URL}/auth/confirm-delete-account/${token}`, { password });
       return response.data;
     } catch (error) {
       const message = getErrorMessage(error);
@@ -204,8 +208,7 @@ export const requestCompanyInvitation = createAsyncThunk(
   'auth/requestCompanyInvitation',
   async (invitationData, { dispatch, rejectWithValue }) => {
     try {
-      // Use the centralized API call
-      const response = await authApi.requestCompanyInvitation(invitationData);
+      const response = await axios.post(`${API_URL}/auth/request-invitation`, invitationData);
       dispatch(setAlert(response.data.message || 'Invitation request submitted successfully.', 'success', 7000));
       return response.data;
     } catch (error) {
@@ -225,8 +228,8 @@ export const checkUserByEmailForEmployer = createAsyncThunk(
       return rejectWithValue('Authentication required to check user.');
     }
     try {
-      // Use the centralized API call
-      const response = await authApi.checkUserByEmailForEmployer(emailData);
+      // Use default header
+      const response = await axios.post(`${API_URL}/auth/check-user`, emailData, getAuthHeaders(token));
       // Normalize user data if present in the response
       return response.data.user ? { ...response.data, user: normalizeUserData(response.data.user) } : response.data;
     } catch (error) {

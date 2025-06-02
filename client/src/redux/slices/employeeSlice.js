@@ -1,8 +1,21 @@
 // /home/digilab/timesheet/client/src/redux/slices/employeeSlice.js
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import { setAlert } from './alertSlice'; // For dispatching success/error notifications
-import apiClient from '../../api/authAPI'; // Import the configured apiClient
+import axios from 'axios';
+const API_URL = process.env.REACT_APP_API_URL || 'https://timesheet-slpc.onrender.com/api';
 
+// Helper to get auth headers.
+// Might move this to a shared utility later if used in many places.
+const getAuthHeaders = (token) => {
+  return token
+    ? {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json', // Ensuring content type is set for POST/PUT
+        },
+      }
+    : {};
+};
 
 // Helper function to extract error messages
 const getErrorMessage = (error) => {
@@ -23,9 +36,8 @@ export const fetchEmployees = createAsyncThunk(
 
         // Token exists, so we can proceed with the API call.
         console.log("fetchEmployees: Token found, making API call."); // Added log
-        // apiClient will use the baseURL and default Authorization header
-        const response = await apiClient.get('/employees');
-        return response.data || [];
+        const response = await axios.get(`${API_URL}/employees`, getAuthHeaders(token));
+        return response.data || []; // Return the employee data, or an empty array if none.
 
       } catch (error) {
         console.error("Error fetching employees:", error);
@@ -48,8 +60,7 @@ export const addEmployee = createAsyncThunk(
       if (user?.role !== 'employer') {
         return rejectWithValue('Access Denied: Only employers can add employees.');
       }
-      // apiClient will use the baseURL and default Authorization header
-      const response = await apiClient.post('/employees', employeeData);
+      const response = await axios.post(`${API_URL}/employees`, employeeData, getAuthHeaders(token));
       return response.data;
     } catch (error) {
       console.error("Error adding employee:", error);
@@ -71,8 +82,7 @@ export const updateEmployee = createAsyncThunk(
       if (user?.role !== 'employer') {
         return rejectWithValue('Access Denied: Only employers can update employees.');
       }
-      // apiClient will use the baseURL and default Authorization header
-      const response = await apiClient.put(`/employees/${id}`, employeeData);
+      const response = await axios.put(`${API_URL}/employees/${id}`, employeeData, getAuthHeaders(token));
       return response.data;
     } catch (error) {
       console.error("Error updating employee:", error);
@@ -94,8 +104,7 @@ export const deleteEmployee = createAsyncThunk(
       if (user?.role !== 'employer') {
         return rejectWithValue('Access Denied: Only employers can delete employees.');
       }
-      // apiClient will use the baseURL and default Authorization header
-      await apiClient.delete(`/employees/${employeeId}`);
+      await axios.delete(`${API_URL}/employees/${employeeId}`, getAuthHeaders(token));
       return employeeId; // Return the ID for the reducer to remove it from the state.
     } catch (error) {
       console.error("Error deleting employee:", error);
@@ -118,9 +127,11 @@ export const updateEmployeesNotificationPreferences = createAsyncThunk(
 
       // The component sends { employeeId: empId, receivesNotifications: boolean }
       // The API might expect a slightly different structure, e.g., { preferences: [...] }
-      // apiClient will use the baseURL and default Authorization header
-      const response = await apiClient.patch(
-        '/employees/batch-update-notifications', { preferences: employeePreferences }
+      // Assuming the API endpoint /api/employees/batch-update-notifications expects { preferences: employeePreferencesArray }
+      const response = await axios.patch(
+        `${API_URL}/employees/batch-update-notifications`,
+        { preferences: employeePreferences }, // Ensure payload matches backend expectation
+        getAuthHeaders(token)
       );
 
       dispatch(setAlert('Employee notification preferences updated successfully!', 'success'));

@@ -414,13 +414,6 @@ const TabletView = () => {
     const todayDate = new Date().toISOString().split('T')[0];
     const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
-    let locationData = null;
-    try {
-      locationData = await getCurrentLocation();
-    } catch (geoError) {
-      console.warn("Failed to get location for employee action:", geoError.message);
-      dispatch(setAlert(`Could not get location: ${geoError.message}. Proceeding without it.`, 'warning'));
-    }
     if (recordingType === 'Manually Record') {
       // Check activeManualEntries for *today's* incomplete entry (populated by initial check or by handleEmployeeActionTrigger)
       const todayIncompleteManualEntry = activeManualEntries[employeeId];
@@ -484,7 +477,14 @@ const TabletView = () => {
             return;
           }
         }
-        // Location already captured as locationData above
+        if (!employee._id) {
+            dispatch(setAlert("Cannot sign in: Employee data is incomplete.", "danger"));
+            setIsSubmittingLogTime(false);
+            setSelectedEmployeeForAction(null);
+            return;
+        }
+
+        // Attempt to get current location for startLocation
         try {
             startLocation = await getCurrentLocation();
         } catch (geoError) {
@@ -507,7 +507,7 @@ const TabletView = () => {
           clientId: null,
           projectId: null,
           hourlyWage: employee?.wage || 0,
-          startLocation: locationData, // Use captured locationData
+          startLocation: startLocation, // Include start location
         };
         const createdTimesheetAction = await dispatch(createTimesheet(timesheetPayload)).unwrap();
         if (createdTimesheetAction && createdTimesheetAction.data) {
@@ -537,7 +537,7 @@ const TabletView = () => {
     const timesheetIdToUpdate = activeClockIns[employeeId].id;
     const originalTimesheetDate = activeClockIns[employeeId].date;
     const currentEmployee = selectedEmployeeForAction || employees.find(emp => (emp._id || emp.id) === employeeId);
-    let locationData = null; // Changed from endLocation to generic locationData
+    let endLocation = null;
     setIsSubmittingLogTime(true);
     try {
         const now = new Date();
@@ -545,17 +545,17 @@ const TabletView = () => {
         const currentTimeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
 
         // Attempt to get current location for endLocation
-         try {
-            locationData = await getCurrentLocation();
+        try {
+            endLocation = await getCurrentLocation();
         } catch (geoError) {
             console.warn("Failed to get end location:", geoError.message);
-            dispatch(setAlert(`Could not get location: ${geoError.message}. Proceeding without it.`, 'warning'));
         }
+
         const updatePayload = {
             endTime: localTimeToUtcISO(currentTimeStr, originalTimesheetDate, userTimezone),
             notes: (currentEmployee?.tabletViewSignOutNotes || "") + " Clocked out via Tablet View",
             isActiveStatus: 'Inactive', // Set status to Inactive on sign out
-            endLocation: locationData, // Use captured locationData
+            endLocation: endLocation, // Include end location
         };
         await dispatch(updateTimesheet({ id: timesheetIdToUpdate, timesheetData: updatePayload })).unwrap();
         setActiveClockIns(prev => {
@@ -676,12 +676,7 @@ const TabletView = () => {
     }
 
     setIsSubmittingLogTime(true);
-    let capturedLocation = null;
-    try {
-      capturedLocation = await getCurrentLocation();
-    } catch (geoError) {
-      console.warn("Failed to get location for manual log time:", geoError.message);
-    }
+    let locationData = null; // For manual entries, location might not be captured automatically
     try {
       const basePayload = {
         employeeId: employeeId,
@@ -693,6 +688,7 @@ const TabletView = () => {
         clientId: null, projectId: null,
         hourlyWage: selectedEmployeeForAction?.wage || 0,
         isActiveStatus: 'Active', // Default to Active when starting a manual entry
+        // startLocation and endLocation will be added below if available/needed
       };
 
       let timesheetPayload;
@@ -713,8 +709,8 @@ const TabletView = () => {
           lunchBreak: 'No',
           lunchDuration: '00:00',
           totalHours: 0,
-          isActiveStatus: 'Active',
-          startLocation: capturedLocation, 
+          isActiveStatus: 'Active', // Ensure status is Active for start-only entry
+          startLocation: locationData, // Include location if captured (optional for manual)
           notes: logTimeData.notes || 'Manually started entry.',
         };
         const createdAction = await dispatch(createTimesheet(timesheetPayload)).unwrap();
@@ -739,8 +735,8 @@ const TabletView = () => {
           lunchBreak: logTimeData.lunchBreak,
           lunchDuration: actualLunchDuration,
           totalHours: parseFloat(logTimeCalculatedHours) || 0,
-          endLocation: capturedLocation, 
-          isActiveStatus: 'Inactive', 
+          endLocation: locationData, // Include location if captured (optional for manual)
+          isActiveStatus: 'Inactive', // Set status to Inactive when completing
           notes: logTimeData.notes,
         };
 
@@ -753,10 +749,6 @@ const TabletView = () => {
           });
           dispatch(setAlert(`Timesheet completed for ${selectedEmployeeForAction.name}.`, 'success', 3000));
         } else {
-          // This is a new, complete manual entry
-          // It needs both start and end location if possible.
-          // For simplicity, we're using the same `capturedLocation` for both if it's a new full entry.
-          timesheetPayload.startLocation = capturedLocation; // Add start location for new complete entry
           dispatch(clearCheckStatus());
           const checkAction = await dispatch(checkTimesheetExists({ employee: employeeId, date: entryDate })).unwrap();
           if (checkAction.exists && checkAction.timesheet) {
