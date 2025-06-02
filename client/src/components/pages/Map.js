@@ -57,11 +57,6 @@ const redIcon = new L.DivIcon({
   popupAnchor: [1, -34]
 });
 
-// The blueIcon definition can be removed if it's not used elsewhere,
-// or kept if it might be. For this change, we'll comment it out.
-// const blueIcon = new L.Icon.Default(); // Or your previous L.Icon definition
-
-const API_URL = process.env.REACT_APP_API_URL || 'https://timesheet-slpc.onrender.com/api';
 
 // Custom function to create cluster icons
 const createClusterCustomIcon = function (cluster) {
@@ -267,8 +262,8 @@ const Map = () => {
 
         try {
             const token = localStorage.getItem('token');
-            const response = await fetch(
-                `${API_URL}/timesheets?${queryParams.toString()}`,
+            const response = await fetch( // Use relative path for proxy
+                `/api/timesheets?${queryParams.toString()}`,
                 {
                     headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
                 }

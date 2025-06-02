@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "install-all": "npm install --prefix server && npm install --prefix client",
-    "client": "cross-env NODE_TLS_REJECT_UNAUTHORIZED=0 npm start --prefix client",
+    "client": "cross-env NODE_TLS_REJECT_UNAUTHORIZED=0 HTTPS=true SSL_CRT_FILE=../192.168.1.47+3.pem SSL_KEY_FILE=../192.168.1.47+3-key.pem npm start --prefix client",
     "server": "nodemon server",
     "start": "node server/server.js",
     "dev": "concurrently \"npm run server\" \"npm run client\""
