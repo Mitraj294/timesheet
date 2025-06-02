@@ -35,7 +35,40 @@ import { startNotificationScheduler } from './scheduler/notificationScheduler.js
 const app = express();
 
 // Core Middleware
-app.use(cors());
+// Define allowed origins for CORS
+const allowedOrigins = [
+  'https://timesheet00.netlify.app', // Your main Netlify production site
+  'https://683d519c600b1300080c9d9c--timesheet00.netlify.app', // Specific deploy preview from logs
+  // Add other Netlify deploy preview wildcard if needed, e.g., /^https:\/\/.*--timesheet00\.netlify\.app$/
+  'https://192.168.1.47:3000', // Your local client (from client/.env)
+  'http://localhost:3000' // Common local client
+];
+
+const corsOptions = {
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like Postman, curl, or server-to-server)
+    // or if the origin is in the whitelist
+    if (!origin || allowedOrigins.some(allowedOrigin => {
+      if (allowedOrigin instanceof RegExp) {
+        return allowedOrigin.test(origin);
+      }
+      return allowedOrigin === origin;
+    })) {
+      callback(null, true);
+    } else {
+      console.error('CORS Error: Origin not allowed:', origin);
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
+  allowedHeaders: 'Content-Type,Authorization',
+  credentials: true, // Important if your frontend sends/receives cookies or uses Authorization headers
+  optionsSuccessStatus: 204
+};
+
+app.use(cors(corsOptions));
+app.options('*', cors(corsOptions)); // Handle preflight requests for all routes
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(helmet());
@@ -112,14 +145,26 @@ app.use(errorHandler);
 const HOST = process.env.HOST || '0.0.0.0'; // Listen on all available interfaces
 const PORT = process.env.PORT || 5000;
 
-// SSL/TLS Certificate Options
-// Assuming certs are in the parent directory of 'server' (i.e., in 'timesheet/')
-const sslOptions = {
-  key: fs.readFileSync(path.join(__dirname, '..', '192.168.1.47+3-key.pem')),
-  cert: fs.readFileSync(path.join(__dirname, '..', '192.168.1.47+3.pem'))
-};
-
-// Start HTTPS server
-https.createServer(sslOptions, app).listen(PORT, HOST, () => {
-  console.log(`HTTPS Server successfully started on https://${HOST}:${PORT}`);
-});
+if (process.env.NODE_ENV === 'production') {
+  // In production (like on Render), listen on HTTP. Render handles SSL.
+  app.listen(PORT, HOST, () => {
+    console.log(`HTTP Server successfully started in production on http://${HOST}:${PORT}`);
+  });
+} else {
+  // In development, use HTTPS with local certificates
+  try {
+    const sslOptions = {
+      key: fs.readFileSync(path.join(__dirname, '..', '192.168.1.47+3-key.pem')), // Adjust path if certs are elsewhere
+      cert: fs.readFileSync(path.join(__dirname, '..', '192.168.1.47+3.pem')) // Adjust path if certs are elsewhere
+    };
+    https.createServer(sslOptions, app).listen(PORT, HOST, () => {
+      console.log(`HTTPS Server successfully started in development on https://${HOST}:${PORT}`);
+    });
+  } catch (e) {
+    console.error("Failed to start HTTPS server in development. Ensure SSL certificates are correctly placed or consider running HTTP locally.", e);
+    console.log("Falling back to HTTP for local development...");
+    app.listen(PORT, HOST, () => {
+      console.log(`HTTP Server successfully started in development (fallback) on http://${HOST}:${PORT}`);
+    });
+  }
+}
