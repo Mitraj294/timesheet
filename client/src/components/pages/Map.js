@@ -352,30 +352,51 @@ const Map = () => {
     fetchLocationData();
   }, [selectedEmployeeId, currentDate, viewType, employees, dispatch, getQueryDateRange]);
 
-  // Handlers
-  const handleLocateMe = useCallback(() => {
-    if (navigator.geolocation) {
-      setIsLocating(true);
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          const { latitude, longitude } = position.coords;
-          setMapCenter({ lat: latitude, lng: longitude });
-          setIsLocating(false);
-          dispatch(setAlert('Location found!', 'success'));
-          console.log("Geolocation successful:", { latitude, longitude });
-        },
-        (error) => {
-          console.error('Error fetching user location:', error);
-          dispatch(setAlert(`Error getting location: ${error.message}`, 'danger'));
-          setIsLocating(false);
-        },
-        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
-      );
-    } else {
-      console.error('Geolocation not supported by this browser.');
-      dispatch(setAlert('Geolocation is not supported by your browser.', 'warning'));
+  // Function to fetch location based on IP address
+  const fetchIPLocation = useCallback(async () => {
+    try {
+      // Switched to geojs.io as an alternative to ip-api.com
+      // geojs.io provides latitude and longitude as strings.
+      const response = await fetch('https://get.geojs.io/v1/ip/geo.json');
+      if (!response.ok) {
+        throw new Error(`IP Geolocation API request failed with status ${response.status}`);
+      }
+      const data = await response.json();
+      // geojs.io returns latitude and longitude as strings, ensure they exist and parse them
+      if (data.latitude && data.longitude) {
+        const lat = parseFloat(data.latitude);
+        const lon = parseFloat(data.longitude);
+        if (!isNaN(lat) && !isNaN(lon)) {
+          return { latitude: lat, longitude: lon };
+        } else {
+          throw new Error('Invalid latitude/longitude format from IP Geolocation API.');
+        }
+      } else {
+        throw new Error(data.message || 'Could not determine location from IP. API response missing lat/lon.');
+      }
+    } catch (error) {
+      console.error('Error fetching IP-based location:', error);
+      dispatch(setAlert(`Error getting network location: ${error.message}`, 'danger'));
+      return null;
     }
   }, [dispatch]);
+
+  // Handlers
+  const handleLocateMe = useCallback(async () => {
+    setIsLocating(true);
+    const ipLocation = await fetchIPLocation();
+    if (ipLocation) {
+      setMapCenter({ lat: ipLocation.latitude, lng: ipLocation.longitude });
+      dispatch(setAlert('Location based on your network IP found!', 'success'));
+      console.log("IP-based geolocation successful:", { lat: ipLocation.latitude, lng: ipLocation.longitude });
+    } else {
+      // fetchIPLocation already dispatches an error alert if it fails.
+      // You could add a generic fallback alert here if desired, but it might be redundant.
+      // For example: dispatch(setAlert('Could not determine location from network IP.', 'warning'));
+      console.log("IP-based geolocation failed or returned no location.");
+    }
+    setIsLocating(false);
+  }, [dispatch, fetchIPLocation]);
 
   const adjustDate = useCallback((amount, unit) => {
     const newDate = new Date(currentDate);

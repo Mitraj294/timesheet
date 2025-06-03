@@ -142,31 +142,33 @@ const TabletView = () => {
     }
   }, [dispatch, currentUser, employerSettings, employerSettingsStatus]);
 
-  // Helper function to get current geolocation
-  const getCurrentLocation = useCallback(() => {
-    return new Promise((resolve, reject) => {
-      if (!navigator.geolocation) {
-        reject(new Error('Geolocation is not supported by your browser.'));
-        return;
+  // Helper function to get IP-based geolocation
+  const fetchIPLocation = useCallback(async () => {
+    try {
+      // Using geojs.io as an example. It supports HTTPS and is simple.
+      const response = await fetch('https://get.geojs.io/v1/ip/geo.json');
+      if (!response.ok) {
+        throw new Error(`IP Geolocation API request failed with status ${response.status}`);
       }
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          // Geolocation API returns [latitude, longitude]
+      const data = await response.json();
+      if (data.latitude && data.longitude) {
+        const lat = parseFloat(data.latitude);
+        const lon = parseFloat(data.longitude);
+        if (!isNaN(lat) && !isNaN(lon)) {
           // MongoDB GeoJSON Point expects [longitude, latitude]
-          resolve({
-            type: 'Point',
-            coordinates: [position.coords.longitude, position.coords.latitude],
-            // Optionally add address if you perform reverse geocoding
-            // address: '...' 
-          });
-        },
-        (error) => {
-          reject(error);
-        },
-        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
-      );
-    });
-  }, []);
+          return { type: 'Point', coordinates: [lon, lat] };
+        } else {
+          throw new Error('Invalid latitude/longitude format from IP Geolocation API.');
+        }
+      } else {
+        throw new Error('Could not determine location from IP. API response missing lat/lon.');
+      }
+    } catch (error) {
+      console.warn('TabletView: Failed to get IP-based location:', error.message);
+      // Do not dispatch an alert here, let the calling function decide if it's critical
+      return null; // Return null on failure
+    }
+  }, []); // No dependencies needed if not using dispatch here
   // Effect to check initial timesheet statuses (clocked-in or incomplete manual for *today*)
   useEffect(() => {
     if (isTabletViewUnlocked && employees.length > 0 && !initialStatusChecked && employerSettingsStatus === 'succeeded') {
@@ -486,7 +488,7 @@ const TabletView = () => {
 
         // Attempt to get current location for startLocation
         try {
-            startLocation = await getCurrentLocation();
+            startLocation = await fetchIPLocation();
         } catch (geoError) {
             console.warn("Failed to get start location:", geoError.message);
         }
@@ -546,7 +548,7 @@ const TabletView = () => {
 
         // Attempt to get current location for endLocation
         try {
-            endLocation = await getCurrentLocation();
+            endLocation = await fetchIPLocation();
         } catch (geoError) {
             console.warn("Failed to get end location:", geoError.message);
         }
@@ -676,7 +678,6 @@ const TabletView = () => {
     }
 
     setIsSubmittingLogTime(true);
-    let locationData = null; // For manual entries, location might not be captured automatically
     try {
       const basePayload = {
         employeeId: employeeId,
@@ -708,10 +709,16 @@ const TabletView = () => {
           endTime: null,
           lunchBreak: 'No',
           lunchDuration: '00:00',
-          totalHours: 0,
+          totalHours: 0, // totalHours will be 0 for a start-only entry
           isActiveStatus: 'Active', // Ensure status is Active for start-only entry
-          startLocation: locationData, // Include location if captured (optional for manual)
           notes: logTimeData.notes || 'Manually started entry.',
+        };
+        // Add startLocation for new manual entry
+        try {
+            timesheetPayload.startLocation = await fetchIPLocation();
+        } catch (geoError) {
+            console.warn("TabletView: Failed to get start location for manual entry:", geoError.message);
+            // Proceed without location if it fails
         };
         const createdAction = await dispatch(createTimesheet(timesheetPayload)).unwrap();
         if (createdAction && createdAction.data) {
@@ -734,13 +741,25 @@ const TabletView = () => {
           endTime: localTimeToUtcISO(logTimeData.endTime, entryDate, userTimezone),
           lunchBreak: logTimeData.lunchBreak,
           lunchDuration: actualLunchDuration,
-          totalHours: parseFloat(logTimeCalculatedHours) || 0,
-          endLocation: locationData, // Include location if captured (optional for manual)
+          totalHours: parseFloat(logTimeCalculatedHours) || 0, // Ensure totalHours is set
           isActiveStatus: 'Inactive', // Set status to Inactive when completing
           notes: logTimeData.notes,
         };
 
         if (isCompletingTodaysManualEntry && timesheetIdToUpdate) {
+          // Add endLocation when completing an existing manual entry
+          try {
+            timesheetPayload.endLocation = await fetchIPLocation();
+          } catch (geoError) {
+            console.warn("TabletView: Failed to get end location for completing manual entry:", geoError.message);
+          }
+          // If the original entry didn't have a start location (e.g., older data), try to add it now.
+          // This is optional and depends on whether you want to backfill start locations.
+          // For simplicity, we'll only add endLocation here. If startLocation is needed,
+          // you'd fetch the existing timesheet, check for startLocation, and add if missing.
+          // However, the timesheet being updated (activeManualEntries[employeeId])
+          // should already have its startLocation if it was created with one.
+
           await dispatch(updateTimesheet({ id: timesheetIdToUpdate, timesheetData: timesheetPayload })).unwrap();
           setActiveManualEntries(prev => {
             const newState = { ...prev };
@@ -757,6 +776,18 @@ const TabletView = () => {
              setIsSubmittingLogTime(false);
              return;
           }
+          // For a new, complete manual entry, add both start and end locations
+          try {
+            timesheetPayload.startLocation = await fetchIPLocation();
+          } catch (geoError) {
+            console.warn("TabletView: Failed to get start location for new full manual entry:", geoError.message);
+          }
+          try {
+            timesheetPayload.endLocation = await fetchIPLocation();
+          } catch (geoError) {
+            console.warn("TabletView: Failed to get end location for new full manual entry:", geoError.message);
+          }
+
           await dispatch(createTimesheet(timesheetPayload)).unwrap();
           dispatch(setAlert(`Timesheet logged for ${selectedEmployeeForAction.name}.`, 'success', 3000));
         }
