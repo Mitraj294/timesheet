@@ -1,13 +1,13 @@
 import React, { createContext, useContext, useState } from "react";
 
-// Create Context
+// Context for sidebar open/close state
 const SidebarContext = createContext();
 
-// Provider Component
+// Provider to wrap your app and manage sidebar state
 export const SidebarProvider = ({ children }) => {
   const [isOpen, setIsOpen] = useState(false);
 
-  // Toggle Sidebar
+  // Toggle sidebar open/close
   const toggleSidebar = () => setIsOpen((prev) => !prev);
 
   return (
@@ -17,5 +17,5 @@ export const SidebarProvider = ({ children }) => {
   );
 };
 
-// Custom Hook
+// Hook to use sidebar state and toggle function
 export const useSidebar = () => useContext(SidebarContext);

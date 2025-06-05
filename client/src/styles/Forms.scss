@@ -27,7 +27,7 @@ $breakpoint-sm: 576px;
     margin: 0 auto;
     font-family: $font-family;
     background-color: $light-grey;
-    min-height: calc(100vh - 60px); // Assuming a fixed header height
+    min-height: calc(100vh - 60px);
 }
 
 // Header Styles
@@ -105,12 +105,12 @@ $breakpoint-sm: 576px;
     }
 }
 
-// --- Standard Button Styles (Restored) ---
+// Button Styles
 .btn {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    gap: 0.5em; // For spacing between icon and text
+    gap: 0.5em;
     padding: 0.6rem 1.2rem;
     font-size: 0.95rem;
     font-weight: 500;
@@ -121,10 +121,10 @@ $breakpoint-sm: 576px;
     cursor: pointer;
     user-select: none;
     border: 1px solid transparent;
-    border-radius: $border-radius; // Uses local variable (5px)
-    transition: color 0.15s ease-in-out, background-color 0.15s ease-in-out, border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+    border-radius: $border-radius;
+    transition: color 0.15s, background-color 0.15s, border-color 0.15s, box-shadow 0.15s;
     white-space: nowrap;
-    font-family: $font-family; // Uses local variable
+    font-family: $font-family;
 
     &:disabled {
         opacity: 0.65;
@@ -163,17 +163,6 @@ $breakpoint-sm: 576px;
             border-color: darken($secondary-color, 10%);
         }
     }
-
-    // Example for .btn-primary, if needed
-    // &.btn-primary {
-    //     background-color: $primary-color;
-    //     color: #fff;
-    //     border-color: $primary-color;
-    //     &:hover:not(:disabled) {
-    //         background-color: darken($primary-color, 10%);
-    //         border-color: darken($primary-color, 10%);
-    //     }
-    // }
 }
 
 // Loading/Error Styles
@@ -209,26 +198,27 @@ $breakpoint-sm: 576px;
     min-height: 300px;
 }
 
-// Form Specific Styles
+// Form Container
 .form-container {
     background-color: #fff;
     padding: clamp(1.5rem, 3vw, 2.5rem);
     border-radius: $border-radius;
     box-shadow: $box-shadow;
-    max-width: 800px; // Limit form width for readability
-    margin: 0 auto; // Center the form container
+    max-width: 800px;
+    margin: 0 auto;
 }
 
 .employee-form {
     display: flex;
     flex-direction: column;
-    gap: 1.25rem; // Space between form groups
+    gap: 1.25rem;
 }
 
+// Form Group
 .form-group {
     display: flex;
     flex-direction: column;
-    gap: 0.4rem; // Space between label and input
+    gap: 0.4rem;
 
     label {
         font-weight: 600;
@@ -251,12 +241,13 @@ $breakpoint-sm: 576px;
         border-radius: 4px;
         box-sizing: border-box;
         font-family: $font-family;
-        transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+        transition: border-color 0.15s, box-shadow 0.15s;
+        line-height: 1.5; // <-- Ensure enough height for text descenders
 
         &:focus {
-            border-color: $primary-color;
-            box-shadow: 0 0 0 3px rgba($primary-color, 0.25);
             outline: none;
+            box-shadow: none;
+            border-color: #888;
         }
 
         &:disabled {
@@ -267,19 +258,17 @@ $breakpoint-sm: 576px;
     }
 
     textarea {
-        resize: vertical; // Allow vertical resizing
+        resize: vertical;
         min-height: 80px;
     }
 
     small {
-        // Style for helper text (e.g., "Select client first")
         font-size: 0.8rem;
         color: $dark-grey;
-        margin-top: -0.2rem; // Adjust spacing
+        margin-top: -0.2rem;
     }
 
     &.summary {
-        // Style for the calculated hours display
         font-size: 1rem;
         margin-top: 0.5rem;
         padding: 0.5rem 0;
@@ -291,10 +280,10 @@ $breakpoint-sm: 576px;
     }
 }
 
-// Styles for inputs with icons (like in CreateClient)
+// Input with Icon
 .input-with-icon {
     position: relative;
-    display: flex; // Use flex to align icon and input
+    display: flex;
 
     .input-icon {
         position: absolute;
@@ -302,95 +291,93 @@ $breakpoint-sm: 576px;
         top: 50%;
         transform: translateY(-50%);
         color: $dark-grey;
-        pointer-events: none; // Prevent icon from blocking input focus
-        z-index: 2; // Ensure icon is above input background
+        pointer-events: none;
+        z-index: 2;
     }
 
     input,
     textarea {
-        padding-left: 2.5rem; // Make space for the icon
+        padding-left: 2.5rem;
     }
 
-    // Specific alignment for textarea icon
     .textarea-icon {
-        top: 0.9rem; // Adjust vertical position for textarea
+        top: 0.9rem;
         transform: translateY(0);
     }
 }
 
-// Styles for checkbox groups
+// Checkbox Group
 .checkbox-group {
     display: flex;
     align-items: center;
     gap: 0.6rem;
-    margin-top: 0.5rem; // Add some top margin
+    margin-top: 0.5rem;
 
     input[type="checkbox"] {
-        width: auto; // Override default width
+        width: auto;
         margin: 0;
-        accent-color: $primary-color; // Style checkbox color
+        accent-color: $primary-color;
         cursor: pointer;
     }
 
     label {
-        font-weight: normal; // Normal weight for checkbox labels
+        font-weight: normal;
         font-size: 0.95rem;
         cursor: pointer;
-        display: flex; // Align icon and text in label
+        display: flex;
         align-items: center;
         gap: 0.4rem;
     }
 }
 
-// Form error message style
+// Form Error Message
 .form-error-message {
     background-color: color.adjust($danger-color, $lightness: 45%);
     color: color.adjust($danger-color, $lightness: -10%);
     border: 1px solid color.adjust($danger-color, $lightness: 30%);
     padding: 0.8rem 1rem;
     border-radius: $border-radius;
-    margin-bottom: 1rem; // Space below error
+    margin-bottom: 1rem;
     display: flex;
     align-items: center;
     gap: 0.5rem;
     font-size: 0.9rem;
 }
 
-// New Form Actions Bar Styles
+// Form Actions Bar
 .form-actions-bar {
     display: flex;
-    justify-content: center; // Center the buttons
-    gap: 0.75rem; // Space between buttons
-    margin-top: 1.5rem; // Space above the action bar
-    padding-top: 1.5rem; // Padding above the buttons, below the border
-    border-top: 1px solid $border-color; // Separator line
+    justify-content: center;
+    gap: 0.75rem;
+    margin-top: 1.5rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid $border-color;
 
     .form-action-button {
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        gap: 0.5em; // Space between icon and text, matches master .btn
-        padding: 0.6rem 1.2rem; // Standardized padding
-        font-size: 0.95rem; // Standardized font size
-        font-weight: 500; // Standardized font weight
+        gap: 0.5em;
+        padding: 0.6rem 1.2rem;
+        font-size: 0.95rem;
+        font-weight: 500;
         line-height: 1.5;
         text-align: center;
         text-decoration: none;
         vertical-align: middle;
         cursor: pointer;
         user-select: none;
-        border: 1px solid transparent; // Base border
-        border-radius: $border-radius; // Use variable from Forms.scss (5px)
-        transition: color 0.15s ease-in-out, background-color 0.15s ease-in-out, border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
-        white-space: nowrap; // Prevent text wrapping
-        width: 170px; // Ensure both buttons have the same width (adjust as needed for longest text)
+        border: 1px solid transparent;
+        border-radius: $border-radius;
+        transition: color 0.15s, background-color 0.15s, border-color 0.15s, box-shadow 0.15s;
+        white-space: nowrap;
+        width: 170px;
 
         &:disabled {
             opacity: 0.65;
             cursor: not-allowed;
         }
 
-        // Cancel Button (Danger)
         &--cancel {
             color: #fff;
             background-color: $danger-color;
@@ -402,7 +389,6 @@ $breakpoint-sm: 576px;
             }
         }
 
-        // Submit Button (Success)
         &--submit {
             color: #fff;
             background-color: $success-color;
@@ -416,7 +402,7 @@ $breakpoint-sm: 576px;
     }
 }
 
-// Styles for CreateRole specific elements
+// Selected Employees Tags (for CreateRole)
 .selected-employees-tags {
     display: flex;
     flex-wrap: wrap;
@@ -463,6 +449,7 @@ $breakpoint-sm: 576px;
     }
 }
 
+// Schedule Grid (for CreateRole)
 .schedule-grid {
     display: grid;
     gap: 0.75rem;
@@ -495,11 +482,45 @@ $breakpoint-sm: 576px;
     }
 }
 
-// Responsive Adjustments for Forms
+// Caret (Text Cursor) Color
+input,
+textarea {
+    caret-color: #222 !important;
+}
+
+// Fix for react-select and native select alignment/cut-off issues
+.react-select__control,
+select {
+    min-height: 42px !important; // Ensure enough height for text and icons
+    line-height: 1.5 !important; // Consistent with input
+    padding-top: 0.2rem !important;
+    padding-bottom: 0.2rem !important;
+    font-size: 1rem !important;
+    box-sizing: border-box;
+    // Remove vertical-align if present
+}
+
+// Fix for react-select single value and placeholder
+.react-select__single-value,
+.react-select__placeholder {
+    line-height: 1.5 !important;
+    font-size: 1rem !important;
+    display: flex;
+    align-items: center;
+}
+
+// Fix for input[type="date"] and input[type="time"] vertical alignment
+input[type="date"],
+input[type="time"] {
+    line-height: 1.5 !important;
+    min-height: 42px !important;
+    padding-top: 0.2rem !important;
+    padding-bottom: 0.2rem !important;
+}
+
+// Responsive Adjustments
 @media (max-width: $breakpoint-sm) {
     .vehicles-header {
-
-        // Copied from Vehicles.scss responsive
         .title-breadcrumbs h2 {
             font-size: 1.25rem;
         }
@@ -523,13 +544,12 @@ $breakpoint-sm: 576px;
     }
 
     .form-container {
-        padding: 1.5rem; // Reduce padding on small screens
+        padding: 1.5rem;
     }
 
-    // Add responsive adjustments for schedule if needed
     .schedule-grid {
         .schedule-day-row {
-            grid-template-columns: 40px 1fr auto 1fr; // Adjust for smaller screens
+            grid-template-columns: 40px 1fr auto 1fr;
             gap: 0.5rem;
 
             .schedule-day-label {
@@ -540,17 +560,17 @@ $breakpoint-sm: 576px;
 
     .phone-input-group {
         display: flex;
-        align-items: center; // Align items vertically
-        gap: 5px; // Add a small gap
+        align-items: center;
+        gap: 5px;
 
         .country-code-select {
-            flex-shrink: 0; // Prevent the select from shrinking too much
-            width: auto; // Adjust width as needed, maybe fixed or based on content
-            padding: 10px 5px; // Adjust padding
+            flex-shrink: 0;
+            width: auto;
+            padding: 10px 5px;
         }
 
         input[type="tel"] {
-            flex-grow: 1; // Allow the phone number input to take remaining space
+            flex-grow: 1;
         }
     }
 }

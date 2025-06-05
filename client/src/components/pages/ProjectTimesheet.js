@@ -1,57 +1,42 @@
 // /home/digilab/timesheet/client/src/components/pages/ProjectTimesheet.js
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { useSelector, useDispatch } from 'react-redux'; // Import Redux hooks
+import { useSelector, useDispatch } from 'react-redux';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
-  faPen,
-  faArrowLeft,
-  faArrowRight,
-  faPlus,
-  faTrash,
-  faDownload,
-  faEnvelope,
-  faSpinner,
-  faExclamationCircle,
-  faUserTie,
-  faBuilding,
-  faProjectDiagram,
-  faClock,
-  faUtensils,
-  faStickyNote,
-  faSignOutAlt,
-  faInfoCircle,
-  faChevronDown,
-  faChevronUp
-} from '@fortawesome/free-solid-svg-icons'; // Existing icons
-import { faDollarSign } from '@fortawesome/free-solid-svg-icons'; // Added for wage
+  faPen, faArrowLeft, faArrowRight, faPlus, faTrash, faDownload, faEnvelope,
+  faSpinner, faUserTie, faBuilding, faProjectDiagram, faClock, faUtensils,
+  faStickyNote, faSignOutAlt, faInfoCircle, faChevronDown, faChevronUp
+} from '@fortawesome/free-solid-svg-icons';
+import { faDollarSign } from '@fortawesome/free-solid-svg-icons';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 import '../../styles/Timesheet.scss';
 import { DateTime } from 'luxon';
 import Select from "react-select";
 
-// Redux Imports 
-import { fetchEmployees, selectAllEmployees, selectEmployeeStatus, selectEmployeeError } from '../../redux/slices/employeeSlice';
-import { fetchClients, selectAllClients, selectClientStatus, selectClientError } from '../../redux/slices/clientSlice';
-import { fetchProjects, selectProjectItems, selectProjectStatus, selectProjectError } from '../../redux/slices/projectSlice'; // Use selectProjectItems
+// Redux imports
 import {
-    fetchTimesheets,
-    deleteTimesheet,
-    downloadProjectTimesheet, // Use project-specific download
-    sendProjectTimesheet, // Use project-specific send
-    selectAllTimesheets,
-    selectTimesheetStatus,
-    selectTimesheetError,
-    selectTimesheetProjectDownloadStatus, // Use project download status
-    selectTimesheetProjectDownloadError, // Use project download error
-    selectTimesheetProjectSendStatus, // Use project send status
-    selectTimesheetProjectSendError, // Use project send error
-    clearTimesheetError, clearProjectDownloadStatus, clearProjectSendStatus // Import clear actions
+  fetchEmployees, selectAllEmployees, selectEmployeeStatus, selectEmployeeError
+} from '../../redux/slices/employeeSlice';
+import {
+  fetchClients, selectAllClients, selectClientStatus, selectClientError
+} from '../../redux/slices/clientSlice';
+import {
+  fetchProjects, selectProjectItems, selectProjectStatus, selectProjectError
+} from '../../redux/slices/projectSlice';
+import {
+  fetchTimesheets, deleteTimesheet, downloadProjectTimesheet, sendProjectTimesheet,
+  selectAllTimesheets, selectTimesheetStatus, selectTimesheetError,
+  selectTimesheetProjectDownloadStatus, selectTimesheetProjectDownloadError,
+  selectTimesheetProjectSendStatus, selectTimesheetProjectSendError,
+  clearTimesheetError, clearProjectDownloadStatus, clearProjectSendStatus
 } from '../../redux/slices/timesheetSlice';
-import { selectEmployerSettings, fetchEmployerSettings, selectSettingsStatus } from '../../redux/slices/settingsSlice'; // Import settings
+import {
+  selectEmployerSettings, fetchEmployerSettings, selectSettingsStatus
+} from '../../redux/slices/settingsSlice';
 import { setAlert } from '../../redux/slices/alertSlice';
-import { selectAuthUser } from '../../redux/slices/authSlice'; // Import user selector
+import { selectAuthUser } from '../../redux/slices/authSlice';
 import Alert from '../layout/Alert';
 
 const ALL_PROJECTS_VALUE = 'ALL_PROJECTS';
@@ -60,189 +45,164 @@ const dayNameToLuxonWeekday = {
   'Friday': 5, 'Saturday': 6, 'Sunday': 7,
 };
 
+// Format date string to readable format
 const formatDateString = (dateString, format = 'yyyy-MM-dd') => {
-    if (!dateString || !/^\d{4}-\d{2}-\d{2}$/.test(dateString)) return 'Invalid Date';
-    try {
-        return DateTime.fromISO(dateString).toFormat(format);
-    } catch (e) {
-        console.error(`Error formatting date string ${dateString}:`, e);
-        return 'Invalid Date';
-    }
+  if (!dateString || !/^\d{4}-\d{2}-\d{2}$/.test(dateString)) return 'Invalid Date';
+  try {
+    return DateTime.fromISO(dateString).toFormat(format);
+  } catch {
+    return 'Invalid Date';
+  }
 };
 
-// Helper to format ISO time string to local time based on a timezone
+// Format ISO time string to local time
 const formatTimeFromISO = (isoString, timezoneIdentifier, format = 'hh:mm a') => {
-    if (!isoString) return 'N/A';
-    const tz = timezoneIdentifier && DateTime.local().setZone(timezoneIdentifier).isValid
-               ? timezoneIdentifier
-               : DateTime.local().zoneName;
-    try {
-        return DateTime.fromISO(isoString, { zone: 'utc' })
-               .setZone(tz)
-               .toFormat(format);
-    } catch (e) {
-        console.error(`Error formatting time ${isoString} to timezone ${tz}:`, e);
-        return 'Invalid Time';
-    }
+  if (!isoString) return 'N/A';
+  const tz = timezoneIdentifier && DateTime.local().setZone(timezoneIdentifier).isValid
+    ? timezoneIdentifier : DateTime.local().zoneName;
+  try {
+    return DateTime.fromISO(isoString, { zone: 'utc' }).setZone(tz).toFormat(format);
+  } catch {
+    return 'Invalid Time';
+  }
 };
 
-// Helper to format decimal hours into a more readable "Xh XXm" or "XXm" string
+// Format decimal hours to "Xh XXm"
 const formatHoursMinutes = (hoursDecimal) => {
-    if (hoursDecimal == null || isNaN(hoursDecimal) || hoursDecimal <= 0) {
-        return '00:00';
-    }
-    const totalMinutes = Math.round(hoursDecimal * 60);
-    const hours = Math.floor(totalMinutes / 60);
-    const minutes = totalMinutes % 60;
-    const formattedMinutes = minutes.toString().padStart(2, '0');
-
-    if (hours > 0) {
-        return minutes > 0 ? `${hours}h ${formattedMinutes}m` : `${hours}h`;
-    } else {
-        return `${formattedMinutes}m`;
-    }
+  if (!hoursDecimal || isNaN(hoursDecimal) || hoursDecimal <= 0) return '00:00';
+  const totalMinutes = Math.round(hoursDecimal * 60);
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  if (hours > 0) return minutes > 0 ? `${hours}h ${minutes.toString().padStart(2, '0')}m` : `${hours}h`;
+  return `${minutes.toString().padStart(2, '0')}m`;
 };
 
-// Helper to format lunch duration string, ensuring it's valid or 'N/A'
+// Format lunch duration or show 'N/A'
 const formatLunchDuration = (lunchDuration) => {
-    if (!lunchDuration || typeof lunchDuration !== 'string' || !/^\d{2}:\d{2}$/.test(lunchDuration)) {
-        return 'N/A';
-    }
-    return lunchDuration;
+  if (!lunchDuration || typeof lunchDuration !== 'string' || !/^\d{2}:\d{2}$/.test(lunchDuration)) return 'N/A';
+  return lunchDuration;
 };
 
-// Calculates the start and end dates for a given period type (Daily, Weekly, etc.)
+// Calculate start and end dates for a period
 const calculateDateRange = (baseDate, type, startDayOfWeekName = 'Monday') => {
-    let startDt = DateTime.fromJSDate(baseDate);
-    let endDt;
-    const targetWeekdayNum = dayNameToLuxonWeekday[startDayOfWeekName] || 1; // Default to Monday
-
-    if (type === 'Daily') {
-        startDt = startDt.startOf('day');
-        endDt = startDt.endOf('day');
-    } else if (type === 'Monthly') {
-        // Monthly view is independent of start day of week for its main range
-        startDt = startDt.startOf('month');
-        endDt = startDt.endOf('month');
-    } else {
-        // Weekly or Fortnightly
-        const currentWeekday = startDt.weekday;
-        const daysToSubtract = (currentWeekday - targetWeekdayNum + 7) % 7;
-        startDt = startDt.minus({ days: daysToSubtract }).startOf('day');
-
-        if (type === 'Fortnightly') {
-            endDt = startDt.plus({ days: 13 }).endOf('day');
-        } else { // Weekly
-            endDt = startDt.plus({ days: 6 }).endOf('day');
-        }
-    }
-    return { start: startDt.toJSDate(), end: endDt.toJSDate() };
+  let startDt = DateTime.fromJSDate(baseDate);
+  let endDt;
+  const targetWeekdayNum = dayNameToLuxonWeekday[startDayOfWeekName] || 1;
+  if (type === 'Daily') {
+    startDt = startDt.startOf('day');
+    endDt = startDt.endOf('day');
+  } else if (type === 'Monthly') {
+    startDt = startDt.startOf('month');
+    endDt = startDt.endOf('month');
+  } else {
+    const currentWeekday = startDt.weekday;
+    const daysToSubtract = (currentWeekday - targetWeekdayNum + 7) % 7;
+    startDt = startDt.minus({ days: daysToSubtract }).startOf('day');
+    endDt = type === 'Fortnightly'
+      ? startDt.plus({ days: 13 }).endOf('day')
+      : startDt.plus({ days: 6 }).endOf('day');
+  }
+  return { start: startDt.toJSDate(), end: endDt.toJSDate() };
 };
 
-// Generates an array of date objects for the columns in the timesheet view
+// Generate array of date columns for the view
 const generateDateColumns = (currentDate, viewType, startDayOfWeekName = 'Monday') => {
-    const { start, end } = calculateDateRange(currentDate, viewType, startDayOfWeekName);
-    const startDt = DateTime.fromJSDate(start);
-    const endDt = DateTime.fromJSDate(end);
-    const daysCount = endDt.diff(startDt, 'days').days + 1;
-
-    return Array.from({ length: daysCount }, (_, i) => {
-      const dayDt = startDt.plus({ days: i });
-      return {
-        date: dayDt.toJSDate(),
-        longFormat: dayDt.toFormat('MMM dd, yyyy'),
-        isoDate: dayDt.toFormat('yyyy-MM-dd'),
-        dayName: dayDt.toFormat('EEEE'),
-        shortDayName: dayDt.toFormat('EEE'),
-        weekNumber: dayDt.weekNumber,
-      };
-    });
+  const { start, end } = calculateDateRange(currentDate, viewType, startDayOfWeekName);
+  const startDt = DateTime.fromJSDate(start);
+  const endDt = DateTime.fromJSDate(end);
+  const daysCount = endDt.diff(startDt, 'days').days + 1;
+  return Array.from({ length: daysCount }, (_, i) => {
+    const dayDt = startDt.plus({ days: i });
+    return {
+      date: dayDt.toJSDate(),
+      longFormat: dayDt.toFormat('MMM dd, yyyy'),
+      isoDate: dayDt.toFormat('yyyy-MM-dd'),
+      dayName: dayDt.toFormat('EEEE'),
+      shortDayName: dayDt.toFormat('EEE'),
+      weekNumber: dayDt.weekNumber,
+    };
+  });
 };
 
+// Get ordered days starting from a specific day
 const getOrderedDays = (startDayName = 'Monday') => {
   const allDays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
   const startIndex = allDays.indexOf(startDayName);
-  if (startIndex === -1) { // Should not happen with valid settings
-    console.warn(`Invalid startDayName: ${startDayName}, defaulting to Monday order.`);
-    return allDays;
-  }
+  if (startIndex === -1) return allDays;
   return [...allDays.slice(startIndex), ...allDays.slice(0, startIndex)];
 };
 
-// Groups date columns by week number for Monthly and Fortnightly views
+// Group date columns by week for Monthly/Fortnightly views
 const groupDatesByWeek = (dateColumns, startDayOfWeekName = 'Monday') => {
-    if (!dateColumns || dateColumns.length === 0) return [];
-    const targetWeekdayNum = dayNameToLuxonWeekday[startDayOfWeekName] || 1;
-
-    const weeksMap = new Map();
-    dateColumns.forEach(col => {
-        const dateInWeek = DateTime.fromJSDate(col.date);
-
-        // Calculate the start of *this specific column's week* based on custom start day
-        const currentWeekdayOfCol = dateInWeek.weekday;
-        const daysToSubtractForWeekStart = (currentWeekdayOfCol - targetWeekdayNum + 7) % 7;
-        const weekStartDt = dateInWeek.minus({ days: daysToSubtractForWeekStart }).startOf('day');
-        const weekEndDt = weekStartDt.plus({ days: 6 }).endOf('day');
-
-        const weekKey = weekStartDt.toISODate(); // Use the actual start date of our defined week as key
-
-        if (!weeksMap.has(weekKey)) {
-            weeksMap.set(weekKey, {
-                weekNumber: weekStartDt.weekNumber, // ISO week number of the calculated week start
-                weekStartDate: weekStartDt.toJSDate(),
-                weekEndDate: weekEndDt.toJSDate(),
-                days: []
-            });
-        }
-        weeksMap.get(weekKey).days.push(col);
-    });
-    return Array.from(weeksMap.values()).sort((a, b) => {
-        const yearA = DateTime.fromJSDate(a.weekStartDate).year;
-        const yearB = DateTime.fromJSDate(b.weekStartDate).year;
-        if (yearA !== yearB) return yearA - yearB;
-        return a.weekNumber - b.weekNumber;
-    });
-};
-// Helper to get a display label for the current period type
-const getPeriodLabel = (viewType) => {
-    switch (viewType) {
-        case 'Daily': return 'Day';
-        case 'Weekly': return 'Week';
-        case 'Fortnightly': return 'Fortnight';
-        case 'Monthly': return 'Month';
-        default: return 'Period';
+  if (!dateColumns || dateColumns.length === 0) return [];
+  const targetWeekdayNum = dayNameToLuxonWeekday[startDayOfWeekName] || 1;
+  const weeksMap = new Map();
+  dateColumns.forEach(col => {
+    const dateInWeek = DateTime.fromJSDate(col.date);
+    const currentWeekdayOfCol = dateInWeek.weekday;
+    const daysToSubtractForWeekStart = (currentWeekdayOfCol - targetWeekdayNum + 7) % 7;
+    const weekStartDt = dateInWeek.minus({ days: daysToSubtractForWeekStart }).startOf('day');
+    const weekEndDt = weekStartDt.plus({ days: 6 }).endOf('day');
+    const weekKey = weekStartDt.toISODate();
+    if (!weeksMap.has(weekKey)) {
+      weeksMap.set(weekKey, {
+        weekNumber: weekStartDt.weekNumber,
+        weekStartDate: weekStartDt.toJSDate(),
+        weekEndDate: weekEndDt.toJSDate(),
+        days: []
+      });
     }
+    weeksMap.get(weekKey).days.push(col);
+  });
+  return Array.from(weeksMap.values()).sort((a, b) => {
+    const yearA = DateTime.fromJSDate(a.weekStartDate).year;
+    const yearB = DateTime.fromJSDate(b.weekStartDate).year;
+    if (yearA !== yearB) return yearA - yearB;
+    return a.weekNumber - b.weekNumber;
+  });
 };
 
+// Get label for period type
+const getPeriodLabel = (viewType) => {
+  switch (viewType) {
+    case 'Daily': return 'Day';
+    case 'Weekly': return 'Week';
+    case 'Fortnightly': return 'Fortnight';
+    case 'Monthly': return 'Month';
+    default: return 'Period';
+  }
+};
 
-const ProjectTimesheet = ({ initialProjectId = '', onProjectChange, showProjectSelector = true }) => {
+const ProjectTimesheet = ({
+  initialProjectId = '',
+  onProjectChange,
+  showProjectSelector = true
+}) => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
 
-  // Redux state selectors
+  // Redux selectors
   const employees = useSelector(selectAllEmployees);
   const employeeStatus = useSelector(selectEmployeeStatus);
   const employeeError = useSelector(selectEmployeeError);
   const clients = useSelector(selectAllClients);
   const clientStatus = useSelector(selectClientStatus);
   const clientError = useSelector(selectClientError);
-  const projects = useSelector(selectProjectItems); // Use correct selector
+  const projects = useSelector(selectProjectItems);
   const projectStatus = useSelector(selectProjectStatus);
   const projectError = useSelector(selectProjectError);
   const timesheets = useSelector(selectAllTimesheets);
   const timesheetStatus = useSelector(selectTimesheetStatus);
   const timesheetError = useSelector(selectTimesheetError);
-  const downloadStatus = useSelector(selectTimesheetProjectDownloadStatus); // Use project download status
-  const user = useSelector(selectAuthUser); // Get logged-in user
-  const downloadErrorRedux = useSelector(selectTimesheetProjectDownloadError); // Use project download error
-  const sendStatus = useSelector(selectTimesheetProjectSendStatus); // Use project send status
-  const sendErrorRedux = useSelector(selectTimesheetProjectSendError); // Use project send error
-
-  // Redux State for Settings
+  const downloadStatus = useSelector(selectTimesheetProjectDownloadStatus);
+  const user = useSelector(selectAuthUser);
+  const downloadErrorRedux = useSelector(selectTimesheetProjectDownloadError);
+  const sendStatus = useSelector(selectTimesheetProjectSendStatus);
+  const sendErrorRedux = useSelector(selectTimesheetProjectSendError);
   const employerSettings = useSelector(selectEmployerSettings);
   const settingsStatus = useSelector(selectSettingsStatus);
 
-  // Local component state
+  // Local state
   const [viewType, setViewType] = useState('Weekly');
   const [selectedProjectId, setSelectedProjectId] = useState(initialProjectId || '');
   const [expandedRows, setExpandedRows] = useState({});
@@ -253,13 +213,13 @@ const ProjectTimesheet = ({ initialProjectId = '', onProjectChange, showProjectS
   const [endDate, setEndDate] = useState(null);
   const [showDownloadFilters, setShowDownloadFilters] = useState(false);
   const [showSendFilters, setShowSendFilters] = useState(false);
-  const [error, setError] = useState(null); // For local validation/calculation errors
+  const [error, setError] = useState(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [itemToDelete, setItemToDelete] = useState(null); // { id }
+  const [itemToDelete, setItemToDelete] = useState(null);
 
-  const browserTimezone = useMemo(() => DateTime.local().zoneName, []); // Keep this
+  const browserTimezone = useMemo(() => DateTime.local().zoneName, []);
 
-  // Find the Employee record for the logged-in user if their role is 'employee'
+  // Find logged-in employee record
   const loggedInEmployeeRecord = useMemo(() => {
     if (user?.role === 'employee' && Array.isArray(employees) && user?._id) {
       return employees.find(emp => emp.userId === user._id);
@@ -267,92 +227,75 @@ const ProjectTimesheet = ({ initialProjectId = '', onProjectChange, showProjectS
     return null;
   }, [employees, user]);
 
-  // Derived loading state for UI feedback
+  // Loading state
   const isLoading = useMemo(() =>
     employeeStatus === 'loading' ||
     clientStatus === 'loading' ||
-    projectStatus === 'loading' || // Projects
-    timesheetStatus === 'loading' || // Timesheets
-    settingsStatus === 'loading',    // Settings
-    // Also consider settings loading if it affects initial render
+    projectStatus === 'loading' ||
+    timesheetStatus === 'loading' ||
+    settingsStatus === 'loading',
     [employeeStatus, clientStatus, projectStatus, timesheetStatus, settingsStatus]
   );
   const isDownloading = useMemo(() => downloadStatus === 'loading', [downloadStatus]);
   const isSending = useMemo(() => sendStatus === 'loading', [sendStatus]);
 
-  // Effects
-  // Displays errors from Redux state as alerts
+  // Show errors as alerts
   useEffect(() => {
     const reduxError = employeeError || clientError || projectError || timesheetError || downloadErrorRedux || sendErrorRedux;
-    if (reduxError) {
-      dispatch(setAlert(reduxError, 'danger'));
-    }
+    if (reduxError) dispatch(setAlert(reduxError, 'danger'));
   }, [employeeError, clientError, projectError, timesheetError, downloadErrorRedux, sendErrorRedux, dispatch]);
 
-  // Fetches initial data: employees, clients, and all projects for the dropdown
+  // Fetch initial data
   useEffect(() => {
     if (employeeStatus === 'idle') dispatch(fetchEmployees());
     if (clientStatus === 'idle') dispatch(fetchClients());
     if (projectStatus === 'idle') dispatch(fetchProjects());
-    // Fetch settings if not already loaded
     if (settingsStatus === 'idle') dispatch(fetchEmployerSettings());
   }, [dispatch, employeeStatus, clientStatus, projectStatus, settingsStatus]);
 
-  // Set default view type from settings once loaded
+  // Set default view type from settings
   useEffect(() => {
     if (settingsStatus === 'succeeded' && employerSettings?.defaultTimesheetViewType) {
       setViewType(employerSettings.defaultTimesheetViewType);
     }
   }, [settingsStatus, employerSettings]);
-  // Fetches timesheets when selected project, date, or view type changes
-  useEffect(() => {
-    if (!selectedProjectId) {
-        return;
-    }
-    const startDaySetting = employerSettings?.timesheetStartDayOfWeek || 'Monday';
 
+  // Fetch timesheets when project/date/view changes
+  useEffect(() => {
+    if (!selectedProjectId) return;
+    const startDaySetting = employerSettings?.timesheetStartDayOfWeek || 'Monday';
     setError(null);
     try {
       const { start, end } = calculateDateRange(currentDate, viewType, startDaySetting);
-      const startDateStr = DateTime.fromJSDate(start).toISODate(); // Use ISO Date format
-      const endDateStr = DateTime.fromJSDate(end).toISODate(); // Use ISO Date format
       const params = {
-          startDate: startDateStr,
-          endDate: endDateStr,
+        startDate: DateTime.fromJSDate(start).toISODate(),
+        endDate: DateTime.fromJSDate(end).toISODate(),
       };
-      if (selectedProjectId !== ALL_PROJECTS_VALUE) {
-          params.projectId = selectedProjectId;
-      }
+      if (selectedProjectId !== ALL_PROJECTS_VALUE) params.projectId = selectedProjectId;
       dispatch(fetchTimesheets(params));
-
     } catch (error) {
-      console.error('ProjectTimesheet: Error fetching timesheets:', error.response?.data || error.message);
       if (!error.message?.includes('token')) {
-          dispatch(setAlert(error.response?.data?.message || 'Failed to fetch project timesheets.', 'danger'));
+        dispatch(setAlert(error.response?.data?.message || 'Failed to fetch project timesheets.', 'danger'));
       }
     }
   }, [selectedProjectId, currentDate, viewType, dispatch, employerSettings?.timesheetStartDayOfWeek]);
 
-  // Updates selectedProjectId if initialProjectId prop changes
+  // Update selectedProjectId if prop changes
   useEffect(() => {
     setSelectedProjectId(initialProjectId || '');
   }, [initialProjectId]);
 
   // Handlers
-  // Handles project selection change from the dropdown
   const handleProjectSelectChange = (option) => {
-      const newProjectId = option?.value || '';
-      setSelectedProjectId(newProjectId);
-      if (onProjectChange) {
-          onProjectChange(newProjectId);
-      }
+    const newProjectId = option?.value || '';
+    setSelectedProjectId(newProjectId);
+    if (onProjectChange) onProjectChange(newProjectId);
   };
-  // Toggles the expanded state for an employee row
-  const toggleExpand = (id) => {
-    setExpandedRows((prev) => ({ ...prev, [id]: !prev[id] }));
-   };
 
-  // Initiates the delete process for a timesheet entry
+  const toggleExpand = (id) => {
+    setExpandedRows(prev => ({ ...prev, [id]: !prev[id] }));
+  };
+
   const handleDeleteClick = (timesheetId) => {
     setItemToDelete({ id: timesheetId });
     setShowDeleteConfirm(true);
@@ -363,19 +306,20 @@ const ProjectTimesheet = ({ initialProjectId = '', onProjectChange, showProjectS
     setItemToDelete(null);
   };
 
+  // Check if user can edit a timesheet
   const canEditTimesheet = useCallback((timesheetEntry) => {
-    if (user?.role === 'employer') return true; // Employers can always edit
+    if (user?.role === 'employer') return true;
     if (user?.role === 'employee') {
       if (employerSettings?.timesheetAllowOldEdits === false) {
-        const entryDate = DateTime.fromISO(timesheetEntry.date); // Assuming timesheetEntry.date is 'YYYY-MM-DD'
+        const entryDate = DateTime.fromISO(timesheetEntry.date);
         return DateTime.now().diff(entryDate, 'days').days <= 15;
       }
-      return true; // If setting allows old edits or setting not loaded, allow edit
+      return true;
     }
-    return false; // Default to no edit permission
+    return false;
   }, [user, employerSettings]);
 
-  // Navigates to the edit page for a specific timesheet entry
+  // Go to edit page
   const handleUpdate = (timesheet) => {
     const clientId = timesheet.clientId?._id || timesheet.clientId;
     const projectId = timesheet.projectId?._id || timesheet.projectId;
@@ -384,297 +328,242 @@ const ProjectTimesheet = ({ initialProjectId = '', onProjectChange, showProjectS
     } else {
       dispatch(setAlert("Editing of this timesheet is not allowed.", "warning"));
     }
-   };
+  };
 
-  // Confirms and dispatches the delete action for a timesheet entry
+  // Confirm and delete timesheet
   const confirmDeleteTimesheet = useCallback(async () => {
     if (!itemToDelete) return;
     const { id } = itemToDelete;
-    setError(null); // Clear local error
+    setError(null);
     try {
       await dispatch(deleteTimesheet(id)).unwrap();
       dispatch(setAlert('Timesheet entry deleted successfully', 'success'));
     } catch (error) {
-      console.error('Error deleting timesheet:', error.response?.data || error.message);
-      const errorMessage = error?.message || 'Failed to delete timesheet entry.';
-      
-      dispatch(setAlert(errorMessage, 'danger'));
+      dispatch(setAlert(error?.message || 'Failed to delete timesheet entry.', 'danger'));
     } finally {
       setShowDeleteConfirm(false);
       setItemToDelete(null);
     }
-   }, [itemToDelete, dispatch]);
-  // Navigates to the previous period based on the current view type
+  }, [itemToDelete, dispatch]);
+
+  // Go to previous period
   const handlePrev = () => {
     setCurrentDate(prevDate => {
-        let dt = DateTime.fromJSDate(prevDate);
-        let newDt;
-        switch (viewType) {
-            case 'Daily': newDt = dt.minus({ days: 1 }); break;
-            case 'Weekly': newDt = dt.minus({ weeks: 1 }); break;
-            case 'Fortnightly': newDt = dt.minus({ weeks: 2 }); break;
-            case 'Monthly': newDt = dt.minus({ months: 1 }); break;
-            default: newDt = dt.minus({ weeks: 1 }); break;
-        }
-        return newDt.toJSDate();
+      let dt = DateTime.fromJSDate(prevDate);
+      switch (viewType) {
+        case 'Daily': return dt.minus({ days: 1 }).toJSDate();
+        case 'Weekly': return dt.minus({ weeks: 1 }).toJSDate();
+        case 'Fortnightly': return dt.minus({ weeks: 2 }).toJSDate();
+        case 'Monthly': return dt.minus({ months: 1 }).toJSDate();
+        default: return dt.minus({ weeks: 1 }).toJSDate();
+      }
     });
-   };
-  // Navigates to the next period based on the current view type
-  const handleNext = () => {
-     setCurrentDate(prevDate => {
-        let dt = DateTime.fromJSDate(prevDate);
-        let newDt;
-        switch (viewType) {
-            case 'Daily': newDt = dt.plus({ days: 1 }); break;
-            case 'Weekly': newDt = dt.plus({ weeks: 1 }); break;
-            case 'Fortnightly': newDt = dt.plus({ weeks: 2 }); break;
-            case 'Monthly': newDt = dt.plus({ months: 1 }); break;
-            default: newDt = dt.plus({ weeks: 1 }); break;
-        }
-        return newDt.toJSDate();
-    });
-   };
+  };
 
-   // Handles sending the project timesheet report via email
-   const handleSendEmail = useCallback(async () => {
+  // Go to next period
+  const handleNext = () => {
+    setCurrentDate(prevDate => {
+      let dt = DateTime.fromJSDate(prevDate);
+      switch (viewType) {
+        case 'Daily': return dt.plus({ days: 1 }).toJSDate();
+        case 'Weekly': return dt.plus({ weeks: 1 }).toJSDate();
+        case 'Fortnightly': return dt.plus({ weeks: 2 }).toJSDate();
+        case 'Monthly': return dt.plus({ months: 1 }).toJSDate();
+        default: return dt.plus({ weeks: 1 }).toJSDate();
+      }
+    });
+  };
+
+  // Send report via email
+  const handleSendEmail = useCallback(async () => {
     const isAllProjects = selectedProjectId === ALL_PROJECTS_VALUE;
-    
     if (!isAllProjects && !selectedProjectId) {
-        dispatch(setAlert('No project selected.', 'warning')); return;
+      dispatch(setAlert('No project selected.', 'warning')); return;
     }
     if (!email || !/\S+@\S+\.\S+/.test(email)) {
-        dispatch(setAlert('Please enter a valid recipient email address.', 'warning')); return;
+      dispatch(setAlert('Please enter a valid recipient email address.', 'warning')); return;
     }
     dispatch(clearProjectSendStatus());
-
     try {
-        const params = {
-            email,
-            projectIds: !isAllProjects && selectedProjectId ? [selectedProjectId] : [], // Pass project ID for project-specific thunk
-            employeeIds: selectedEmployee ? [selectedEmployee] : [],
-            startDate: startDate ? DateTime.fromJSDate(startDate).toISODate() : null,
-            endDate: endDate ? DateTime.fromJSDate(endDate).toISODate() : null,
-            timezone: browserTimezone,
-        };
-
-        await dispatch(sendProjectTimesheet(params)).unwrap();
-
-        setShowSendFilters(false); setEmail(''); setSelectedEmployee(''); setStartDate(null); setEndDate(null);
-        dispatch(setAlert(`Project timesheet report sent successfully to ${email}`, 'success'));
-
+      const params = {
+        email,
+        projectIds: !isAllProjects && selectedProjectId ? [selectedProjectId] : [],
+        employeeIds: selectedEmployee ? [selectedEmployee] : [],
+        startDate: startDate ? DateTime.fromJSDate(startDate).toISODate() : null,
+        endDate: endDate ? DateTime.fromJSDate(endDate).toISODate() : null,
+        timezone: browserTimezone,
+      };
+      await dispatch(sendProjectTimesheet(params)).unwrap();
+      setShowSendFilters(false); setEmail(''); setSelectedEmployee(''); setStartDate(null); setEndDate(null);
+      dispatch(setAlert(`Project timesheet report sent successfully to ${email}`, 'success'));
     } catch (error) {
-        console.error(`Error sending project timesheet email:`, error);
+      // Error already handled by redux
     }
-}, [selectedProjectId, email, selectedEmployee, startDate, endDate, navigate, browserTimezone, dispatch]);
+  }, [selectedProjectId, email, selectedEmployee, startDate, endDate, browserTimezone, dispatch]);
 
-// Handles downloading the project timesheet report
-const handleDownload = useCallback(async () => {
+  // Download report
+  const handleDownload = useCallback(async () => {
     const isAllProjects = selectedProjectId === ALL_PROJECTS_VALUE;
     if (!isAllProjects && !selectedProjectId) {
-        dispatch(setAlert('No project selected.', 'warning')); return;
+      dispatch(setAlert('No project selected.', 'warning')); return;
     }
     dispatch(clearProjectDownloadStatus());
-
     try {
-        const params = {
-            projectIds: !isAllProjects && selectedProjectId ? [selectedProjectId] : [],
-            employeeIds: selectedEmployee ? [selectedEmployee] : [],
-            startDate: startDate ? DateTime.fromJSDate(startDate).toFormat('yyyy-MM-dd') : null,
-            endDate: endDate ? DateTime.fromJSDate(endDate).toISODate() : null,
-            timezone: browserTimezone, // Ensure this is passed
-        };
-
-        const result = await dispatch(downloadProjectTimesheet(params)).unwrap();
-
-        const blob = new Blob([result.blob], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-        const url = window.URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        let filename = isAllProjects ? `Timesheet_Report.xlsx` : `Project_Timesheet_Report.xlsx`;
-        if (result.filename) {
-            filename = result.filename;
-        }
-        link.setAttribute('download', filename);
-        document.body.appendChild(link);
-        link.click();
-        link.remove();
-        window.URL.revokeObjectURL(url);
-        dispatch(setAlert('Project timesheet report downloaded successfully.', 'success'));
-        setShowDownloadFilters(false); setSelectedEmployee(''); setStartDate(null); setEndDate(null);
+      const params = {
+        projectIds: !isAllProjects && selectedProjectId ? [selectedProjectId] : [],
+        employeeIds: selectedEmployee ? [selectedEmployee] : [],
+        startDate: startDate ? DateTime.fromJSDate(startDate).toFormat('yyyy-MM-dd') : null,
+        endDate: endDate ? DateTime.fromJSDate(endDate).toISODate() : null,
+        timezone: browserTimezone,
+      };
+      const result = await dispatch(downloadProjectTimesheet(params)).unwrap();
+      const blob = new Blob([result.blob], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      let filename = isAllProjects ? `Timesheet_Report.xlsx` : `Project_Timesheet_Report.xlsx`;
+      if (result.filename) filename = result.filename;
+      link.setAttribute('download', filename);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+      dispatch(setAlert('Project timesheet report downloaded successfully.', 'success'));
+      setShowDownloadFilters(false); setSelectedEmployee(''); setStartDate(null); setEndDate(null);
     } catch (error) {
-        console.error(`Project Download failed:`, error);
+      // Error already handled by redux
     }
-}, [selectedProjectId, selectedEmployee, startDate, endDate, navigate, browserTimezone, dispatch]);
+  }, [selectedProjectId, selectedEmployee, startDate, endDate, browserTimezone, dispatch]);
 
   const startDayOfWeekSetting = useMemo(() => employerSettings?.timesheetStartDayOfWeek || 'Monday', [employerSettings]);
-
-  // Memoized data for display
-  const dateColumns = useMemo(
-    () => generateDateColumns(currentDate, viewType, startDayOfWeekSetting),
-    [currentDate, viewType, startDayOfWeekSetting]);
+  const dateColumns = useMemo(() => generateDateColumns(currentDate, viewType, startDayOfWeekSetting), [currentDate, viewType, startDayOfWeekSetting]);
 
   // Filter timesheets based on user role
   const relevantTimesheets = useMemo(() => {
     if (user?.role === 'employee' && loggedInEmployeeRecord) {
-        return timesheets.filter(ts => (ts.employeeId?._id || ts.employeeId) === loggedInEmployeeRecord._id);
+      return timesheets.filter(ts => (ts.employeeId?._id || ts.employeeId) === loggedInEmployeeRecord._id);
     } else if (user?.role === 'employer') {
-        // For employers, the timesheets are already fetched based on selectedProjectId
-        // or all projects under their scope by the backend.
-        return timesheets;
+      return timesheets;
     }
-    return []; // Default to empty if role not handled or data not ready
+    return [];
   }, [timesheets, user, loggedInEmployeeRecord]);
 
-
+  // Group timesheets by employee for table
   const groupTimesheetsByEmployee = useMemo(() => {
-      let grouped = {};
-      const currentViewDates = new Set(dateColumns.map(d => d.isoDate));
-
-      // Use relevantTimesheets which are already scoped by role
-      relevantTimesheets.forEach((timesheet) => {
-        if (!timesheet || !timesheet.employeeId || !timesheet.date || !/^\d{4}-\d{2}-\d{2}$/.test(timesheet.date)) {
-            return;
-        }
-        // console.log('Processing timesheet:', JSON.stringify(timesheet, null, 2));
-        // console.log(`Timesheet ID: ${timesheet._id}, Date: ${timesheet.date}, Start: ${timesheet.startTime}, End: ${timesheet.endTime}, Backend Status: ${timesheet.status}`);
-
-        const entryLocalDate = timesheet.date;
-        if (!currentViewDates.has(entryLocalDate)) return;
-
-        const employeeIdValue = timesheet.employeeId?._id || timesheet.employeeId;
-        const employee = employees.find((emp) => emp._id === employeeIdValue);
-        const employeeName = employee?.name || `Unknown (${String(employeeIdValue).slice(-4)})`;
-        const employeeModelStatus = employee?.status || 'Unknown'; // Employee's own status from model
-        const employeeExpectedHours = employee?.expectedWeeklyHours || 40;
-
-        const clientIdValue = timesheet.clientId?._id || timesheet.clientId;
-        const client = clientIdValue ? clients.find((c) => c._id === clientIdValue) : null;
-        const clientName = client?.name || (clientIdValue ? 'N/A' : '');
-        const projectName = timesheet.projectId?.name || (timesheet.projectId ? 'Unknown Project' : '');
-
-        if (!grouped[employeeIdValue]) {
-          grouped[employeeIdValue] = {
-            id: employeeIdValue, name: employeeName, status: employeeModelStatus, // Store employee's own status
-            hoursPerDay: {}, details: [], expectedHours: employeeExpectedHours
-          };
-          dateColumns.forEach(day => (grouped[employeeIdValue].hoursPerDay[day.isoDate] = 0));
-        }
-
-        grouped[employeeIdValue].hoursPerDay[entryLocalDate] += parseFloat(timesheet.totalHours || 0);
-        grouped[employeeIdValue].details.push({
-          ...timesheet,
-           // timesheet.isActiveStatus (stored field) will be used to determine group.displayStatus
-         clientName, projectName,
-          formattedLocalDate: entryLocalDate,
-        });
+    let grouped = {};
+    const currentViewDates = new Set(dateColumns.map(d => d.isoDate));
+    relevantTimesheets.forEach((timesheet) => {
+      if (!timesheet || !timesheet.employeeId || !timesheet.date || !/^\d{4}-\d{2}-\d{2}$/.test(timesheet.date)) return;
+      const entryLocalDate = timesheet.date;
+      if (!currentViewDates.has(entryLocalDate)) return;
+      const employeeIdValue = timesheet.employeeId?._id || timesheet.employeeId;
+      const employee = employees.find((emp) => emp._id === employeeIdValue);
+      const employeeName = employee?.name || `Unknown (${String(employeeIdValue).slice(-4)})`;
+      const employeeModelStatus = employee?.status || 'Unknown';
+      const employeeExpectedHours = employee?.expectedWeeklyHours || 40;
+      const clientIdValue = timesheet.clientId?._id || timesheet.clientId;
+      const client = clientIdValue ? clients.find((c) => c._id === clientIdValue) : null;
+      const clientName = client?.name || (clientIdValue ? 'N/A' : '');
+      const projectName = timesheet.projectId?.name || (timesheet.projectId ? 'Unknown Project' : '');
+      if (!grouped[employeeIdValue]) {
+        grouped[employeeIdValue] = {
+          id: employeeIdValue, name: employeeName, status: employeeModelStatus,
+          hoursPerDay: {}, details: [], expectedHours: employeeExpectedHours
+        };
+        dateColumns.forEach(day => (grouped[employeeIdValue].hoursPerDay[day.isoDate] = 0));
+      }
+      grouped[employeeIdValue].hoursPerDay[entryLocalDate] += parseFloat(timesheet.totalHours || 0);
+      grouped[employeeIdValue].details.push({
+        ...timesheet, clientName, projectName, formattedLocalDate: entryLocalDate,
       });
-
-      Object.values(grouped).forEach(group => {
-          group.details.sort((a, b) => {
-              if (a.formattedLocalDate < b.formattedLocalDate) return -1;
-              if (a.formattedLocalDate > b.formattedLocalDate) return 1;
-              const timeA = a.startTime ? DateTime.fromISO(a.startTime, { zone: 'utc' }).toMillis() : 0;
-              const timeB = b.startTime ? DateTime.fromISO(b.startTime, { zone: 'utc' }).toMillis() : 0;
-              return timeA - timeB;
-          });
-          // console.log(`Details for group ${group.name}:`, JSON.stringify(group.details.map(d => ({id: d._id, date: d.date, status: d.status, start: d.startTime, end: d.endTime })), null, 2));
-          // Determine overall displayStatus for the row based on its entries using the stored status
-          const hasActiveEntry = group.details.some(entry => entry.isActiveStatus === 'Active');
-          // console.log(`[ProjectTimesheet] Group for ${group.name}: hasActiveEntry = ${hasActiveEntry}`);
-          group.displayStatus = hasActiveEntry ? 'Active' : 'Inactive';
+    });
+    Object.values(grouped).forEach(group => {
+      group.details.sort((a, b) => {
+        if (a.formattedLocalDate < b.formattedLocalDate) return -1;
+        if (a.formattedLocalDate > b.formattedLocalDate) return 1;
+        const timeA = a.startTime ? DateTime.fromISO(a.startTime, { zone: 'utc' }).toMillis() : 0;
+        const timeB = b.startTime ? DateTime.fromISO(b.startTime, { zone: 'utc' }).toMillis() : 0;
+        return timeA - timeB;
       });
+      const hasActiveEntry = group.details.some(entry => entry.isActiveStatus === 'Active');
+      group.displayStatus = hasActiveEntry ? 'Active' : 'Inactive';
+    });
+    return Object.values(grouped).sort((a, b) => a.name.localeCompare(b.name));
+  }, [relevantTimesheets, employees, clients, dateColumns]);
 
-      return Object.values(grouped).sort((a, b) => a.name.localeCompare(b.name));
-
-    }, [relevantTimesheets, employees, clients, dateColumns]); // Use relevantTimesheets
-
-  // Generates the display text for the current period (e.g., "Jan 01 - Jan 07, 2024")
+  // Display text for current period
   const periodDisplayText = useMemo(() => {
     if (!dateColumns || dateColumns.length === 0) return 'Loading...';
     const firstDay = DateTime.fromJSDate(dateColumns[0].date);
-    if (viewType === 'Daily') {
-        return firstDay.toFormat('MMM dd yyyy, EEE');
-    } else {
-        const lastDay = DateTime.fromJSDate(dateColumns[dateColumns.length - 1].date);
-        const startFormat = 'MMM dd';
-        const endFormat = firstDay.year !== lastDay.year ? 'MMM dd, yyyy' : 'MMM dd, yyyy';
-        return `${firstDay.toFormat(startFormat)} - ${lastDay.toFormat(endFormat)}`;
-    }
+    if (viewType === 'Daily') return firstDay.toFormat('MMM dd yyyy, EEE');
+    const lastDay = DateTime.fromJSDate(dateColumns[dateColumns.length - 1].date);
+    return `${firstDay.toFormat('MMM dd')} - ${lastDay.toFormat('MMM dd, yyyy')}`;
   }, [dateColumns, viewType]);
 
-  // Filter projects for the dropdown based on user role
+  // Filter projects for dropdown
   const employerScopedProjects = useMemo(() => {
     if (!user || !projects || !clients) return [];
-
     if (user.role === 'employer') {
-        // Assuming projects are already fetched scoped to the employer by the backend.
-        // If not, an additional filter like in Clients.js would be needed here.
-        return projects.filter(p => {
-            const client = clients.find(c => (p.clientId?._id || p.clientId) === c._id);
-            return client && client.employerId === user._id; // Ensure client belongs to this employer
-        });
+      return projects.filter(p => {
+        const client = clients.find(c => (p.clientId?._id || p.clientId) === c._id);
+        return client && client.employerId === user._id;
+      });
     } else if (user.role === 'employee' && loggedInEmployeeRecord?.employerId) {
-        const employeeEmployerId = typeof loggedInEmployeeRecord.employerId === 'object'
-            ? loggedInEmployeeRecord.employerId._id
-            : loggedInEmployeeRecord.employerId;
-        return projects.filter(p => {
-            const client = clients.find(c => (p.clientId?._id || p.clientId) === c._id);
-            return client && client.employerId === employeeEmployerId;
-        });
+      const employeeEmployerId = typeof loggedInEmployeeRecord.employerId === 'object'
+        ? loggedInEmployeeRecord.employerId._id
+        : loggedInEmployeeRecord.employerId;
+      return projects.filter(p => {
+        const client = clients.find(c => (p.clientId?._id || p.clientId) === c._id);
+        return client && client.employerId === employeeEmployerId;
+      });
     }
     return [];
   }, [projects, clients, user, loggedInEmployeeRecord]);
 
-  // Options for the project selector dropdown
+  // Project dropdown options
   const projectOptions = useMemo(() => {
-      const options = employerScopedProjects.map(p => ({ value: p._id, label: p.name }));
-      if (showProjectSelector) {
-          options.unshift({ value: ALL_PROJECTS_VALUE, label: 'All Projects (Timesheets)' });
-      }
-      return options;
+    const options = employerScopedProjects.map(p => ({ value: p._id, label: p.name }));
+    if (showProjectSelector) options.unshift({ value: ALL_PROJECTS_VALUE, label: 'All Projects (Timesheets)' });
+    return options;
   }, [employerScopedProjects, showProjectSelector]);
 
-  const selectedProjectOption = useMemo(() => {
-      return projectOptions.find(opt => opt.value === selectedProjectId) || null;
-  }, [projectOptions, selectedProjectId]);
+  const selectedProjectOption = useMemo(() =>
+    projectOptions.find(opt => opt.value === selectedProjectId) || null,
+    [projectOptions, selectedProjectId]
+  );
 
   const selectedProjectObject = useMemo(() => {
     if (!selectedProjectId || selectedProjectId === ALL_PROJECTS_VALUE || !Array.isArray(projects)) return null;
     return projects.find(p => p._id === selectedProjectId);
   }, [projects, selectedProjectId]);
 
-  // Display label for the current period type (e.g., "Week", "Month")
   const periodLabel = useMemo(() => getPeriodLabel(viewType), [viewType]);
 
-  // Renders table headers based on the view type
+  // Render table headers
   const renderTableHeaders = () => {
     if (viewType === 'Daily') return null;
-
     const headers = [
-        <th key="expand" className="col-expand"></th>,
-        <th key="status" className="col-status center-text">Status</th>,
-        <th key="name" className="col-name">Employee</th>,
+      <th key="expand" className="col-expand"></th>,
+      <th key="status" className="col-status center-text">Status</th>,
+      <th key="name" className="col-name">Employee</th>,
     ];
     const orderedDayNames = getOrderedDays(startDayOfWeekSetting);
-
     if (viewType === 'Monthly' || viewType === 'Fortnightly') {
-        headers.push(<th key="week" className="col-week">Week</th>);
-        headers.push(<th key="week-period" className="col-week-period">Week Period</th>);
+      headers.push(<th key="week" className="col-week">Week</th>);
+      headers.push(<th key="week-period" className="col-week-period">Week Period</th>);
     }
-
     orderedDayNames.forEach(dayName => {
-        headers.push(<th key={`${dayName}-h`} className="col-day">{dayName.substring(0, 3)}</th>);
+      headers.push(<th key={`${dayName}-h`} className="col-day">{dayName.substring(0, 3)}</th>);
     });
     headers.push(<th key="total" className="col-total total-header">Total</th>);
     return headers;
-   };
+  };
 
-  // Renders a card for a single timesheet entry in the Daily view
+  // Render daily entry card
   const renderDailyEntryCard = (entry, employeeName) => {
     const entryTimezone = entry.timezone || browserTimezone;
     const isLeaveEntry = entry.leaveType && entry.leaveType !== 'None';
     const totalHours = parseFloat(entry.totalHours) || 0;
-
     return (
       <div key={entry._id} className="daily-entry-card">
         <div className="daily-entry-header">
@@ -685,7 +574,6 @@ const handleDownload = useCallback(async () => {
               className={`icon-btn edit-btn ${!canEditTimesheet(entry) ? 'disabled-btn' : ''}`}
               onClick={() => handleUpdate(entry)}
               title={canEditTimesheet(entry) ? "Edit Entry" : "Editing not allowed"}
-              // disabled={!canEditTimesheet(entry)} // Removed to allow onClick to fire
             >
               <FontAwesomeIcon icon={faPen} />
             </button>
@@ -702,14 +590,12 @@ const handleDownload = useCallback(async () => {
             <>
               <div className="detail-item"><FontAwesomeIcon icon={faBuilding} /> <strong>Client:</strong> <span>{entry.clientName || 'N/A'}</span></div>
               <div className="detail-item"><FontAwesomeIcon icon={faProjectDiagram} /> <strong>Project:</strong> <span>{entry.projectName || 'N/A'}</span></div>
-              {/* Display Start Time and Actual Creation Time - Daily Card */}
               {entry.startTime && (
                 <div className="detail-item stacked-time work-time-group">
                   <div><FontAwesomeIcon icon={faClock} /> <strong className="work-time-label">Start:</strong> <span className="work-time-value">{formatTimeFromISO(entry.startTime, entryTimezone)}</span></div>
                   {entry.createdAt && <div className="actual-time-sub-item"><span className="actual-time-label">Actual Start:</span> <span className="actual-time-value">{formatTimeFromISO(entry.createdAt, entryTimezone)}</span></div>}
                 </div>
               )}
-              {/* Display End Time and Actual Update Time - Daily Card */}
               {entry.endTime && (
                 <div className="detail-item stacked-time work-time-group">
                   <div><FontAwesomeIcon icon={faClock} /> <strong className="work-time-label">End:</strong> <span className="work-time-value">{formatTimeFromISO(entry.endTime, entryTimezone)}</span></div>
@@ -732,46 +618,42 @@ const handleDownload = useCallback(async () => {
     );
   };
 
-  // Renders the content for the Daily view
+  // Render daily view
   const renderDailyView = () => {
     const dailyDate = dateColumns[0]?.isoDate;
     if (!dailyDate) return <div className="no-results">No date selected for daily view.</div>;
-
     const entriesForDay = groupTimesheetsByEmployee.flatMap(empGroup =>
-        empGroup.details
-            .filter(entry => entry.formattedLocalDate === dailyDate)
-            .map(entry => ({ ...entry, employeeName: empGroup.name }))
+      empGroup.details
+        .filter(entry => entry.formattedLocalDate === dailyDate)
+        .map(entry => ({ ...entry, employeeName: empGroup.name }))
     );
-
     if (entriesForDay.length === 0) {
-        return <div className="no-results">No timesheet entries found for this day.</div>;
+      return <div className="no-results">No timesheet entries found for this day.</div>;
     }
-
     entriesForDay.sort((a, b) => {
-        if (a.employeeName < b.employeeName) return -1;
-        if (a.employeeName > b.employeeName) return 1;
-        const timeA = a.startTime ? DateTime.fromISO(a.startTime, { zone: 'utc' }).toMillis() : 0;
-        const timeB = b.startTime ? DateTime.fromISO(b.startTime, { zone: 'utc' }).toMillis() : 0;
-        return timeA - timeB;
+      if (a.employeeName < b.employeeName) return -1;
+      if (a.employeeName > b.employeeName) return 1;
+      const timeA = a.startTime ? DateTime.fromISO(a.startTime, { zone: 'utc' }).toMillis() : 0;
+      const timeB = b.startTime ? DateTime.fromISO(b.startTime, { zone: 'utc' }).toMillis() : 0;
+      return timeA - timeB;
     });
-
     return (
-        <div className="daily-view-container">
-            {entriesForDay.map(entry => renderDailyEntryCard(entry, entry.employeeName))}
-        </div>
+      <div className="daily-view-container">
+        {entriesForDay.map(entry => renderDailyEntryCard(entry, entry.employeeName))}
+      </div>
     );
   };
 
-  // Options for the employee filter dropdown (used in download/send modals)
+  // Employee filter options for download/send
   const employeeOptions = useMemo(() => [
-      { value: '', label: 'All Employees' },
-      ...employees.map(e => ({ value: e._id, label: e.name }))
+    { value: '', label: 'All Employees' },
+    ...employees.map(e => ({ value: e._id, label: e.name }))
   ], [employees]);
 
-  // Currently selected employee option for the filter dropdown
   const selectedEmployeeOption = useMemo(() =>
-      employeeOptions.find(e => e.value === selectedEmployee) || null
-  , [employeeOptions, selectedEmployee]);
+    employeeOptions.find(e => e.value === selectedEmployee) || null,
+    [employeeOptions, selectedEmployee]
+  );
 
   const viewTypeOptions = useMemo(() => [
     { value: 'Daily', label: 'View by Daily' },
@@ -779,11 +661,11 @@ const handleDownload = useCallback(async () => {
     { value: 'Fortnightly', label: 'View by Fortnightly' },
     { value: 'Monthly', label: 'View by Monthly' },
   ], []);
+
   // Render
   return (
     <div className='project-timesheet-container timesheet-page'>
       <Alert />
-      {/* Updated header structure to match ts-page-header from Timesheet.scss */}
       <div className="ts-page-header">
         <div className="ts-page-header__main-content">
           <h3 className="ts-page-header__title">
@@ -815,6 +697,11 @@ const handleDownload = useCallback(async () => {
                 placeholder="Filter by Employee (Optional)"
                 isClearable={true}
                 isDisabled={isDownloading}
+                menuPortalTarget={document.body}
+                styles={{
+                  menuPortal: base => ({ ...base, zIndex: 9999 }),
+                  menu: base => ({ ...base, zIndex: 9999 })
+                }}
             />
             <DatePicker selected={startDate} onChange={setStartDate} selectsStart startDate={startDate} endDate={endDate} placeholderText="From Date" dateFormat="yyyy-MM-dd" className="filter-datepicker" wrapperClassName="date-picker-wrapper" aria-label="Download Start Date" />
             <DatePicker selected={endDate} onChange={setEndDate} selectsEnd startDate={startDate} endDate={endDate} minDate={startDate} placeholderText="To Date" dateFormat="yyyy-MM-dd" className="filter-datepicker" wrapperClassName="date-picker-wrapper" aria-label="Download End Date" />
@@ -838,6 +725,11 @@ const handleDownload = useCallback(async () => {
                 placeholder="Filter by Employee (Optional)"
                 isClearable={true}
                 isDisabled={isSending}
+                menuPortalTarget={document.body}
+                styles={{
+                  menuPortal: base => ({ ...base, zIndex: 9999 }),
+                  menu: base => ({ ...base, zIndex: 9999 })
+                }}
             />
             <DatePicker selected={startDate} onChange={setStartDate} selectsStart startDate={startDate} endDate={endDate} placeholderText="From Date" dateFormat="yyyy-MM-dd" className="filter-datepicker" wrapperClassName="date-picker-wrapper" aria-label="Send Start Date" />
             <DatePicker selected={endDate} onChange={setEndDate} selectsEnd startDate={startDate} endDate={endDate} minDate={startDate} placeholderText="To Date" dateFormat="yyyy-MM-dd" className="filter-datepicker" wrapperClassName="date-picker-wrapper" aria-label="Send End Date" />
@@ -857,20 +749,25 @@ const handleDownload = useCallback(async () => {
                   options={projectOptions}
                   value={selectedProjectOption}
                   onChange={handleProjectSelectChange}
-                  inputId="projectTimesheetProjectSelect" // Added unique ID
+                  inputId="projectTimesheetProjectSelect"
                   placeholder="Select a Project..."
-                  className="react-select-container project-select" // Existing classes for project select
+                  className="react-select-container project-select"
                   classNamePrefix="react-select"
                   isLoading={isLoading && !projects.length}
                   isDisabled={isLoading}
-                  isClearable={false} // A project context is always needed for this view
+                  isClearable={false}
+                  menuPortalTarget={document.body}
+                  styles={{
+                    menuPortal: base => ({ ...base, zIndex: 9999 }),
+                    menu: base => ({ ...base, zIndex: 9999 })
+                  }}
               />
           </div>
         </div>
       )}
 
       {/* Main navigation bar for period, controls, create */}
-      <div className='timesheet-nav'> {/* Removed project-specific-nav class */}
+      <div className='timesheet-nav'>
           <div className='timesheet-nav__period'>
             <h4 className='timesheet-nav__period-text'>{periodDisplayText}</h4>
           </div>
@@ -880,17 +777,22 @@ const handleDownload = useCallback(async () => {
               <FontAwesomeIcon icon={faArrowLeft} />
               <span>Prev {periodLabel}</span>
             </button>
-            <div className='timesheet-nav__view-select-wrapper'> {/* Consistent class name */}
+            <div className='timesheet-nav__view-select-wrapper'>
               <Select
-                inputId='projectTimesheetViewType' // Ensure unique ID
+                inputId='projectTimesheetViewType'
                 options={viewTypeOptions}
                 value={viewTypeOptions.find(option => option.value === viewType)}
                 onChange={option => setViewType(option ? option.value : 'Weekly')}
-                className="timesheet-nav__view-select" // Consistent class name
+                className="timesheet-nav__view-select"
                 classNamePrefix="react-select"
                 aria-label="Select View Type"
                 isSearchable={false}
                 isDisabled={isLoading}
+                menuPortalTarget={document.body}
+                styles={{
+                  menuPortal: base => ({ ...base, zIndex: 9999 }),
+                  menu: base => ({ ...base, zIndex: 9999 })
+                }}
               />
             </div>
               <button className='timesheet-nav__button' onClick={handleNext} aria-label={`Next ${periodLabel}`}>
@@ -988,7 +890,6 @@ const handleDownload = useCallback(async () => {
                                                       className={`icon-btn edit-btn ${!canEditTimesheet(entry) ? 'disabled-btn' : ''}`}
                                                       onClick={() => handleUpdate(entry)}
                                                       title={canEditTimesheet(entry) ? "Edit Entry" : "Editing not allowed"}
-                                                      // disabled={!canEditTimesheet(entry)} // Removed to allow onClick to fire
                                                     >
                                                       <FontAwesomeIcon icon={faPen} />
                                                     </button>

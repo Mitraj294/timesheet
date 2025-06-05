@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate, useLocation, Link } from "react-router-dom";
-import { register, login, clearAuthError, checkProspectiveEmployee, selectProspectiveEmployeeCheck, clearProspectiveEmployeeCheck, requestCompanyInvitation } from "../../redux/slices/authSlice"; // Added requestCompanyInvitation
-import { FontAwesomeIcon, } from "@fortawesome/react-fontawesome";
+import { register, login, clearAuthError, checkProspectiveEmployee, selectProspectiveEmployeeCheck, clearProspectiveEmployeeCheck, requestCompanyInvitation } from "../../redux/slices/authSlice";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faEye, faEyeSlash, faUser, faEnvelope, faUserPlus, faSignInAlt, faGlobe, faPhone, faBuilding, faLock, faArrowLeft } from "@fortawesome/free-solid-svg-icons";
-import { parsePhoneNumberFromString, isValidPhoneNumber, getCountries, getCountryCallingCode } from 'libphonenumber-js';
+import { isValidPhoneNumber, getCountries, getCountryCallingCode } from 'libphonenumber-js';
 import { setAlert } from "../../redux/slices/alertSlice";
 import "../../styles/Register.scss";
 import Alert from "../layout/Alert";
@@ -13,18 +13,17 @@ const Register = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const location = useLocation();
-
-  // State
   const { isAuthenticated, error: authApiError, loading } = useSelector((state) => state.auth);
   const prospectiveEmployeeCheck = useSelector(selectProspectiveEmployeeCheck);
   const { email: initialEmail, name: initialName } = location.state || {};
 
+  // Form state
   const [step, setStep] = useState(1);
   const [formData, setFormData] = useState({
     name: initialName || "",
     email: initialEmail || "",
     password: "",
-    role: "", // Start with no role selected
+    role: "",
     country: "",
     phoneNumber: "",
     companyName: "",
@@ -32,51 +31,47 @@ const Register = () => {
   const [invitationFormData, setInvitationFormData] = useState({
     prospectiveEmployeeName: initialName || "",
     prospectiveEmployeeEmail: initialEmail || "",
-    companyName: "", // Company they want to join
-    companyEmail: "", // Email of the company/employer
+    companyName: "",
+    companyEmail: "",
   });
   const [showPassword, setShowPassword] = useState(false);
   const [confirmPassword, setConfirmPassword] = useState("");
   const [countryCode, setCountryCode] = useState('IN');
   const [isSubmittingInvitation, setIsSubmittingInvitation] = useState(false);
 
-
-  // Effects
+  // Clear errors on mount/unmount
   useEffect(() => {
     dispatch(clearAuthError());
-    dispatch(clearProspectiveEmployeeCheck()); // Clear check on mount
-    return () => {
-        dispatch(clearAuthError());
-    };
+    dispatch(clearProspectiveEmployeeCheck());
+    return () => { dispatch(clearAuthError()); };
   }, [dispatch]);
 
+  // Redirect if registered
   useEffect(() => {
-    if (isAuthenticated) {
-      navigate("/dashboard");
-    }
+    if (isAuthenticated) navigate("/dashboard");
   }, [isAuthenticated, navigate]);
+
+  // Show alerts for errors
   useEffect(() => {
-    if (authApiError) {
-      dispatch(setAlert(authApiError, 'danger'));
-    }
+    if (authApiError) dispatch(setAlert(authApiError, 'danger'));
   }, [authApiError, dispatch]);
 
+  // Show alerts for employee check
   useEffect(() => {
     if (prospectiveEmployeeCheck.status === 'succeeded' && prospectiveEmployeeCheck.result && !prospectiveEmployeeCheck.result.canProceed) {
-        dispatch(setAlert(prospectiveEmployeeCheck.result.message, 'warning'));
+      dispatch(setAlert(prospectiveEmployeeCheck.result.message, 'warning'));
     } else if (prospectiveEmployeeCheck.status === 'failed' && prospectiveEmployeeCheck.error) {
-        const errorMessage = typeof prospectiveEmployeeCheck.error === 'string' ? prospectiveEmployeeCheck.error : prospectiveEmployeeCheck.error?.message || 'Failed to verify email.';
-        dispatch(setAlert(errorMessage, 'danger'));
+      const errorMessage = typeof prospectiveEmployeeCheck.error === 'string' ? prospectiveEmployeeCheck.error : prospectiveEmployeeCheck.error?.message || 'Failed to verify email.';
+      dispatch(setAlert(errorMessage, 'danger'));
     }
-}, [prospectiveEmployeeCheck, dispatch]);
+  }, [prospectiveEmployeeCheck, dispatch]);
 
-  // Handlers
+  // Handle form field changes
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData({ ...formData, [name]: value });
     if (name === 'role' && step === 1 && value) {
       setStep(2);
-      // Pre-fill invitation form if name/email already exist from location state
       if (value === 'employee') {
         setInvitationFormData(prev => ({
           ...prev,
@@ -87,38 +82,35 @@ const Register = () => {
     }
   };
 
+  // Go back to role selection
   const handleBack = () => {
     setStep(1);
     setFormData(prev => ({ ...prev, role: '' }));
-    // Optionally clear invitationFormData too
-};
+  };
 
+  // Register employer
   const handleSubmit = async (e) => {
     e.preventDefault();
     const { email, password, role } = formData;
-    dispatch(clearAuthError()); // Clear previous errors before new attempt
-
+    dispatch(clearAuthError());
     if (role === 'employer' && password !== confirmPassword) {
       dispatch(setAlert('Passwords do not match', 'danger'));
       return;
     }
-    
     if (role === 'employer' && formData.phoneNumber) {
-        try {
-            if (!isValidPhoneNumber(formData.phoneNumber, countryCode)) {
-                dispatch(setAlert(`Please enter a valid phone number for the selected country (${countryCode}).`, 'warning'));
-                return;
-            }
-        } catch (e) {
-            dispatch(setAlert("Invalid phone number format.", 'warning'));
-            return;
+      try {
+        if (!isValidPhoneNumber(formData.phoneNumber, countryCode)) {
+          dispatch(setAlert(`Please enter a valid phone number for the selected country (${countryCode}).`, 'warning'));
+          return;
         }
+      } catch (e) {
+        dispatch(setAlert("Invalid phone number format.", 'warning'));
+        return;
+      }
     }
-
     try {
       await dispatch(register(formData)).unwrap();
       dispatch(setAlert('Registration successful!', 'success'));
-
       try {
         await dispatch(login({ email, password })).unwrap();
         dispatch(setAlert('Login successful!', 'success'));
@@ -131,11 +123,13 @@ const Register = () => {
     }
   };
 
+  // Handle employee invitation form changes
   const handleInvitationChange = (e) => {
     const { name, value } = e.target;
     setInvitationFormData({ ...invitationFormData, [name]: value });
   };
 
+  // Check if employee email is already used
   const handleProspectiveEmailBlur = () => {
     if (formData.role === 'employee' && invitationFormData.prospectiveEmployeeEmail) {
       if (!/\S+@\S+\.\S+/.test(invitationFormData.prospectiveEmployeeEmail)) {
@@ -145,10 +139,11 @@ const Register = () => {
       }
       dispatch(checkProspectiveEmployee({ email: invitationFormData.prospectiveEmployeeEmail }));
     } else {
-      dispatch(clearProspectiveEmployeeCheck()); 
+      dispatch(clearProspectiveEmployeeCheck());
     }
   };
 
+  // Submit invitation to join as employee
   const handleInvitationSubmit = async (e) => {
     e.preventDefault();
     dispatch(clearAuthError());
@@ -159,22 +154,17 @@ const Register = () => {
         setIsSubmittingInvitation(false);
         return;
       }
-      // Dispatch the requestCompanyInvitation thunk
       await dispatch(requestCompanyInvitation(invitationFormData)).unwrap();
-      // Success alert is handled within the thunk
-      setInvitationFormData({ prospectiveEmployeeName: "", prospectiveEmployeeEmail: "", companyName: "", companyEmail: "" }); // Clear form
-      setStep(1); // Go back to role selection or a success message page
+      setInvitationFormData({ prospectiveEmployeeName: "", prospectiveEmployeeEmail: "", companyName: "", companyEmail: "" });
+      setStep(1);
     } catch (error) {
-      // Error alert is handled within the thunk if it uses rejectWithValue and dispatches setAlert
-      // If not, you might need to dispatch an alert here based on the error.
-      // The thunk already dispatches setAlert on error.
-      console.error("Error submitting invitation request from component:", error);
+      // Error alert handled by thunk
     } finally {
       setIsSubmittingInvitation(false);
     }
   };
 
-  // Memoized Data
+  // Country select options
   const countryOptions = useMemo(() => {
     const countries = getCountries();
     return countries.map(country => ({
@@ -200,7 +190,7 @@ const Register = () => {
               <label htmlFor="role">Select Your Role to Continue</label>
               <div className="styles_InputWithIcon">
                 <select id="role" name="role" value={formData.role} onChange={handleChange} disabled={loading}>
-                  <option value="" disabled>Select Role...</option> {/* Placeholder */}
+                  <option value="" disabled>Select Role...</option>
                   <option value="employee">👤 Employee</option>
                   <option value="employer">🏢 Employer</option>
                 </select>
@@ -208,7 +198,6 @@ const Register = () => {
             </div>
           </div>
         )}
-
         {step === 2 && (
           <>
             {formData.role === 'employer' && (
@@ -219,7 +208,6 @@ const Register = () => {
                 <p className="styles_SelectedRole">
                   Registering as: <strong>🏢 Employer</strong>
                 </p>
-
                 <div className="styles_InputGroup">
                   <label htmlFor="name">Full Name*</label>
                   <div className="styles_InputWithIcon">
@@ -286,7 +274,7 @@ const Register = () => {
                       disabled={loading}
                     />
                     <button type="button" onClick={() => setShowPassword(!showPassword)} className="styles_PasswordToggleBtn" disabled={loading}>
-                      <FontAwesomeIcon icon={showPassword ? faEyeSlash : faEye}  className="styles_InputIcon styles_InputIconRight" />
+                      <FontAwesomeIcon icon={faEyeSlash} className="styles_InputIcon styles_InputIconRight" />
                     </button>
                   </div>
                 </div>
@@ -295,7 +283,7 @@ const Register = () => {
                   <div className="styles_PasswordInputContainer">
                     <input
                       id="confirmPassword"
-                      type={showPassword ? "text" : "password"} // Link visibility to main password toggle
+                      type={showPassword ? "text" : "password"}
                       name="confirmPassword"
                       placeholder="Confirm Your Password"
                       value={confirmPassword}
@@ -312,7 +300,6 @@ const Register = () => {
                 </button>
               </form>
             )}
-
             {formData.role === 'employee' && (
               <form onSubmit={handleInvitationSubmit} className="styles_LoginForm">
                  <button type="button" onClick={handleBack} className="styles_BackButton" disabled={isSubmittingInvitation}>
@@ -362,7 +349,6 @@ const Register = () => {
             )}
           </>
         )}
-
         <p className="styles_SignupPrompt">
           Already have an account?
           <button
@@ -377,4 +363,5 @@ const Register = () => {
     </div>
   );
 };
+
 export default Register;

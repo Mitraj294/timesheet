@@ -1,19 +1,18 @@
-// /home/digilab/timesheet/client/src/components/layout/Navbar.js
+
 import React, { useState, useEffect, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useSidebar } from "../../context/SidebarContext";
 import { useSelector, useDispatch } from "react-redux";
-import { logout, selectAuthUser, selectIsTabletViewUnlocked } from "../../redux/slices/authSlice";
+import { logout } from "../../redux/slices/authSlice";
 import { setAlert } from "../../redux/slices/alertSlice";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faBars,
   faCog,
   faSignOutAlt,
-  // faUser, // This was in your provided code but not used, faUserCircle is used below
   faSpinner,
   faCaretDown,
-  faUserCircle, // Used for the user avatar
+  faUserCircle,
 } from "@fortawesome/free-solid-svg-icons";
 import Alert from "./Alert";
 import "../../styles/Navbar.scss";
@@ -28,31 +27,34 @@ const Navbar = () => {
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const dropdownRef = useRef(null);
 
-  const isTabletViewUnlocked = useSelector(selectIsTabletViewUnlocked);
-  const { user } = useSelector((state) => state.auth || {}); // Ensure state.auth exists
+  // Get user and tablet view state from Redux
+  const isTabletViewUnlocked = useSelector(state => state.auth?.isTabletViewUnlocked);
+  const user = useSelector(state => state.auth?.user);
   const userName = user?.name || "Guest";
   const userRole = user?.role ? user.role.charAt(0).toUpperCase() + user.role.slice(1) : "Unknown";
 
+  // Show logout confirmation dialog
   const handleLogoutClick = () => {
     setIsDropdownOpen(false);
     setShowLogoutConfirm(true);
   };
 
+  // Confirm logout
   const confirmLogoutAction = () => {
     setIsLoggingOut(true);
     dispatch(logout());
     dispatch(setAlert('Logout successful!', 'success'));
     navigate("/login");
-    // No need to manually set setShowLogoutConfirm and setIsLoggingOut to false here,
-    // as the component will unmount or re-render due to navigation and state change.
-    // However, if navigation was conditional, you'd reset them.
+    // No need to reset state, navigation will re-render
   };
 
+  // Cancel logout
   const cancelLogout = () => {
     setShowLogoutConfirm(false);
-    setIsLoggingOut(false); // Ensure this is reset if cancel is clicked
+    setIsLoggingOut(false);
   };
 
+  // Close dropdown if clicked outside
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
@@ -61,20 +63,20 @@ const Navbar = () => {
     };
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [dropdownRef]);
+  }, []);
 
   return (
     <>
       <div className="navbar">
-        <Alert /> {/* Alert component should be self-contained */}
-        {/* Hide the sidebar toggle button if tablet view is unlocked */}
+        <Alert />
+        {/* Sidebar toggle button, hidden if tablet view is unlocked */}
         {!isTabletViewUnlocked && (
           <div className="navbar-section">
             <button className="navbar-icon-button menu-button" onClick={toggleSidebar} aria-label="Toggle Sidebar">
               <FontAwesomeIcon icon={faBars} />
-            </button> {/* This button tag was correctly closed */}
+            </button>
           </div>
-        )} {/* This closing curly brace and parenthesis correctly closes the conditional block */}
+        )}
 
         <div className="navbar-section navbar-logo-container">
           <img src="/img/logoNav.png" alt="TimeSheet Logo" className="navbar-logo-icon" />
@@ -86,6 +88,7 @@ const Navbar = () => {
           </div>
         </div>
 
+        {/* User dropdown menu */}
         {!isTabletViewUnlocked && user && (
           <div className="navbar-section navbar-user-nav" ref={dropdownRef}>
             <button className="navbar-user-button" onClick={() => setIsDropdownOpen(!isDropdownOpen)} aria-haspopup="true" aria-expanded={isDropdownOpen}>
@@ -109,19 +112,20 @@ const Navbar = () => {
         )}
       </div>
 
+      {/* Logout confirmation dialog */}
       {showLogoutConfirm && (
-          <div className="logout-confirm-overlay">
-            <div className="logout-confirm-dialog">
-              <h4>Confirm Logout</h4>
-              <p>Are you sure you want to log out?</p>
-              <div className="logout-confirm-actions">
-                <button className="btn btn-secondary" onClick={cancelLogout} disabled={isLoggingOut}>Cancel</button>
-                <button className="btn btn-danger" onClick={confirmLogoutAction} disabled={isLoggingOut}>
-                  {isLoggingOut ? <><FontAwesomeIcon icon={faSpinner} spin /> Logging Out...</> : 'Logout'}
-                </button>
-              </div>
+        <div className="logout-confirm-overlay">
+          <div className="logout-confirm-dialog">
+            <h4>Confirm Logout</h4>
+            <p>Are you sure you want to log out?</p>
+            <div className="logout-confirm-actions">
+              <button className="btn btn-secondary" onClick={cancelLogout} disabled={isLoggingOut}>Cancel</button>
+              <button className="btn btn-danger" onClick={confirmLogoutAction} disabled={isLoggingOut}>
+                {isLoggingOut ? <><FontAwesomeIcon icon={faSpinner} spin /> Logging Out...</> : 'Logout'}
+              </button>
             </div>
           </div>
+        </div>
       )}
     </>
   );

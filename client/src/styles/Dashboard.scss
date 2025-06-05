@@ -63,11 +63,15 @@ $breakpoint-sm: 576px;
         display: flex;
         flex-wrap: wrap; // Allow wrapping on smaller screens
         gap: 1.5rem; // Increase gap
+        overflow: visible !important; // Ensure dropdown can overflow
+        position: relative; // Ensure stacking context is correct
+        z-index: auto;
     }
 
     .select-container {
         flex: 1; // Allow selects to grow
         min-width: 200px; // Minimum width before wrapping
+        position: relative;
 
         label {
             display: block;
@@ -104,8 +108,11 @@ $breakpoint-sm: 576px;
             }
 
             .react-select__menu {
-                // This targets the dropdown menu specifically
-                z-index: 1051; // Set a high z-index to ensure it appears above other elements
+                position: absolute !important;
+                z-index: 9999 !important; // Always on top
+                left: 0 !important;
+                width: 100% !important;
+                min-width: 200px;
                 border-radius: 4px;
                 box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
             }
@@ -130,6 +137,23 @@ $breakpoint-sm: 576px;
                 }
             }
         }
+    }
+}
+
+// --- Responsive fix for stacked selects on small screens ---
+@media (max-width: $breakpoint-md) {
+    .dashboard-filters-container .filters {
+        flex-direction: column;
+        gap: 1rem;
+    }
+
+    .dashboard-filters-container .select-container {
+        position: static; // Remove stacking context so dropdown can overflow above next select
+        z-index: auto;
+    }
+
+    .dashboard-filters-container .select-container .react-select-container .react-select__menu {
+        z-index: 1001 !important; // Ensure dropdown is above the next select
     }
 }
 
@@ -196,6 +220,18 @@ $breakpoint-sm: 576px;
 
         &.projects {
             background-color: color.adjust($secondary-color, $lightness: -10%);
+        }
+
+        &.client-hours {
+            // New class for client hours icon
+            background-color: rgba(255, 193, 7, 0.2); // Example: Light yellow
+            color: #ffc107; // Example: Yellow
+        }
+
+        &.project-hours {
+            // New class for project hours icon
+            background-color: rgba(108, 117, 125, 0.2); // Example: Light gray
+            color: #6c757d; // Example: Gray
         }
     }
 
@@ -454,28 +490,6 @@ $breakpoint-sm: 576px;
                     border-color: #bd2130;
                 }
             }
-        }
-    }
-}
-
-// Add to your /home/digilab/timesheet/client/src/styles/Dashboard.scss
-
-.summary-card {
-    // ... existing styles ...
-
-    .summary-icon {
-        // ... existing styles ...
-
-        &.client-hours {
-            // New class for client hours icon
-            background-color: rgba(255, 193, 7, 0.2); // Example: Light yellow
-            color: #ffc107; // Example: Yellow
-        }
-
-        &.project-hours {
-            // New class for project hours icon
-            background-color: rgba(108, 117, 125, 0.2); // Example: Light gray
-            color: #6c757d; // Example: Gray
         }
     }
 }

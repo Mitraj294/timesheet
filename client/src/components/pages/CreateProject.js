@@ -328,14 +328,15 @@ const CreateProject = () => {
             >
               <FontAwesomeIcon icon={faTimes} /> Cancel
             </button>
-             <button type="submit" className="btn btn-green" disabled={isLoading}>
-               {isLoading ? (
+            <button type="submit" className="btn btn-green" disabled={isLoading}>
+              {isLoading ? (
                 <>
                   <FontAwesomeIcon icon={faSpinner} spin /> Saving...
                 </>
               ) : (
                 <>
-                  <FontAwesomeIcon icon={isEditing ? faPen : faSave} /> {isEditing ? "Update Project" : "Create Project"}
+                  <FontAwesomeIcon icon={isEditing ? faPen : faSave} />
+                  {isEditing ? "Update Project" : "Create Project"}
                 </>
               )}
             </button>

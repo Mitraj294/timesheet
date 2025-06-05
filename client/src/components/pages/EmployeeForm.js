@@ -11,7 +11,7 @@ import {
   selectEmployeeError
 } from '../../redux/slices/employeeSlice';
 import { setAlert } from '../../redux/slices/alertSlice';
-import { register, checkUserByEmailForEmployer } from '../../redux/slices/authSlice'; // Import thunks
+import { register, checkUserByEmailForEmployer } from '../../redux/slices/authSlice';
 import Alert from '../layout/Alert';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
@@ -23,19 +23,18 @@ import {
 } from '@fortawesome/free-solid-svg-icons';
 import '../../styles/Forms.scss';
 
-const API_URL = process.env.REACT_APP_API_URL || 'https://timesheet-slpc.onrender.com/api';
-
-const EmployeeForm = () => { // NOSONAR
+const EmployeeForm = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const isEditMode = Boolean(id);
 
-  // Redux state selectors
+  // Redux state
   const employees = useSelector(selectAllEmployees);
   const employeeStatus = useSelector(selectEmployeeStatus);
   const employeesError = useSelector(selectEmployeeError);
 
+  // Initial form state
   const initialFormState = {
     name: '',
     employeeCode: '',
@@ -48,26 +47,24 @@ const EmployeeForm = () => { // NOSONAR
     userId: null,
   };
 
-  // Local component state
   const [formData, setFormData] = useState(initialFormState);
-  const [error, setError] = useState(null); // Local error for form validation
+  const [error, setError] = useState(null);
 
-  // Effects
-  // Fetches employees if the list is not already loaded
+  // Fetch employees if needed
   useEffect(() => {
     if (employeeStatus === 'idle') {
       dispatch(fetchEmployees());
     }
   }, [dispatch, employeeStatus]);
 
-  // Displays errors from Redux state (e.g., employee fetch errors) as alerts
+  // Show error alerts from Redux
   useEffect(() => {
     if (employeesError && (!isEditMode || (isEditMode && employeeStatus === 'failed'))) {
       dispatch(setAlert(employeesError, 'danger'));
     }
   }, [employeesError, isEditMode, employeeStatus, dispatch]);
 
-  // Populates the form with employee data when in edit mode and data is available
+  // Fill form in edit mode
   useEffect(() => {
     if (id && employees.length > 0) {
       const emp = employees.find((e) => e._id === id);
@@ -83,31 +80,27 @@ const EmployeeForm = () => { // NOSONAR
           wage: emp.wage?.toString() || '',
           userId: emp.userId || null,
         });
-      } else {
-        console.warn(`Employee with ID ${id} not found.`);
-        if (employeeStatus === 'succeeded') {
-            dispatch(setAlert(`Employee with ID ${id} not found.`, 'warning'));
-        }
+      } else if (employeeStatus === 'succeeded') {
+        dispatch(setAlert(`Employee with ID ${id} not found.`, 'warning'));
       }
     } else if (!id) {
-      setFormData(initialFormState); // Reset form if creating a new employee
+      setFormData(initialFormState);
     }
-  }, [id, employees, employeeStatus]);
-  // Handlers
+  }, [id, employees, employeeStatus, dispatch]);
+
+  // Handle input changes
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
-    setFormData((prevState) => ({
-      ...prevState,
-      [name]: type === 'checkbox' ? (checked ? 'Yes' : 'No') : value, // Handle checkbox correctly
+    setFormData((prev) => ({
+      ...prev,
+      [name]: type === 'checkbox' ? (checked ? 'Yes' : 'No') : value,
     }));
-     // Clear local error on change
-    if (error) setError(null); // Clear local validation error when user types
+    if (error) setError(null);
   };
 
-  // Derived state: True if an add/update operation is in progress
   const isSaving = employeeStatus === 'loading';
 
-  // Form validation logic
+  // Simple form validation
   const validateForm = () => {
     if (!formData.name.trim()) return 'Name is required.';
     if (!formData.employeeCode.trim()) return 'Employee Code is required.';
@@ -118,10 +111,10 @@ const EmployeeForm = () => { // NOSONAR
     return null;
   };
 
-  // Handles form submission for creating or updating an employee
+  // Handle form submit (add or update)
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError(null); // Clear previous local validation errors
+    setError(null);
 
     const validationError = validateForm();
     if (validationError) {
@@ -140,74 +133,60 @@ const EmployeeForm = () => { // NOSONAR
     };
 
     try {
-      // If creating a new employee, first check if a user account with this email exists
       if (!isEditMode) {
-        // Use the thunk to check user existence (this sends employer's auth token)
-        const userCheckAction = await dispatch(
+        // Check if user exists
+        const userCheck = await dispatch(
           checkUserByEmailForEmployer({ email: formData.email })
-        ).unwrap(); // unwrap() will throw if rejected
+        ).unwrap();
 
-        const userCheckData = userCheckAction; // { exists: true/false, user: data }
-
-        if (!userCheckData.exists) {
-          // If user doesn't exist, create a new user account for them
-          const tempPassword = '123456'; // Default temporary password
-          // Use the register thunk
-          const registerAction = await dispatch(
+        if (!userCheck.exists) {
+          // Register new user
+          const registerRes = await dispatch(
             register({
               name: formData.name,
               email: formData.email,
-              password: tempPassword, // Use preset password
+              password: '123456',
               role: 'employee',
             })
-          ).unwrap(); // unwrap() will throw if rejected
+          ).unwrap();
 
-          const registeredUser = registerAction; // Contains { message, user (if returned), token (if returned) }
-
-          if (!registeredUser.user || !registeredUser.user._id) {
-            throw new Error('Invalid response from registration. No user ID received.');
+          if (!registerRes.user || !registerRes.user._id) {
+            throw new Error('No user ID received from registration.');
           }
-          employeeData.userId = registeredUser.user._id;
-        } else if (userCheckData.exists && userCheckData.user?._id) {
-          // User exists, link this new employee record to the existing user ID
-          employeeData.userId = userCheckData.user._id;
+          employeeData.userId = registerRes.user._id;
+        } else if (userCheck.user?._id) {
+          employeeData.userId = userCheck.user._id;
         }
       }
 
       if (isEditMode) {
-        // userId is not typically part of employeeData for update unless you intend to re-link
         await dispatch(updateEmployee({ id, employeeData })).unwrap();
         dispatch(setAlert('Employee updated successfully!', 'success'));
       } else {
         await dispatch(addEmployee(employeeData)).unwrap();
-        dispatch(setAlert(`Employee added & User account created! Temporary password is '123456'. Advise user to change it.`, 'success', 10000));
+        dispatch(setAlert(
+          `Employee added & User account created! Temporary password is '123456'. Advise user to change it.`,
+          'success',
+          10000
+        ));
       }
-
       navigate('/employees');
-
-    } catch (rejectedValueOrSerializedError) {
-      console.error(`Error ${isEditMode ? 'updating' : 'adding'} employee:`, rejectedValueOrSerializedError);
-      // unwrap() returns the rejected action's payload or throws an error with that payload.
-      // The payload is typically the error message string from rejectWithValue.
-      const message = rejectedValueOrSerializedError?.message || // For actual Error objects
-                      (typeof rejectedValueOrSerializedError === 'string' ? rejectedValueOrSerializedError : null) || // For string payloads
-                      `Failed to ${isEditMode ? 'update' : 'add'} employee.`;
-      dispatch(setAlert(message, 'danger')); // Show submission error via Alert
-    } // No finally block needed if using Redux status
+    } catch (err) {
+      const message = err?.message || (typeof err === 'string' ? err : `Failed to ${isEditMode ? 'update' : 'add'} employee.`);
+      dispatch(setAlert(message, 'danger'));
+    }
   };
-  
-  // Render
-  const isLoadingInitialData = employeeStatus === 'loading' && !employees.length;
 
-  if (isLoadingInitialData) {
-     return (
-        <div className='vehicles-page'>
-            <div className='loading-indicator'>
-              <FontAwesomeIcon icon={faSpinner} spin size='2x' />
-              <p>Loading Employee Data...</p>
-            </div>
+  // Show loading spinner if fetching employees
+  if (employeeStatus === 'loading' && !employees.length) {
+    return (
+      <div className='vehicles-page'>
+        <div className='loading-indicator'>
+          <FontAwesomeIcon icon={faSpinner} spin size='2x' />
+          <p>Loading Employee Data...</p>
         </div>
-      );
+      </div>
+    );
   }
 
   return (
@@ -220,13 +199,9 @@ const EmployeeForm = () => { // NOSONAR
             {isEditMode ? 'Edit Employee' : 'Add Employee'}
           </h2>
           <div className='breadcrumbs'>
-            <Link to='/dashboard' className='breadcrumb-link'>
-              Dashboard
-            </Link>
+            <Link to='/dashboard' className='breadcrumb-link'>Dashboard</Link>
             <span className='breadcrumb-separator'> / </span>
-            <Link to='/employees' className='breadcrumb-link'>
-              Employees
-            </Link>
+            <Link to='/employees' className='breadcrumb-link'>Employees</Link>
             <span className='breadcrumb-separator'> / </span>
             <span className='breadcrumb-current'>
               {isEditMode ? 'Edit Employee' : 'Add Employee'}
@@ -237,97 +212,140 @@ const EmployeeForm = () => { // NOSONAR
 
       <div className='form-container'>
         <form onSubmit={handleSubmit} className='employee-form' noValidate>
-          {/* Local validation errors are now shown via the Alert component */}
+          {/* Name */}
           <div className='form-group'>
             <label htmlFor='name'>Name*</label>
             <input
-              id='name' type='text' name='name' placeholder='Full Name'
-              value={formData.name} onChange={handleChange} required
-              disabled={isSaving} // Use Redux status
+              id='name'
+              type='text'
+              name='name'
+              placeholder='Full Name'
+              value={formData.name}
+              onChange={handleChange}
+              required
+              disabled={isSaving}
             />
           </div>
-
+          {/* Employee Code */}
           <div className='form-group'>
             <label htmlFor='employeeCode'>Employee Code*</label>
             <input
-              id='employeeCode' type='text' name='employeeCode' placeholder='Unique Employee Code'
-              value={formData.employeeCode} onChange={handleChange} required
+              id='employeeCode'
+              type='text'
+              name='employeeCode'
+              placeholder='Unique Employee Code'
+              value={formData.employeeCode}
+              onChange={handleChange}
+              required
               disabled={isSaving}
             />
           </div>
-
+          {/* Email */}
           <div className='form-group'>
             <label htmlFor='email'>Email*</label>
             <input
-              id='email' type='email' name='email' placeholder='employee@example.com'
-              value={formData.email} onChange={handleChange} required
-              disabled={isSaving || isEditMode} // Email cannot be changed in edit mode
+              id='email'
+              type='email'
+              name='email'
+              placeholder='employee@example.com'
+              value={formData.email}
+              onChange={handleChange}
+              required
+              disabled={isSaving || isEditMode}
             />
-             {isEditMode && <small>Email cannot be changed after creation.</small>}
+            {isEditMode && <small>Email cannot be changed after creation.</small>}
           </div>
-
+          {/* Wage */}
           <div className='form-group'>
             <label htmlFor='wage'>Wage per Hour*</label>
             <input
-              id='wage' type='number' name='wage' placeholder='e.g., 25.50'
-              value={formData.wage} onChange={handleChange} required
-              min='0' step='0.01'
+              id='wage'
+              type='number'
+              name='wage'
+              placeholder='e.g., 25.50'
+              value={formData.wage}
+              onChange={handleChange}
+              required
+              min='0'
+              step='0.01'
               disabled={isSaving}
             />
           </div>
-
+          {/* Expected Hours */}
           <div className='form-group'>
             <label htmlFor='expectedHours'>Expected Hours per Week*</label>
             <input
-              id='expectedHours' type='number' name='expectedHours' placeholder='e.g., 40'
-              value={formData.expectedHours} onChange={handleChange} required
-              min='0' step='1'
+              id='expectedHours'
+              type='number'
+              name='expectedHours'
+              placeholder='e.g., 40'
+              value={formData.expectedHours}
+              onChange={handleChange}
+              required
+              min='0'
+              step='1'
               disabled={isSaving}
             />
           </div>
-
+          {/* Holiday Multiplier */}
           <div className='form-group'>
             <label htmlFor='holidayMultiplier'>Public Holiday Multiplier*</label>
             <input
-              id='holidayMultiplier' type='number' name='holidayMultiplier' placeholder='e.g., 1.5'
-              value={formData.holidayMultiplier} onChange={handleChange} required
-              min='0' step='0.1'
+              id='holidayMultiplier'
+              type='number'
+              name='holidayMultiplier'
+              placeholder='e.g., 1.5'
+              value={formData.holidayMultiplier}
+              onChange={handleChange}
+              required
+              min='0'
+              step='0.1'
               disabled={isSaving}
             />
           </div>
-
+          {/* Admin Role */}
           <div className='form-group'>
             <label htmlFor='isAdmin'>Admin Role*</label>
             <select
-              id='isAdmin' name='isAdmin' value={formData.isAdmin} onChange={handleChange} required
+              id='isAdmin'
+              name='isAdmin'
+              value={formData.isAdmin}
+              onChange={handleChange}
+              required
               disabled={isSaving}
             >
               <option value='No'>No</option>
               <option value='Yes'>Yes</option>
             </select>
           </div>
-
+          {/* Overtime */}
           <div className='form-group'>
             <label htmlFor='overtime'>Overtime Allowed*</label>
             <select
-              id='overtime' name='overtime' value={formData.overtime} onChange={handleChange} required
+              id='overtime'
+              name='overtime'
+              value={formData.overtime}
+              onChange={handleChange}
+              required
               disabled={isSaving}
             >
               <option value='No'>No</option>
               <option value='Yes'>Yes</option>
             </select>
           </div>
-
+          {/* Buttons */}
           <div className='form-footer'>
             <button
-              type='button' className='btn btn-danger'
+              type='button'
+              className='btn btn-danger'
               onClick={() => navigate('/employees')}
               disabled={isSaving}
             >
-               <FontAwesomeIcon icon={faTimes} /> Cancel
+              <FontAwesomeIcon icon={faTimes} /> Cancel
             </button>
             <button
-              type='submit' className='btn btn-green'
+              type='submit'
+              className='btn btn-green'
               disabled={isSaving}
             >
               {isSaving ? (

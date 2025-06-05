@@ -15,6 +15,7 @@ $font-family: 'Segoe UI', sans-serif;
 $breakpoint-md: 768px;
 $breakpoint-sm: 576px;
 
+// Main page container
 .vehicle-review-form-page-container {
     padding: clamp(1rem, 2vw, 1.5rem);
     max-width: 1200px;
@@ -24,6 +25,7 @@ $breakpoint-sm: 576px;
     min-height: calc(100vh - 60px);
 }
 
+// Header with title and breadcrumbs
 .vehicle-review-form-header {
     display: flex;
     justify-content: space-between;
@@ -84,6 +86,7 @@ $breakpoint-sm: 576px;
     }
 }
 
+// Form container
 .vehicle-review-form-container {
     max-width: 700px;
     margin: 1.5rem auto;
@@ -96,26 +99,28 @@ $breakpoint-sm: 576px;
         margin-bottom: 1.5rem;
         padding-bottom: 1rem;
         border-bottom: 1px solid $border-color;
-        text-align: center; // Center align the header content
+        text-align: center;
 
         h5 {
             margin: 0;
-            font-size: 1.3rem; // Increased font size
-            font-weight: 700; // Increased font weight (bold)
+            font-size: 1.3rem;
+            font-weight: 700;
             color: $text-color;
-            display: inline-flex; // Use inline-flex for centering icon+text
+            display: inline-flex;
             align-items: center;
-            gap: 0.6rem; // Increased gap
+            gap: 0.6rem;
         }
     }
 }
 
+// The review form
 .vehicle-review-form {
     display: flex;
     flex-direction: column;
     gap: 1.25rem;
 }
 
+// Form group styles
 .form-group {
     display: flex;
     flex-direction: column;
@@ -143,7 +148,7 @@ $breakpoint-sm: 576px;
         border-radius: 4px;
         outline: none;
         box-sizing: border-box;
-        transition: border-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+        transition: border-color 0.2s, box-shadow 0.2s;
         background-color: #fff;
         font-family: $font-family;
 
@@ -172,9 +177,8 @@ $breakpoint-sm: 576px;
         margin-bottom: 0;
 
         input[type="checkbox"] {
-            width: auto;
-            height: 1.1em;
             width: 1.1em;
+            height: 1.1em;
             flex-shrink: 0;
             margin-top: 0.1em;
             order: 1;
@@ -197,6 +201,7 @@ $breakpoint-sm: 576px;
     }
 }
 
+// Error message
 .form-error-message {
     background-color: color.adjust($danger-color, $lightness: 45%);
     color: color.adjust($danger-color, $lightness: -10%);
@@ -210,6 +215,7 @@ $breakpoint-sm: 576px;
     margin-bottom: 0.5rem;
 }
 
+// Footer with buttons
 .form-footer {
     margin-top: 1rem;
     padding-top: 1.5rem;
@@ -238,6 +244,7 @@ $breakpoint-sm: 576px;
     }
 }
 
+// Responsive styles
 @media (max-width: $breakpoint-md) {
     .vehicle-review-form-container {
         padding: 1.5rem;
@@ -275,6 +282,7 @@ $breakpoint-sm: 576px;
     }
 }
 
+// Loading and error message styles
 .loading-indicator.page-loading,
 .error-message.page-error {
     display: flex;

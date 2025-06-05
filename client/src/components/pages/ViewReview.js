@@ -4,34 +4,14 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
-  faDownload,
-  faPaperPlane,
-  faSpinner,
-  faExclamationCircle,
-  faClipboardList,
-  faCar,
-  faCalendarAlt,
-  faUser,
-  faCheck,
-  faTimes,
-  faStickyNote,
-  faRulerVertical,
-  faGasPump,
-  faWrench,
-  faSearch,
-  faFileContract,
+  faDownload, faPaperPlane, faSpinner, faExclamationCircle, faClipboardList, faCar,
+  faCheck, faTimes, faStickyNote, faRulerVertical, faGasPump, faWrench, faSearch, faFileContract
 } from '@fortawesome/free-solid-svg-icons';
 import {
-  fetchReviewById,
-  downloadReviewReport,
-  sendReviewReportByClient,
-  selectCurrentReviewData,
-  selectCurrentReviewStatus,
-  selectCurrentReviewError,
-  selectReviewReportStatus,
-  selectReviewReportError,
-  resetCurrentReview,
-  clearReviewReportStatus,
+  fetchReviewById, downloadReviewReport, sendReviewReportByClient,
+  selectCurrentReviewData, selectCurrentReviewStatus, selectCurrentReviewError,
+  selectReviewReportStatus, selectReviewReportError,
+  resetCurrentReview, clearReviewReportStatus,
 } from '../../redux/slices/vehicleReviewSlice';
 import { setAlert } from '../../redux/slices/alertSlice';
 import Alert from '../layout/Alert';
@@ -40,92 +20,71 @@ import '../../styles/ViewReview.scss';
 const ViewReview = () => {
   const { reviewId } = useParams();
   const navigate = useNavigate();
+  const dispatch = useDispatch();
 
-  // Local component state
+  // Local state
   const [showDownloadPrompt, setShowDownloadPrompt] = useState(false);
   const [showEmailPrompt, setShowEmailPrompt] = useState(false);
   const [email, setEmail] = useState('');
 
-  const dispatch = useDispatch();
-
-  // Redux state selectors
-  const { user } = useSelector((state) => state.auth || {}); // Get user from auth state
+  // Redux selectors
+  const { user } = useSelector((state) => state.auth || {});
   const reviewData = useSelector(selectCurrentReviewData);
   const fetchStatus = useSelector(selectCurrentReviewStatus);
   const fetchError = useSelector(selectCurrentReviewError);
   const reportStatus = useSelector(selectReviewReportStatus);
   const reportError = useSelector(selectReviewReportError);
 
-  // Effects
-  // Fetches the specific review data when the component mounts or reviewId changes
+  // Fetch review on mount
   useEffect(() => {
     dispatch(fetchReviewById(reviewId))
       .unwrap()
       .catch(err => {
-        console.error('Failed to fetch review:', err);
         if (err?.message?.includes('401') || err?.message?.includes('403')) {
           navigate('/login');
         }
       });
-
-    // Cleanup when component unmounts or reviewId changes
     return () => {
       dispatch(resetCurrentReview());
       dispatch(clearReviewReportStatus());
     };
   }, [reviewId, navigate, dispatch]);
 
-  // Displays errors from Redux state (fetch or report generation) as alerts
+  // Show errors as alerts
   useEffect(() => {
     const reduxError = fetchError || reportError;
-    if (reduxError) {
-      dispatch(setAlert(reduxError, 'danger'));
-    }
+    if (reduxError) dispatch(setAlert(reduxError, 'danger'));
   }, [fetchError, reportError, dispatch]);
+
   const formattedDate = reviewData?.dateReviewed
-    ? new Date(reviewData.dateReviewed).toLocaleDateString('en-GB', {
-        day: '2-digit',
-        month: 'long',
-        year: 'numeric',
-      })
+    ? new Date(reviewData.dateReviewed).toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' })
     : '--';
 
-    // Handlers
-    // Handles downloading the review report (PDF or Excel)
-    const handleDownload = async (format) => {
-      dispatch(clearReviewReportStatus());
-
-      try {
-        // Dispatch the thunk and unwrap the result.
-        // The `unwrap()` method will return the fulfilled value or throw an error.
-        const { blob, filename } = await dispatch(downloadReviewReport({ reviewId, format })).unwrap();
-
-        // The warning occurs because the above line, when successful, dispatches
-        // an action like { type: 'vehicleReviews/downloadReport/fulfilled', payload: { blob, filename } }
-        // and the `blob` in the payload is non-serializable.
-
-        if (blob) {
-          const url = window.URL.createObjectURL(blob);
-          const link = document.createElement('a');
-          link.href = url;
-          link.setAttribute('download', filename || `review_${reviewId}.${format}`);
-          document.body.appendChild(link);
-          link.click();
-          link.remove();
-          window.URL.revokeObjectURL(url);
-          setShowDownloadPrompt(false);
-          dispatch(setAlert(`Review report (${format}) downloaded successfully.`, 'success'));
-        } else {
-          throw new Error('No data received for download.');
-        }
-      } catch (error) {
-        // Errors from unwrap() or other issues will be caught here.
-        // The error alert is handled by the useEffect watching reportError.
-        console.error('Error downloading report:', error);
+  // Download review report
+  const handleDownload = async (format) => {
+    dispatch(clearReviewReportStatus());
+    try {
+      const { blob, filename } = await dispatch(downloadReviewReport({ reviewId, format })).unwrap();
+      if (blob) {
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.setAttribute('download', filename || `review_${reviewId}.${format}`);
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        window.URL.revokeObjectURL(url);
+        setShowDownloadPrompt(false);
+        dispatch(setAlert(`Review report (${format}) downloaded successfully.`, 'success'));
+      } else {
+        throw new Error('No data received for download.');
       }
-    };
+    } catch (error) {
+      // Error handled by alert
+    }
+  };
 
-  // Handles sending the review report via email
+  // Send review report by email
   const handleSendEmail = async (format) => {
     if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       dispatch(setAlert('Please enter a valid email address.', 'warning'));
@@ -133,18 +92,15 @@ const ViewReview = () => {
     }
     dispatch(clearReviewReportStatus());
     try {
-      // Pass the selected format to the thunk
       await dispatch(sendReviewReportByClient({ reviewId, email, format })).unwrap();
       setShowEmailPrompt(false);
       setEmail('');
       dispatch(setAlert(`Review report sent successfully to ${email}.`, 'success'));
     } catch (error) {
-      console.error('Error sending email:', error);
-      // Error handled by useEffect watching reportError
+      // Error handled by alert
     }
   };
 
-  // Render logic
   if (fetchStatus === 'loading') {
     return (
       <div className='loading-indicator page-loading'>
@@ -154,11 +110,10 @@ const ViewReview = () => {
     );
   }
 
-  // Handles case where review data is not available after loading attempts
   if (fetchStatus === 'succeeded' && !reviewData) {
     return (
       <div className='vehicles-page'>
-        <Alert /> {/* Show alert if fetch succeeded but no data */}
+        <Alert />
         <div className='error-message page-error'>
           <FontAwesomeIcon icon={faExclamationCircle} />
           <p>Review data not found.</p>
@@ -174,7 +129,7 @@ const ViewReview = () => {
 
   return (
     <div className='vehicles-page'>
-      <Alert /> {/* Global alert display */}
+      <Alert />
       <div className='vehicles-header'>
         <div className='title-breadcrumbs'>
           <h2>
@@ -218,7 +173,6 @@ const ViewReview = () => {
         )}
       </div>
 
-      {/* Ensure prompts are also conditionally rendered or handled if buttons are hidden */}
       {user?.role === 'employer' && showDownloadPrompt && (
         <div className='prompt-overlay'>
           <div id="download-prompt-view-review" className='prompt-container'>
@@ -231,8 +185,8 @@ const ViewReview = () => {
               >
                 {reportStatus === 'loading' ? <FontAwesomeIcon icon={faSpinner} spin /> : 'Download PDF'}
               </button>
-               <button // Added Excel download option
-                className='btn btn-success' // Different color for Excel
+              <button
+                className='btn btn-success'
                 onClick={() => handleDownload('excel')}
                 disabled={reportStatus === 'loading'}
               >
@@ -258,7 +212,7 @@ const ViewReview = () => {
               type='email'
               placeholder='Enter recipient email'
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              onChange={e => setEmail(e.target.value)}
               className='prompt-input'
               aria-label='Recipient Email'
               required
@@ -269,22 +223,14 @@ const ViewReview = () => {
                 onClick={() => handleSendEmail('pdf')}
                 disabled={reportStatus === 'loading' || !email || !/\S+@\S+\.\S+/.test(email)}
               >
-                {reportStatus === 'loading' ? (
-                  <><FontAwesomeIcon icon={faSpinner} spin /> Sending PDF...</>
-                ) : (
-                  'Send as PDF'
-                )}
+                {reportStatus === 'loading' ? (<><FontAwesomeIcon icon={faSpinner} spin /> Sending PDF...</>) : 'Send as PDF'}
               </button>
               <button
-                className='btn btn-success' // Using success color like Excel download
+                className='btn btn-success'
                 onClick={() => handleSendEmail('excel')}
                 disabled={reportStatus === 'loading' || !email || !/\S+@\S+\.\S+/.test(email)}
               >
-                {reportStatus === 'loading' ? (
-                  <><FontAwesomeIcon icon={faSpinner} spin /> Sending Excel...</>
-                ) : (
-                  'Send as Excel'
-                )}
+                {reportStatus === 'loading' ? (<><FontAwesomeIcon icon={faSpinner} spin /> Sending Excel...</>) : 'Send as Excel'}
               </button>
               <button
                 className='btn btn-secondary'
@@ -298,7 +244,6 @@ const ViewReview = () => {
         </div>
       )}
 
-      {/* Display review details if data is available */}
       {reviewData && (
         <>
           <div className='view-review-top-info'>

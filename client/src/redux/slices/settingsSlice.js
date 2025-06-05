@@ -1,35 +1,26 @@
 // /home/digilab/timesheet/client/src/redux/slices/settingsSlice.js
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import axios from 'axios';
-import { setAlert } from './alertSlice'; // Assuming setAlert is available
+import { setAlert } from './alertSlice';
 
-
-// Helper to get auth headers
+// Helpers
 const getAuthHeaders = (token) => ({
   headers: { Authorization: `Bearer ${token}` },
 });
+const getErrorMessage = (error) =>
+  error.response?.data?.message || error.response?.data?.error || error.message || 'An unexpected error occurred';
 
-// Helper to extract error message
-const getErrorMessage = (error) => {
-  return error.response?.data?.message || error.response?.data?.error || error.message || 'An unexpected error occurred';
-};
-
-// Async Thunk to fetch employer settings
+// Thunks
 export const fetchEmployerSettings = createAsyncThunk(
   'settings/fetchEmployerSettings',
   async (_, { getState, rejectWithValue }) => {
+    const { token } = getState().auth;
+    if (!token) return rejectWithValue('Not authorized.');
     try {
-      // Get token and user from the auth state
-      const { token, user } = getState().auth; 
-      if (!token) { // Only check for token; backend handles role-specific logic for fetching
-        return rejectWithValue('Not authorized.');
-      }
-      // **IMPORTANT: Update endpoint** - e.g., /api/settings/employer
       const response = await axios.get('/api/settings/employer', getAuthHeaders(token));
-      return response.data; // Expected: { showVehiclesTabInSidebar: boolean, ...otherSettings }
+      return response.data;
     } catch (error) {
-      const message = getErrorMessage(error); // Use the helper function
-      // Optionally, provide a more specific message if it's the known employerId issue
+      const message = getErrorMessage(error);
       if (message.includes('Employer ID not found for this employee')) {
         return rejectWithValue('Could not retrieve settings: Employer information missing.');
       }
@@ -38,16 +29,12 @@ export const fetchEmployerSettings = createAsyncThunk(
   }
 );
 
-// Async Thunk to update employer settings
 export const updateEmployerSettings = createAsyncThunk(
   'settings/updateEmployerSettings',
   async (settingsData, { getState, dispatch, rejectWithValue }) => {
+    const { token, user } = getState().auth;
+    if (!token || user?.role !== 'employer') return rejectWithValue('Not authorized or not an employer.');
     try {
-      const { token, user } = getState().auth;
-      if (!token || user?.role !== 'employer') {
-        return rejectWithValue('Not authorized or not an employer.');
-      }
-      // **IMPORTANT: Update endpoint** - e.g., /api/settings/employer
       const response = await axios.put('/api/settings/employer', settingsData, getAuthHeaders(token));
       dispatch(setAlert('Settings updated successfully!', 'success'));
       return response.data;
@@ -59,37 +46,37 @@ export const updateEmployerSettings = createAsyncThunk(
   }
 );
 
+// State
+const initialState = {
+  employerSettings: {
+    showVehiclesTabInSidebar: undefined,
+    tabletViewRecordingType: 'Automatically Record',
+    tabletViewPasswordRequired: false,
+    timesheetStartDayOfWeek: 'Monday',
+    timesheetStartDate: null,
+    timesheetIsLunchBreakDefault: true,
+    isTravelChargeByDefault: true,
+    is24Hour: false,
+    isProjectClient: false,
+    isNoteNeeded: false,
+    isWorkPerformed: false,
+    reassignTimesheet: true,
+    showXero: false,
+    showLocation: false,
+    employeeCanCreateProject: true,
+    narrowTitles: true,
+    timesheetHideWage: false,
+    defaultTimesheetViewType: 'Weekly',
+    reportColumns: [],
+  },
+  status: 'idle',
+  error: null,
+};
+
+// Slice
 const settingsSlice = createSlice({
   name: 'settings',
-  initialState: {
-    employerSettings: {
-      // Set to undefined initially; its true value will come from the DB.
-      // General Settings
-      showVehiclesTabInSidebar: undefined, // No default in model, will be undefined until set
-      // Tablet View Settings
-      tabletViewRecordingType: 'Automatically Record', // Default from model
-      tabletViewPasswordRequired: false, // Default from model
-      // Timesheet Settings (ensure all new fields are here with sensible defaults)
-      timesheetStartDayOfWeek: 'Monday', // Default from model
-      timesheetStartDate: null, // Default from model
-      timesheetIsLunchBreakDefault: true, // Default from model
-      isTravelChargeByDefault: true, // Default from model
-      is24Hour: false, // Default from model
-      isProjectClient: false, // Default from model
-      isNoteNeeded: false, // Default from model (corrected)
-      isWorkPerformed: false, // Default from model
-      reassignTimesheet: true, // Default from model
-      showXero: false, // Default from model
-      showLocation: false, // Default from model
-      employeeCanCreateProject: true, // Default from model
-      narrowTitles: true, // Default from model (added from HTML structure)
-      timesheetHideWage: false, // Default from model
-      defaultTimesheetViewType: 'Weekly', // Default from model
-      reportColumns: [], // Default for new setting
-    },
-    status: 'idle', // 'idle' | 'loading' | 'succeeded' | 'failed'
-    error: null,
-  },
+  initialState,
   reducers: {},
   extraReducers: (builder) => {
     builder

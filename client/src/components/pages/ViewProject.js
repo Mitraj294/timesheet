@@ -1,6 +1,5 @@
 // /home/digilab/timesheet/client/src/components/pages/ViewProject.js
 import React, { useEffect, useState, useCallback, useMemo } from "react";
-// The following imports are from open-source packages and are used under their respective licenses.
 import { Link, useParams, useNavigate } from "react-router-dom";
 import { useSelector, useDispatch } from "react-redux";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
@@ -14,18 +13,9 @@ import Alert from "../layout/Alert";
 import { selectAuthUser } from '../../redux/slices/authSlice';
 import { fetchEmployees, selectAllEmployees, selectEmployeeStatus } from '../../redux/slices/employeeSlice';
 import { selectAllTimesheets, selectTimesheetStatus } from '../../redux/slices/timesheetSlice';
-
 import {
-  faProjectDiagram,
-  faCalendarAlt,
-  faCalendarCheck,
-  faClock,
-  faEdit,
-  faTrash,
-  faSpinner,
-  faExclamationCircle,
-  faUser,
-  faBriefcase,
+  faProjectDiagram, faCalendarAlt, faCalendarCheck, faClock, faEdit, faTrash, faSpinner,
+  faExclamationCircle, faUser, faBriefcase
 } from "@fortawesome/free-solid-svg-icons";
 import ProjectTimesheet from "./ProjectTimesheet";
 import "../../styles/Vehicles.scss";
@@ -42,48 +32,32 @@ const ViewProject = () => {
   const project = useSelector(selectCurrentProject);
   const projectStatus = useSelector(selectCurrentProjectStatus);
   const projectError = useSelector(selectCurrentProjectError);
-  const deleteStatus = useSelector(selectProjectStatus); // Use general status for delete
-
+  const deleteStatus = useSelector(selectProjectStatus);
   const user = useSelector(selectAuthUser);
   const allEmployees = useSelector(selectAllEmployees);
   const employeeStatus = useSelector(selectEmployeeStatus);
   const allTimesheets = useSelector(selectAllTimesheets);
-  const timesheetStatus = useSelector(selectTimesheetStatus); // To track loading of timesheets
+  const timesheetStatus = useSelector(selectTimesheetStatus);
 
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [itemToDelete, setItemToDelete] = useState(null); // Stores { id, name } for deletion confirmation
+  const [itemToDelete, setItemToDelete] = useState(null);
 
-  // const { user } = useSelector((state) => state.auth || {}); // This was a duplicate declaration of 'user'
-
-  // Effects
-  // Fetches project data when the component mounts or when the projectId from the URL changes
-  // Also fetches employees if they haven't been loaded yet.
+  // Fetch project and employees on mount
   useEffect(() => {
-    if (projectId) {
-      dispatch(fetchProjectById(projectId));
-    }
-
-    // Fetch employees if not already loaded or loading
-    // Relies on ProjectTimesheet component to fetch relevant timesheets
-    if (employeeStatus === 'idle') {
-      dispatch(fetchEmployees());
-    }
-
-    // Cleanup: clear the current project data and any related errors when the component unmounts or projectId changes
+    if (projectId) dispatch(fetchProjectById(projectId));
+    if (employeeStatus === 'idle') dispatch(fetchEmployees());
     return () => {
-        // dispatch(clearEmployees()); // If you have such an action
-        dispatch(clearCurrentProject());
-        dispatch(clearProjectError());
+      dispatch(clearCurrentProject());
+      dispatch(clearProjectError());
     };
-  }, [projectId, dispatch]);
+  }, [projectId, dispatch, employeeStatus]);
 
-  // Displays errors from Redux state (e.g., project fetch errors) as global alerts
+  // Show project errors as alerts
   useEffect(() => {
-    if (projectError) {
-      dispatch(setAlert(projectError, 'danger'));
-    }
+    if (projectError) dispatch(setAlert(projectError, 'danger'));
   }, [projectError, dispatch]);
 
+  // Find logged-in employee record
   const loggedInEmployeeRecord = useMemo(() => {
     if (user?.role === 'employee' && Array.isArray(allEmployees) && allEmployees.length > 0 && user?._id) {
       return allEmployees.find(emp => emp.userId === user._id);
@@ -91,76 +65,64 @@ const ViewProject = () => {
     return null;
   }, [allEmployees, user]);
 
+  // Calculate employee's total hours on this project
   const yourTotalHoursOnProject = useMemo(() => {
     if (user?.role === 'employee' && loggedInEmployeeRecord && project && Array.isArray(allTimesheets)) {
-      const employeeProjectTimesheets = allTimesheets.filter(ts => {
-        // Ensure correct comparison for potentially populated fields
-        const projectMatch = (ts.projectId?._id || ts.projectId) === project._id;
-        const employeeMatch = (ts.employeeId?._id || ts.employeeId) === loggedInEmployeeRecord._id;
-        return projectMatch && employeeMatch;
-      });
+      const employeeProjectTimesheets = allTimesheets.filter(ts =>
+        (ts.projectId?._id || ts.projectId) === project._id &&
+        (ts.employeeId?._id || ts.employeeId) === loggedInEmployeeRecord._id
+      );
       return employeeProjectTimesheets.reduce((sum, ts) => sum + (parseFloat(ts.totalHours) || 0), 0);
     }
     return 0;
   }, [user, loggedInEmployeeRecord, project, allTimesheets]);
 
-
-
-
-  // Handlers
-  // Sets up the state for the delete confirmation modal
+  // Delete handlers
   const handleDeleteClick = (projectId, projectName) => {
     setItemToDelete({ id: projectId, name: projectName });
     setShowDeleteConfirm(true);
   };
-
-  const cancelDelete = () => {
-    setShowDeleteConfirm(false);
-    setItemToDelete(null);
+  const cancelDelete = () => { setShowDeleteConfirm(false); setItemToDelete(null); };
+  const handleDeleteProject = async () => {
+    if (!itemToDelete) return;
+    const { id: projectIdToDelete, name: projectNameToDelete } = itemToDelete;
+    dispatch(clearProjectError());
+    try {
+      await dispatch(deleteProject(projectId)).unwrap();
+      dispatch(setAlert(`Project "${project.name}" deleted successfully.`, 'success'));
+      const clientIdToNavigate = project?.clientId?._id || clientId || 'unknown';
+      if (clientIdToNavigate !== 'unknown') {
+        navigate(`/clients/view/${clientIdToNavigate}`);
+      } else {
+        navigate('/clients');
+      }
+    } catch (err) {
+      dispatch(setAlert(err?.message || `Failed to delete project "${projectNameToDelete}".`, 'danger'));
+    } finally {
+      setShowDeleteConfirm(false);
+      setItemToDelete(null);
+    }
   };
 
-  // Handles project change within the embedded ProjectTimesheet component
+  // Handle project change in ProjectTimesheet
   const handleProjectChangeInTimesheet = useCallback((newProjectId) => {
     if (newProjectId && newProjectId !== projectId && newProjectId !== ALL_PROJECTS_VALUE) {
       const currentClientId = project?.clientId?._id || clientId || 'unknown';
-      const targetUrl = `/clients/view/${currentClientId}/project/${newProjectId}`;
-      navigate(targetUrl);
+      navigate(`/clients/view/${currentClientId}/project/${newProjectId}`);
     }
   }, [navigate, projectId, project, clientId]);
 
-  // Actually dispatches the delete action after user confirmation
-  const handleDeleteProject = async () => {
-      if (!itemToDelete) return; // Ensure itemToDelete is set
-      const { id: projectIdToDelete, name: projectNameToDelete } = itemToDelete;
-      dispatch(clearProjectError()); // Clear previous Redux errors
-      try {
-          await dispatch(deleteProject(projectId)).unwrap();
-          dispatch(setAlert(`Project "${project.name}" deleted successfully.`, 'success'));
-
-          const clientIdToNavigate = project?.clientId?._id || clientId || 'unknown';
-          if (clientIdToNavigate !== 'unknown') {
-              navigate(`/clients/view/${clientIdToNavigate}`);
-          } else {
-              navigate('/clients'); // Fallback if client context is lost
-          }
-      } catch (err) {
-          const errorMessage = err?.message || `Failed to delete project "${projectNameToDelete}".`;
-          dispatch(setAlert(errorMessage, 'danger'));
-      } finally {
-          setShowDeleteConfirm(false); // Close modal
-          setItemToDelete(null);
-      }
-  };
-
-  // Derived state for UI
+  // Loading state
   const isLoading = useMemo(() =>
     projectStatus === 'loading' ||
-    (user?.role === 'employee' && employeeStatus === 'loading') || // Also consider employee loading for employee view
-    (user?.role === 'employee' && timesheetStatus === 'loading' && yourTotalHoursOnProject === 0), // And timesheet loading for employee hours
-    [projectStatus, user, employeeStatus, timesheetStatus, yourTotalHoursOnProject]);
-  const isDeleting = deleteStatus === 'loading'; // True if a delete operation is in progress
+    (user?.role === 'employee' && employeeStatus === 'loading') ||
+    (user?.role === 'employee' && timesheetStatus === 'loading' && yourTotalHoursOnProject === 0),
+    [projectStatus, user, employeeStatus, timesheetStatus, yourTotalHoursOnProject]
+  );
+  const isDeleting = deleteStatus === 'loading';
 
-  if (isLoading && !project) { // Show a loading indicator if project data isn't available yet
+  // Loading or error UI
+  if (isLoading && !project) {
     return (
       <div className="vehicles-page">
         <div className='loading-indicator'>
@@ -170,28 +132,24 @@ const ViewProject = () => {
       </div>
     );
   }
-
-  // Render
-
-  // Handles the case where project data is not available after loading attempts
   if (!project) {
-     return (
+    return (
       <div className="vehicles-page">
-        {/* Alert component will show fetch errors if any */}
         <Alert />
         <div className='error-message'>
           <FontAwesomeIcon icon={faExclamationCircle} />
           <p>Project data could not be loaded or is unavailable.</p>
-           {clientId && clientId !== 'unknown' ? (
-             <Link to={`/clients/view/${clientId}`} className="btn btn-secondary" style={{marginTop: '1rem'}}>Back to Client</Link>
+          {clientId && clientId !== 'unknown' ? (
+            <Link to={`/clients/view/${clientId}`} className="btn btn-secondary" style={{marginTop: '1rem'}}>Back to Client</Link>
           ) : (
-             <Link to="/projects" className="btn btn-secondary" style={{marginTop: '1rem'}}>Back to Projects</Link>
+            <Link to="/projects" className="btn btn-secondary" style={{marginTop: '1rem'}}>Back to Projects</Link>
           )}
         </div>
       </div>
-     );
+    );
   }
 
+  // Main render
   return (
     <div className="vehicles-page view-project-container">
       <Alert />
@@ -204,53 +162,51 @@ const ViewProject = () => {
             <Link to="/dashboard" className="breadcrumb-link">Dashboard</Link>
             <span className="breadcrumb-separator"> / </span>
             {project.clientId?._id ? (
-                <>
-                    <Link to="/clients" className="breadcrumb-link">Clients</Link>
-                    <span className="breadcrumb-separator"> / </span>
-                    <Link to={`/clients/view/${project.clientId._id}`} className="breadcrumb-link">
-                        {project.clientId?.name || 'Client'}
-                    </Link>
-                    <span className="breadcrumb-separator"> / </span>
-                </>
+              <>
+                <Link to="/clients" className="breadcrumb-link">Clients</Link>
+                <span className="breadcrumb-separator"> / </span>
+                <Link to={`/clients/view/${project.clientId._id}`} className="breadcrumb-link">
+                  {project.clientId?.name || 'Client'}
+                </Link>
+                <span className="breadcrumb-separator"> / </span>
+              </>
             ) : (
-                 <>
-                    <Link to="/projects" className="breadcrumb-link">Projects</Link>
-                    <span className="breadcrumb-separator"> / </span>
-                 </>
+              <>
+                <Link to="/projects" className="breadcrumb-link">Projects</Link>
+                <span className="breadcrumb-separator"> / </span>
+              </>
             )}
             <span className="breadcrumb-current">{project.name}</span>
           </div>
         </div>
-         {user?.role === "employer" && (
-            <div className="header-actions">
-              <button
-                className="btn btn-warning"
-                onClick={() => {
-                    const editClientId = project.clientId?._id || clientId || 'unknown';
-                    if (editClientId !== 'unknown') {
-                        navigate(`/clients/${editClientId}/projects/update/${project._id}`)
-                    } else {
-                        console.warn("Cannot navigate to edit project: Client ID is unknown.");
-                        dispatch(setAlert("Cannot edit project: Client information is missing.", 'warning'));
-                        // setError("Cannot edit project: Client information is missing."); // Replaced by Alert
-                    }
-                }}
-                disabled={isDeleting}
-              >
-                <FontAwesomeIcon icon={faEdit} /> Edit Project
-              </button>
-              <button
-                onClick={() => handleDeleteClick(project._id, project.name)}
-                disabled={isDeleting}
-                className="btn btn-danger"
-              >
-                <FontAwesomeIcon icon={faTrash} /> Delete Project
-              </button>
-            </div>
-         )}
+        {user?.role === "employer" && (
+          <div className="header-actions">
+            <button
+              className="btn btn-warning"
+              onClick={() => {
+                const editClientId = project.clientId?._id || clientId || 'unknown';
+                if (editClientId !== 'unknown') {
+                  navigate(`/clients/${editClientId}/projects/update/${project._id}`)
+                } else {
+                  dispatch(setAlert("Cannot edit project: Client information is missing.", 'warning'));
+                }
+              }}
+              disabled={isDeleting}
+            >
+              <FontAwesomeIcon icon={faEdit} /> Edit Project
+            </button>
+            <button
+              onClick={() => handleDeleteClick(project._id, project.name)}
+              disabled={isDeleting}
+              className="btn btn-danger"
+            >
+              <FontAwesomeIcon icon={faTrash} /> Delete Project
+            </button>
+          </div>
+        )}
       </div>
-      
-      {/* Project Summary Section */}
+
+      {/* Project Summary */}
       <div className="client-summary-section project-summary-section">
         <h3 className="section-heading">Project Summary</h3>
         <div className="client-summary-cards project-summary-cards">
@@ -260,17 +216,17 @@ const ViewProject = () => {
               <h4 className="client-name-summary project-name-summary">{project.name}</h4>
               <div className="contact-info project-dates-info">
                 {project.clientId?._id ? (
-                    <div className="info-item">
-                        <FontAwesomeIcon icon={faUser} className="info-icon" />
-                        <Link to={`/clients/view/${project.clientId._id}`}>
-                            {project.clientId?.name || 'View Client'}
-                        </Link>
-                    </div>
+                  <div className="info-item">
+                    <FontAwesomeIcon icon={faUser} className="info-icon" />
+                    <Link to={`/clients/view/${project.clientId._id}`}>
+                      {project.clientId?.name || 'View Client'}
+                    </Link>
+                  </div>
                 ) : (
-                    <div className="info-item">
-                        <FontAwesomeIcon icon={faUser} className="info-icon" />
-                        <span>No Client Linked</span>
-                    </div>
+                  <div className="info-item">
+                    <FontAwesomeIcon icon={faUser} className="info-icon" />
+                    <span>No Client Linked</span>
+                  </div>
                 )}
                 <div className="info-item">
                   <FontAwesomeIcon icon={faCalendarAlt} className="info-icon" />
@@ -283,7 +239,6 @@ const ViewProject = () => {
               </div>
             </div>
           </div>
-          {/* Cards for Employer */}
           {user?.role === 'employer' && project && (
             <>
               <div className="summary-card client-hours-card project-hours-card">
@@ -304,7 +259,6 @@ const ViewProject = () => {
               </div>
             </>
           )}
-          {/* Card for Employee */}
           {user?.role === 'employee' && loggedInEmployeeRecord && project && (
             <div className="summary-card client-hours-card project-hours-card employee-specific-hours-card">
               <div className="card-content">
@@ -319,31 +273,31 @@ const ViewProject = () => {
         </div>
       </div>
 
-      {/* Embedded ProjectTimesheet component to show timesheets for this project */}
+      {/* Project Timesheets */}
       <div className="projects-section timesheet-details-section">
         <div className="section-header">
-            <h3><FontAwesomeIcon icon={faBriefcase} /> Timesheets</h3>
+          <h3><FontAwesomeIcon icon={faBriefcase} /> Timesheets</h3>
         </div>
         <ProjectTimesheet
-            initialProjectId={projectId}
-            onProjectChange={handleProjectChangeInTimesheet}
-            showProjectSelector={true}
+          initialProjectId={projectId}
+          onProjectChange={handleProjectChangeInTimesheet}
+          showProjectSelector={true}
         />
       </div>
 
       {showDeleteConfirm && itemToDelete && (
-          <div className="logout-confirm-overlay">
-            <div className="logout-confirm-dialog">
-              <h4>Confirm Project Deletion</h4>
-              <p>Are you sure you want to permanently delete project "<strong>{itemToDelete.name}</strong>"? This action cannot be undone.</p>
-              <div className="logout-confirm-actions">
-                <button className="btn btn-secondary" onClick={cancelDelete} disabled={isDeleting}>Cancel</button>
-                <button className="btn btn-danger" onClick={handleDeleteProject} disabled={isDeleting}>
-                  {isDeleting ? <><FontAwesomeIcon icon={faSpinner} spin /> Deleting...</> : 'Delete Project'}
-                </button>
-              </div>
+        <div className="logout-confirm-overlay">
+          <div className="logout-confirm-dialog">
+            <h4>Confirm Project Deletion</h4>
+            <p>Are you sure you want to permanently delete project "<strong>{itemToDelete.name}</strong>"? This action cannot be undone.</p>
+            <div className="logout-confirm-actions">
+              <button className="btn btn-secondary" onClick={cancelDelete} disabled={isDeleting}>Cancel</button>
+              <button className="btn btn-danger" onClick={handleDeleteProject} disabled={isDeleting}>
+                {isDeleting ? <><FontAwesomeIcon icon={faSpinner} spin /> Deleting...</> : 'Delete Project'}
+              </button>
             </div>
           </div>
+        </div>
       )}
     </div>
   );

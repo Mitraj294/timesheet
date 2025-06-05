@@ -33,7 +33,7 @@ import { errorHandler } from './middleware/errorMiddleware.js';
 import userRoutes from './routes/userRoutes.js';
 import { sendWeeklyTimesheetReports } from './controllers/timesheetController.js';
 import settingsRoutes from './routes/settingsRoutes.js'; // Import the new settings routes
-import { startNotificationScheduler } from './scheduler/notificationScheduler.js'; // Import new notification scheduler
+import { startNotificationService } from './services/notificationService.js'; // Use new notification service
 
 console.log(`[Server Startup] process.env.NODE_ENV after dotenv: ${process.env.NODE_ENV}`);
 const app = express();
@@ -131,7 +131,7 @@ if (cron.validate(weeklyReportSchedule)) {
   console.error(`[Scheduler] Invalid CRON pattern specified for weekly reports: "${weeklyReportSchedule}". Job not scheduled.`);
 }
 
-startNotificationScheduler();
+startNotificationService();
 
 // TODO: Uncomment and implement if lock screen cleanup is needed
 // import { startLockScreenCleanupScheduler } from './scheduler/lockScreenCleanupScheduler.js';

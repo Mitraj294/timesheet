@@ -564,11 +564,29 @@ const CreateProjectTimesheet = () => {
           )}
 
           <div className='form-footer'>
-            <button type='button' className='btn btn-danger' onClick={handleCancel} disabled={isLoading}>
+            <button
+              type='button'
+              className='btn btn-danger'
+              onClick={handleCancel}
+              disabled={isLoading}
+            >
               <FontAwesomeIcon icon={faTimes} /> Cancel
             </button>
-            <button type='submit' className='btn btn-green' disabled={isLoading || (projectStatus === 'loading' && !isLeaveSelected)}>
-              {isLoading ? (<><FontAwesomeIcon icon={faSpinner} spin /> Saving...</>) : (<><FontAwesomeIcon icon={isEditing ? faPen : faSave} /> {isEditing ? 'Update Timesheet' : 'Save Timesheet'}</>)}
+            <button
+              type='submit'
+              className='btn btn-green'
+              disabled={isLoading || (projectStatus === 'loading' && !isLeaveSelected)}
+            >
+              {isLoading ? (
+                <>
+                  <FontAwesomeIcon icon={faSpinner} spin /> Saving...
+                </>
+              ) : (
+                <>
+                  <FontAwesomeIcon icon={isEditing ? faPen : faSave} />
+                  {isEditing ? 'Update Timesheet' : 'Save Timesheet'}
+                </>
+              )}
             </button>
           </div>
         </form>

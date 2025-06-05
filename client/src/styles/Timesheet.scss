@@ -1439,3 +1439,221 @@
 }
 
 // --- End of Refactored Timesheet Page Header ---
+
+.logout-confirm-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.45);
+    z-index: 1200;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.logout-confirm-dialog {
+    background: #fff;
+    border-radius: 10px;
+    max-width: 400px;
+    width: 90%;
+    padding: 2rem 1.5rem 1.5rem 1.5rem;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
+    text-align: center;
+    animation: fadeInScale 0.2s;
+}
+
+@keyframes fadeInScale {
+    from {
+        opacity: 0;
+        transform: scale(0.95);
+    }
+
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+.logout-confirm-dialog h4 {
+    margin-top: 0;
+    margin-bottom: 0.75rem;
+    font-size: 1.25rem;
+    font-weight: 600;
+}
+
+.logout-confirm-dialog p {
+    margin-bottom: 1.5rem;
+    color: #444;
+    font-size: 1rem;
+}
+
+.logout-confirm-actions {
+    display: flex;
+    gap: 1rem;
+    justify-content: center;
+    margin-top: 1.5rem;
+    flex-wrap: wrap;
+}
+
+.logout-confirm-actions .btn,
+.logout-confirm-actions button {
+    flex: 1 1 0;
+    min-width: 160px;
+    max-width: 220px;
+    padding: 0.6rem 1.2rem;
+    border-radius: 5px;
+    border: none;
+    font-weight: 500;
+    font-size: 1.08rem;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+    outline: none;
+    display: inline-block;
+    text-align: center;
+    margin: 0;
+    box-sizing: border-box;
+    height: 48px; // force same height
+    line-height: 1.2;
+}
+
+.logout-confirm-actions .btn+.btn,
+.logout-confirm-actions button+button,
+.logout-confirm-actions .btn+button,
+.logout-confirm-actions button+.btn {
+    margin-left: 0;
+}
+
+.btn-secondary,
+.logout-confirm-actions .btn-secondary {
+    background: #6c757d;
+    color: #fff;
+}
+
+.btn-secondary:hover,
+.btn-secondary:focus {
+    background: #5a6268;
+}
+
+.btn-danger,
+.logout-confirm-actions .btn-danger {
+    background: #e74c3c;
+    color: #fff;
+}
+
+.btn-danger:hover,
+.btn-danger:focus {
+    background: #c0392b;
+}
+
+.btn-warning,
+.logout-confirm-actions .btn-warning {
+    background: #f1c40f;
+    color: #222;
+    font-weight: 600;
+}
+
+.btn-warning:hover,
+.btn-warning:focus {
+    background: #d4ac0d;
+}
+
+.btn[disabled],
+.btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
+/* Responsive: stack vertically on small screens */
+@media (max-width: 600px) {
+    .logout-confirm-actions {
+        flex-direction: column;
+        gap: 0.75rem;
+        align-items: stretch;
+    }
+
+    .logout-confirm-actions .btn,
+    .logout-confirm-actions button {
+        width: 100%;
+        min-width: 0;
+        max-width: none;
+    }
+}
+
+.week-nav {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1.2rem;
+    padding: 1rem 0;
+    background: #fafbfc;
+    border-radius: 8px;
+}
+
+.week-nav__btn-group {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+}
+
+.week-nav__period {
+    flex: 1 1 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-width: 220px;
+}
+
+.week-nav__period h4 {
+    margin: 0;
+    font-size: 1.25rem;
+    font-weight: 600;
+    text-align: center;
+}
+
+.timesheet-nav__button {
+    min-width: 180px;
+    padding: 0.6rem 1.2rem;
+    border-radius: 8px;
+    border: none;
+    background: #1086ff;
+    color: #fff;
+    font-size: 1rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.15s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+}
+
+.timesheet-nav__button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+@media (max-width: 700px) {
+    .week-nav {
+        flex-direction: column;
+        gap: 0.5rem;
+        padding: 0.5rem 0;
+    }
+
+    .week-nav__btn-group,
+    .week-nav__period {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .week-nav__period {
+        margin: 0.5rem 0;
+    }
+
+    .timesheet-nav__button {
+        width: 100%;
+        min-width: 0;
+    }
+}

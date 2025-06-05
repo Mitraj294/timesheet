@@ -46,8 +46,7 @@ const calculateNextScheduledUTCFromSettings = (dayOfWeekStr, localTimeHHMM, time
   return scheduledMomentInEmployerTZ.utc().toDate();
 };
 
-
-const seedNotifications = async () => {
+export const seedNotifications = async () => {
   await connectDB();
 
   try {
@@ -67,14 +66,13 @@ const seedNotifications = async () => {
 
     const employerTimezone = settings.timezone || 'UTC';
     let scheduledTimeUTC;
-    let referenceDayOfWeekForSeed = 'monday'; // Using Monday as an example for seeding
+    let referenceDayOfWeekForSeed = 'monday';
 
     const mondaySettingDate = settings.globalNotificationTimes?.monday;
 
     if (mondaySettingDate instanceof Date) {
-        scheduledTimeUTC = mondaySettingDate; // Use the pre-calculated next occurrence
+        scheduledTimeUTC = mondaySettingDate;
     } else {
-        // Fallback if Monday is not set or is null: seed for tomorrow 10 AM local time
         console.warn(`Monday notification time not set for employer ${employerId} or is invalid. Seeding for tomorrow 10:00 local time in timezone ${employerTimezone}.`);
         const tomorrowAt10AM = moment.tz(employerTimezone).add(1, 'day').hour(10).minute(0).second(0).millisecond(0);
         scheduledTimeUTC = tomorrowAt10AM.utc().toDate();
@@ -124,4 +122,7 @@ const seedNotifications = async () => {
   }
 };
 
-seedNotifications();
+// If run directly, execute the seeding
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+  seedNotifications();
+}

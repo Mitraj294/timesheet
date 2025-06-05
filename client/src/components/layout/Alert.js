@@ -4,46 +4,27 @@ import { removeAlert } from '../../redux/slices/alertSlice';
 import '../../styles/Alerts.scss';
 
 const Alert = () => {
-  // Corrected selector to use 'state.alert' instead of 'state.alerts'
-  const alerts = useSelector(state => state.alert); 
+  const alerts = useSelector(state => state.alert);
   const dispatch = useDispatch();
 
-  // Effect to automatically remove alerts after their specified timeout
+  // Remove each alert after its timeout
   useEffect(() => {
-    const timers = alerts.map((alert) => {
-      if (!alert || !alert.id || typeof alert.timeout !== 'number' || alert.timeout <= 0) {
-        console.warn("Alert.js: Invalid alert object or timeout found:", alert);
-        return null; 
-      }
-      return setTimeout(() => {
-        dispatch(removeAlert(alert.id));
-      }, alert.timeout);
+    const timers = alerts.map(alert => {
+      if (!alert || !alert.id || typeof alert.timeout !== 'number' || alert.timeout <= 0) return null;
+      return setTimeout(() => dispatch(removeAlert(alert.id)), alert.timeout);
     });
-
-      // Cleanup: clear any active timers when the component unmounts or the alerts array changes
     return () => {
-      timers.forEach(timerId => {
-        if (timerId) {
-          clearTimeout(timerId);
-        }
-      });
+      timers.forEach(timerId => { if (timerId) clearTimeout(timerId); });
     };
   }, [alerts, dispatch]);
 
   return (
     <div className="alert-container">
-      {/* Ensure alerts is an array before mapping */}
-      {Array.isArray(alerts) && alerts.map(alert => { 
-        // Basic check to ensure the alert object is somewhat valid before trying to render
-        if (!alert || !alert.id) {
-           console.error("Alert.js: Invalid alert object found during render:", alert);
-           return null; // Skip rendering this invalid alert
-        }
-
-        // Handle non-string messages (e.g., error objects)
+      {Array.isArray(alerts) && alerts.map(alert => {
+        if (!alert || !alert.id) return null;
         let displayMsg = alert.msg;
         if (typeof displayMsg === 'object' && displayMsg !== null) {
-            displayMsg = displayMsg.message || displayMsg.error || JSON.stringify(displayMsg);
+          displayMsg = displayMsg.message || displayMsg.error || JSON.stringify(displayMsg);
         }
         return (
           <div key={alert.id} className={`alert alert-${alert.alertType || 'info'}`}>

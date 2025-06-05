@@ -1,15 +1,15 @@
 //home/digilab/timesheet/server/controllers/timesheetController.js
 import Timesheet from "../models/Timesheet.js";
-import ExcelJS from 'exceljs';
 import mongoose from "mongoose";
 import moment from "moment-timezone";
-import nodemailer from "nodemailer";
 import Employee from "../models/Employee.js";
 import Project from "../models/Project.js";
 import EmployerSetting from "../models/EmployerSetting.js";
 import User from "../models/User.js";
 import ScheduledNotification from '../models/ScheduledNotification.js';
 import dotenv from "dotenv";
+import sendEmail from '../services/emailService.js';
+import { generateExcelReport, sendExcelDownload } from '../services/reportService.js';
 dotenv.config();
 
 const calculateTotalHours = (startTime, endTime, lunchBreak, lunchDuration) => {
@@ -692,65 +692,61 @@ export const deleteTimesheet = async (req, res) => {
         res.status(500).json({ message: `Error deleting timesheet: ${error.message}` });
       }
  };
-const formatDataForReport = (timesheets, defaultTimezone = 'UTC') => {
-    if (!Array.isArray(timesheets)) return [];
-    return timesheets.map(ts => {
-        if (!ts) return {};
-        const reportTimezone = ts.timezone && moment.tz.zone(ts.timezone) ? ts.timezone : defaultTimezone;
-
-        let localDate = ts.date;
-        if (localDate && !/^\d{4}-\d{2}-\d{2}$/.test(localDate)) {
-             try {
-                const parsedMoment = moment.utc(localDate);
-                if (parsedMoment.isValid()) {
-                    localDate = parsedMoment.format('YYYY-MM-DD');
-                } else { localDate = "Invalid Date"; }
-            } catch { localDate = "Invalid Date"; }
-        } else if (!localDate) {
-            localDate = "Invalid Date";
-        }
-
-        const localStartTime = ts.startTime instanceof Date && !isNaN(ts.startTime.getTime())
-                             ? moment(ts.startTime).tz(reportTimezone).format("HH:mm") : "";
-        const localEndTime = ts.endTime instanceof Date && !isNaN(ts.endTime.getTime())
-                           ? moment(ts.endTime).tz(reportTimezone).format("HH:mm") : "";
-        const dayOfWeek = moment(localDate, "YYYY-MM-DD", true).isValid()
-                        ? moment(localDate, "YYYY-MM-DD").format('dddd') : "";
-
-        return {
-            employee: ts.employeeId?.name || 'Unknown',
-            date: localDate,
-            day: dayOfWeek,
-            client: ts.clientId?.name || '',
-            project: ts.projectId?.name || '',
-            startTime: localStartTime,
-            endTime: localEndTime,
-            lunchBreak: ts.lunchBreak || 'No',
-            lunchDuration: ts.lunchBreak === 'Yes' ? (ts.lunchDuration || '00:00') : '',
-            leaveType: ts.leaveType === 'None' ? '' : (ts.leaveType || ''),
-            description: ts.description || '',
-            notes: ts.notes || '',
-            hourlyWage: ts.hourlyWage != null ? `$${parseFloat(ts.hourlyWage).toFixed(2)}` : '',
-            totalHours: ts.totalHours != null ? parseFloat(ts.totalHours).toFixed(2) : '0.00',
-        };
-    });
-};
-
 const standardReportColumns = [
-      { header: 'Full Name', key: 'employee', width: 25 },
-      { header: 'Date', key: 'date', width: 15, style: { numFmt: 'yyyy-mm-dd' } },
-      { header: 'Day', key: 'day', width: 12 },
-      { header: 'Client', key: 'client', width: 25 },
-      { header: 'Project', key: 'project', width: 25 },
-      { header: 'Start', key: 'startTime', width: 10 },
-      { header: 'End', key: 'endTime', width: 10 },
-      { header: 'Lunch', key: 'lunchDuration', width: 10 },
-      { header: 'Leave Type', key: 'leaveType', width: 15 },
-      { header: 'Description', key: 'description', width: 30 },
-      { header: 'Work Notes', key: 'notes', width: 30 },
-      { header: 'Wage', key: 'hourlyWage', width: 10, style: { numFmt: '$#,##0.00' } },
-      { header: 'Total Hours', key: 'totalHours', width: 12, style: { numFmt: '0.00' } },
+  { header: 'Full Name', key: 'employee', width: 25 },
+  { header: 'Date', key: 'date', width: 15, style: { numFmt: 'yyyy-mm-dd' } },
+  { header: 'Day', key: 'day', width: 12 },
+  { header: 'Client', key: 'client', width: 25 },
+  { header: 'Project', key: 'project', width: 25 },
+  { header: 'Start', key: 'startTime', width: 10 },
+  { header: 'End', key: 'endTime', width: 10 },
+  { header: 'Lunch', key: 'lunchDuration', width: 10 },
+  { header: 'Leave Type', key: 'leaveType', width: 15 },
+  { header: 'Description', key: 'description', width: 30 },
+  { header: 'Work Notes', key: 'notes', width: 30 },
+  { header: 'Wage', key: 'hourlyWage', width: 10, style: { numFmt: '$#,##0.00' } },
+  { header: 'Total Hours', key: 'totalHours', width: 12, style: { numFmt: '0.00' } },
 ];
+
+const formatDataForReport = (timesheets, defaultTimezone = 'UTC') => {
+  if (!Array.isArray(timesheets)) return [];
+  return timesheets.map(ts => {
+    if (!ts) return {};
+    const reportTimezone = ts.timezone && moment.tz.zone(ts.timezone) ? ts.timezone : defaultTimezone;
+    let localDate = ts.date;
+    if (localDate && !/^\d{4}-\d{2}-\d{2}$/.test(localDate)) {
+      try {
+        const parsedMoment = moment.utc(localDate);
+        if (parsedMoment.isValid()) {
+          localDate = parsedMoment.format('YYYY-MM-DD');
+        } else { localDate = "Invalid Date"; }
+      } catch { localDate = "Invalid Date"; }
+    } else if (!localDate) {
+      localDate = "Invalid Date";
+    }
+    const localStartTime = ts.startTime instanceof Date && !isNaN(ts.startTime.getTime())
+      ? moment(ts.startTime).tz(reportTimezone).format("HH:mm") : (typeof ts.startTime === 'string' ? ts.startTime : "");
+    const localEndTime = ts.endTime instanceof Date && !isNaN(ts.endTime.getTime())
+      ? moment(ts.endTime).tz(reportTimezone).format("HH:mm") : (typeof ts.endTime === 'string' ? ts.endTime : "");
+    const dayOfWeek = moment(localDate, "YYYY-MM-DD", true).isValid()
+      ? moment(localDate, "YYYY-MM-DD").format('dddd') : "";
+    return {
+      employee: ts.employeeId?.name || ts.employee || '',
+      date: localDate,
+      day: dayOfWeek,
+      client: ts.clientId?.name || ts.client || '',
+      project: ts.projectId?.name || ts.project || '',
+      startTime: localStartTime,
+      endTime: localEndTime,
+      lunchDuration: ts.lunchBreak === 'Yes' ? (ts.lunchDuration || '00:00') : (ts.lunchDuration || ''),
+      leaveType: ts.leaveType === 'None' ? '' : (ts.leaveType || ''),
+      description: ts.description || '',
+      notes: ts.notes || '',
+      hourlyWage: ts.hourlyWage != null ? `$${parseFloat(ts.hourlyWage).toFixed(2)}` : '',
+      totalHours: ts.totalHours != null ? parseFloat(ts.totalHours).toFixed(2) : '0.00',
+    };
+  });
+};
 
 const handleReportAction = async (req, res, isDownload, groupBy) => {
   const actionType = isDownload ? 'download' : 'send';
@@ -767,6 +763,11 @@ const handleReportAction = async (req, res, isDownload, groupBy) => {
 
   try {
     const employerSettings = await EmployerSetting.findOne({ employerId: employerId }).lean();
+    let activeReportColumns = standardReportColumns;
+    if (employerSettings && Array.isArray(employerSettings.reportColumns) && employerSettings.reportColumns.length > 0) {
+      activeReportColumns = standardReportColumns.filter(col => employerSettings.reportColumns.includes(col.key));
+      if (activeReportColumns.length === 0) activeReportColumns = standardReportColumns;
+    }
 
     let employeesOfEmployer;
     if (requestedEmployeeIdsParam && requestedEmployeeIdsParam.length > 0) {
@@ -818,120 +819,11 @@ const handleReportAction = async (req, res, isDownload, groupBy) => {
       return res.status(404).json({ message: "No timesheets found matching the specified filters." });
     }
 
-    const workbook = new ExcelJS.Workbook();
-    workbook.creator = "Timesheet App";
-    const ws = workbook.addWorksheet(groupBy === 'project' ? 'Project Timesheets' : 'Employee Timesheets');
-
-    let activeReportColumns = standardReportColumns;
-    if (employerSettings && Array.isArray(employerSettings.reportColumns)) {
-      if (employerSettings.reportColumns.length > 0) {
-        activeReportColumns = standardReportColumns.filter(col => employerSettings.reportColumns.includes(col.key));
-      }
-    }
-    ws.columns = activeReportColumns;
-
-    if (activeReportColumns.length > 0) {
-      ws.getRow(1).font = { bold: true, alignment: { vertical: 'middle', horizontal: 'center' }, fill: { type: 'pattern', pattern:'solid', fgColor:{argb:'FFD3D3D3'} }, border: { bottom: { style: 'thin' } }};
-    }
-
-    if (groupBy === 'project') {
-        if (projectIds && projectIds.length > 0) {
-            const validProjectIds = filterIds(projectIds);
-            const projectsFromDb = await Project.find({ _id: { $in: validProjectIds } }).select('name').lean();
-            projectsFromDb.forEach(p => projectDetailsMap.set(p._id.toString(), p.name));
-        } else {
-            timesheets.forEach(ts => {
-                if (ts.projectId && !projectDetailsMap.has(ts.projectId._id.toString())) {
-                    projectDetailsMap.set(ts.projectId._id.toString(), ts.projectId.name);
-                }
-            });
-        }
-
-        if (projectDetailsMap.size === 0 && activeReportColumns.length > 0) {
-             return res.status(404).json({ message: "No projects found for the report criteria." });
-        }
-
-        projectDetailsMap.forEach((projectName, currentProjectIdString) => {
-            if (activeReportColumns.length > 0) {
-                const projectHeaderRow = ws.addRow([projectName]);
-                projectHeaderRow.font = { bold: true, size: 14 };
-                ws.mergeCells(projectHeaderRow.number, 1, projectHeaderRow.number, activeReportColumns.length);
-                projectHeaderRow.getCell(1).alignment = { horizontal: 'center' };
-                ws.addRow([]);
-            }
-
-            employeesData.forEach(employee => {
-                const employeeTimesheetsForProject = timesheets.filter(
-                    ts => ts.employeeId._id.toString() === employee._id.toString() &&
-                          ts.projectId?._id.toString() === currentProjectIdString
-                );
-
-                const formattedEmployeeTimesheets = formatDataForReport(employeeTimesheetsForProject, reportTimezone);
-                let employeeProjectTotalHours = 0;
-                let employeeProjectTotalIncome = 0;
-
-                if (formattedEmployeeTimesheets.length > 0) {
-                    formattedEmployeeTimesheets.forEach((entry, index) => {
-                        const rowDataValues = activeReportColumns.map(col => entry[col.key]);
-                        if (activeReportColumns.length > 0 && activeReportColumns[0].key === 'employee') {
-                            rowDataValues[0] = index === 0 ? employee.name : '';
-                        }
-                        if (activeReportColumns.length > 0) ws.addRow(rowDataValues);
-                        employeeProjectTotalHours += parseFloat(entry.totalHours || 0);
-                        employeeProjectTotalIncome += parseFloat(entry.totalHours || 0) * (employee.wage || 0);
-                    });
-                } else if (activeReportColumns.length > 0) {
-                    const emptyRowDataValues = activeReportColumns.map(col => (col.key === 'employee') ? employee.name : '');
-                    ws.addRow(emptyRowDataValues);
-                }
-
-                if (activeReportColumns.length > 0) {
-                    const summaryExpectedValues = activeReportColumns.map(col => {
-                        if (col.key === 'leaveType') return 'EXPECTED';
-                        if (col.key === 'totalHours') return employee.expectedHours !== undefined ? String(employee.expectedHours) : '0';
-                        return '';
-                    });
-                    ws.addRow(summaryExpectedValues);
-
-                    const summaryOvertimeValues = activeReportColumns.map(col => {
-                        if (col.key === 'leaveType') return 'OVERTIME';
-                         if (col.key === 'totalHours') {
-                            return '0';
-                         }
-                        return '';
-                    });
-                    ws.addRow(summaryOvertimeValues);
-
-                    const summaryTotalHoursValues = activeReportColumns.map(col => {
-                        if (col.key === 'notes') return 'TOTAL HOURS';
-                        if (col.key === 'totalHours') return employeeProjectTotalHours.toFixed(2);
-                        return '';
-                    });
-                     ws.addRow(summaryTotalHoursValues);
-
-                    const summaryTotalIncomeValues = activeReportColumns.map(col => {
-                        if (col.key === 'notes') return 'TOTAL INCOME EARNED';
-                        if (col.key === 'totalHours') return `$${employeeProjectTotalIncome.toFixed(2)}`;
-                        return '';
-                    });
-                    ws.addRow(summaryTotalIncomeValues);
-                    ws.addRow([]);
-                }
-            });
-            if (activeReportColumns.length > 0) ws.addRow([]);
-        });
-
-    } else {
-        const formattedData = formatDataForReport(timesheets, reportTimezone);
-        const groupedData = formattedData.reduce((acc, entry) => {
-            const groupKey = entry.employee || `Unknown Employee`;
-            (acc[groupKey] = acc[groupKey] || []).push(entry);
-            return acc;
-        }, {});
-        populateWorksheetForEmployeeGrouping(groupedData, ws, activeReportColumns);
-    }
-
-    const buffer = await workbook.xlsx.writeBuffer();
+    // Format data for Excel report
+    const formattedData = formatDataForReport(timesheets, reportTimezone);
+    const columns = activeReportColumns;
+    const sheetName = groupBy === 'project' ? 'Project Timesheets' : 'Employee Timesheets';
+    const buffer = await generateExcelReport({ data: formattedData, columns, sheetName });
 
     let nameLabel = `${groupBy.charAt(0).toUpperCase() + groupBy.slice(1)}_Report`;
     if (groupBy === 'project' && projectIds && projectIds.length === 1 && projectDetailsMap.has(projectIds[0])) {
@@ -946,33 +838,17 @@ const handleReportAction = async (req, res, isDownload, groupBy) => {
     const fileName = `${sanitize(nameLabel)}_${groupBy}_Timesheet_${sanitize(startLabel)}_to_${sanitize(endLabel)}.xlsx`;
 
     if (isDownload) {
-      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-      res.setHeader('Content-Disposition', `attachment; filename="${fileName}"; filename*=UTF-8''${encodeURIComponent(fileName)}`);
-      return res.send(buffer);
+      sendExcelDownload(res, buffer, fileName);
+      return;
     } else {
-      const transporter = nodemailer.createTransport({
-        service: "gmail",
-        auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS },
-        connectionTimeout: 10000,
-        greetingTimeout: 10000,
-        socketTimeout: 10000,
-      });
-
-      const mailOptions = {
-        from: `"Timesheet App" <${process.env.EMAIL_USER}>`,
+      await sendEmail({
         to: email,
         subject: `${groupBy.charAt(0).toUpperCase() + groupBy.slice(1)} Timesheet Report: ${nameLabel} (${startLabel} - ${endLabel})`,
-        text: `Please find the attached ${groupBy} timesheet report for ${nameLabel} covering the period from ${startDate || 'start'} to ${endDate || 'end'}.\nReport generated using ${reportTimezone} timezone for time formatting.`,
+        text: `Please find the attached ${groupBy} timesheet report for ${nameLabel} covering the period from ${startDate || 'start'} to ${endDate || 'end'}.
+Report generated using ${reportTimezone} timezone for time formatting.`,
         attachments: [{ filename: fileName, content: buffer }],
-      };
-
-      try {
-        await transporter.sendMail(mailOptions);
-        return res.status(200).json({ message: "Timesheet email sent successfully!" });
-      } catch (mailError) {
-        console.error(`[Server Report] Failed to send email to ${email}:`, mailError);
-        return res.status(500).json({ message: `Failed to send email. Please check server configuration or contact support. Error: ${mailError.message}` });
-      }
+      });
+      return res.status(200).json({ message: "Timesheet email sent successfully!" });
     }
   } catch (error) {
     console.error(`[Server Report] Exception during ${actionType} process:`, error);

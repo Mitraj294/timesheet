@@ -2,7 +2,7 @@ import Schedule from '../models/Schedule.js';
 import Employee from '../models/Employee.js'; // For fetching employerId for employee users
 import mongoose from 'mongoose';
 import { DateTime } from 'luxon';
-import sendEmail from '../utils/sendEmail.js'; // Import the email utility
+import sendEmail, { sendScheduleAssignmentEmail, sendScheduleUpdateEmail } from '../services/emailService.js'; // Import the email utility
 
 // @desc    Create schedules in bulk
 // @route   POST /api/schedules/bulk
@@ -59,11 +59,8 @@ export const createBulkSchedules = async (req, res) => {
 
     for (const empId in employeeNotifications) {
       const { email, name, shifts } = employeeNotifications[empId];
-      await sendEmail({
-        to: email,
-        subject: 'New Shifts Assigned',
-        html: `<p>Hi ${name || 'Employee'},</p><p>You have been assigned new shifts:</p><ul>${shifts.map(s => `<li>${s}</li>`).join('')}</ul><p>Please log in to the portal to view your updated roster.</p>`,
-      }).catch(emailError => console.error(`[ScheduleCtrl] Failed to send bulk schedule notification to ${email}:`, emailError));
+      await sendScheduleAssignmentEmail(email, name, shifts)
+        .catch(emailError => console.error(`[ScheduleCtrl] Failed to send bulk schedule notification to ${email}:`, emailError));
     }
 
     res.status(201).json(createdSchedules); // Return the created schedules
@@ -185,13 +182,7 @@ export const updateSchedule = async (req, res) => {
       try {
         const employee = await Employee.findById(updatedSchedule.employee).populate('userId', 'email name');
         if (employee && employee.userId && employee.userId.email) {
-          await sendEmail({
-            to: employee.userId.email,
-            subject: 'Your Shift Has Been Updated',
-            html: `<p>Hi ${employee.userId.name || 'Employee'},</p>
-                   <p>A shift assigned to you for date ${DateTime.fromJSDate(updatedSchedule.date).toLocal().toFormat('EEE, MMM d')} (${updatedSchedule.startTime} - ${updatedSchedule.endTime}) has been updated.</p>
-                   <p>Please log in to the portal to view your updated roster.</p>`,
-          });
+          await sendScheduleUpdateEmail(employee, updatedSchedule);
         }
       } catch (emailError) {
         console.error(`[ScheduleCtrl] Failed to send schedule update notification to employee ${updatedSchedule.employee}:`, emailError);

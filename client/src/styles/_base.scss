@@ -5,7 +5,7 @@ $font-size-base: 1rem;
 $font-size-sm: 0.875rem;
 $font-size-lg: 1.25rem;
 
-// Spacing (scale: 4px)
+// Spacing (4px scale)
 $space-xs: 0.25rem;
 $space-sm: 0.5rem;
 $space-md: 1rem;
@@ -13,30 +13,32 @@ $space-lg: 2rem;
 $space-xl: 4rem;
 
 // Colors
-$color-primary: #2a2a2a;
-$color-secondary: #f0f0f0;
-$color-accent: #1e90ff;
-$color-border: #dcdcdc;
-$color-background: #ffffff;
+$color-primary: #2a2a2a; // Main text
+$color-secondary: #f0f0f0; // Light background
+$color-accent: #1e90ff; // Accent/links
+$color-border: #dcdcdc; // Borders
+$color-background: #ffffff; // Page background
 
-// Breakpoints
+// Breakpoints (for responsive design)
 $break-sm: 576px;
 $break-md: 768px;
 $break-lg: 992px;
 
-// Mixins
+// Flex center utility
 @mixin flex-center {
     display: flex;
     align-items: center;
     justify-content: center;
 }
 
+// Grid utility
 @mixin grid($columns, $gap: $space-md) {
     display: grid;
     grid-template-columns: repeat($columns, 1fr);
     gap: $gap;
 }
 
+// Responsive utility: use like @include respond(md) { ... }
 @mixin respond($breakpoint) {
     @if $breakpoint ==sm {
         @media (max-width: $break-sm) {

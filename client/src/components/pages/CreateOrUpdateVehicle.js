@@ -3,30 +3,16 @@ import { useNavigate, useParams, Link } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
-  faEdit,
-  faPlus,
-  faCar,
-  faSpinner,
-  faExclamationCircle,
-  faTimes,
-  faSave,
+  faEdit, faPlus, faCar, faSpinner, faExclamationCircle, faTimes, faSave,
 } from '@fortawesome/free-solid-svg-icons';
-
 import {
-  fetchVehicleById,
-  createVehicle,
-  updateVehicle,
-  selectVehicleByIdState,
-  selectCurrentVehicleStatus,
-  selectCurrentVehicleError,
-  selectVehicleOperationStatus,
-  selectVehicleOperationError,
-  resetCurrentVehicle,
-  clearOperationStatus,
+  fetchVehicleById, createVehicle, updateVehicle,
+  selectVehicleByIdState, selectCurrentVehicleStatus, selectCurrentVehicleError,
+  selectVehicleOperationStatus, selectVehicleOperationError,
+  resetCurrentVehicle, clearOperationStatus,
 } from '../../redux/slices/vehicleSlice';
 import { setAlert } from '../../redux/slices/alertSlice';
 import Alert from '../layout/Alert';
-
 import '../../styles/Forms.scss';
 
 const CreateOrUpdateVehicle = () => {
@@ -34,92 +20,76 @@ const CreateOrUpdateVehicle = () => {
   const navigate = useNavigate();
   const isEditMode = Boolean(vehicleId);
 
-  // Local component state
+  // Local state for form fields
   const [vehicleData, setVehicleData] = useState({
     name: '',
     hours: '',
     wofRego: '',
   });
-  const [formError, setFormError] = useState(null); // Local validation error
+  const [formError, setFormError] = useState(null);
 
   const dispatch = useDispatch();
 
-  // Redux state selectors
+  // Redux selectors
   const currentVehicle = useSelector(selectVehicleByIdState);
   const fetchStatus = useSelector(selectCurrentVehicleStatus);
   const fetchError = useSelector(selectCurrentVehicleError);
   const operationStatus = useSelector(selectVehicleOperationStatus);
   const operationError = useSelector(selectVehicleOperationError);
 
+  // Loading if fetching or saving
   const isLoading = useMemo(() =>
-    fetchStatus === 'loading' || operationStatus === 'loading', // True if either fetching data or saving data
+    fetchStatus === 'loading' || operationStatus === 'loading',
     [fetchStatus, operationStatus]
   );
 
-  // Effects
-
-  // Displays errors from Redux state (fetch or save operations) as alerts
+  // Show Redux errors as alerts
   useEffect(() => {
     const reduxError = fetchError || operationError;
     if (reduxError) {
       dispatch(setAlert(reduxError, 'danger'));
     }
   }, [fetchError, operationError, dispatch]);
-  
-  // Fetches existing vehicle data for editing, or initializes/resets form for creation
-  useEffect(() => {
-    dispatch(clearOperationStatus()); // Clear any previous operation status
 
+  // Fetch or reset vehicle data on mount/change
+  useEffect(() => {
+    dispatch(clearOperationStatus());
     if (isEditMode && vehicleId) {
-      // Fetch only if status is idle OR if the loaded vehicle ID doesn't match the URL ID
       if (fetchStatus === 'idle' || (currentVehicle?._id !== vehicleId && fetchStatus !== 'loading')) {
-         dispatch(fetchVehicleById(vehicleId));
+        dispatch(fetchVehicleById(vehicleId));
       }
     } else {
-      // Reset form and current vehicle state for create mode
       setVehicleData({ name: '', hours: '', wofRego: '' });
       dispatch(resetCurrentVehicle());
     }
-
-    // Cleanup when component unmounts or dependencies (isEditMode, vehicleId) change
     return () => {
       dispatch(resetCurrentVehicle());
       dispatch(clearOperationStatus());
     };
   }, [isEditMode, vehicleId, dispatch]);
 
-  // Populates the form with fetched vehicle data when in edit mode
+  // Populate form when editing and data is loaded
   useEffect(() => {
-    // Only populate if editing, fetch succeeded, and the correct vehicle is loaded
     if (isEditMode && fetchStatus === 'succeeded' && currentVehicle?._id === vehicleId) {
-      const newVehicleData = {
+      setVehicleData({
         name: currentVehicle.name || '',
         hours: currentVehicle.hours?.toString() || '',
         wofRego: currentVehicle.wofRego || '',
-      };
-
-      // Update local form state only if fetched data differs, to prevent unnecessary re-renders
-      setVehicleData(prevData => {
-        if (prevData.name !== newVehicleData.name ||
-            prevData.hours !== newVehicleData.hours ||
-            prevData.wofRego !== newVehicleData.wofRego) {
-          return newVehicleData;
-        }
-        return prevData;
       });
     }
   }, [fetchStatus, currentVehicle, isEditMode, vehicleId]);
 
-  // Handlers
+  // Handle input changes
   const handleChange = (e) => {
     const { name, value } = e.target;
     setVehicleData((prev) => ({
       ...prev,
       [name]: value,
     }));
-    if (formError) setFormError(null); // Clear local validation error when user types
+    if (formError) setFormError(null);
   };
 
+  // Simple validation
   const validateForm = () => {
     if (!vehicleData.name.trim()) return 'Vehicle Name is required.';
     if (
@@ -131,24 +101,22 @@ const CreateOrUpdateVehicle = () => {
     return null;
   };
 
+  // Handle form submit
   const handleSubmit = async (e) => {
     e.preventDefault();
     setFormError(null);
     dispatch(clearOperationStatus());
-
     const validationError = validateForm();
     if (validationError) {
       dispatch(setAlert(validationError, 'warning'));
       setFormError(validationError);
       return;
     }
-
     try {
       const dataToSubmit = {
         ...vehicleData,
-        hours: vehicleData.hours, // Backend model might expect string or number, ensure consistency
+        hours: vehicleData.hours,
       };
-
       if (isEditMode) {
         await dispatch(updateVehicle({ vehicleId, vehicleData: dataToSubmit })).unwrap();
         dispatch(setAlert('Vehicle updated successfully!', 'success'));
@@ -156,12 +124,8 @@ const CreateOrUpdateVehicle = () => {
         await dispatch(createVehicle(dataToSubmit)).unwrap();
         dispatch(setAlert('Vehicle created successfully!', 'success'));
       }
-
       navigate('/vehicles');
     } catch (err) {
-      console.error('Failed to save vehicle:', err);
-      // Error alert is handled by the useEffect watching operationError,
-      // but re-dispatching here can provide immediate feedback on the submit action.
       dispatch(setAlert(err?.message || `Failed to ${isEditMode ? 'update' : 'create'} vehicle.`, 'danger'));
       if (err?.message?.includes('401') || err?.message?.includes('403')) {
         navigate('/login');
@@ -190,15 +154,13 @@ const CreateOrUpdateVehicle = () => {
           </div>
         </div>
       </div>
-
-      {/* Display loading indicator if fetching data for edit mode */}
+      {/* Show loading spinner if fetching for edit */}
       {isEditMode && fetchStatus === 'loading' && (
         <div className='loading-indicator'>
           <FontAwesomeIcon icon={faSpinner} spin size="2x" /> <p>Loading vehicle data...</p>
         </div>
       )}
-
-      {/* Display form once initial data fetching (for edit mode) is complete, or always for create mode */}
+      {/* Show form when ready */}
       {(!isEditMode || fetchStatus !== 'loading') && (
         <div className='form-container'>
           <form
@@ -206,13 +168,12 @@ const CreateOrUpdateVehicle = () => {
             className='employee-form'
             noValidate
           >
-            {/* Display local form validation errors if any */}
+            {/* Show local validation error */}
             {formError && (
               <div className='form-error-message'>
                 <FontAwesomeIcon icon={faExclamationCircle} /> {formError}
               </div>
             )}
-
             <div className='form-group'>
               <label htmlFor='name'>Name*</label>
               <input
@@ -226,7 +187,6 @@ const CreateOrUpdateVehicle = () => {
                 placeholder='Vehicle Name'
               />
             </div>
-
             <div className='form-group'>
               <label htmlFor='hours'>Hours*</label>
               <input
@@ -239,14 +199,13 @@ const CreateOrUpdateVehicle = () => {
                 disabled={isLoading}
                 placeholder='Hours'
                 min='0'
-                step='any' // Allows decimal input for hours
+                step='any'
               />
             </div>
-
             <div className='form-group'>
               <label htmlFor='wofRego'>WOF/Rego</label>
               <input
-                type='text' // Assuming this can be details or a date string
+                type='text'
                 id='wofRego'
                 name='wofRego'
                 value={vehicleData.wofRego}
@@ -255,7 +214,6 @@ const CreateOrUpdateVehicle = () => {
                 placeholder='WOF/Rego Details or Due Date'
               />
             </div>
-
             <div className='form-footer'>
               <button
                 type='button'
@@ -270,7 +228,7 @@ const CreateOrUpdateVehicle = () => {
                 className='btn btn-green'
                 disabled={isLoading}
               >
-                {operationStatus === 'loading' ? ( // Spinner only during save operation
+                {operationStatus === 'loading' ? (
                   <> <FontAwesomeIcon icon={faSpinner} spin /> Saving... </>
                 ) : (
                   <>

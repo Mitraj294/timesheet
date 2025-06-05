@@ -3,55 +3,38 @@ import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import '../../styles/TabletView.scss';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faEye, faEyeSlash,faSignInAlt, faSignOutAlt, faSearch,  faArrowLeft, faSpinner, faTimes, faPen, faCalendarAlt, faUtensils, faStickyNote, faClock } from '@fortawesome/free-solid-svg-icons';
-import { useSelector, useDispatch } from 'react-redux';
-import { Link, useNavigate } from 'react-router-dom'; // Removed useLocation as it's not used
 import {
-  selectEmployerSettings,
-  fetchEmployerSettings,
-  selectSettingsStatus as selectEmployerSettingsStatus
+  faEye, faEyeSlash, faSignInAlt, faSignOutAlt, faSearch, faArrowLeft, faSpinner, faTimes, faPen,
+  faCalendarAlt, faUtensils, faStickyNote, faClock
+} from '@fortawesome/free-solid-svg-icons';
+import { useSelector, useDispatch } from 'react-redux';
+import { Link, useNavigate } from 'react-router-dom';
+import {
+  selectEmployerSettings, fetchEmployerSettings, selectSettingsStatus as selectEmployerSettingsStatus
 } from '../../redux/slices/settingsSlice';
 import { selectAuthUser, setTabletViewUnlocked, selectIsTabletViewUnlocked } from '../../redux/slices/authSlice';
 import { setAlert } from '../../redux/slices/alertSlice';
 import {
-  createTimesheet,
-  updateTimesheet,
-  checkTimesheetExists,
-  clearCheckStatus,
-  fetchIncompleteTimesheets, // Import the new thunk
-  selectIncompleteTimesheets, // Import selector for incomplete timesheets
-  selectIncompleteStatus,     // Import status selector for incomplete timesheets
-  clearIncompleteStatus     // Import clear action for incomplete timesheets
+  createTimesheet, updateTimesheet, checkTimesheetExists, clearCheckStatus,
+  fetchIncompleteTimesheets, selectIncompleteTimesheets, selectIncompleteStatus, clearIncompleteStatus
 } from '../../redux/slices/timesheetSlice';
-
 import { DateTime } from 'luxon';
 
+// Convert local time to UTC ISO string
 const localTimeToUtcISO = (timeStr, dateStr, tz) => {
-  if (!timeStr || !/^\d{2}:\d{2}$/.test(timeStr)) {
-    throw new Error(`Invalid time string (HH:MM format required): '${timeStr}'`);
-  }
-  if (!dateStr || !/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
-    throw new Error(`Invalid or missing Date string (YYYY-MM-DD format required): '${dateStr}'`);
-  }
-  if (!tz || !DateTime.local().setZone(tz).isValid) {
-    throw new Error(`Invalid or missing timezone: '${tz}'`);
-  }
-  try {
-    const localDateTime = DateTime.fromISO(`${dateStr}T${timeStr}`, { zone: tz });
-    if (!localDateTime.isValid) {
-      throw new Error(`Failed to parse date/time. Reason: ${localDateTime.invalidReason || 'unknown'}. Explanation: ${localDateTime.invalidExplanation || 'none'}. Input: ${dateStr}T${timeStr}, Zone: ${tz}`);
-    }
-    return localDateTime.toUTC().toISO();
-  } catch (err) {
-    console.error(`Error in localTimeToUtcISO for ${dateStr}T${timeStr} in ${tz}:`, err);
-    throw new Error(`Time conversion failed: ${err.message}`);
-  }
+  if (!timeStr || !/^\d{2}:\d{2}$/.test(timeStr)) throw new Error('Invalid time');
+  if (!dateStr || !/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) throw new Error('Invalid date');
+  if (!tz || !DateTime.local().setZone(tz).isValid) throw new Error('Invalid timezone');
+  const localDateTime = DateTime.fromISO(`${dateStr}T${timeStr}`, { zone: tz });
+  if (!localDateTime.isValid) throw new Error('Invalid date/time');
+  return localDateTime.toUTC().toISO();
 };
 
 const TabletView = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
 
+  // State
   const [searchTerm, setSearchTerm] = useState('');
   const [employees, setEmployees] = useState([]);
   const [isLoadingEmployees, setIsLoadingEmployees] = useState(false);
@@ -62,17 +45,20 @@ const TabletView = () => {
   const employerSettings = useSelector(selectEmployerSettings);
   const employerSettingsStatus = useSelector(selectEmployerSettingsStatus);
 
+  // Password modal state
   const [passwordInput, setPasswordInput] = useState('');
   const [passwordError, setPasswordError] = useState(null);
   const [showPassword, setShowPassword] = useState(false);
   const [isVerifyingPassword, setIsVerifyingPassword] = useState(false);
 
+  // Exit modal state
   const [showExitPasswordModal, setShowExitPasswordModal] = useState(false);
   const [exitPasswordInput, setExitPasswordInput] = useState('');
   const [exitPasswordError, setExitPasswordError] = useState(null);
   const [showExitPassword, setShowExitPassword] = useState(false);
   const [isVerifyingExitPassword, setIsVerifyingExitPassword] = useState(false);
 
+  // Employee password modal state
   const [showEmployeePasswordModal, setShowEmployeePasswordModal] = useState(false);
   const [selectedEmployeeForAction, setSelectedEmployeeForAction] = useState(null);
   const [employeePasswordInput, setEmployeePasswordInput] = useState('');
@@ -80,48 +66,45 @@ const TabletView = () => {
   const [showEmployeeEnteredPassword, setShowEmployeeEnteredPassword] = useState(false);
   const [isVerifyingEmployeePassword, setIsVerifyingEmployeePassword] = useState(false);
 
+  // Log time modal state
   const [showLogTimeModal, setShowLogTimeModal] = useState(false);
   const [logTimeData, setLogTimeData] = useState({
-    startTime: '',
-    showEndTimeDetails: false,
-    endTime: '',
-    lunchBreak: 'No',
-    notes: ''
+    startTime: '', showEndTimeDetails: false, endTime: '', lunchBreak: 'No', notes: ''
   });
   const [logTimeCalculatedHours, setLogTimeCalculatedHours] = useState('0.00');
   const [isSubmittingLogTime, setIsSubmittingLogTime] = useState(false);
   const [logTimeError, setLogTimeError] = useState(null);
 
+  // Clock-in/out and incomplete entry state
   const [activeClockIns, setActiveClockIns] = useState({});
   const [showSignInSuccessModal, setShowSignInSuccessModal] = useState(false);
-  const [activeManualEntries, setActiveManualEntries] = useState({}); // For today's incomplete manual entries
+  const [activeManualEntries, setActiveManualEntries] = useState({});
   const [signInSuccessMessage, setSignInSuccessMessage] = useState("");
   const [initialStatusChecked, setInitialStatusChecked] = useState(false);
 
-  // State for prompting about older incomplete entries
+  // Old incomplete prompt state
   const [showOldIncompletePrompt, setShowOldIncompletePrompt] = useState(false);
   const [oldestIncompleteEntry, setOldestIncompleteEntry] = useState(null);
 
   const incompleteTimesheetsForSelected = useSelector(selectIncompleteTimesheets);
   const incompleteStatusForSelected = useSelector(selectIncompleteStatus);
 
-
+  // Fetch employees for employer or self for employee
   const fetchEmployeesCallback = useCallback(async () => {
     if (!currentUser?.id) return;
     setIsLoadingEmployees(true);
     setEmployeeFetchError(null);
     try {
-       if (currentUser.role === 'employer') {
+      if (currentUser.role === 'employer') {
         const response = await axios.get(`/api/employees`);
         setEmployees(response.data || []);
-       } else if (currentUser.role === 'employee') {
-         const response = await axios.get(`/api/employees/me`);
-         setEmployees(response.data ? [response.data] : []);
-       } else {
-         setEmployees([]);
-       }
-    } catch (error) {
-      console.error("Error fetching employees:", error);
+      } else if (currentUser.role === 'employee') {
+        const response = await axios.get(`/api/employees/me`);
+        setEmployees(response.data ? [response.data] : []);
+      } else {
+        setEmployees([]);
+      }
+    } catch {
       setEmployeeFetchError("Failed to load employees. Please try again.");
       setEmployees([]);
     } finally {
@@ -129,6 +112,7 @@ const TabletView = () => {
     }
   }, [currentUser?.id, currentUser?.role]);
 
+  // Fetch employees when unlocked
   useEffect(() => {
     if (isTabletViewUnlocked && currentUser?.id) {
       fetchEmployeesCallback();
@@ -136,73 +120,56 @@ const TabletView = () => {
     }
   }, [isTabletViewUnlocked, currentUser?.id, fetchEmployeesCallback]);
 
+  // Fetch employer settings if needed
   useEffect(() => {
     if (currentUser?.role === 'employer' && (!employerSettings || employerSettingsStatus === 'idle' || employerSettingsStatus === 'failed')) {
       dispatch(fetchEmployerSettings());
     }
   }, [dispatch, currentUser, employerSettings, employerSettingsStatus]);
 
-  // Helper function to get IP-based geolocation
+  // Get IP-based location (used for clock-in/out)
   const fetchIPLocation = useCallback(async () => {
     try {
-      // Using geojs.io as an example. It supports HTTPS and is simple.
       const response = await fetch('https://get.geojs.io/v1/ip/geo.json');
-      if (!response.ok) {
-        throw new Error(`IP Geolocation API request failed with status ${response.status}`);
-      }
+      if (!response.ok) throw new Error('IP Geolocation API failed');
       const data = await response.json();
       if (data.latitude && data.longitude) {
-        const lat = parseFloat(data.latitude);
-        const lon = parseFloat(data.longitude);
-        if (!isNaN(lat) && !isNaN(lon)) {
-          // MongoDB GeoJSON Point expects [longitude, latitude]
-          return { type: 'Point', coordinates: [lon, lat] };
-        } else {
-          throw new Error('Invalid latitude/longitude format from IP Geolocation API.');
-        }
-      } else {
-        throw new Error('Could not determine location from IP. API response missing lat/lon.');
+        return { type: 'Point', coordinates: [parseFloat(data.longitude), parseFloat(data.latitude)] };
       }
-    } catch (error) {
-      console.warn('TabletView: Failed to get IP-based location:', error.message);
-      // Do not dispatch an alert here, let the calling function decide if it's critical
-      return null; // Return null on failure
+      throw new Error('No lat/lon from IP');
+    } catch {
+      return null;
     }
-  }, []); // No dependencies needed if not using dispatch here
-  // Effect to check initial timesheet statuses (clocked-in or incomplete manual for *today*)
+  }, []);
+
+  // Check initial clock-in/incomplete status for today
   useEffect(() => {
     if (isTabletViewUnlocked && employees.length > 0 && !initialStatusChecked && employerSettingsStatus === 'succeeded') {
       const checkInitialStatuses = async () => {
         const todayDate = new Date().toISOString().split('T')[0];
         const newActiveClockIns = {};
-        const newActiveManualEntries = {}; // For today's entries
+        const newActiveManualEntries = {};
         const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-
         for (const emp of employees) {
           if (!emp._id) continue;
           try {
             dispatch(clearCheckStatus());
             const checkAction = await dispatch(checkTimesheetExists({ employee: emp._id, date: todayDate })).unwrap();
-
-            if (checkAction.exists && checkAction.timesheet) { // checkAction.timesheet will now have isActiveStatus
-              if (!checkAction.timesheet.endTime) { // Incomplete for today
-                if (employerSettings?.tabletViewRecordingType === 'Automatically Record') {
-                  newActiveClockIns[emp._id] = { id: checkAction.timesheet._id, date: checkAction.timesheet.date };
-                } else if (employerSettings?.tabletViewRecordingType === 'Manually Record') {
-                  const localStartTime = DateTime.fromISO(checkAction.timesheet.startTime).setZone(userTimezone).toFormat('HH:mm');
-                  newActiveManualEntries[emp._id] = { // Store in activeManualEntries for today
-                    timesheetId: checkAction.timesheet._id,
-                    startTime: localStartTime,
-                    date: checkAction.timesheet.date,
-                    lunchBreak: checkAction.timesheet.lunchBreak || 'No',
-                    notes: checkAction.timesheet.notes || ''
-                  };
-                }
+            if (checkAction.exists && checkAction.timesheet && !checkAction.timesheet.endTime) {
+              if (employerSettings?.tabletViewRecordingType === 'Automatically Record') {
+                newActiveClockIns[emp._id] = { id: checkAction.timesheet._id, date: checkAction.timesheet.date };
+              } else if (employerSettings?.tabletViewRecordingType === 'Manually Record') {
+                const localStartTime = DateTime.fromISO(checkAction.timesheet.startTime).setZone(userTimezone).toFormat('HH:mm');
+                newActiveManualEntries[emp._id] = {
+                  timesheetId: checkAction.timesheet._id,
+                  startTime: localStartTime,
+                  date: checkAction.timesheet.date,
+                  lunchBreak: checkAction.timesheet.lunchBreak || 'No',
+                  notes: checkAction.timesheet.notes || ''
+                };
               }
             }
-          } catch (error) {
-            console.warn(`Failed to check initial status for ${emp.name}:`, error.message || error);
-          }
+          } catch {}
         }
         setActiveClockIns(prev => ({ ...prev, ...newActiveClockIns }));
         setActiveManualEntries(prev => ({ ...prev, ...newActiveManualEntries }));
@@ -212,6 +179,7 @@ const TabletView = () => {
     }
   }, [isTabletViewUnlocked, employees, dispatch, initialStatusChecked, employerSettingsStatus, employerSettings?.tabletViewRecordingType]);
 
+  // Persist unlock state in sessionStorage
   useEffect(() => {
     if (isTabletViewUnlocked) {
       sessionStorage.setItem('tabletViewUnlocked', 'true');
@@ -220,21 +188,17 @@ const TabletView = () => {
     }
   }, [isTabletViewUnlocked]);
 
-  const handlePasswordChange = (e) => {
-    setPasswordInput(e.target.value);
-    setPasswordError(null);
-  };
+  // Password modal handlers
+  const handlePasswordChange = (e) => { setPasswordInput(e.target.value); setPasswordError(null); };
+  const toggleShowPassword = () => setShowPassword(!showPassword);
 
-  const toggleShowPassword = () => {
-    setShowPassword(!showPassword);
-  };
-
+  // Password submit for unlocking
   const handlePasswordSubmit = async (e) => {
     e.preventDefault();
     setPasswordError(null);
     setIsVerifyingPassword(true);
     if (!currentUser || !currentUser.id) {
-      setPasswordError('User information not available. Please try logging in again.');
+      setPasswordError('User info missing.');
       setIsVerifyingPassword(false);
       return;
     }
@@ -250,28 +214,22 @@ const TabletView = () => {
         setPasswordError(response.data.message || 'Incorrect password.');
       }
     } catch (error) {
-      console.error("Password verification error:", error);
-      setPasswordError(error.response?.data?.message || 'An error occurred. Please try again.');
+      setPasswordError(error.response?.data?.message || 'An error occurred.');
     } finally {
       setIsVerifyingPassword(false);
     }
   };
 
-  const handleExitPasswordChange = (e) => {
-    setExitPasswordInput(e.target.value);
-    setExitPasswordError(null);
-  };
-
-  const toggleShowExitPassword = () => {
-    setShowExitPassword(!showExitPassword);
-  };
+  // Exit modal handlers
+  const handleExitPasswordChange = (e) => { setExitPasswordInput(e.target.value); setExitPasswordError(null); };
+  const toggleShowExitPassword = () => setShowExitPassword(!showExitPassword);
 
   const handleExitPasswordSubmit = async (e) => {
     e.preventDefault();
     setExitPasswordError(null);
     setIsVerifyingExitPassword(true);
     if (!currentUser || !currentUser.id) {
-      setExitPasswordError('User info missing. Please log in again.');
+      setExitPasswordError('User info missing.');
       setIsVerifyingExitPassword(false);
       return;
     }
@@ -286,8 +244,7 @@ const TabletView = () => {
         setExitPasswordError(response.data.message || 'Incorrect password.');
       }
     } catch (error) {
-      console.error('Exit password verification error:', error);
-      setExitPasswordError(error.response?.data?.message || 'An error occurred. Please try again.');
+      setExitPasswordError(error.response?.data?.message || 'An error occurred.');
     } finally {
       setIsVerifyingExitPassword(false);
     }
@@ -401,7 +358,6 @@ const TabletView = () => {
         setEmployeePasswordError(response.data.message || 'Incorrect password.');
       }
     } catch (error) {
-      console.error("Employee password verification error:", error);
       setEmployeePasswordError(error.response?.data?.message || 'An error occurred.');
     } finally {
       setIsVerifyingEmployeePassword(false);

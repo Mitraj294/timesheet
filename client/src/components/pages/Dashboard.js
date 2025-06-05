@@ -1,41 +1,39 @@
 // /home/digilab/timesheet/client/src/components/pages/Dashboard.js
 import React, { useEffect, useState, useRef, useMemo } from "react";
 import { useSelector, useDispatch } from "react-redux";
-import { fetchEmployees, selectAllEmployees, selectEmployeeStatus, selectEmployeeError } from "../../redux/slices/employeeSlice";
-import { useNavigate, useLocation } from "react-router-dom";
-import { selectEmployerSettings, fetchEmployerSettings, selectSettingsStatus } from "../../redux/slices/settingsSlice";
-import { fetchTimesheets, selectAllTimesheets, selectTimesheetStatus, selectTimesheetError, clearTimesheetError } from "../../redux/slices/timesheetSlice";
-import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { setAlert } from "../../redux/slices/alertSlice";
+import { useNavigate } from "react-router-dom";
 import Select from "react-select";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
-  faUsers,
-  faClock,
-  faStopwatch,
-  faUtensils,
-  faCalendarAlt,
-  faTasks,
-  faBriefcase,
-  faSpinner,
-  faSignOutAlt,
-  faBuildingUser, // New icon for Client Hours
-  faDiagramProject // New icon for Project Hours
+  faUsers, faClock, faStopwatch, faUtensils, faCalendarAlt,
+  faTasks, faBriefcase, faSpinner, faBuildingUser, faDiagramProject
 } from "@fortawesome/free-solid-svg-icons";
-import Alert from "../layout/Alert";
 import Chart from "chart.js/auto";
-
 import ChartDataLabels from 'chartjs-plugin-datalabels';
+import Alert from "../layout/Alert";
 import "../../styles/Dashboard.scss";
 import { DateTime } from "luxon";
 
-// Helper to map day names to Luxon weekday numbers
+// --- Redux slices ---
+import {
+  fetchEmployees, selectAllEmployees, selectEmployeeStatus, selectEmployeeError
+} from "../../redux/slices/employeeSlice";
+import {
+  selectEmployerSettings, fetchEmployerSettings, selectSettingsStatus
+} from "../../redux/slices/settingsSlice";
+import {
+  fetchTimesheets, selectAllTimesheets, selectTimesheetStatus, selectTimesheetError
+} from "../../redux/slices/timesheetSlice";
+import { setAlert } from "../../redux/slices/alertSlice";
+
+// --- Helper functions (should be imported from a utils/dashboardHelpers.js file) ---
 const dayNameToLuxonWeekday = {
   'Monday': 1, 'Tuesday': 2, 'Wednesday': 3, 'Thursday': 4,
   'Friday': 5, 'Saturday': 6, 'Sunday': 7,
 };
 
 // Helper to convert decimal hours to HH:MM format
-const convertDecimalToTime = (decimalHours) => {
+export const convertDecimalToTime = (decimalHours) => {
   if (isNaN(decimalHours) || decimalHours == null) return "00:00";
   const hours = Math.floor(decimalHours);
   const minutes = Math.round((decimalHours - hours) * 60);
@@ -43,7 +41,7 @@ const convertDecimalToTime = (decimalHours) => {
 };
 
 // Helper to group data by a key (e.g., clientId, projectId) and sum totalHours
-const groupBy = (key, data = []) => {
+export const groupBy = (key, data = []) => {
   return data.reduce((acc, entry) => {
     if (!entry || !entry[key]) return acc;
     const idField = entry[key];
@@ -59,7 +57,7 @@ const groupBy = (key, data = []) => {
 };
 
 // Helper to get a custom week's start and end
-const getCustomWeekPeriod = (date, startDayOfWeekName = 'Monday') => {
+export const getCustomWeekPeriod = (date, startDayOfWeekName = 'Monday') => {
     const targetWeekdayNum = dayNameToLuxonWeekday[startDayOfWeekName] || 1; // Default to Monday
     const currentDt = DateTime.isDateTime(date) ? date : DateTime.fromJSDate(date);
 
@@ -70,7 +68,7 @@ const getCustomWeekPeriod = (date, startDayOfWeekName = 'Monday') => {
 };
 
 // Helper to get date range based on selected view and custom start day
-const getPeriodRange = (view, startDayOfWeekName = 'Monday') => {
+export const getPeriodRange = (view, startDayOfWeekName = 'Monday') => {
   const today = DateTime.local();
   let startDt, endDt;
   const { start: currentCustomWeekStart, end: currentCustomWeekEnd } = getCustomWeekPeriod(today, startDayOfWeekName);
@@ -93,8 +91,8 @@ const getPeriodRange = (view, startDayOfWeekName = 'Monday') => {
 };
 
 // Helper to get the previous period's date range
-const getPreviousPeriodRange = (currentRange, view, startDayOfWeekName = 'Monday') => {
-  const currentStartDt = DateTime.fromJSDate(currentRange.start); // This is already a custom start day
+export const getPreviousPeriodRange = (currentRange, view, startDayOfWeekName = 'Monday') => {
+  const currentStartDt = DateTime.fromJSDate(currentRange.start); // This is already a custom start day of the week
   let prevStartDt, prevEndDt, durationWeeks = 1;
 
   if (view === "Weekly") {
@@ -115,7 +113,7 @@ const getPreviousPeriodRange = (currentRange, view, startDayOfWeekName = 'Monday
 };
 
 // Helper to calculate total hours for each day of the week
-const getDayTotals = (data, periodStart, startDayOfWeekName = 'Monday') => { // startDayOfWeekName added for consistency, periodStart is key
+export const getDayTotals = (data, periodStart, startDayOfWeekName = 'Monday') => { // startDayOfWeekName added for consistency, periodStart is key
   const dailyTotals = [];
   const startDt = DateTime.fromJSDate(periodStart); // This will be the custom start day of the week
   for (let i = 0; i < 7; i++) {
@@ -135,7 +133,7 @@ const getDayTotals = (data, periodStart, startDayOfWeekName = 'Monday') => { // 
 };
 
 // Helper to calculate total hours for each week in a given period
-const getWeeklyTotals = (data, periodStart, weeks, startDayOfWeekName = 'Monday') => { // startDayOfWeekName added
+export const getWeeklyTotals = (data, periodStart, weeks, startDayOfWeekName = 'Monday') => { // startDayOfWeekName added
   const weeklyTotals = [];
   const startDt = DateTime.fromJSDate(periodStart); // This is the custom start of the first week of the period
   for (let w = 0; w < weeks; w++) {
@@ -156,7 +154,7 @@ const getWeeklyTotals = (data, periodStart, weeks, startDayOfWeekName = 'Monday'
 };
 
 // Helper to get ordered day names
-const getOrderedDays = (startDayName = 'Monday') => {
+export const getOrderedDays = (startDayName = 'Monday') => {
   const allDays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
   const startIndex = allDays.indexOf(startDayName);
   if (startIndex === -1) {
@@ -167,9 +165,9 @@ const getOrderedDays = (startDayName = 'Monday') => {
 };
 
 const Dashboard = () => {
+  // --- Redux state ---
   const dispatch = useDispatch();
   const navigate = useNavigate();
-
   const employeesFromStore = useSelector(selectAllEmployees);
   const employeeStatus = useSelector(selectEmployeeStatus);
   const employeesError = useSelector(selectEmployeeError);
@@ -178,54 +176,45 @@ const Dashboard = () => {
   const timesheetError = useSelector(selectTimesheetError);
   const employerSettings = useSelector(selectEmployerSettings);
   const settingsStatus = useSelector(selectSettingsStatus);
+  const { token, isLoading: isAuthLoading, user } = useSelector((state) => state.auth || {});
 
-  const { token, isLoading: isAuthLoading, isAuthenticated, user } = useSelector((state) => state.auth || {});
-
-  // Local component state
+  // --- Local state ---
   const [selectedEmployee, setSelectedEmployee] = useState({ value: "All", label: "All Employees" });
   const [viewType, setViewType] = useState({ value: "Weekly", label: "View by Weekly" });
   const [selectedProjectClient, setSelectedProjectClient] = useState({ value: "All", label: "All Clients" });
 
+  // --- Chart refs ---
   const chartRef = useRef(null);
   const clientsChartRef = useRef(null);
   const projectsChartRef = useRef(null);
 
-  // Memoized options for view type dropdowns
+  // --- Options ---
   const viewOptions = useMemo(() => [
     { value: "Weekly", label: "View by Weekly" },
     { value: "Fortnightly", label: "View by Fortnightly" },
     { value: "Monthly", label: "View by Monthly" },
   ], []);
 
-  // Effects
+  // --- Effects: Fetch data ---
   useEffect(() => {
     if (!isAuthLoading && token) {
       dispatch(fetchEmployees());
       if (settingsStatus === 'idle') dispatch(fetchEmployerSettings());
     }
   }, [dispatch, token, isAuthLoading, settingsStatus]);
-
   useEffect(() => {
-    if (!isAuthLoading && token) {
-      dispatch(fetchTimesheets());
-      // Settings might already be fetched by the above useEffect
-    }
+    if (!isAuthLoading && token) dispatch(fetchTimesheets());
   }, [token, isAuthLoading, dispatch]);
 
-  // Set default view type from settings once loaded
+  // --- Set default view type from settings ---
   useEffect(() => {
     if (settingsStatus === 'succeeded' && employerSettings?.defaultTimesheetViewType) {
       const defaultView = viewOptions.find(option => option.value === employerSettings.defaultTimesheetViewType);
-      if (defaultView) {
-        setViewType(defaultView);
-      } else {
-        // Fallback if the setting is somehow invalid, though unlikely with a select dropdown
-        setViewType({ value: "Weekly", label: "View by Weekly" });
-      }
+      setViewType(defaultView || { value: "Weekly", label: "View by Weekly" });
     }
-  }, [settingsStatus, employerSettings, viewOptions]); // Added viewOptions to dependency array
+  }, [settingsStatus, employerSettings, viewOptions]);
 
-  // Find the Employee record for the logged-in user if their role is 'employee'
+  // --- Memoized derived data ---
   const loggedInEmployeeRecord = useMemo(() => {
     if (user?.role === 'employee' && Array.isArray(employeesFromStore) && user?._id) {
       return employeesFromStore.find(emp => emp.userId === user._id);
@@ -233,47 +222,33 @@ const Dashboard = () => {
     return null;
   }, [employeesFromStore, user]);
 
-  // Create a memoized set of employee IDs belonging to the current employer
-  const employerEmployeeIds = useMemo(() => {
-    if (user?.role === 'employer' && Array.isArray(employeesFromStore)) {
-      return new Set(employeesFromStore.map(emp => emp._id));
-    }
-    return new Set();
-  }, [employeesFromStore, user?.role]);
+  const employerEmployeeIds = useMemo(() => (
+    user?.role === 'employer' && Array.isArray(employeesFromStore)
+      ? new Set(employeesFromStore.map(emp => emp._id))
+      : new Set()
+  ), [employeesFromStore, user?.role]);
 
-  // Filter employees to show only those belonging to the current employer
   const employerScopedEmployees = useMemo(() => {
-    // Ensure employeesFromStore is an array before attempting to filter or use it.
-    const safeEmployeesFromStore = Array.isArray(employeesFromStore) ? employeesFromStore : [];
-
-    if (user?.role === 'employer') {
-        return safeEmployeesFromStore.filter(emp => emp._id && employerEmployeeIds.has(emp._id));
-    }
-    return safeEmployeesFromStore; // For other roles, return the safe (potentially empty) array
+    const safeEmployees = Array.isArray(employeesFromStore) ? employeesFromStore : [];
+    return user?.role === 'employer'
+      ? safeEmployees.filter(emp => emp._id && employerEmployeeIds.has(emp._id))
+      : safeEmployees;
   }, [employeesFromStore, employerEmployeeIds, user?.role]);
 
-  // Create a "truly scoped" version of allTimesheets based on user role
   const trulyScopedAllTimesheets = useMemo(() => {
     if (user?.role === 'employer') {
-      return allTimesheetsFromStore.filter(ts => {
-        const employeeId = ts.employeeId?._id || ts.employeeId;
-        return employerEmployeeIds.has(employeeId);
-      });
+      return allTimesheetsFromStore.filter(ts => employerEmployeeIds.has(ts.employeeId?._id || ts.employeeId));
     } else if (user?.role === 'employee' && loggedInEmployeeRecord) {
-      return allTimesheetsFromStore.filter(ts => {
-        const timesheetEmployeeId = ts.employeeId?._id || ts.employeeId;
-        return timesheetEmployeeId === loggedInEmployeeRecord._id;
-      });
+      return allTimesheetsFromStore.filter(ts => (ts.employeeId?._id || ts.employeeId) === loggedInEmployeeRecord._id);
     }
     return [];
   }, [allTimesheetsFromStore, employerEmployeeIds, user, loggedInEmployeeRecord]);
 
-  // Memoized options for employee and view type dropdowns
   const employeeOptions = useMemo(() => {
     if (user?.role === 'employer') {
       return [
         { value: "All", label: "All Employees" },
-        ...employerScopedEmployees.map((emp) => ({ value: emp._id, label: emp.name })),
+        ...employerScopedEmployees.map(emp => ({ value: emp._id, label: emp.name })),
       ];
     } else if (user?.role === 'employee' && loggedInEmployeeRecord) {
       return [{ value: loggedInEmployeeRecord._id, label: loggedInEmployeeRecord.name }];
@@ -281,45 +256,55 @@ const Dashboard = () => {
     return [];
   }, [user, employerScopedEmployees, loggedInEmployeeRecord]);
 
-  // Adjust selectedEmployee state based on role and available data
+  // --- Adjust selectedEmployee state based on role and available data ---
   useEffect(() => {
     if (user?.role === 'employee' && loggedInEmployeeRecord) {
       if (selectedEmployee.value !== loggedInEmployeeRecord._id) {
         setSelectedEmployee({ value: loggedInEmployeeRecord._id, label: loggedInEmployeeRecord.name });
       }
     } else if (user?.role === 'employer') {
-      if (selectedEmployee.value !== "All" && Array.isArray(employerScopedEmployees) && !employerScopedEmployees.find(e => e._id === selectedEmployee.value)) {
-        setSelectedEmployee({ value: "All", label: "All Employees" });
-      } else if (selectedEmployee.value !== "All" && Array.isArray(employerScopedEmployees) && employerScopedEmployees.length === 0) {
+      if (
+        selectedEmployee.value !== "All" &&
+        (!employerScopedEmployees.find(e => e._id === selectedEmployee.value) || employerScopedEmployees.length === 0)
+      ) {
         setSelectedEmployee({ value: "All", label: "All Employees" });
       }
     }
   }, [user, loggedInEmployeeRecord, employerScopedEmployees, selectedEmployee.value]);
 
-  // Filters timesheets based on the selected employee (or role)
+  // --- Timesheet filtering ---
   const employeeTimesheets = useMemo(() => {
     if (user?.role === 'employee' && loggedInEmployeeRecord) {
-        return trulyScopedAllTimesheets; // Already scoped for the logged-in employee
+      return trulyScopedAllTimesheets;
     } else if (user?.role === 'employer') {
-        if (selectedEmployee.value === "All") {
-            return trulyScopedAllTimesheets;
-        }
-        return trulyScopedAllTimesheets.filter(ts => (ts.employeeId?._id || ts.employeeId) === selectedEmployee.value);
+      return selectedEmployee.value === "All"
+        ? trulyScopedAllTimesheets
+        : trulyScopedAllTimesheets.filter(ts => (ts.employeeId?._id || ts.employeeId) === selectedEmployee.value);
     }
     return [];
   }, [user, loggedInEmployeeRecord, selectedEmployee.value, trulyScopedAllTimesheets]);
 
-  const startDayOfWeekSetting = useMemo(() => employerSettings?.timesheetStartDayOfWeek || 'Monday', [employerSettings]);
+  // --- Settings ---
+  const startDayOfWeekSetting = useMemo(
+    () => employerSettings?.timesheetStartDayOfWeek || 'Monday',
+    [employerSettings]
+  );
 
-  // Memoized date ranges for current and previous periods
-  const currentPeriod = useMemo(() => getPeriodRange(viewType.value, startDayOfWeekSetting), [viewType.value, startDayOfWeekSetting]);
-  const previousPeriod = useMemo(() => getPreviousPeriodRange(currentPeriod, viewType.value, startDayOfWeekSetting), [currentPeriod, viewType.value, startDayOfWeekSetting]);
+  // --- Periods ---
+  const currentPeriod = useMemo(
+    () => getPeriodRange(viewType.value, startDayOfWeekSetting),
+    [viewType.value, startDayOfWeekSetting]
+  );
+  const previousPeriod = useMemo(
+    () => getPreviousPeriodRange(currentPeriod, viewType.value, startDayOfWeekSetting),
+    [currentPeriod, viewType.value, startDayOfWeekSetting]
+  );
 
-  // Memoized filtered timesheets for the current period (all employees under employer, or single employee)
+  // --- Filtered timesheets ---
   const filteredAllCurrentTimesheets = useMemo(() => {
     const start = DateTime.fromJSDate(currentPeriod.start);
     const end = DateTime.fromJSDate(currentPeriod.end);
-    return trulyScopedAllTimesheets.filter((t) => {
+    return trulyScopedAllTimesheets.filter(t => {
       if (!t?.date || (t.leaveType && t.leaveType !== "None")) return false;
       try {
         const d = DateTime.fromISO(t.date);
@@ -328,14 +313,15 @@ const Dashboard = () => {
     });
   }, [trulyScopedAllTimesheets, currentPeriod]);
 
-  // Memoized valid timesheets (excluding leave entries) for the current view (selected employee or logged-in employee)
-  const validTimesheetsForCurrentView = useMemo(() => employeeTimesheets.filter((t) => !t.leaveType || t.leaveType === "None"), [employeeTimesheets]);
+  const validTimesheetsForCurrentView = useMemo(
+    () => employeeTimesheets.filter(t => !t.leaveType || t.leaveType === "None"),
+    [employeeTimesheets]
+  );
 
-  // Memoized filtered timesheets for the current period (selected employee or logged-in employee)
   const filteredCurrentTimesheets = useMemo(() => {
     const start = DateTime.fromJSDate(currentPeriod.start);
     const end = DateTime.fromJSDate(currentPeriod.end);
-    return validTimesheetsForCurrentView.filter((t) => {
+    return validTimesheetsForCurrentView.filter(t => {
       if (!t?.date) return false;
       try {
         const d = DateTime.fromISO(t.date);
@@ -344,11 +330,10 @@ const Dashboard = () => {
     });
   }, [validTimesheetsForCurrentView, currentPeriod]);
 
-  // Memoized filtered timesheets for the previous period (selected employee or logged-in employee)
   const filteredPreviousTimesheets = useMemo(() => {
     const start = DateTime.fromJSDate(previousPeriod.start);
     const end = DateTime.fromJSDate(previousPeriod.end);
-    return validTimesheetsForCurrentView.filter((t) => {
+    return validTimesheetsForCurrentView.filter(t => {
       if (!t?.date) return false;
       try {
         const d = DateTime.fromISO(t.date);
@@ -357,134 +342,124 @@ const Dashboard = () => {
     });
   }, [validTimesheetsForCurrentView, previousPeriod]);
 
-  // Derived loading and error states
+  // --- Loading and error states ---
   const isEmployeeLoading = employeeStatus === 'loading';
   const isTimesheetLoading = timesheetStatus === 'loading';
   const showLoading = isAuthLoading || isEmployeeLoading || isTimesheetLoading;
   const combinedError = timesheetError || employeesError;
 
-  // Effect to display combined errors as alerts
   useEffect(() => {
-    if (combinedError) {
-      dispatch(setAlert(combinedError, 'danger'));
-    }
+    if (combinedError) dispatch(setAlert(combinedError, 'danger'));
   }, [combinedError, dispatch]);
 
-  // Memoized summary calculations for "All Employees" view (employer only)
-
-  const totalHoursAllPeriodSummary = useMemo(() => filteredAllCurrentTimesheets.reduce((acc, sheet) => acc + (parseFloat(sheet.totalHours) || 0), 0), [filteredAllCurrentTimesheets]);
-
-
+  // --- Summary calculations ---
+  const totalHoursAllPeriodSummary = useMemo(
+    () => filteredAllCurrentTimesheets.reduce((acc, sheet) => acc + (parseFloat(sheet.totalHours) || 0), 0),
+    [filteredAllCurrentTimesheets]
+  );
   const avgHoursAllPeriodSummary = useMemo(() => {
-    // Calculate based on the number of entries for all employees in the period
-    const numberOfEntries = filteredAllCurrentTimesheets.length;
-
-    return numberOfEntries > 0
-        ? (totalHoursAllPeriodSummary / numberOfEntries)
-        : 0;
-}, [totalHoursAllPeriodSummary, filteredAllCurrentTimesheets]);
-
-  // Memoized summary calculations for selected/logged-in employee view
-  const totalHoursEmployeeSummary = useMemo(() => filteredCurrentTimesheets.reduce((acc, sheet) => acc + (parseFloat(sheet.totalHours) || 0), 0), [filteredCurrentTimesheets]);
+    const n = filteredAllCurrentTimesheets.length;
+    return n > 0 ? (totalHoursAllPeriodSummary / n) : 0;
+  }, [totalHoursAllPeriodSummary, filteredAllCurrentTimesheets]);
+  const totalHoursEmployeeSummary = useMemo(
+    () => filteredCurrentTimesheets.reduce((acc, sheet) => acc + (parseFloat(sheet.totalHours) || 0), 0),
+    [filteredCurrentTimesheets]
+  );
   const avgHoursEmployeeSummary = useMemo(() => {
-      // Calculate based on the number of entries for the selected/logged-in employee
-      const numberOfEntries = filteredCurrentTimesheets.length;
-      return numberOfEntries > 0 ? (totalHoursEmployeeSummary / numberOfEntries) : 0;
+    const n = filteredCurrentTimesheets.length;
+    return n > 0 ? (totalHoursEmployeeSummary / n) : 0;
   }, [totalHoursEmployeeSummary, filteredCurrentTimesheets]);
 
-  // Formatted time strings for display
+  // --- Formatted time strings ---
   const formattedTotalHoursAllPeriod = convertDecimalToTime(totalHoursAllPeriodSummary);
   const formattedAvgHoursAllPeriod = convertDecimalToTime(avgHoursAllPeriodSummary);
   const formattedTotalHoursEmployee = convertDecimalToTime(totalHoursEmployeeSummary);
   const formattedAvgHoursEmployee = convertDecimalToTime(avgHoursEmployeeSummary);
 
-  // Determine which total/avg hours to display based on role and employee selection
   const displayTotalHours = (user?.role === 'employer' && selectedEmployee.value === "All")
-    ? formattedTotalHoursAllPeriod
-    : formattedTotalHoursEmployee;
+    ? formattedTotalHoursAllPeriod : formattedTotalHoursEmployee;
   const displayAvgHours = (user?.role === 'employer' && selectedEmployee.value === "All")
-    ? formattedAvgHoursAllPeriod
-    : formattedAvgHoursEmployee;
+    ? formattedAvgHoursAllPeriod : formattedAvgHoursEmployee;
 
-  // Memoized calculation for total leaves taken by the selected/logged-in employee in the current period
+  // --- Other summary stats ---
   const totalLeaves = useMemo(() => {
-      const start = DateTime.fromJSDate(currentPeriod.start);
-      const end = DateTime.fromJSDate(currentPeriod.end);
-      return employeeTimesheets.filter(t => {
-          if (!t?.date || !t.leaveType || t.leaveType === "None") return false;
-          try {
-              const d = DateTime.fromISO(t.date);
-              return d >= start.startOf('day') && d <= end.endOf('day');
-          } catch { return false; }
-      }).length;
+    const start = DateTime.fromJSDate(currentPeriod.start);
+    const end = DateTime.fromJSDate(currentPeriod.end);
+    return employeeTimesheets.filter(t => {
+      if (!t?.date || !t.leaveType || t.leaveType === "None") return false;
+      try {
+        const d = DateTime.fromISO(t.date);
+        return d >= start.startOf('day') && d <= end.endOf('day');
+      } catch { return false; }
+    }).length;
   }, [employeeTimesheets, currentPeriod]);
 
-  // Memoized calculations for lunch break statistics for selected/logged-in employee
-  const lunchBreakEntries = useMemo(() => filteredCurrentTimesheets.filter((t) => t.lunchBreak === "Yes"), [filteredCurrentTimesheets]);
+  const lunchBreakEntries = useMemo(
+    () => filteredCurrentTimesheets.filter(t => t.lunchBreak === "Yes"),
+    [filteredCurrentTimesheets]
+  );
   const totalLunchDuration = useMemo(() => lunchBreakEntries.reduce((acc, t) => {
     if (!t.lunchDuration || !t.lunchDuration.includes(':')) return acc;
     try {
-        const [h, m] = t.lunchDuration.split(":").map(Number);
-        return acc + (h + m / 60);
+      const [h, m] = t.lunchDuration.split(":").map(Number);
+      return acc + (h + m / 60);
     } catch { return acc; }
   }, 0), [lunchBreakEntries]);
-  const avgLunchBreak = useMemo(() => lunchBreakEntries.length > 0 ? convertDecimalToTime(totalLunchDuration / lunchBreakEntries.length) : "00:00", [totalLunchDuration, lunchBreakEntries]);
+  const avgLunchBreak = useMemo(
+    () => lunchBreakEntries.length > 0 ? convertDecimalToTime(totalLunchDuration / lunchBreakEntries.length) : "00:00",
+    [totalLunchDuration, lunchBreakEntries]
+  );
 
-  // Memoized calculation for number of unique projects/clients worked on by selected/logged-in employee
-  const projectsWorked = useMemo(() => new Set(filteredCurrentTimesheets.map((t) => t.projectId?._id || t.projectId).filter(Boolean)).size, [filteredCurrentTimesheets]);
-  const clientsWorked = useMemo(() => new Set(filteredCurrentTimesheets.map((t) => t.clientId?._id || t.clientId).filter(Boolean)).size, [filteredCurrentTimesheets]);
+  const projectsWorked = useMemo(
+    () => new Set(filteredCurrentTimesheets.map(t => t.projectId?._id || t.projectId).filter(Boolean)).size,
+    [filteredCurrentTimesheets]
+  );
+  const clientsWorked = useMemo(
+    () => new Set(filteredCurrentTimesheets.map(t => t.clientId?._id || t.clientId).filter(Boolean)).size,
+    [filteredCurrentTimesheets]
+  );
 
-  // Memoized calculation for total hours spent on entries with a Client ID (for summary card)
   const totalClientHours = useMemo(() => {
     const total = filteredCurrentTimesheets.filter(t => t.clientId).reduce((acc, sheet) => acc + (parseFloat(sheet.totalHours) || 0), 0);
     return convertDecimalToTime(total);
   }, [filteredCurrentTimesheets]);
-
-  // Memoized calculation for total hours spent on entries with a Project ID (for summary card)
   const totalProjectHours = useMemo(() => {
     const total = filteredCurrentTimesheets.filter(t => t.projectId).reduce((acc, sheet) => acc + (parseFloat(sheet.totalHours) || 0), 0);
     return convertDecimalToTime(total);
   }, [filteredCurrentTimesheets]);
+
+  // --- Project card client options ---
   const projectCardClientOptions = useMemo(() => {
     if (!filteredCurrentTimesheets.length) return [{ value: "All", label: "All Clients" }];
     const clients = new Map();
     clients.set("All", { value: "All", label: "All Clients" });
     filteredCurrentTimesheets.forEach(ts => {
-        const client = ts.clientId;
-        if (client && client._id && !clients.has(client._id)) {
-            clients.set(client._id, { value: client._id, label: client.name || `Unknown (${client._id.substring(0, 6)}...)` });
-        }
-        else if (typeof client === 'string' && client.length === 24 && !clients.has(client)) {
-             clients.set(client, { value: client, label: `Unknown (${client.substring(0, 6)}...)` });
-        }
+      const client = ts.clientId;
+      if (client && client._id && !clients.has(client._id)) {
+        clients.set(client._id, { value: client._id, label: client.name || `Unknown (${client._id.substring(0, 6)}...)` });
+      } else if (typeof client === 'string' && client.length === 24 && !clients.has(client)) {
+        clients.set(client, { value: client, label: `Unknown (${client.substring(0, 6)}...)` });
+      }
     });
     return Array.from(clients.values());
   }, [filteredCurrentTimesheets]);
 
-  // Memoized timesheets filtered by the selected client for the "Hours by Project" card
+  // --- Project card filtered timesheets ---
   const projectCardFilteredTimesheets = useMemo(() => {
-    if (selectedProjectClient.value === "All") {
-        return filteredCurrentTimesheets;
-    }
+    if (selectedProjectClient.value === "All") return filteredCurrentTimesheets;
     return filteredCurrentTimesheets.filter(ts => {
-        const clientId = ts.clientId?._id || ts.clientId;
-        return clientId === selectedProjectClient.value;
+      const clientId = ts.clientId?._id || ts.clientId;
+      return clientId === selectedProjectClient.value;
     });
   }, [filteredCurrentTimesheets, selectedProjectClient]);
 
-  // Memoized total hours for the "Hours by Project" PIE CHART's own total display (sum of projects under selected client)
+  // --- Project card total hours ---
   const projectCardTotalHours = useMemo(() => {
     const total = projectCardFilteredTimesheets.reduce((acc, sheet) => acc + (parseFloat(sheet.totalHours) || 0), 0);
-    return total > 0 ? convertDecimalToTime(total) : "00:00"; // Show 00:00 if no hours
+    return total > 0 ? convertDecimalToTime(total) : "00:00";
   }, [projectCardFilteredTimesheets]);
 
-  // New Memoized calculation for total hours spent on entries with BOTH a Client ID and a Project ID (for pie chart card totals)
-  const totalClientAndProjectHours = useMemo(() => {
-    const total = filteredCurrentTimesheets.filter(t => t.clientId && t.projectId).reduce((acc, sheet) => acc + (parseFloat(sheet.totalHours) || 0), 0);
-    return convertDecimalToTime(total);
-  }, [filteredCurrentTimesheets]);
-
-  // Memoized data for the main bar chart (hours comparison)
+  // --- Chart data ---
   const { labels, currentData, previousData, thisPeriodLabel, lastPeriodLabel, currentBarSpecificLabels, previousBarSpecificLabels } = useMemo(() => {
     if (showLoading || combinedError || settingsStatus !== 'succeeded') { // Wait for settings
         return { labels: [], currentData: [], previousData: [], thisPeriodLabel: "", lastPeriodLabel: "", currentBarSpecificLabels: [], previousBarSpecificLabels: [] };
@@ -694,67 +669,83 @@ const Dashboard = () => {
      return () => { if (projectsChartRef.current) { projectsChartRef.current.destroy(); projectsChartRef.current = null; } };
   }, [projectChartData, showLoading, combinedError, settingsStatus]);
 
-  // Render
+  // --- Render ---
   return (
     <div className="view-dashboard-page">
       <Alert />
+      {/* Filters */}
       <div className="dashboard-filters-container">
         <div className="greeting">
-            <h4>Hello, {user?.name || "User"}!</h4>
-            <p>Here is your {user?.role === 'employer' ? 'company' : 'personal'} status report.</p>
+          <h4>Hello, {user?.name || "User"}!</h4>
+          <p>Here is your {user?.role === 'employer' ? 'company' : 'personal'} status report.</p>
         </div>
-        {user?.role === 'employer' && ( // Only show filters for employer
-            <div className="filters">
-              <div className="select-container">
-                <label htmlFor="employeeSelect">Select Employee:</label>
-                <Select
-                  inputId="employeeSelect"
-                  options={employeeOptions}
-                  value={selectedEmployee}
-                  onChange={setSelectedEmployee}
-                  className="react-select-container"
-                  classNamePrefix="react-select"
-                  isDisabled={showLoading || user?.role !== 'employer'}
-                  isLoading={isEmployeeLoading}
-                />
-              </div>
-              <div className="select-container">
-                <label htmlFor="viewTypeSelect">Period of Time:</label>
-                <Select
-                  inputId="viewTypeSelect"
-                  options={viewOptions}
-                  value={viewType}
-                  onChange={setViewType}
-                  className="react-select-container"
-                  classNamePrefix="react-select"
-                  isDisabled={showLoading}
-                />
-              </div>
+        {user?.role === 'employer' && (
+          <div className="filters">
+            <div className="select-container">
+              <label htmlFor="employeeSelect">Select Employee:</label>
+              <Select
+                inputId="employeeSelect"
+                options={employeeOptions}
+                value={selectedEmployee}
+                onChange={setSelectedEmployee}
+                className="react-select-container"
+                classNamePrefix="react-select"
+                isDisabled={showLoading || user?.role !== 'employer'}
+                isLoading={isEmployeeLoading}
+                menuPortalTarget={document.body}
+                styles={{
+                  menuPortal: base => ({ ...base, zIndex: 9999 }),
+                  menu: base => ({ ...base, zIndex: 9999 })
+                }}
+              />
             </div>
+            <div className="select-container">
+              <label htmlFor="viewTypeSelect">Period of Time:</label>
+              <Select
+                inputId="viewTypeSelect"
+                options={viewOptions}
+                value={viewType}
+                onChange={setViewType}
+                className="react-select-container"
+                classNamePrefix="react-select"
+                isDisabled={showLoading}
+                menuPortalTarget={document.body}
+                styles={{
+                  menuPortal: base => ({ ...base, zIndex: 9999 }),
+                  menu: base => ({ ...base, zIndex: 9999 })
+                }}
+              />
+            </div>
+          </div>
         )}
       </div>
-
+      {/* Loading */}
       {showLoading && (
         <div className='loading-indicator'>
           <FontAwesomeIcon icon={faSpinner} spin size='2x' />
-          <p>{isAuthLoading ? 'Authenticating...' : (settingsStatus === 'loading' ? 'Loading settings...' : (isEmployeeLoading ? 'Loading employees...' : (isTimesheetLoading ? 'Loading timesheets...' : 'Loading...')))}</p>
+          <p>
+            {isAuthLoading ? 'Authenticating...' :
+              (settingsStatus === 'loading' ? 'Loading settings...' :
+                (isEmployeeLoading ? 'Loading employees...' :
+                  (isTimesheetLoading ? 'Loading timesheets...' : 'Loading...')))
+            }
+          </p>
         </div>
       )}
-
+      {/* Main Content */}
       {!showLoading && !combinedError && (
         <>
+          {/* Summary Cards */}
           <div className="dashboard-summary-grid">
-            {user?.role === 'employer' && selectedEmployee.value === "All" && ( // Total Employees card only for employer and when "All Employees" is selected
-                <div className="summary-card">
-                  <FontAwesomeIcon icon={faUsers} className="summary-icon users" />
-                  <div className="summary-content">
-                    <h3>{(Array.isArray(employerScopedEmployees) ? employerScopedEmployees.length : 0)}</h3>
-                    <p>Total Employees</p>
-                  </div>
+            {user?.role === 'employer' && selectedEmployee.value === "All" && (
+              <div className="summary-card">
+                <FontAwesomeIcon icon={faUsers} className="summary-icon users" />
+                <div className="summary-content">
+                  <h3>{(Array.isArray(employerScopedEmployees) ? employerScopedEmployees.length : 0)}</h3>
+                  <p>Total Employees</p>
                 </div>
+              </div>
             )}
-
-            {/* Total Hours Card */}
             <div className="summary-card">
               <FontAwesomeIcon icon={faClock} className="summary-icon hours" />
               <div className="summary-content">
@@ -766,50 +757,43 @@ const Dashboard = () => {
                 </p>
               </div>
             </div>
-
-            {/* Average Hours Card */}
             <div className="summary-card">
               <FontAwesomeIcon icon={faStopwatch} className="summary-icon avg-hours" />
               <div className="summary-content">
                 <h3>{displayAvgHours}</h3>
-                <p>
-                  Avg. Employee Hours
-                </p>
+                <p>Avg. Employee Hours</p>
               </div>
             </div>
-
-            {/* Cards specific to a single employee view (selected by employer OR logged-in employee) */}
-            { (user?.role === 'employer' && selectedEmployee.value !== "All") || (user?.role === 'employee') ? (
+            {(user?.role === 'employer' && selectedEmployee.value !== "All") || (user?.role === 'employee') ? (
               <>
-                 <div className="summary-card">
+                <div className="summary-card">
                   <FontAwesomeIcon icon={faUtensils} className="summary-icon lunch" />
-                   <div className="summary-content">
+                  <div className="summary-content">
                     <h3>{avgLunchBreak}</h3>
                     <p>Avg. Lunch Break</p>
                   </div>
                 </div>
                 <div className="summary-card">
                   <FontAwesomeIcon icon={faCalendarAlt} className="summary-icon leaves" />
-                   <div className="summary-content">
+                  <div className="summary-content">
                     <h3>{totalLeaves}</h3>
                     <p>Total Leaves Taken</p>
                   </div>
                 </div>
                 <div className="summary-card">
                   <FontAwesomeIcon icon={faBriefcase} className="summary-icon clients" />
-                   <div className="summary-content">
+                  <div className="summary-content">
                     <h3>{clientsWorked || 0}</h3>
                     <p>Clients Worked</p>
                   </div>
                 </div>
                 <div className="summary-card">
                   <FontAwesomeIcon icon={faTasks} className="summary-icon projects" />
-                   <div className="summary-content">
+                  <div className="summary-content">
                     <h3>{projectsWorked || 0}</h3>
                     <p>Projects Worked</p>
                   </div>
                 </div>
-                {/* New Summary Cards for Client and Project Hours */}
                 <div className="summary-card">
                   <FontAwesomeIcon icon={faBuildingUser} className="summary-icon client-hours" />
                   <div className="summary-content">
@@ -827,21 +811,19 @@ const Dashboard = () => {
               </>
             ) : null}
           </div>
-
+          {/* Charts */}
           <div className="chart-card">
             <h4>This {viewType.label.split(' ')[2]} vs Last {viewType.label.split(' ')[2]} Hours</h4>
             <div className="chart-container bar-chart-container">
-                <canvas id="graphCanvas"></canvas>
+              <canvas id="graphCanvas"></canvas>
             </div>
           </div>
-
           <div className="dashboard-pie-grid">
             <div className="chart-card">
               <h4>Hours Spent on Clients ({viewType.label.split(' ')[2]})</h4>
               <div className="chart-total">
-                Total Client Hours: <span>{totalClientHours}</span> {/* Use totalClientHours for this card */}
+                Total Client Hours: <span>{totalClientHours}</span>
               </div>
-
               <div className="client-chart-spacer"></div>
               <div className="chart-container pie-chart-container">
                 <canvas id="clientsGraph"></canvas>
@@ -849,8 +831,8 @@ const Dashboard = () => {
             </div>
             <div className="chart-card">
               <h4>Hours Spent on Projects ({viewType.label.split(' ')[2]})</h4>
-               <div className="chart-total">
-                 Total Project Hours: <span>{totalProjectHours}</span> {/* Changed to use totalProjectHours from summary card */}
+              <div className="chart-total">
+                Total Project Hours: <span>{totalProjectHours}</span>
               </div>
               <div className="select-container project-card-client-select">
                 <Select
@@ -863,6 +845,11 @@ const Dashboard = () => {
                   isDisabled={showLoading}
                   placeholder="Filter by Client..."
                   isSearchable={projectCardClientOptions.length > 5}
+                  menuPortalTarget={document.body}
+                  styles={{
+                    menuPortal: base => ({ ...base, zIndex: 9999 }),
+                    menu: base => ({ ...base, zIndex: 9999 })
+                  }}
                 />
               </div>
               <div className="chart-container pie-chart-container">

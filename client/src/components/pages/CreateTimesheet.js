@@ -526,10 +526,11 @@ const CreateTimesheet = () => {
     return allProjects.find(p => p._id === targetProjectId)?.name || (targetProjectId ? 'Loading Project...' : 'N/A');
   }, [allProjects, projectIdFromUrl, preselectedProjectId]);
 
+  // Render
   return (
-    <div className='vehicles-page'> {/* Consider renaming class if not generic */}
+    <div className='vehicles-page'>
       <Alert />
-      <div className='vehicles-header'> {/* Consider renaming class */}
+      <div className='vehicles-header'>
         <div className='title-breadcrumbs'>
           <h2>
             {isEditing ? 'Edit' : 'Create'} {source === 'projectTimesheet' ? 'Project ' : ''}Timesheet
@@ -580,7 +581,7 @@ const CreateTimesheet = () => {
               value={formData.employeeId}
               onChange={handleChange}
               required
-              disabled={isEditing || isLoading || user?.role === 'employee'} // Disable for employees
+              disabled={isEditing || isLoading || user?.role === 'employee'}
             >
               <option value=''>-- Select Employee --</option>
               {employees.map((emp) => (<option key={emp._id} value={emp._id}>{emp.name}</option>))}
@@ -690,15 +691,32 @@ const CreateTimesheet = () => {
              </div>
           )}
 
-        <div className='form-actions-bar'>
-  <button type='button' className='form-action-button form-action-button--cancel' onClick={handleCancel} disabled={isLoading}>
-    <FontAwesomeIcon icon={faTimes} /> Cancel
-  </button>
-  <button type='submit' className='form-action-button form-action-button--submit' disabled={isLoading || (projectStatus === 'loading' && !isLeaveSelected)}>
-    {isLoading ? (<><FontAwesomeIcon icon={faSpinner} spin /> Saving...</>) : (<><FontAwesomeIcon icon={isEditing ? faPen : faSave} /> {isEditing ? 'Update Timesheet' : 'Save Timesheet'}</>)}
-  </button>
-</div>
-
+          <div className='form-actions-bar'>
+            <button
+              type='button'
+              className='form-action-button form-action-button--cancel'
+              onClick={handleCancel}
+              disabled={isLoading}
+            >
+              <FontAwesomeIcon icon={faTimes} /> Cancel
+            </button>
+            <button
+              type='submit'
+              className='form-action-button form-action-button--submit'
+              disabled={isLoading || (projectStatus === 'loading' && !isLeaveSelected)}
+            >
+              {isLoading ? (
+                <>
+                  <FontAwesomeIcon icon={faSpinner} spin /> Saving...
+                </>
+              ) : (
+                <>
+                  <FontAwesomeIcon icon={isEditing ? faPen : faSave} />
+                  {isEditing ? 'Update Timesheet' : 'Save Timesheet'}
+                </>
+              )}
+            </button>
+          </div>
         </form>
       </div>
     </div>

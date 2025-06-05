@@ -443,7 +443,7 @@ const CreateRole = () => {
                             onClick={() => navigate('/rosterpage')}
                             disabled={isLoading}
                         >
-                           <FontAwesomeIcon icon={faTimes} /> Cancel
+                            <FontAwesomeIcon icon={faTimes} /> Cancel
                         </button>
                         <button
                             type="submit"

@@ -14,18 +14,18 @@ import mongoose from 'mongoose';
 export const getVehicles = async (req, res) => {
   try {
     let vehicles = [];
-    const loggedInUserId = req.user.id; // From 'protect' middleware
+    const loggedInUserId = req.user.id;
     const loggedInUserRole = req.user.role;
 
     if (loggedInUserRole === 'employer') {
       // Employer sees all vehicles they own
-      vehicles = await Vehicle.find({ employerId: loggedInUserId }).sort({ createdAt: -1 });
+      vehicles = await Vehicle.find({ employerId: loggedInUserId });
       console.log(`[vehicleController.getVehicles] Employer ${loggedInUserId} is fetching their vehicles. Found: ${vehicles.length}`);
     } else if (loggedInUserRole === 'employee') {
       // Employee sees all vehicles belonging to THEIR employer
-      const employeeRecord = await Employee.findOne({ userId: loggedInUserId }).select('employerId');
+      const employeeRecord = await Employee.findOne({ userId: loggedInUserId });
       if (employeeRecord && employeeRecord.employerId) {
-        vehicles = await Vehicle.find({ employerId: employeeRecord.employerId }).sort({ createdAt: -1 });
+        vehicles = await Vehicle.find({ employerId: employeeRecord.employerId });
         console.log(`[vehicleController.getVehicles] Employee ${loggedInUserId} (Employer: ${employeeRecord.employerId}) is fetching vehicles. Found: ${vehicles.length}`);
       } else {
         console.log(`[vehicleController.getVehicles] Employee ${loggedInUserId} has no associated employerId or employee record. Returning empty list.`);
@@ -50,7 +50,7 @@ export const getVehicles = async (req, res) => {
 export const getVehicleById = async (req, res) => {
   try {
     if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
-        return res.status(400).json({ message: 'Invalid vehicle ID format.' });
+      return res.status(400).json({ message: 'Invalid vehicle ID format.' });
     }
     // Fetch the vehicle by ID without filtering by user/employer initially
     const vehicle = await Vehicle.findById(req.params.id);
@@ -58,11 +58,11 @@ export const getVehicleById = async (req, res) => {
     // --- Access Control Check ---
     let employeeRecord = null;
     if (req.user.role === 'employee') {
-        employeeRecord = await Employee.findOne({ userId: req.user.id }).select('employerId');
-        if (!employeeRecord || !employeeRecord.employerId) {
-            // Employee record not found or no employerId, deny access
-            return res.status(403).json({ message: "Access denied. Employee record not found or incomplete." });
-        }
+      employeeRecord = await Employee.findOne({ userId: req.user.id });
+      if (!employeeRecord || !employeeRecord.employerId) {
+        // Employee record not found or no employerId, deny access
+        return res.status(403).json({ message: "Access denied. Employee record not found or incomplete." });
+      }
     }
 
     // Allow access if user is the employer who owns the vehicle
@@ -90,7 +90,7 @@ export const createVehicle = async (req, res) => {
     const { name, hours, wofRego } = req.body;
 
     // Basic validation
-    if (!name || hours === undefined) { // Check for undefined as 0 is a valid hour
+    if (!name || !hours) {
       return res.status(400).json({ message: "Vehicle name and hours are required." });
     }
 
@@ -130,7 +130,7 @@ export const updateVehicle = async (req, res) => {
   try {
     const vehicleId = req.params.id;
     if (!mongoose.Types.ObjectId.isValid(vehicleId)) {
-        return res.status(400).json({ message: 'Invalid vehicle ID format.' });
+      return res.status(400).json({ message: 'Invalid vehicle ID format.' });
     }
     const { name, hours, wofRego } = req.body;
 
@@ -182,7 +182,7 @@ export const deleteVehicle = async (req, res) => {
   try {
     const vehicleId = req.params.id;
     if (!mongoose.Types.ObjectId.isValid(vehicleId)) {
-        return res.status(400).json({ message: 'Invalid vehicle ID format.' });
+      return res.status(400).json({ message: 'Invalid vehicle ID format.' });
     }
 
     const deletedVehicle = await Vehicle.findOneAndDelete({ _id: vehicleId, employerId: req.user.id });
@@ -682,7 +682,7 @@ export const sendReviewReportByClient = async (req, res) => {
       worksheet.getCell('A1').value = 'Vehicle Review Report';
       worksheet.getCell('A1').font = { bold: true, size: 16 };
       worksheet.getCell('A1').alignment = { horizontal: 'center' };
-      worksheet.addRow([]); 
+      worksheet.addRow([]); // Spacer row
 
       worksheet.columns = [
         { header: 'Field', key: 'field', width: 25 },
@@ -1130,9 +1130,8 @@ export const sendAllVehiclesReportByEmail = async (req, res) => {
 
     const formattedStart = start ? start.toLocaleDateString() : 'Start';
     const formattedEnd = end ? end.toLocaleDateString() : 'End';
-    // Fetch all vehicles
+    // Fetch all vehicles ensuring it belongs to the logged-in employer (as per employerOnly middleware)
 
-    // Fetch all vehicles
     const vehicles = await Vehicle.find({ employerId: req.user.id }).lean();
     if (!vehicles || vehicles.length === 0) {
       return res.status(404).json({ message: 'No vehicles found. Email not sent.' });

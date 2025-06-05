@@ -20,20 +20,18 @@ const Login = () => {
   });
   const [showPassword, setShowPassword] = useState(false);
 
-  // Effects
+  // Clear errors on mount/unmount
   useEffect(() => {
     dispatch(clearAuthError());
-    return () => {
-        dispatch(clearAuthError());
-    };
+    return () => { dispatch(clearAuthError()); };
   }, [dispatch]);
 
+  // Redirect if logged in
   useEffect(() => {
-    if (isAuthenticated) {
-      navigate("/dashboard");
-    }
+    if (isAuthenticated) navigate("/dashboard");
   }, [isAuthenticated, navigate]);
 
+  // Show alerts for errors or password change
   useEffect(() => {
     if (error) {
       dispatch(setAlert(error, 'danger'));
@@ -43,11 +41,12 @@ const Login = () => {
     }
   }, [error, location.state, dispatch, navigate, location.pathname]);
 
-  // Handlers
+  // Update form fields
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
+  // Handle login
   const handleSubmit = async (e) => {
     e.preventDefault();
     dispatch(clearAuthError());
@@ -55,11 +54,10 @@ const Login = () => {
       await dispatch(login(formData)).unwrap();
       dispatch(setAlert('Login successful!', 'success'));
     } catch (loginError) {
-      console.error("Login failed:", loginError); // Error alert handled by useEffect
+      // Error alert handled by useEffect
     }
   };
 
-  // Render
   return (
     <div className="styles_LoginSignupContainer">
       <Alert />
@@ -101,7 +99,7 @@ const Login = () => {
                 disabled={loading}
               />
               <button type="button" onClick={() => setShowPassword(!showPassword)} className="styles_PasswordToggleBtn" disabled={loading}>
-                <FontAwesomeIcon icon={showPassword ? faEyeSlash : faEye}  className="styles_InputIcon styles_InputIconRight" />
+                <FontAwesomeIcon icon={showPassword ? faEyeSlash : faEye} className="styles_InputIcon styles_InputIconRight" />
               </button>
             </div>
           </div>

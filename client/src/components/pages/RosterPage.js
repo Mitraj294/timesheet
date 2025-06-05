@@ -38,55 +38,50 @@ import {
   faExclamationCircle, // Added for error states
 } from '@fortawesome/free-solid-svg-icons';
 
-// ShiftCard: Displays individual employee shifts
+// ShiftCard: Shows a single employee shift
 const ShiftCard = ({ schedule, formatTime, userRole, onDelete }) => (
-    <div key={schedule._id} className='shift-card'>
-        <p className='shift-time'>
-            {formatTime(schedule.startTime, schedule.date)} -{' '}
-            {formatTime(schedule.endTime, schedule.date)}
-        </p>
-        {schedule.employee && (
-            <p className='shift-employee'>{schedule.employee.name}</p>
-        )}
-        {userRole === 'employer' && (
-            <div className='shift-actions'>
-                <FontAwesomeIcon
-                    icon={faTrash}
-                    onClick={() => onDelete(schedule._id)}
-                    className='action-icon delete'
-                    title="Delete Shift"
-                />
-            </div>
-        )}
-    </div>
+  <div key={schedule._id} className='shift-card'>
+    <p className='shift-time'>
+      {formatTime(schedule.startTime, schedule.date)} - {formatTime(schedule.endTime, schedule.date)}
+    </p>
+    {schedule.employee && <p className='shift-employee'>{schedule.employee.name}</p>}
+    {userRole === 'employer' && (
+      <div className='shift-actions'>
+        <FontAwesomeIcon
+          icon={faTrash}
+          onClick={() => onDelete(schedule._id)}
+          className='action-icon delete'
+          title="Delete Shift"
+        />
+      </div>
+    )}
+  </div>
 );
 
-// RoleCard: Displays role-based schedule entries
+// RoleCard: Shows a role's schedule entry
 const RoleCard = ({ role, scheduleEntry, formatTime, assignedEmployeeNames, userRole, onDelete }) => (
-    <div
-        key={role._id + (scheduleEntry ? scheduleEntry._id : '')} // Use scheduleEntry._id for uniqueness
-        className={`role-card role-${role.color?.toLowerCase() || 'default'}`}
-    >
-        <p className='role-time'>
-            {scheduleEntry && scheduleEntry.startTime && scheduleEntry.endTime
-                ? `${formatTime(scheduleEntry.startTime, scheduleEntry.day)} - ${formatTime(scheduleEntry.endTime, scheduleEntry.day)}`
-                : 'Time not set'}
-        </p>
-        <p className='role-name'>{role.roleName || 'Unnamed Role'}</p>
-        <p className='role-employee'>
-            Assigned: {assignedEmployeeNames || 'None'}
-        </p>
-        {userRole === 'employer' && scheduleEntry && (
-            <div className='role-actions'>
-                 <FontAwesomeIcon
-                    icon={faTrash}
-                    onClick={() => onDelete(role._id, scheduleEntry._id)}
-                    className='action-icon delete'
-                    title="Delete Role Schedule Entry"
-                 />
-            </div>
-        )}
-    </div>
+  <div
+    key={role._id + (scheduleEntry ? scheduleEntry._id : '')}
+    className={`role-card role-${role.color?.toLowerCase() || 'default'}`}
+  >
+    <p className='role-time'>
+      {scheduleEntry && scheduleEntry.startTime && scheduleEntry.endTime
+        ? `${formatTime(scheduleEntry.startTime, scheduleEntry.day)} - ${formatTime(scheduleEntry.endTime, scheduleEntry.day)}`
+        : 'Time not set'}
+    </p>
+    <p className='role-name'>{role.roleName || 'Unnamed Role'}</p>
+    <p className='role-employee'>Assigned: {assignedEmployeeNames || 'None'}</p>
+    {userRole === 'employer' && scheduleEntry && (
+      <div className='role-actions'>
+        <FontAwesomeIcon
+          icon={faTrash}
+          onClick={() => onDelete(role._id, scheduleEntry._id)}
+          className='action-icon delete'
+          title="Delete Role Schedule Entry"
+        />
+      </div>
+    )}
+  </div>
 );
 
 // Main RosterPage component
@@ -164,29 +159,27 @@ const RosterPage = () => {
     1
   );
 
-  // Formats UTC time string to local time string (e.g., "09:00 AM")
+  // Format UTC time string to local time string
   const formatTimeUTCtoLocal = (timeStr, dateStr) => {
     if (!timeStr || typeof timeStr !== 'string' || !timeStr.includes(':') || !dateStr) return '--:--';
     try {
-        const utcDateTime = DateTime.fromISO(`${dateStr}T${timeStr}:00Z`, { zone: 'utc' });
-        if (!utcDateTime.isValid) return '--:--';
-        return utcDateTime.toLocal().toFormat('hh:mm a');
-    } catch (error) {
-        console.error("Error formatting UTC time to local:", error);
-        return '--:--';
+      const utcDateTime = DateTime.fromISO(`${dateStr}T${timeStr}:00Z`, { zone: 'utc' });
+      if (!utcDateTime.isValid) return '--:--';
+      return utcDateTime.toLocal().toFormat('hh:mm a');
+    } catch {
+      return '--:--';
     }
   };
 
-  // Converts local time string to UTC time string (e.g., "09:00" -> "21:00" if local is +12 UTC)
+  // Convert local time string to UTC time string
   const convertLocalTimeToUTC = (localTimeStr, dateStr) => {
     if (!localTimeStr || !dateStr) return '00:00';
     try {
-        const localDateTime = DateTime.fromISO(`${dateStr}T${localTimeStr}`, { zone: 'local' });
-         if (!localDateTime.isValid) return '00:00';
-        return localDateTime.toUTC().toFormat('HH:mm');
-    } catch (error) {
-         console.error("Error converting local time to UTC:", error);
-         return '00:00';
+      const localDateTime = DateTime.fromISO(`${dateStr}T${localTimeStr}`, { zone: 'local' });
+      if (!localDateTime.isValid) return '00:00';
+      return localDateTime.toUTC().toFormat('HH:mm');
+    } catch {
+      return '00:00';
     }
   };
 
@@ -523,37 +516,33 @@ const RosterPage = () => {
     }
   };
 
+  // Get assigned employee names for a role
   const getAssignedEmployeeNames = useCallback((role) => {
     if (user?.role === 'employee' && loggedInEmployeeRecord) {
-        // Since getRolesForDay ensures this employee is assigned to this role,
-        // we can directly return their name for the "Assigned" field.
-        return loggedInEmployeeRecord.name;
+      return loggedInEmployeeRecord.name;
     }
-
-    // Employer view or if something went wrong with employee logic
     if (!role.assignedEmployees || role.assignedEmployees.length === 0) return 'None';
     return role.assignedEmployees
-        .map(emp => {
-            const empId = typeof emp === 'object' && emp !== null ? emp._id : emp;
-            const employeeDetail = employees.find(e => e._id === empId);
-            return employeeDetail ? employeeDetail.name : null;
-        })
-        .filter(Boolean)
-        .join(', ') || 'None';
+      .map(emp => {
+        const empId = typeof emp === 'object' && emp !== null ? emp._id : emp;
+        const employeeDetail = employees.find(e => e._id === empId);
+        return employeeDetail ? employeeDetail.name : null;
+      })
+      .filter(Boolean)
+      .join(', ') || 'None';
   }, [user, loggedInEmployeeRecord, employees]);
 
-  // --- Render Logic ---
-  // Determines if sidebars (Roles, Assign Shifts) should be visible
+  // --- Render ---
+  // Only show sidebars for current/next week and for employers
   const canShowSidebarsForDate = isEqual(currentWeekStart, startOfWeek(new Date(), { weekStartsOn: 1 })) ||
-                          isEqual(currentWeekStart, addWeeks(startOfWeek(new Date(), { weekStartsOn: 1 }), 1));
-
+    isEqual(currentWeekStart, addWeeks(startOfWeek(new Date(), { weekStartsOn: 1 }), 1));
   const shouldDisplaySidebars = user?.role === 'employer' && canShowSidebarsForDate;
-  // Determines if the "Rollout to Next Week" button should be visible/enabled
-  // It should be visible for the current week and the previous week, for employers.
+
+  // Show rollout button for current or previous week (employer only)
   const canRollout = user?.role === 'employer' && (
-                     isEqual(currentWeekStart, startOfWeek(new Date(), { weekStartsOn: 1 })) || // Current week
-                     isEqual(currentWeekStart, addWeeks(startOfWeek(new Date(), { weekStartsOn: 1 }), -1)) // Previous week
-                   );
+    isEqual(currentWeekStart, startOfWeek(new Date(), { weekStartsOn: 1 })) ||
+    isEqual(currentWeekStart, addWeeks(startOfWeek(new Date(), { weekStartsOn: 1 }), -1))
+  );
 
   return (
     <div className='roster-page'>
@@ -562,37 +551,42 @@ const RosterPage = () => {
         <div className='title'>
           <h2><FontAwesomeIcon icon={faCalendar} /> Rosters</h2>
           <div className='breadcrumbs'>
-            <Link to='/dashboard'>Dashboard</Link>  <span>Rosters</span>
+            <Link to='/dashboard'>Dashboard</Link> <span>Rosters</span>
           </div>
         </div>
         {canRollout && (
-            <button
-              className='ts-page-header__action-button ts-page-header__action-button--create'
-              onClick={handleRolloutClick} // Updated onClick
-              title={`Copy this week's schedule (${format(currentWeekStart, 'MMM d')}) to next week (${format(addWeeks(currentWeekStart, 1), 'MMM d')})`}
-              disabled={isLoading} // Disable during loading/rollout
-            >
-              <FontAwesomeIcon icon={isLoading ? faSpinner : faSyncAlt} spin={isLoading} className='icon-left' />
-              {isLoading ? 'Processing...' : 'Rollout to Next Week'}
-            </button>
-          )}
+          <button
+            className='ts-page-header__action-button ts-page-header__action-button--create'
+            onClick={handleRolloutClick}
+            title={`Copy this week's schedule (${format(currentWeekStart, 'MMM d')}) to next week (${format(addWeeks(currentWeekStart, 1), 'MMM d')})`}
+            disabled={isLoading}
+          >
+            <FontAwesomeIcon icon={isLoading ? faSpinner : faSyncAlt} spin={isLoading} className='icon-left' />
+            {isLoading ? 'Processing...' : 'Rollout to Next Week'}
+          </button>
+        )}
       </header>
 
       <div className='week-nav'>
-        <button className='timesheet-nav__button' onClick={handlePrevWeek} disabled={isLoading}>
-          <FontAwesomeIcon icon={faArrowLeft} /> Prev Week
-        </button>
-        <h4>
-          {format(currentWeekStart, 'MMM d')} -{' '}
-          {format(endOfWeek(currentWeekStart, { weekStartsOn: 1 }), 'MMM d, yyyy')}
-        </h4>
-         <button
+        <div className="week-nav__btn-group">
+          <button className='timesheet-nav__button' onClick={handlePrevWeek} disabled={isLoading}>
+            <FontAwesomeIcon icon={faArrowLeft} /> Prev Week
+          </button>
+        </div>
+        <div className="week-nav__period">
+          <h4>
+            {format(currentWeekStart, 'MMM d')} - {format(endOfWeek(currentWeekStart, { weekStartsOn: 1 }), 'MMM d, yyyy')}
+          </h4>
+        </div>
+        <div className="week-nav__btn-group">
+          <button
             className='timesheet-nav__button'
             onClick={handleNextWeek}
             disabled={isLoading || isEqual(currentWeekStart, maxAllowedWeek)}
           >
             Next Week <FontAwesomeIcon icon={faArrowRight} />
           </button>
+        </div>
       </div>
 
       {/* Main roster content area */}
@@ -602,7 +596,11 @@ const RosterPage = () => {
             <div className='sidebar-header'>
               <p>Roles</p>
               {user?.role === 'employer' && (
-                <button className='ts-page-header__action-button ts-page-header__action-button--create' onClick={() => navigate('/createrole')} title="Create a new role">
+                <button
+                  className='ts-page-header__action-button ts-page-header__action-button--create'
+                  onClick={() => navigate('/createrole')}
+                  title="Create a new role"
+                >
                   Create <FontAwesomeIcon icon={faPlus} />
                 </button>
               )}
@@ -620,7 +618,7 @@ const RosterPage = () => {
                   {user?.role === 'employer' && (
                     <button
                       className='delete-btn'
-                      onClick={(e) => { e.stopPropagation(); handleDeleteRoleClick(role._id, role.roleName); }} // Updated onClick
+                      onClick={(e) => { e.stopPropagation(); handleDeleteRoleClick(role._id, role.roleName); }}
                       title='Delete Role Permanently'
                     >
                       <FontAwesomeIcon icon={faTrash} />

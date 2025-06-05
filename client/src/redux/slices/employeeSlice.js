@@ -1,144 +1,91 @@
 // /home/digilab/timesheet/client/src/redux/slices/employeeSlice.js
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import { setAlert } from './alertSlice'; // For dispatching success/error notifications
+import { setAlert } from './alertSlice';
 import axios from 'axios';
+
 const API_URL = process.env.REACT_APP_API_URL || 'https://timesheet-slpc.onrender.com/api';
 
-// Helper to get auth headers.
-// Might move this to a shared utility later if used in many places.
-const getAuthHeaders = (token) => {
-  return token
-    ? {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json', // Ensuring content type is set for POST/PUT
-        },
-      }
+// Helpers
+const getAuthHeaders = (token) =>
+  token
+    ? { headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' } }
     : {};
-};
+const getErrorMessage = (error) =>
+  error.response?.data?.message || error.response?.data?.error || error.message || 'An unexpected error occurred';
 
-// Helper function to extract error messages
-const getErrorMessage = (error) => {
-    return error.response?.data?.message || error.response?.data?.error || error.message || 'An unexpected error occurred';
-}
-
-// Async Thunk for fetching all employees.
+// Thunks
 export const fetchEmployees = createAsyncThunk(
-    'employees/fetchEmployees',
-    async (_, { getState, rejectWithValue }) => {
-      try {
-        const { token } = getState().auth; // Getting the token from the auth state.
-
-        if (!token) { // This check is important for protected routes.
-          console.error("fetchEmployees: No token found in Redux state (getState().auth.token)");
-          return rejectWithValue('Not authorized, no token provided'); // If no token, reject the promise.
-        }
-
-        // Token exists, so we can proceed with the API call.
-        console.log("fetchEmployees: Token found, making API call."); // Added log
-        const response = await axios.get(`${API_URL}/employees`, getAuthHeaders(token));
-        return response.data || []; // Return the employee data, or an empty array if none.
-
-      } catch (error) {
-        console.error("Error fetching employees:", error);
-        return rejectWithValue(getErrorMessage(error));
-      }
+  'employees/fetchEmployees',
+  async (_, { getState, rejectWithValue }) => {
+    const { token } = getState().auth;
+    if (!token) return rejectWithValue('Not authorized, no token provided');
+    try {
+      const response = await axios.get(`${API_URL}/employees`, getAuthHeaders(token));
+      return response.data || [];
+    } catch (error) {
+      return rejectWithValue(getErrorMessage(error));
     }
+  }
 );
 
-// Async Thunk for adding a new employee. Requires employer role.
 export const addEmployee = createAsyncThunk(
   'employees/addEmployee',
   async (employeeData, { getState, rejectWithValue }) => {
+    const { user, token } = getState().auth;
+    if (!token) return rejectWithValue('Not authorized, no token provided');
+    if (user?.role !== 'employer') return rejectWithValue('Only employers can add employees.');
     try {
-      const { user, token } = getState().auth;
-      if (!token) {
-        console.error("addEmployee: No token found.");
-        return rejectWithValue('Not authorized, no token provided');
-      }
-      // Role check using Redux state
-      if (user?.role !== 'employer') {
-        return rejectWithValue('Access Denied: Only employers can add employees.');
-      }
       const response = await axios.post(`${API_URL}/employees`, employeeData, getAuthHeaders(token));
       return response.data;
     } catch (error) {
-      console.error("Error adding employee:", error);
       return rejectWithValue(getErrorMessage(error));
     }
   }
 );
 
-// Async Thunk for updating an existing employee. Requires employer role.
 export const updateEmployee = createAsyncThunk(
   'employees/updateEmployee',
   async ({ id, employeeData }, { getState, rejectWithValue }) => {
+    const { user, token } = getState().auth;
+    if (!token) return rejectWithValue('Not authorized, no token provided');
+    if (user?.role !== 'employer') return rejectWithValue('Only employers can update employees.');
     try {
-      const { user, token } = getState().auth;
-      if (!token) {
-        console.error("updateEmployee: No token found.");
-        return rejectWithValue('Not authorized, no token provided');
-      }
-      if (user?.role !== 'employer') {
-        return rejectWithValue('Access Denied: Only employers can update employees.');
-      }
       const response = await axios.put(`${API_URL}/employees/${id}`, employeeData, getAuthHeaders(token));
       return response.data;
     } catch (error) {
-      console.error("Error updating employee:", error);
       return rejectWithValue(getErrorMessage(error));
     }
   }
 );
 
-// Async Thunk for deleting an employee. Requires employer role.
 export const deleteEmployee = createAsyncThunk(
   'employees/deleteEmployee',
   async (employeeId, { getState, rejectWithValue }) => {
+    const { user, token } = getState().auth;
+    if (!token) return rejectWithValue('Not authorized, no token provided');
+    if (user?.role !== 'employer') return rejectWithValue('Only employers can delete employees.');
     try {
-      const { user, token } = getState().auth;
-      if (!token) {
-        console.error("deleteEmployee: No token found.");
-        return rejectWithValue('Not authorized, no token provided');
-      }
-      if (user?.role !== 'employer') {
-        return rejectWithValue('Access Denied: Only employers can delete employees.');
-      }
       await axios.delete(`${API_URL}/employees/${employeeId}`, getAuthHeaders(token));
-      return employeeId; // Return the ID for the reducer to remove it from the state.
+      return employeeId;
     } catch (error) {
-      console.error("Error deleting employee:", error);
       return rejectWithValue(getErrorMessage(error));
     }
   }
 );
 
-// Async Thunk for updating notification preferences for multiple employees
 export const updateEmployeesNotificationPreferences = createAsyncThunk(
   'employees/updateNotificationPreferences',
   async (employeePreferences, { getState, dispatch, rejectWithValue }) => {
-    // employeePreferences is expected to be an array: [{ employeeId: 'id', receivesNotifications: true/false }, ...]
+    const { token } = getState().auth;
+    if (!token) return rejectWithValue('Not authorized, no token provided');
     try {
-      const { token } = getState().auth;
-      if (!token) {
-        console.error("updateEmployeesNotificationPreferences: No token found.");
-        return rejectWithValue('Not authorized, no token provided');
-      }
-
-      // The component sends { employeeId: empId, receivesNotifications: boolean }
-      // The API might expect a slightly different structure, e.g., { preferences: [...] }
-      // Assuming the API endpoint /api/employees/batch-update-notifications expects { preferences: employeePreferencesArray }
       const response = await axios.patch(
         `${API_URL}/employees/batch-update-notifications`,
-        { preferences: employeePreferences }, // Ensure payload matches backend expectation
+        { preferences: employeePreferences },
         getAuthHeaders(token)
       );
-
       dispatch(setAlert('Employee notification preferences updated successfully!', 'success'));
-      // If the backend returns the updated employee objects, you can merge them here.
-      // For example, if response.data is an array of updated employees:
-      // return response.data; 
-      return response.data; // Or simply a success message/status from backend
+      return response.data;
     } catch (error) {
       const message = getErrorMessage(error);
       dispatch(setAlert(message, 'error'));
@@ -147,33 +94,26 @@ export const updateEmployeesNotificationPreferences = createAsyncThunk(
   }
 );
 
-// Defines the initial state for the employees slice.
+// State
 const initialState = {
-  employees: [], // Holds the list of all employees.
-  status: 'idle', // General status for async operations ('idle' | 'loading' | 'succeeded' | 'failed').
-  error: null, // Stores any error message related to employee operations.
-  updateNotificationStatus: 'idle', // Status for the batch notification update operation
+  employees: [],
+  status: 'idle',
+  error: null,
+  updateNotificationStatus: 'idle',
 };
 
-// Creates the employee slice with reducers and extraReducers for async thunks.
+// Slice
 const employeeSlice = createSlice({
   name: 'employees',
   initialState,
   reducers: {
-    // Synchronous action to clear the employee error and reset status.
     clearEmployeeError: (state) => {
       state.error = null;
-      // Optionally reset status if the last operation failed.
-      if (state.status === 'failed') {
-          state.status = 'idle';
-      }
+      if (state.status === 'failed') state.status = 'idle';
     },
-    // resetEmployees: () => initialState, // Could add a reset action if needed.
   },
-  // Handles actions dispatched by async thunks.
   extraReducers: (builder) => {
     builder
-      // Cases for fetching all employees
       .addCase(fetchEmployees.pending, (state) => {
         state.status = 'loading';
         state.error = null;
@@ -186,9 +126,8 @@ const employeeSlice = createSlice({
         state.status = 'failed';
         state.error = action.payload;
       })
-      // Cases for adding an employee
       .addCase(addEmployee.pending, (state) => {
-        state.status = 'loading'; // Using general status, could add specific addStatus if complex UI needed.
+        state.status = 'loading';
         state.error = null;
       })
       .addCase(addEmployee.fulfilled, (state, action) => {
@@ -199,22 +138,18 @@ const employeeSlice = createSlice({
         state.status = 'failed';
         state.error = action.payload;
       })
-      // Cases for updating an employee
       .addCase(updateEmployee.pending, (state) => {
         state.status = 'loading';
         state.error = null;
       })
       .addCase(updateEmployee.fulfilled, (state, action) => {
         const index = state.employees.findIndex(emp => emp._id === action.payload._id);
-        if (index !== -1) {
-          state.employees[index] = action.payload;
-        }
+        if (index !== -1) state.employees[index] = action.payload;
       })
       .addCase(updateEmployee.rejected, (state, action) => {
         state.status = 'failed';
         state.error = action.payload;
       })
-      // Cases for deleting an employee
       .addCase(deleteEmployee.pending, (state) => {
         state.status = 'loading';
         state.error = null;
@@ -227,21 +162,16 @@ const employeeSlice = createSlice({
         state.status = 'failed';
         state.error = action.payload;
       })
-      // Cases for updating employee notification preferences
       .addCase(updateEmployeesNotificationPreferences.pending, (state) => {
         state.updateNotificationStatus = 'loading';
-        state.error = null; // Clear previous errors
+        state.error = null;
       })
       .addCase(updateEmployeesNotificationPreferences.fulfilled, (state, action) => {
         state.updateNotificationStatus = 'succeeded';
-        // If action.payload contains the updated employee details, merge them.
-        // This is a simple merge assuming action.payload is an array of updated employees.
         if (Array.isArray(action.payload)) {
           action.payload.forEach(updatedEmp => {
             const index = state.employees.findIndex(emp => emp._id === updatedEmp._id);
-            if (index !== -1) {
-              state.employees[index] = { ...state.employees[index], ...updatedEmp };
-            }
+            if (index !== -1) state.employees[index] = { ...state.employees[index], ...updatedEmp };
           });
         }
       })
@@ -252,13 +182,10 @@ const employeeSlice = createSlice({
   },
 });
 
-// Export synchronous actions.
 export const { clearEmployeeError } = employeeSlice.actions;
-
-// Export the reducer to be included in the Redux store.
 export default employeeSlice.reducer;
 
-// Selectors to access parts of the employee state from components.
+// Selectors
 export const selectAllEmployees = (state) => state.employees.employees;
 export const selectEmployeeStatus = (state) => state.employees.status;
 export const selectEmployeeError = (state) => state.employees.error;
@@ -266,12 +193,8 @@ export const selectEmployeeById = (state, employeeId) =>
   Array.isArray(state?.employees?.employees)
     ? state.employees.employees.find(emp => emp._id === employeeId)
     : undefined;
-
-// Selector to find an employee by their linked User ID
 export const selectEmployeeByUserId = (state, userId) =>
   Array.isArray(state?.employees?.employees)
     ? state.employees.employees.find(emp => emp.userId === userId)
     : undefined;
-
-// Selector for the status of the notification preferences update
 export const selectEmployeeNotificationUpdateStatus = (state) => state.employees.updateNotificationStatus;

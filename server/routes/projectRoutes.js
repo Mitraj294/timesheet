@@ -5,8 +5,11 @@ import {
   getProjectById,
   updateProject,
   deleteProject,
-  getAllProjects
+  getAllProjects,
+  downloadProjectReport,
+  sendProjectReportEmail
 } from "../controllers/projectController.js";
+import { protect, employerOnly } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 
@@ -27,5 +30,11 @@ router.delete("/:projectId", deleteProject);
 
 // GET /api/projects - Get all projects (e.g., for an admin overview)
 router.get("/", getAllProjects);
+
+// POST /api/projects/report/download - Download project timesheet report as Excel
+router.post('/report/download', protect, employerOnly, downloadProjectReport);
+
+// POST /api/projects/report/email - Send project timesheet report via email
+router.post('/report/email', protect, employerOnly, sendProjectReportEmail);
 
 export default router;

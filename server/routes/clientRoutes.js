@@ -5,7 +5,8 @@ import {
   getClientById,
   updateClient,
   deleteClient,
-  downloadClients
+  downloadClients,
+  sendClientsReportEmail
 } from "../controllers/clientController.js";
 import { protect, employerOnly } from "../middleware/authMiddleware.js";
 
@@ -13,6 +14,9 @@ const router = express.Router();
 // GET /api/clients/download - Download client-related timesheet data as an Excel file
 // This route should remain employerOnly if only employers can download all client data
 router.get('/download', protect, employerOnly, downloadClients);
+
+// POST /api/clients/report/email - Send client timesheet report via email
+router.post('/report/email', protect, employerOnly, sendClientsReportEmail);
 
 router.post("/", protect, employerOnly, createClient); // Creating clients is employer-only
 router.get("/", protect, getClients); // Now accessible by authenticated users (employer/employee), controller handles scoping
