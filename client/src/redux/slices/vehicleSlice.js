@@ -195,27 +195,31 @@ const vehicleSlice = createSlice({
       state.currentVehicle = null;
       state.currentStatus = 'idle';
       state.currentError = null;
+      console.log("[vehicleSlice] Reset current vehicle.");
     },
     clearOperationStatus: (state) => {
       state.operationStatus = 'idle';
       state.operationError = null;
+      console.log("[vehicleSlice] Cleared operation status.");
     },
     clearReportStatus: (state) => {
       state.reportStatus = 'idle';
       state.reportError = null;
+      console.log("[vehicleSlice] Cleared report status.");
     },
     clearVehicleError: (state) => {
       state.error = null;
       state.currentError = null;
       state.operationError = null;
       state.reportError = null;
+      console.log("[vehicleSlice] Cleared all vehicle errors.");
     },
   },
   extraReducers: (builder) => {
     builder
-      .addCase(fetchVehicles.pending, (state) => { state.status = 'loading'; state.error = null; })
-      .addCase(fetchVehicles.fulfilled, (state, action) => { state.status = 'succeeded'; state.items = action.payload; })
-      .addCase(fetchVehicles.rejected, (state, action) => { state.status = 'failed'; state.error = action.payload; })
+      .addCase(fetchVehicles.pending, (state) => { state.status = 'loading'; state.error = null; console.log("[vehicleSlice] Fetching vehicles..."); })
+      .addCase(fetchVehicles.fulfilled, (state, action) => { state.status = 'succeeded'; state.items = action.payload; console.log("[vehicleSlice] Vehicles fetched:", action.payload.length); })
+      .addCase(fetchVehicles.rejected, (state, action) => { state.status = 'failed'; state.error = action.payload; console.error("[vehicleSlice] Fetch vehicles error:", action.payload); })
       .addCase(fetchVehicleById.pending, (state) => { state.currentStatus = 'loading'; state.currentError = null; })
       .addCase(fetchVehicleById.fulfilled, (state, action) => { state.currentStatus = 'succeeded'; state.currentVehicle = action.payload; })
       .addCase(fetchVehicleById.rejected, (state, action) => { state.currentStatus = 'failed'; state.currentError = action.payload; })

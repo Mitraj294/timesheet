@@ -28,12 +28,17 @@ const ConfirmDeleteAccountPage = () => {
   const authError = useSelector(selectAuthError);
 
   useEffect(() => {
+    console.log("[ConfirmDeleteAccountPage] Mounted. Token:", token);
     dispatch(clearAuthError());
     if (!token) {
       setPageError('Deletion token not found. This link may be invalid or expired.');
       dispatch(setAlert('Invalid or missing deletion token.', 'danger'));
+      console.warn("[ConfirmDeleteAccountPage] No token found in URL params.");
     }
-    return () => dispatch(clearAuthError());
+    return () => {
+      dispatch(clearAuthError());
+      console.log("[ConfirmDeleteAccountPage] Unmounted.");
+    };
   }, [dispatch, token]);
 
   const handleSubmit = async (e) => {
@@ -44,27 +49,32 @@ const ConfirmDeleteAccountPage = () => {
     if (!password) {
       setPageError('Password is required to confirm account deletion.');
       dispatch(setAlert('Password is required.', 'warning'));
+      console.warn("[ConfirmDeleteAccountPage] Tried to submit without password.");
       return;
     }
     if (!token) {
       setPageError('Deletion token is missing. Cannot proceed.');
       dispatch(setAlert('Deletion token is missing.', 'danger'));
+      console.warn("[ConfirmDeleteAccountPage] Tried to submit without token.");
       return;
     }
 
     try {
+      console.log("[ConfirmDeleteAccountPage] Submitting account deletion with token:", token);
       await dispatch(confirmAccountDeletion({ token, password })).unwrap();
       dispatch(setAlert('Your account has been successfully deleted.', 'success', 7000));
       dispatch(logout());
+      console.log("[ConfirmDeleteAccountPage] Account deleted, logging out and redirecting.");
       navigate('/login', { replace: true, state: { accountDeleted: true } });
     } catch (err) {
       // Error handled by Alert via Redux
-      console.error('Failed to delete account:', err);
+      console.error('[ConfirmDeleteAccountPage] Failed to delete account:', err);
     }
   };
 
   // Show message if token is missing
   if (!token && !pageError) {
+    console.warn("[ConfirmDeleteAccountPage] Rendering error page due to missing token.");
     return (
       <div className="confirm-delete-container error-page">
         <Alert />
@@ -74,7 +84,10 @@ const ConfirmDeleteAccountPage = () => {
         <button
           type="button"
           className="btn btn-primary"
-          onClick={() => navigate('/login')}
+          onClick={() => {
+            console.log("[ConfirmDeleteAccountPage] Navigating to login from error page.");
+            navigate('/login');
+          }}
         >
           Go to Login
         </button>
@@ -108,14 +121,20 @@ const ConfirmDeleteAccountPage = () => {
                 id="password"
                 name="password"
                 value={password}
-                onChange={e => setPassword(e.target.value)}
+                onChange={e => {
+                  setPassword(e.target.value);
+                  console.log("[ConfirmDeleteAccountPage] Password input changed.");
+                }}
                 required
                 disabled={isLoading}
                 autoComplete="current-password"
               />
               <button 
                 type="button"
-                onClick={() => setShowPassword(!showPassword)}
+                onClick={() => {
+                  setShowPassword(!showPassword);
+                  console.log("[ConfirmDeleteAccountPage] Toggled showPassword:", !showPassword);
+                }}
                 className="password-toggle"
                 disabled={isLoading}
                 aria-label={showPassword ? "Hide password" : "Show password"}

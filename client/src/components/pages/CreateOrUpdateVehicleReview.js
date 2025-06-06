@@ -104,52 +104,53 @@ const CreateOrUpdateVehicleReview = () => {
   useEffect(() => {
     const reduxError = fetchError || operationError;
     if (reduxError) {
+      console.error("[CreateOrUpdateVehicleReview] Redux error:", reduxError);
       dispatch(setAlert(reduxError, 'danger'));
     }
   }, [fetchError, operationError, dispatch]);
 
   // Fetches essential data (vehicle, employees, and review if editing)
   useEffect(() => {
+    console.log("[CreateOrUpdateVehicleReview] useEffect: vehicleId =", vehicleId, "reviewId =", reviewId, "isEditMode =", isEditMode);
     if (vehicleId && (!vehicle || vehicle._id !== vehicleId)) {
+      console.log("[CreateOrUpdateVehicleReview] Fetching vehicle by id:", vehicleId);
       dispatch(fetchVehicleById(vehicleId));
     }
-    // Fetch all employees ONLY if the user is not an employee (i.e., employer needs to select)
     if (user?.role !== 'employee') {
       if (employeeFetchStatus === 'idle' || !employees || employees.length === 0) {
+        console.log("[CreateOrUpdateVehicleReview] Fetching employees for employer role...");
         dispatch(fetchEmployees());
       }
     }
-    // Fetch review data if in edit mode and it's not already loaded or is incorrect
     if (isEditMode && reviewId) {
-      // Ensure employeeId is not reset if editing
       if (!currentReview || currentReview._id !== reviewId) {
-         dispatch(fetchReviewById(reviewId));
-       }
+        console.log("[CreateOrUpdateVehicleReview] Fetching review by id:", reviewId);
+        dispatch(fetchReviewById(reviewId));
+      }
     } else if (!isEditMode) {
-      // Reset form and review state for create mode
       setFormData(prev => ({
-        dateReviewed: new Date().toISOString().split('T')[0], // Keep date default
-        // Pre-fill employeeId if logged-in user is an employee and has an employeeProfileId
+        dateReviewed: new Date().toISOString().split('T')[0],
         employeeId: (user?.role === 'employee' && user?.employeeProfileId) ? user.employeeProfileId : '',
         oilChecked: false,
         vehicleChecked: false,
         vehicleBroken: false,
-        hours: '', // Reset hours, will be set by next effect if vehicle loads
+        hours: '',
         notes: '',
       }));
-      dispatch(resetCurrentReviewState()); // Safe to reset review state when creating
+      dispatch(resetCurrentReviewState());
+      console.log("[CreateOrUpdateVehicleReview] Reset form and review state for create mode.");
     }
-
-    // Cleanup when component unmounts or dependencies change
     return () => {
       dispatch(clearReviewOperationStatus());
+      console.log("[CreateOrUpdateVehicleReview] Cleanup: cleared review operation status.");
     };
   }, [vehicleId, reviewId, isEditMode, dispatch, vehicle, currentReview, employeeFetchStatus, employees, user]);
 
   // Sets default hours from the vehicle data when creating a new review
   useEffect(() => {
     if (!isEditMode && vehicleFetchStatus === 'succeeded' && vehicle?.hours != null && formData.hours === '') {
-        setFormData(prev => ({ ...prev, hours: vehicle.hours.toString() }));
+      setFormData(prev => ({ ...prev, hours: vehicle.hours.toString() }));
+      console.log("[CreateOrUpdateVehicleReview] Set default hours from vehicle:", vehicle.hours);
     }
   }, [isEditMode, vehicleFetchStatus, vehicle, formData.hours]);
 
@@ -158,19 +159,19 @@ const CreateOrUpdateVehicleReview = () => {
     if (isEditMode && reviewFetchStatus === 'succeeded' && currentReview?._id === reviewId) {
       const newReviewData = {
         dateReviewed: currentReview.dateReviewed?.split('T')[0] || '',
-        employeeId: currentReview.employeeId?._id || currentReview.employeeId || '', // Handles populated or direct ID
+        employeeId: currentReview.employeeId?._id || currentReview.employeeId || '',
         oilChecked: currentReview.oilChecked || false,
         vehicleChecked: currentReview.vehicleChecked || false,
         vehicleBroken: currentReview.vehicleBroken || false,
         hours: currentReview.hours?.toString() || '',
         notes: currentReview.notes || '',
       };
-      // Update local state only if necessary to prevent loops
       setFormData(prevData => {
-          if (JSON.stringify(prevData) !== JSON.stringify(newReviewData)) {
-              return newReviewData;
-          }
-          return prevData;
+        if (JSON.stringify(prevData) !== JSON.stringify(newReviewData)) {
+          console.log("[CreateOrUpdateVehicleReview] Populated form for editing review:", currentReview);
+          return newReviewData;
+        }
+        return prevData;
       });
     }
   }, [isEditMode, reviewFetchStatus, currentReview, reviewId]);
@@ -183,11 +184,12 @@ const CreateOrUpdateVehicleReview = () => {
       [name]: type === 'checkbox' ? checked : value,
     }));
     if (formError) setFormError(null);
+    console.log(`[CreateOrUpdateVehicleReview] Input changed: ${name} =`, type === 'checkbox' ? checked : value);
   };
 
   const validateForm = () => {
     if (!formData.dateReviewed) return 'Date Reviewed is required.';
-    if (!formData.employeeId) return 'Employee is required.';
+    if (!formData.employeeId || formData.employeeId === '' || formData.employeeId === 'undefined') return 'Employee is required.';
     if (
       formData.hours === '' ||
       isNaN(parseFloat(formData.hours)) ||
@@ -199,87 +201,63 @@ const CreateOrUpdateVehicleReview = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    // console.log('[handleSubmit] Start. vehicleId from component scope:', vehicleId, 'reviewId from component scope:', reviewId);
-
-    // Clear previous states
     setFormError(null);
     dispatch(clearReviewOperationStatus());
 
     const validationError = validateForm();
-    
-    // Most critical check: Is the identifier 'vehicleId' even known here?
-    // typeof is safe to use even if vehicleId was somehow not declared in this scope.
-    if (typeof vehicleId === 'undefined') {
-      // console.error('[handleSubmit] CRITICAL: typeof vehicleId is "undefined". This indicates a major issue with variable scope or declaration from useParams.');
-      dispatch(setAlert('Critical error: Vehicle ID context is lost. Cannot submit.', 'danger'));
-      setFormError('A critical error occurred with the Vehicle ID. Please refresh or contact support.');
-      return;
-    }
 
-    // Check if vehicleId has a falsy value (e.g., it's undefined, null, or an empty string from URL)
-    // This check comes AFTER the typeof check to ensure vehicleId is at least a declared variable.
-    if (!vehicleId) { 
-      // console.error('[handleSubmit] Error: vehicleId is falsy (e.g., undefined, null, empty string). Value:', vehicleId, '. Cannot submit review.');
+    if (typeof vehicleId === 'undefined' || !vehicleId) {
       dispatch(setAlert('Vehicle ID is missing or invalid. Cannot submit review.', 'danger'));
       setFormError('Vehicle ID is missing or invalid. Operation cannot proceed.');
+      console.error("[CreateOrUpdateVehicleReview] Error: vehicleId is falsy. Value:", vehicleId);
       return;
     }
-
+    if (!formData.employeeId || formData.employeeId === '' || formData.employeeId === 'undefined') {
+      dispatch(setAlert('Employee is required. Please select an employee.', 'danger'));
+      setFormError('Employee is required. Please select an employee.');
+      return;
+    }
     if (validationError) {
-      // console.warn('[handleSubmit] Validation Error:', validationError);
       dispatch(setAlert(validationError, 'warning'));
       setFormError(validationError);
+      console.warn("[CreateOrUpdateVehicleReview] Validation error:", validationError);
       return;
     }
     try {
-      // Prepare the main body of the review data
       const reviewDataForBody = {
         ...formData,
         hours: parseFloat(formData.hours),
       };
-
-      // Logic for dateReviewed (conditionally removing it if editing and it's the default today's date)
-      if (isEditMode && reviewDataForBody.dateReviewed === new Date().toISOString().split('T')[0]) {
-        // This logic might need adjustment based on backend requirements.
-        // If the backend expects dateReviewed for updates, don't delete it.
-        // If sending today's date is fine, remove this block.
-        // delete reviewDataForBody.dateReviewed; 
-      } else if (!isEditMode && !reviewId) { 
-        // This block is for create mode.
-        // formData.dateReviewed is already part of reviewDataForBody.
-        // No specific action needed here unless there's a special case for create mode date.
-      }
-
-      // console.log('[handleSubmit] Submitting. Mode:', isEditMode ? 'edit' : 'create', 'Review ID:', reviewId, 'Vehicle ID for URL:', vehicleId);
-      // console.log('[handleSubmit] Payload for request body:', reviewDataForBody);
-
+      // Debug log for POST body
+      console.log("[CreateOrUpdateVehicleReview] Submitting review data:", {
+        vehicleId,
+        ...reviewDataForBody,
+      });
       let operationSuccessful = false;
       let successMessage = '';
-
       if (isEditMode && reviewId) {
-        // The current `updateVehicleReview` thunk expects `reviewId` and `reviewData`.
         await dispatch(updateVehicleReview({ reviewId, reviewData: reviewDataForBody })).unwrap();
         operationSuccessful = true;
         successMessage = 'Review updated successfully!';
       } else {
-        // For create, the thunk expects { vehicleId, ...reviewData }
-        // vehicleId (from useParams) is for the URL, reviewDataForBody is for the request body.
-        await dispatch(createVehicleReview({ vehicleId: vehicleId, ...reviewDataForBody })).unwrap();
+        // Pass vehicleId and review fields at the top level
+        await dispatch(createVehicleReview({ vehicleId, ...reviewDataForBody })).unwrap();
         operationSuccessful = true;
         successMessage = 'Review created successfully!';
       }
-
       if (operationSuccessful) {
         dispatch(setAlert(successMessage, 'success'));
-        navigate(-1); // Go back to the previous page
+        navigate(-1);
       }
     } catch (err) {
-      console.error('Error submitting review:', err); // Keep a general error log
-      // console.error('[handleSubmit] err.message:', err.message); 
-      // console.error('[handleSubmit] err.name:', err.name); 
-      const errorMessage = err.payload?.message || err.message || 'Failed to save review. Please try again.';
+      // Show more specific error if employee not found
+      let errorMessage = err.payload?.message || err.message || 'Failed to save review. Please try again.';
+      if (errorMessage.includes('Employee record not found')) {
+        errorMessage = 'The selected employee does not exist. Please select a valid employee.';
+      }
       dispatch(setAlert(errorMessage, 'danger'));
       setFormError(errorMessage);
+      console.error("[CreateOrUpdateVehicleReview] Submit error:", errorMessage);
     }
   };
 

@@ -1,7 +1,7 @@
 import ExcelJS from 'exceljs';
 import { format } from 'date-fns';
 
-// Create a generic Excel report
+// Create a generic Excel report from data and columns
 export async function generateExcelReport({ data, columns, sheetName = 'Report', formatRow }) {
   const workbook = new ExcelJS.Workbook();
   workbook.creator = 'Timesheet App';
@@ -10,20 +10,61 @@ export async function generateExcelReport({ data, columns, sheetName = 'Report',
   if (columns.length > 0) {
     ws.getRow(1).font = { bold: true, alignment: { vertical: 'middle', horizontal: 'center' }, fill: { type: 'pattern', pattern:'solid', fgColor:{argb:'FFD3D3D3'} }, border: { bottom: { style: 'thin' } } };
   }
-  data.forEach((row, idx) => {
-    ws.addRow(formatRow ? formatRow(row, idx) : row);
+
+  // Group data by employee (assume first column is employee name)
+  const employeeKey = columns[0]?.key || 'employee';
+  const grouped = {};
+  data.forEach((row) => {
+    const emp = row[employeeKey] || 'Unknown';
+    if (!grouped[emp]) grouped[emp] = [];
+    grouped[emp].push(row);
   });
-  return workbook.xlsx.writeBuffer();
+
+  let rowIdx = 2; // Start after header
+  Object.entries(grouped).forEach(([employee, rows]) => {
+    const startRow = rowIdx;
+    rows.forEach((row, i) => {
+      const values = columns.map((col, colIdx) => {
+        // Only show employee name in first row of group
+        if (colIdx === 0) return i === 0 ? employee : '';
+        return row[col.key];
+      });
+      ws.addRow(values);
+      rowIdx++;
+    });
+    // Merge employee name cell vertically for this group
+    if (rows.length > 1) {
+      ws.mergeCells(startRow, 1, rowIdx - 1, 1);
+      ws.getCell(startRow, 1).alignment = { vertical: 'middle', horizontal: 'center' };
+    }
+  });
+
+  // Auto-width for all columns
+  ws.columns.forEach(col => {
+    let maxLength = col.header.length;
+    ws.eachRow({ includeEmpty: true }, row => {
+      const cell = row.getCell(col.key || col.header);
+      if (cell && cell.value) {
+        const cellLength = String(cell.value).length;
+        if (cellLength > maxLength) maxLength = cellLength;
+      }
+    });
+    col.width = Math.max(col.width || 10, maxLength + 2);
+  });
+
+  // Remove all filename logic: only return the buffer
+  const buffer = await workbook.xlsx.writeBuffer();
+  return { buffer };
 }
 
-// Send Excel file as download
+// Send Excel file as download to the client
 export function sendExcelDownload(res, buffer, fileName) {
   res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
   res.setHeader('Content-Disposition', `attachment; filename="${fileName}"; filename*=UTF-8''${encodeURIComponent(fileName)}`);
   res.send(buffer);
 }
 
-// Format helpers
+// Helpers to format date/time for Excel
 const formatTime = (iso) => {
   if (!iso) return '';
   const date = new Date(iso);
@@ -40,7 +81,7 @@ const formatDay = (iso) => {
   return isNaN(date.getTime()) ? '' : format(date, 'EEEE');
 };
 
-// Client timesheet report
+// Generate Excel report for all clients and their timesheets
 export async function generateClientTimesheetReport({ employerClients, clientProjects, employerEmployees, timesheetsGrouped }) {
   const ExcelJS = (await import('exceljs')).default;
   const workbook = new ExcelJS.Workbook();
@@ -100,7 +141,7 @@ export async function generateClientTimesheetReport({ employerClients, clientPro
         } else if (employerEmployees.length === 0) {
           ws.addRow(['', '', 'No employees assigned to this employer.']);
         }
-        const projectTotalRow = ws.addRow(['', `Project: ${project.name} - Total Hours:`, '', '', '', '', '', '', '', projectTotal.toFixed(2)]);
+        const projectTotalRow = ws.addRow(['', `Project: ${project.name} - Total Hours:`, '', '', '', '', '', '', projectTotal.toFixed(2)]);
         projectTotalRow.font = { bold: true };
         clientTotal += projectTotal;
         ws.addRow([]);
@@ -114,7 +155,7 @@ export async function generateClientTimesheetReport({ employerClients, clientPro
   return workbook.xlsx.writeBuffer();
 }
 
-// Project timesheet report
+// Generate Excel report for projects and their timesheets
 export async function generateProjectTimesheetReport({ projects, projectTimesheets }) {
   const ExcelJS = (await import('exceljs')).default;
   const workbook = new ExcelJS.Workbook();

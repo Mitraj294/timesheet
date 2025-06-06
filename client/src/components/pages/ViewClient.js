@@ -68,6 +68,7 @@ const ViewClient = () => {
     const handleResize = () => setIsSmallScreen(window.innerWidth < 768);
     window.addEventListener('resize', handleResize);
     handleResize();
+    console.log("[ViewClient] Responsive screen check initialized.");
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
@@ -79,12 +80,15 @@ const ViewClient = () => {
       dispatch(fetchTimesheets());
     }
     if (settingsStatus === 'idle' && user?.role === 'employee') {
+      console.log("[ViewClient] Fetching employer settings...");
       dispatch(fetchEmployerSettings());
     }
+    console.log("[ViewClient] Fetching client, projects, timesheets...");
     return () => {
       dispatch(clearCurrentClient());
       dispatch(clearProjects());
       dispatch(clearProjectError());
+      console.log("[ViewClient] Cleanup: Cleared client, projects, and errors.");
     };
   }, [clientId, dispatch, timesheetStatus, settingsStatus, user?.role]);
 
@@ -96,17 +100,22 @@ const ViewClient = () => {
       );
       const total = filtered.reduce((sum, t) => sum + (parseFloat(t.totalHours) || 0), 0);
       setClientTotalHours(total);
+      console.log("[ViewClient] Calculated total hours for client:", total);
     }
   }, [allTimesheets, timesheetStatus, clientId]);
 
   // Show errors as alerts
   useEffect(() => {
     const reduxError = clientError || projectError;
-    if (reduxError) dispatch(setAlert(reduxError, 'danger'));
+    if (reduxError) {
+      console.error("[ViewClient] Error:", reduxError);
+      dispatch(setAlert(reduxError, 'danger'));
+    }
   }, [clientError, projectError, dispatch]);
 
   // Delete project handlers
   const handleDeleteClick = (projectId, projectName) => {
+    console.log(`[ViewClient] Request to delete project: ${projectName} (${projectId})`);
     setItemToDelete({ id: projectId, name: projectName });
     setShowDeleteConfirm(true);
   };
@@ -117,8 +126,10 @@ const ViewClient = () => {
     try {
       await dispatch(deleteProject(projectIdToDelete)).unwrap();
       dispatch(setAlert(`Project "${projectName}" deleted successfully.`, 'success'));
+      console.log(`[ViewClient] Project "${projectName}" deleted.`);
     } catch (err) {
       dispatch(setAlert(String(err?.message || `Failed to delete project "${projectName}".`), 'danger'));
+      console.error("[ViewClient] Error deleting project:", err);
     }
     setShowDeleteConfirm(false);
     setItemToDelete(null);
@@ -308,7 +319,7 @@ const ViewClient = () => {
             <div className="logout-confirm-actions">
               <button className="btn btn-secondary" onClick={cancelDelete} disabled={isDeletingProject}>Cancel</button>
               <button className="btn btn-danger" onClick={confirmDeleteProject} disabled={isDeletingProject}>
-                {isDeletingProject ? <><FontAwesomeIcon icon={faSpinner} spin /> Deleting...</> : 'Delete Project'}
+                {isDeletingProject ? <><FontAwesomeIcon icon={faSpinner} spin /> Deleting...</> : 'Delete'}
               </button>
             </div>
           </div>

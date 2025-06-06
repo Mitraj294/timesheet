@@ -515,6 +515,9 @@ export const requestAccountDeletionLink = async (req, res) => {
     if (!user) {
       return res.status(404).json({ message: 'User not found.' });
     }
+    if (!user.email) {
+      return res.status(400).json({ message: 'No email address found for your account.' });
+    }
     const deleteToken = crypto.randomBytes(32).toString('hex');
     user.deleteAccountToken = crypto
       .createHash('sha256')

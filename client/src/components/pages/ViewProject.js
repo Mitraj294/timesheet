@@ -44,17 +44,27 @@ const ViewProject = () => {
 
   // Fetch project and employees on mount
   useEffect(() => {
-    if (projectId) dispatch(fetchProjectById(projectId));
-    if (employeeStatus === 'idle') dispatch(fetchEmployees());
+    if (projectId) {
+      console.log("[ViewProject] Fetching project by ID:", projectId);
+      dispatch(fetchProjectById(projectId));
+    }
+    if (employeeStatus === 'idle') {
+      console.log("[ViewProject] Fetching employees...");
+      dispatch(fetchEmployees());
+    }
     return () => {
       dispatch(clearCurrentProject());
       dispatch(clearProjectError());
+      console.log("[ViewProject] Cleanup: Cleared current project and errors.");
     };
   }, [projectId, dispatch, employeeStatus]);
 
   // Show project errors as alerts
   useEffect(() => {
-    if (projectError) dispatch(setAlert(projectError, 'danger'));
+    if (projectError) {
+      console.error("[ViewProject] Project error:", projectError);
+      dispatch(setAlert(projectError, 'danger'));
+    }
   }, [projectError, dispatch]);
 
   // Find logged-in employee record
@@ -79,6 +89,7 @@ const ViewProject = () => {
 
   // Delete handlers
   const handleDeleteClick = (projectId, projectName) => {
+    console.log(`[ViewProject] Request to delete project: ${projectName} (${projectId})`);
     setItemToDelete({ id: projectId, name: projectName });
     setShowDeleteConfirm(true);
   };
@@ -87,9 +98,11 @@ const ViewProject = () => {
     if (!itemToDelete) return;
     const { id: projectIdToDelete, name: projectNameToDelete } = itemToDelete;
     dispatch(clearProjectError());
+    console.log(`[ViewProject] Confirming delete for project: ${projectNameToDelete} (${projectIdToDelete})`);
     try {
       await dispatch(deleteProject(projectId)).unwrap();
       dispatch(setAlert(`Project "${project.name}" deleted successfully.`, 'success'));
+      console.log(`[ViewProject] Project "${project.name}" deleted.`);
       const clientIdToNavigate = project?.clientId?._id || clientId || 'unknown';
       if (clientIdToNavigate !== 'unknown') {
         navigate(`/clients/view/${clientIdToNavigate}`);
@@ -97,7 +110,7 @@ const ViewProject = () => {
         navigate('/clients');
       }
     } catch (err) {
-      dispatch(setAlert(err?.message || `Failed to delete project "${projectNameToDelete}".`, 'danger'));
+      console.error("[ViewProject] Error deleting project:", err);
     } finally {
       setShowDeleteConfirm(false);
       setItemToDelete(null);
@@ -108,6 +121,7 @@ const ViewProject = () => {
   const handleProjectChangeInTimesheet = useCallback((newProjectId) => {
     if (newProjectId && newProjectId !== projectId && newProjectId !== ALL_PROJECTS_VALUE) {
       const currentClientId = project?.clientId?._id || clientId || 'unknown';
+      console.log("[ViewProject] Navigating to new project:", newProjectId, "for client:", currentClientId);
       navigate(`/clients/view/${currentClientId}/project/${newProjectId}`);
     }
   }, [navigate, projectId, project, clientId]);
@@ -293,7 +307,7 @@ const ViewProject = () => {
             <div className="logout-confirm-actions">
               <button className="btn btn-secondary" onClick={cancelDelete} disabled={isDeleting}>Cancel</button>
               <button className="btn btn-danger" onClick={handleDeleteProject} disabled={isDeleting}>
-                {isDeleting ? <><FontAwesomeIcon icon={faSpinner} spin /> Deleting...</> : 'Delete Project'}
+                {isDeleting ? <><FontAwesomeIcon icon={faSpinner} spin /> Deleting...</> : 'Delete'}
               </button>
             </div>
           </div>

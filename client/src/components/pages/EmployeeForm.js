@@ -53,6 +53,7 @@ const EmployeeForm = () => {
   // Fetch employees if needed
   useEffect(() => {
     if (employeeStatus === 'idle') {
+      console.log("[EmployeeForm] Fetching employees...");
       dispatch(fetchEmployees());
     }
   }, [dispatch, employeeStatus]);
@@ -60,6 +61,7 @@ const EmployeeForm = () => {
   // Show error alerts from Redux
   useEffect(() => {
     if (employeesError && (!isEditMode || (isEditMode && employeeStatus === 'failed'))) {
+      console.error("[EmployeeForm] Redux error:", employeesError);
       dispatch(setAlert(employeesError, 'danger'));
     }
   }, [employeesError, isEditMode, employeeStatus, dispatch]);
@@ -80,11 +82,14 @@ const EmployeeForm = () => {
           wage: emp.wage?.toString() || '',
           userId: emp.userId || null,
         });
+        console.log("[EmployeeForm] Populated form for editing employee:", emp);
       } else if (employeeStatus === 'succeeded') {
         dispatch(setAlert(`Employee with ID ${id} not found.`, 'warning'));
+        console.warn("[EmployeeForm] Employee not found for id:", id);
       }
     } else if (!id) {
       setFormData(initialFormState);
+      console.log("[EmployeeForm] Initializing form for new employee.");
     }
   }, [id, employees, employeeStatus, dispatch]);
 
@@ -96,6 +101,7 @@ const EmployeeForm = () => {
       [name]: type === 'checkbox' ? (checked ? 'Yes' : 'No') : value,
     }));
     if (error) setError(null);
+    console.log(`[EmployeeForm] Input changed: ${name} =`, type === 'checkbox' ? checked : value);
   };
 
   const isSaving = employeeStatus === 'loading';
@@ -120,6 +126,7 @@ const EmployeeForm = () => {
     if (validationError) {
       dispatch(setAlert(validationError, 'warning'));
       setError(validationError);
+      console.warn("[EmployeeForm] Validation error:", validationError);
       return;
     }
 
@@ -135,12 +142,14 @@ const EmployeeForm = () => {
     try {
       if (!isEditMode) {
         // Check if user exists
+        console.log("[EmployeeForm] Checking if user exists for email:", formData.email);
         const userCheck = await dispatch(
           checkUserByEmailForEmployer({ email: formData.email })
         ).unwrap();
 
         if (!userCheck.exists) {
           // Register new user
+          console.log("[EmployeeForm] Registering new user for employee:", formData.email);
           const registerRes = await dispatch(
             register({
               name: formData.name,
@@ -160,9 +169,11 @@ const EmployeeForm = () => {
       }
 
       if (isEditMode) {
+        console.log("[EmployeeForm] Updating employee:", id, employeeData);
         await dispatch(updateEmployee({ id, employeeData })).unwrap();
         dispatch(setAlert('Employee updated successfully!', 'success'));
       } else {
+        console.log("[EmployeeForm] Adding new employee:", employeeData);
         await dispatch(addEmployee(employeeData)).unwrap();
         dispatch(setAlert(
           `Employee added & User account created! Temporary password is '123456'. Advise user to change it.`,
@@ -174,6 +185,7 @@ const EmployeeForm = () => {
     } catch (err) {
       const message = err?.message || (typeof err === 'string' ? err : `Failed to ${isEditMode ? 'update' : 'add'} employee.`);
       dispatch(setAlert(message, 'danger'));
+      console.error("[EmployeeForm] Submit error:", message);
     }
   };
 

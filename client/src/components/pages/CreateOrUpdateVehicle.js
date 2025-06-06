@@ -47,24 +47,29 @@ const CreateOrUpdateVehicle = () => {
   useEffect(() => {
     const reduxError = fetchError || operationError;
     if (reduxError) {
+      console.error("[CreateOrUpdateVehicle] Redux error:", reduxError);
       dispatch(setAlert(reduxError, 'danger'));
     }
   }, [fetchError, operationError, dispatch]);
 
   // Fetch or reset vehicle data on mount/change
   useEffect(() => {
+    console.log("[CreateOrUpdateVehicle] useEffect: isEditMode =", isEditMode, "vehicleId =", vehicleId, "fetchStatus =", fetchStatus);
     dispatch(clearOperationStatus());
     if (isEditMode && vehicleId) {
       if (fetchStatus === 'idle' || (currentVehicle?._id !== vehicleId && fetchStatus !== 'loading')) {
+        console.log("[CreateOrUpdateVehicle] Fetching vehicle by id:", vehicleId);
         dispatch(fetchVehicleById(vehicleId));
       }
     } else {
       setVehicleData({ name: '', hours: '', wofRego: '' });
       dispatch(resetCurrentVehicle());
+      console.log("[CreateOrUpdateVehicle] Creating new vehicle, reset form.");
     }
     return () => {
       dispatch(resetCurrentVehicle());
       dispatch(clearOperationStatus());
+      console.log("[CreateOrUpdateVehicle] Cleanup: reset current vehicle and operation status.");
     };
   }, [isEditMode, vehicleId, dispatch]);
 
@@ -76,6 +81,7 @@ const CreateOrUpdateVehicle = () => {
         hours: currentVehicle.hours?.toString() || '',
         wofRego: currentVehicle.wofRego || '',
       });
+      console.log("[CreateOrUpdateVehicle] Populated form for editing vehicle:", currentVehicle);
     }
   }, [fetchStatus, currentVehicle, isEditMode, vehicleId]);
 
@@ -87,6 +93,7 @@ const CreateOrUpdateVehicle = () => {
       [name]: value,
     }));
     if (formError) setFormError(null);
+    console.log(`[CreateOrUpdateVehicle] Input changed: ${name} =`, value);
   };
 
   // Simple validation
@@ -110,6 +117,7 @@ const CreateOrUpdateVehicle = () => {
     if (validationError) {
       dispatch(setAlert(validationError, 'warning'));
       setFormError(validationError);
+      console.warn("[CreateOrUpdateVehicle] Validation error:", validationError);
       return;
     }
     try {
@@ -118,15 +126,18 @@ const CreateOrUpdateVehicle = () => {
         hours: vehicleData.hours,
       };
       if (isEditMode) {
+        console.log("[CreateOrUpdateVehicle] Updating vehicle:", vehicleId, dataToSubmit);
         await dispatch(updateVehicle({ vehicleId, vehicleData: dataToSubmit })).unwrap();
         dispatch(setAlert('Vehicle updated successfully!', 'success'));
       } else {
+        console.log("[CreateOrUpdateVehicle] Creating vehicle:", dataToSubmit);
         await dispatch(createVehicle(dataToSubmit)).unwrap();
         dispatch(setAlert('Vehicle created successfully!', 'success'));
       }
       navigate('/vehicles');
     } catch (err) {
       dispatch(setAlert(err?.message || `Failed to ${isEditMode ? 'update' : 'create'} vehicle.`, 'danger'));
+      console.error("[CreateOrUpdateVehicle] Submit error:", err);
       if (err?.message?.includes('401') || err?.message?.includes('403')) {
         navigate('/login');
       }
@@ -218,7 +229,10 @@ const CreateOrUpdateVehicle = () => {
               <button
                 type='button'
                 className='btn btn-danger'
-                onClick={() => navigate('/vehicles')}
+                onClick={() => {
+                  console.log("[CreateOrUpdateVehicle] Cancel button clicked, navigating to /vehicles");
+                  navigate('/vehicles');
+                }}
                 disabled={isLoading}
               >
                 <FontAwesomeIcon icon={faTimes} /> Cancel

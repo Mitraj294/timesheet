@@ -6,24 +6,23 @@ import {
   deleteSchedule,
   deleteByDateRange
 } from '../controllers/scheduleController.js';
-
 import { protect, employerOnly } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
 
-// POST /api/schedules/bulk - Bulk create schedule entries (protected, employer only)
+// Bulk create schedule entries (employer only)
 router.post('/bulk', protect, employerOnly, createBulkSchedules);
 
-// GET /api/schedules - Get schedules by week (protected)
+// Get schedules for a week (any authenticated user)
 router.get('/', protect, getSchedulesByWeek);
 
-// DELETE /api/schedules/deleteByDateRange - Delete schedules within a date range (protected, employer only)
+// Delete schedules in a date range (employer only)
 router.delete('/deleteByDateRange', protect, employerOnly, deleteByDateRange);
 
-// PUT /api/schedules/:id - Update a specific schedule entry (protected, employer only)
-router.put('/:id', protect, employerOnly, updateSchedule); 
+// Update a schedule entry (employer only)
+router.put('/:id', protect, employerOnly, updateSchedule);
 
-// DELETE /api/schedules/:id - Delete a specific schedule entry (protected, employer only)
+// Delete a schedule entry (employer only)
 router.delete('/:id', protect, employerOnly, deleteSchedule);
 
 export default router;

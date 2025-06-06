@@ -48,7 +48,7 @@ const CreateProject = () => {
     isImportant: false
   });
 
-  const [error, setError] = useState(null); // For local form validation errors (though currently handled by alerts)
+  const [error, setError] = useState(null);
 
   // Derived loading state from Redux statuses
   const isLoading = useMemo(() =>
@@ -62,6 +62,7 @@ const CreateProject = () => {
   useEffect(() => {
     const reduxError = currentProjectError || saveError;
     if (reduxError) {
+      console.error("[CreateProject] Error:", reduxError);
       dispatch(setAlert(reduxError, 'danger'));
     }
   }, [currentProjectError, saveError, dispatch]);
@@ -69,29 +70,28 @@ const CreateProject = () => {
   // Handles fetching existing project data for editing, or initializing form for creation
   useEffect(() => {
     if (isEditing) {
-      // Fetch if projectId is present, and either no project is loaded,
-      // or the loaded project is different, and we're not already loading.
       if (projectId && (!currentProject || currentProject._id !== projectId) && currentProjectStatus !== 'loading') {
+        console.log(`[CreateProject] Fetching project for edit: ${projectId}`);
         dispatch(fetchProjectById(projectId));
       }
     } else {
       dispatch(clearCurrentProject());
-      setFormData({ // Reset form for new project
+      setFormData({
         name: "", startDate: "", finishDate: "", address: "", expectedHours: "", notes: "", isImportant: false
       });
+      console.log("[CreateProject] Initializing form for new project.");
     }
-    // Cleanup: clear current project and any save errors when component unmounts or `projectId` changes
     return () => {
       dispatch(clearCurrentProject());
       dispatch(clearProjectError());
+      console.log("[CreateProject] Cleanup: Cleared current project and errors.");
     };
-    // This effect should run when the mode (isEditing) or the ID (projectId) changes.
-    // Dispatch is stable. currentProject and currentProjectStatus are checked internally.
-  }, [projectId, isEditing, dispatch]); // Removed currentProject and currentProjectStatus from deps
+  }, [projectId, isEditing, dispatch]);
 
   // Populates the form when editing and project data is successfully fetched
   useEffect(() => {
     if (isEditing && currentProjectStatus === 'succeeded' && currentProject) {
+      console.log("[CreateProject] Loaded project for editing:", currentProject);
       setFormData({
         name: currentProject.name || "",
         startDate: currentProject.startDate ? currentProject.startDate.split("T")[0] : "",
@@ -101,9 +101,8 @@ const CreateProject = () => {
         notes: currentProject.notes || "",
         isImportant: currentProject.isImportant || false
       });
-      setError(null); // Clear any local validation error if data loads successfully
+      setError(null);
     }
-    // This effect depends on the status and the specific fields of the currentProject.
   }, [
     isEditing,
     currentProjectStatus,
@@ -114,7 +113,8 @@ const CreateProject = () => {
     currentProject?.expectedHours,
     currentProject?.notes,
     currentProject?.isImportant
-  ]); // Removed currentProject object and currentProjectError from dependencies
+  ]);
+
   // Event Handlers for form input changes
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -122,7 +122,8 @@ const CreateProject = () => {
       ...prevData,
       [name]: type === "checkbox" ? checked : value
     }));
-    if (error) setError(null); // Clear local error on change
+    if (error) setError(null);
+    console.log(`[CreateProject] Changed field: ${e.target.name} = ${type === "checkbox" ? checked : value}`);
   };
 
   // Client-side form validation logic
@@ -140,11 +141,13 @@ const CreateProject = () => {
   // Handles form submission for creating or updating a project
   const handleSubmit = async (e) => {
     e.preventDefault();
-    dispatch(clearProjectError()); // Clear previous Redux save/operation errors
+    dispatch(clearProjectError());
+    console.log("[CreateProject] Submitting form:", formData);
 
     const validationError = validateForm();
     if (validationError) {
       dispatch(setAlert(validationError, 'warning'));
+      console.warn("[CreateProject] Validation error:", validationError);
       return;
     }
 
@@ -152,22 +155,26 @@ const CreateProject = () => {
       ...formData,
       expectedHours: formData.expectedHours ? parseFloat(formData.expectedHours) : null,
       clientId: isEditing ? undefined : clientId
-    }; // `clientId` is only sent for new projects; backend handles association for updates
+    };
     if (isEditing) {
         delete payload.clientId;
     }
 
     try {
       if (isEditing) {
+        console.log("[CreateProject] Updating project:", projectId, payload);
         await dispatch(updateProject({ projectId, projectData: payload })).unwrap();
+        console.log("[CreateProject] Project updated successfully.");
         dispatch(setAlert('Project updated successfully!', 'success'));
       } else {
+        console.log("[CreateProject] Creating project for clientId:", clientId, payload);
         await dispatch(createProject({ clientId, projectData: payload })).unwrap();
+        console.log("[CreateProject] Project created successfully.");
         dispatch(setAlert('Project created successfully!', 'success'));
       }
       navigate(`/clients/view/${clientId}`);
     } catch (err) {
-      console.error("Error saving project:", err.response || err);
+      console.error("[CreateProject] Error saving project:", err.response || err);
       const errorMessage = err?.response?.data?.message || err?.message || `Failed to ${isEditing ? 'update' : 'create'} project.`;
       dispatch(setAlert(errorMessage, 'danger'));
     }

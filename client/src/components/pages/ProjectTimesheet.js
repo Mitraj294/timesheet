@@ -242,21 +242,37 @@ const ProjectTimesheet = ({
   // Show errors as alerts
   useEffect(() => {
     const reduxError = employeeError || clientError || projectError || timesheetError || downloadErrorRedux || sendErrorRedux;
-    if (reduxError) dispatch(setAlert(reduxError, 'danger'));
+    if (reduxError) {
+      console.error("[ProjectTimesheet] Error:", reduxError);
+      dispatch(setAlert(reduxError, 'danger'));
+    }
   }, [employeeError, clientError, projectError, timesheetError, downloadErrorRedux, sendErrorRedux, dispatch]);
 
   // Fetch initial data
   useEffect(() => {
-    if (employeeStatus === 'idle') dispatch(fetchEmployees());
-    if (clientStatus === 'idle') dispatch(fetchClients());
-    if (projectStatus === 'idle') dispatch(fetchProjects());
-    if (settingsStatus === 'idle') dispatch(fetchEmployerSettings());
+    if (employeeStatus === 'idle') {
+      console.log("[ProjectTimesheet] Fetching employees...");
+      dispatch(fetchEmployees());
+    }
+    if (clientStatus === 'idle') {
+      console.log("[ProjectTimesheet] Fetching clients...");
+      dispatch(fetchClients());
+    }
+    if (projectStatus === 'idle') {
+      console.log("[ProjectTimesheet] Fetching projects...");
+      dispatch(fetchProjects());
+    }
+    if (settingsStatus === 'idle') {
+      console.log("[ProjectTimesheet] Fetching employer settings...");
+      dispatch(fetchEmployerSettings());
+    }
   }, [dispatch, employeeStatus, clientStatus, projectStatus, settingsStatus]);
 
   // Set default view type from settings
   useEffect(() => {
     if (settingsStatus === 'succeeded' && employerSettings?.defaultTimesheetViewType) {
       setViewType(employerSettings.defaultTimesheetViewType);
+      console.log("[ProjectTimesheet] Set default viewType from settings:", employerSettings.defaultTimesheetViewType);
     }
   }, [settingsStatus, employerSettings]);
 
@@ -273,6 +289,7 @@ const ProjectTimesheet = ({
       };
       if (selectedProjectId !== ALL_PROJECTS_VALUE) params.projectId = selectedProjectId;
       dispatch(fetchTimesheets(params));
+      console.log("[ProjectTimesheet] Fetching timesheets for project:", params);
     } catch (error) {
       if (!error.message?.includes('token')) {
         dispatch(setAlert(error.response?.data?.message || 'Failed to fetch project timesheets.', 'danger'));
@@ -283,6 +300,7 @@ const ProjectTimesheet = ({
   // Update selectedProjectId if prop changes
   useEffect(() => {
     setSelectedProjectId(initialProjectId || '');
+    console.log("[ProjectTimesheet] initialProjectId changed:", initialProjectId);
   }, [initialProjectId]);
 
   // Handlers
@@ -290,13 +308,16 @@ const ProjectTimesheet = ({
     const newProjectId = option?.value || '';
     setSelectedProjectId(newProjectId);
     if (onProjectChange) onProjectChange(newProjectId);
+    console.log("[ProjectTimesheet] Project selected:", newProjectId);
   };
 
   const toggleExpand = (id) => {
     setExpandedRows(prev => ({ ...prev, [id]: !prev[id] }));
+    console.log("[ProjectTimesheet] Toggled expand for employee:", id);
   };
 
   const handleDeleteClick = (timesheetId) => {
+    console.log("[ProjectTimesheet] Request to delete timesheet:", timesheetId);
     setItemToDelete({ id: timesheetId });
     setShowDeleteConfirm(true);
   };
@@ -304,6 +325,7 @@ const ProjectTimesheet = ({
   const cancelDelete = () => {
     setShowDeleteConfirm(false);
     setItemToDelete(null);
+    console.log("[ProjectTimesheet] Cancelled timesheet deletion");
   };
 
   // Check if user can edit a timesheet
@@ -324,9 +346,11 @@ const ProjectTimesheet = ({
     const clientId = timesheet.clientId?._id || timesheet.clientId;
     const projectId = timesheet.projectId?._id || timesheet.projectId;
     if (canEditTimesheet(timesheet)) {
+      console.log("[ProjectTimesheet] Navigating to edit timesheet:", timesheet._id);
       navigate(`/timesheet/project/edit/${clientId}/${projectId}/${timesheet._id}`);
     } else {
       dispatch(setAlert("Editing of this timesheet is not allowed.", "warning"));
+      console.warn("[ProjectTimesheet] Editing not allowed for timesheet:", timesheet._id);
     }
   };
 
@@ -337,8 +361,10 @@ const ProjectTimesheet = ({
     setError(null);
     try {
       await dispatch(deleteTimesheet(id)).unwrap();
+      console.log("[ProjectTimesheet] Timesheet entry deleted:", id);
       dispatch(setAlert('Timesheet entry deleted successfully', 'success'));
     } catch (error) {
+      console.error("[ProjectTimesheet] Error deleting timesheet:", error);
       dispatch(setAlert(error?.message || 'Failed to delete timesheet entry.', 'danger'));
     } finally {
       setShowDeleteConfirm(false);
@@ -350,13 +376,16 @@ const ProjectTimesheet = ({
   const handlePrev = () => {
     setCurrentDate(prevDate => {
       let dt = DateTime.fromJSDate(prevDate);
+      let newDate;
       switch (viewType) {
-        case 'Daily': return dt.minus({ days: 1 }).toJSDate();
-        case 'Weekly': return dt.minus({ weeks: 1 }).toJSDate();
-        case 'Fortnightly': return dt.minus({ weeks: 2 }).toJSDate();
-        case 'Monthly': return dt.minus({ months: 1 }).toJSDate();
-        default: return dt.minus({ weeks: 1 }).toJSDate();
+        case 'Daily': newDate = dt.minus({ days: 1 }).toJSDate(); break;
+        case 'Weekly': newDate = dt.minus({ weeks: 1 }).toJSDate(); break;
+        case 'Fortnightly': newDate = dt.minus({ weeks: 2 }).toJSDate(); break;
+        case 'Monthly': newDate = dt.minus({ months: 1 }).toJSDate(); break;
+        default: newDate = dt.minus({ weeks: 1 }).toJSDate(); break;
       }
+      console.log("[ProjectTimesheet] Navigated to previous period:", newDate);
+      return newDate;
     });
   };
 
@@ -364,13 +393,16 @@ const ProjectTimesheet = ({
   const handleNext = () => {
     setCurrentDate(prevDate => {
       let dt = DateTime.fromJSDate(prevDate);
+      let newDate;
       switch (viewType) {
-        case 'Daily': return dt.plus({ days: 1 }).toJSDate();
-        case 'Weekly': return dt.plus({ weeks: 1 }).toJSDate();
-        case 'Fortnightly': return dt.plus({ weeks: 2 }).toJSDate();
-        case 'Monthly': return dt.plus({ months: 1 }).toJSDate();
-        default: return dt.plus({ weeks: 1 }).toJSDate();
+        case 'Daily': newDate = dt.plus({ days: 1 }).toJSDate(); break;
+        case 'Weekly': newDate = dt.plus({ weeks: 1 }).toJSDate(); break;
+        case 'Fortnightly': newDate = dt.plus({ weeks: 2 }).toJSDate(); break;
+        case 'Monthly': newDate = dt.plus({ months: 1 }).toJSDate(); break;
+        default: newDate = dt.plus({ weeks: 1 }).toJSDate(); break;
       }
+      console.log("[ProjectTimesheet] Navigated to next period:", newDate);
+      return newDate;
     });
   };
 
@@ -394,6 +426,7 @@ const ProjectTimesheet = ({
         timezone: browserTimezone,
       };
       await dispatch(sendProjectTimesheet(params)).unwrap();
+      console.log("[ProjectTimesheet] Project timesheet report sent to:", email);
       setShowSendFilters(false); setEmail(''); setSelectedEmployee(''); setStartDate(null); setEndDate(null);
       dispatch(setAlert(`Project timesheet report sent successfully to ${email}`, 'success'));
     } catch (error) {
@@ -417,6 +450,7 @@ const ProjectTimesheet = ({
         timezone: browserTimezone,
       };
       const result = await dispatch(downloadProjectTimesheet(params)).unwrap();
+      console.log("[ProjectTimesheet] Project timesheet report downloaded:", result.filename);
       const blob = new Blob([result.blob], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
@@ -884,59 +918,67 @@ const ProjectTimesheet = ({
                                             const isLeaveEntry = entry.leaveType && entry.leaveType !== 'None';
                                             const totalHours = parseFloat(entry.totalHours) || 0;
                                             return (
-                                              <div key={entry._id} className="timesheet-entry-detail-inline">
-                                                <div className="inline-actions">
-                                                    <button
-                                                      className={`icon-btn edit-btn ${!canEditTimesheet(entry) ? 'disabled-btn' : ''}`}
-                                                      onClick={() => handleUpdate(entry)}
-                                                      title={canEditTimesheet(entry) ? "Edit Entry" : "Editing not allowed"}
-                                                    >
-                                                      <FontAwesomeIcon icon={faPen} />
-                                                    </button>
-                                                    <button className='icon-btn delete-btn' onClick={() => handleDeleteClick(entry._id)} title="Delete Entry"><FontAwesomeIcon icon={faTrash} /></button>
+                                              <div key={entry._id} className="day-detail-entry">
+                                                {entry.projectName && (
+                                                  <div className="detail-section">
+                                                    <span className="detail-label">PROJECT:</span>
+                                                    <span className="detail-value">{entry.projectName}</span>
+                                                  </div>
+                                                )}
+                                                <div className="detail-separator"></div>
+                                                <div className="detail-section total-hours-section">
+                                                  <span className="detail-label">TOTAL</span>
+                                                  <span className="detail-value bold">{formatHoursMinutes(totalHours)}</span>
                                                 </div>
-                                                <div className="detail-section"><span className="detail-label">EMPLOYEE:</span><span className="detail-value">{employeeGroup.name}</span></div>
-
-                                                {isLeaveEntry ? (
-                                                    <>
-                                                        <div className="detail-section total-hours-section"><span className="detail-label">TOTAL</span><span className="detail-value bold">{formatHoursMinutes(totalHours)}</span></div>
-                                                        <div className="detail-separator"></div>
-                                                        <div className="detail-section"><span className="detail-label">Leave Type:</span><span className="detail-value">{entry.leaveType}</span></div>
-                                                        {entry.description && (<div className="detail-section description-item"><span className="detail-label">Description:</span><span className="detail-value">{entry.description}</span></div>)}
-                                                    </>
-                                                ) : (
-                                                    <>
-                                                        <div className="detail-section"><span className="detail-label">CLIENT:</span><span className="detail-value">{entry.clientName || 'N/A'}</span></div>
-                                                        {entry.projectName && <div className="detail-section"><span className="detail-label">PROJECT:</span><span className="detail-value">{entry.projectName}</span></div>}
-                                                        <div className="detail-separator"></div>
-                                                        <div className="detail-section total-hours-section"><span className="detail-label">TOTAL</span><span className="detail-value bold">{formatHoursMinutes(totalHours)}</span></div>
-                                                        <div className="detail-separator"></div>
-                                                        {/* Display Start Time and Actual Creation Time */}
-                                                        {entry.startTime && (<>
-                                                               <div className="detail-section"><span className="detail-label work-time-label">Start:</span><span className="detail-value work-time-value">{formatTimeFromISO(entry.startTime, entryTimezone)}</span></div> {/* Corrected typo */}
-                                                         
-                                                          {entry.createdAt && <div className="detail-section sub-detail"><span className="detail-label actual-time-label">Actual Start:</span><span className="detail-value actual-time-value">{formatTimeFromISO(entry.createdAt, entryTimezone)}</span></div>}
-                                                        </>)}
-                                                        {/* Display End Time and Actual Update Time */}
-                                                        {entry.endTime && (<>
-                                                          <div className="detail-section"><span className="detail-label work-time-label">End:</span><span className="detail-value work-time-value">{formatTimeFromISO(entry.endTime, entryTimezone)}</span></div>
-                                                          {/* Show updatedAt if different, otherwise show createdAt if entry was completed in one go */}
-                                                          {entry.actualEndTime && <div className="detail-section sub-detail"><span className="detail-label actual-time-label">Actual End:</span><span className="detail-value actual-time-value">{formatTimeFromISO(entry.actualEndTime, entryTimezone)}</span></div>}
-                                                        </>)}
-                                                        <div className="detail-section"><span className="detail-label">Lunch:</span><span className="detail-value">{entry.lunchBreak === 'Yes' ? formatLunchDuration(entry.lunchDuration) : 'No break'}</span></div>
-                                                        {(user?.role === 'employer' || (user?.role === 'employee' && employerSettings?.timesheetHideWage === false)) && entry.hourlyWage != null && (
-                                                          <div className="detail-section">
-                                                            <span className="detail-label">Wage:</span>
-                                                            <span className="detail-value">{`$${parseFloat(entry.hourlyWage).toFixed(2)}/hr`}</span>
-                                                          </div>
-                                                        )}
-                                                        {entry.notes && entry.notes.trim() !== '' && (
-                                                            <>
-                                                                <div className="detail-separator"></div>
-                                                                <div className="detail-section"><span className="detail-label">Notes:</span><span className="detail-value">{entry.notes}</span></div>
-                                                            </>
-                                                        )}
-                                                    </>
+                                                <div className="detail-separator"></div>
+                                                {/* Display Start Time and Actual Creation Time */}
+                                                {entry.startTime && (
+                                                  <>
+                                                    <div className="detail-section">
+                                                      <span className="detail-label work-time-label">Start:</span>
+                                                      <span className="detail-value work-time-value">{formatTimeFromISO(entry.startTime, entryTimezone)}</span>
+                                                    </div>
+                                                    {entry.createdAt && (
+                                                      <div className="detail-section sub-detail">
+                                                        <span className="detail-label actual-time-label">Actual Start:</span>
+                                                        <span className="detail-value actual-time-value">{formatTimeFromISO(entry.createdAt, entryTimezone)}</span>
+                                                      </div>
+                                                    )}
+                                                  </>
+                                                )}
+                                                {/* Display End Time and Actual Update Time */}
+                                                {entry.endTime && (
+                                                  <>
+                                                    <div className="detail-section">
+                                                      <span className="detail-label work-time-label">End:</span>
+                                                      <span className="detail-value work-time-value">{formatTimeFromISO(entry.endTime, entryTimezone)}</span>
+                                                    </div>
+                                                    {entry.actualEndTime && (
+                                                      <div className="detail-section sub-detail">
+                                                        <span className="detail-label actual-time-label">Actual End:</span>
+                                                        <span className="detail-value actual-time-value">{formatTimeFromISO(entry.actualEndTime, entryTimezone)}</span>
+                                                      </div>
+                                                    )}
+                                                  </>
+                                                )}
+                                                <div className="detail-section">
+                                                  <span className="detail-label">Lunch:</span>
+                                                  <span className="detail-value">{entry.lunchBreak === 'Yes' ? formatLunchDuration(entry.lunchDuration) : 'No break'}</span>
+                                                </div>
+                                                {(user?.role === 'employer' || (user?.role === 'employee' && employerSettings?.timesheetHideWage === false)) && entry.hourlyWage != null && (
+                                                  <div className="detail-section">
+                                                    <span className="detail-label">Wage:</span>
+                                                    <span className="detail-value">{`$${parseFloat(entry.hourlyWage).toFixed(2)}/hr`}</span>
+                                                  </div>
+                                                )}
+                                                {entry.notes && entry.notes.trim() !== '' && (
+                                                  <>
+                                                    <div className="detail-separator"></div>
+                                                    <div className="detail-section">
+                                                      <span className="detail-label">Notes:</span>
+                                                      <span className="detail-value">{entry.notes}</span>
+                                                    </div>
+                                                  </>
                                                 )}
                                               </div>
                                             );

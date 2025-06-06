@@ -52,17 +52,21 @@ const CreateClient = () => {
 
   // Fetch or clear client data on mount/change
   useEffect(() => {
+    console.log("[CreateClient] useEffect: isEditing =", isEditing, "id =", id, "currentClientStatus =", currentClientStatus);
     if (isEditing) {
       if (id && (!currentClient || currentClient._id !== id) && currentClientStatus !== 'loading') {
+        console.log("[CreateClient] Fetching client by id:", id);
         dispatch(fetchClientById(id));
       }
     } else {
       dispatch(clearCurrentClient());
       setClientData(initialClientData);
+      console.log("[CreateClient] Creating new client, cleared current client.");
     }
     return () => {
       dispatch(clearCurrentClient());
       dispatch(clearClientError());
+      console.log("[CreateClient] Cleanup: cleared current client and errors.");
     };
   }, [id, isEditing, dispatch, initialClientData]);
 
@@ -70,6 +74,7 @@ const CreateClient = () => {
   useEffect(() => {
     const reduxError = currentClientError || saveError;
     if (reduxError) {
+      console.error("[CreateClient] Redux error:", reduxError);
       dispatch(setAlert(reduxError, 'danger'));
     }
   }, [currentClientError, saveError, dispatch]);
@@ -85,6 +90,7 @@ const CreateClient = () => {
         notes: currentClient.notes || '',
         isImportant: currentClient.isImportant || false,
       });
+      console.log("[CreateClient] Populated form for editing client:", currentClient);
     }
   }, [
     isEditing,
@@ -105,6 +111,7 @@ const CreateClient = () => {
       ...prev,
       [name]: type === "checkbox" ? checked : value,
     }));
+    console.log(`[CreateClient] Input changed: ${name} =`, type === "checkbox" ? checked : value);
   };
 
   // Simple form validation
@@ -131,6 +138,7 @@ const CreateClient = () => {
     const validationError = validateForm();
     if (validationError) {
       dispatch(setAlert(validationError, 'warning'));
+      console.warn("[CreateClient] Validation error:", validationError);
       return;
     }
     try {
@@ -140,11 +148,15 @@ const CreateClient = () => {
         if (phoneNumberParsed) {
           formattedPhoneNumber = phoneNumberParsed.format('E.164');
         }
-      } catch {}
+      } catch {
+        console.warn("[CreateClient] Phone number parse failed for:", clientData.phoneNumber, countryCode);
+      }
       if (isEditing) {
+        console.log("[CreateClient] Updating client:", id, clientData);
         await dispatch(updateClient({ id, clientData })).unwrap();
         dispatch(setAlert('Client updated successfully!', 'success'));
       } else {
+        console.log("[CreateClient] Creating client:", clientData);
         await dispatch(createClient(clientData)).unwrap();
         dispatch(setAlert('Client created successfully!', 'success'));
       }
@@ -152,6 +164,7 @@ const CreateClient = () => {
     } catch (err) {
       const errorMessage = err?.response?.data?.message || err?.message || `Failed to ${isEditing ? 'save' : 'create'} client.`;
       dispatch(setAlert(errorMessage, 'danger'));
+      console.error("[CreateClient] Submit error:", errorMessage);
     }
   };
 
@@ -166,6 +179,7 @@ const CreateClient = () => {
 
   // Show loading spinner
   if (isLoading) {
+    console.log("[CreateClient] Loading client data...");
     return (
       <div className='vehicles-page'>
         <div className='loading-indicator'>
@@ -217,7 +231,10 @@ const CreateClient = () => {
               <select
                 name="countryCode"
                 value={countryCode}
-                onChange={(e) => setCountryCode(e.target.value)}
+                onChange={(e) => {
+                  setCountryCode(e.target.value);
+                  console.log("[CreateClient] Country code changed:", e.target.value);
+                }}
                 className="country-code-select"
                 disabled={isLoading}
                 aria-label="Country Code"
@@ -253,7 +270,10 @@ const CreateClient = () => {
           </div>
           {/* Form buttons */}
           <div className="form-footer">
-            <button type="button" className="btn btn-danger" onClick={() => navigate("/clients")} disabled={isLoading}>
+            <button type="button" className="btn btn-danger" onClick={() => {
+              console.log("[CreateClient] Cancel button clicked, navigating to /clients");
+              navigate("/clients");
+            }} disabled={isLoading}>
               <FontAwesomeIcon icon={faTimes} /> Cancel
             </button>
             <button type="submit" className="btn btn-green" disabled={isLoading}>

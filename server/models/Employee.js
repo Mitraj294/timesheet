@@ -5,37 +5,38 @@ import VehicleReview from "./VehicleReview.js";
 import Schedule from "./Schedule.js"; 
 
 const EmployeeSchema = new mongoose.Schema({
-  name: { type: String, required: true },
-  employeeCode: { type: String, required: true, unique: true },
+  name: { type: String, required: true }, // Employee's name
+  employeeCode: { type: String, required: true, unique: true }, // Unique code for employee
   email: { type: String, required: true, unique: true },
-  isAdmin: { type: Boolean, default: false },
-  overtime: { type: Boolean, default: false },
-  expectedHours: { type: Number, default: 40 },
-  holidayMultiplier: { type: Number, default: 1.5 },
-  wage: { type: Number, required: true },
-  totalLeavesTaken: { type: Number, default: 0 },
-  // userId links this employee record to a User account (for login, etc.)
-  // unique:true and sparse:true means a User can only be linked to one Employee record,
-  // and null userId values are allowed and don't conflict for uniqueness.
+  isAdmin: { type: Boolean, default: false }, // Can this employee manage others?
+  overtime: { type: Boolean, default: false }, // Eligible for overtime?
+  expectedHours: { type: Number, default: 40 }, // Weekly expected hours
+  holidayMultiplier: { type: Number, default: 1.5 }, // Pay multiplier for holidays
+  wage: { type: Number, required: true }, // Hourly wage
+  totalLeavesTaken: { type: Number, default: 0 }, // Track leave days taken
+
+  // Links to User account (for login etc). Only one Employee per User.
   userId: { 
     type: mongoose.Schema.Types.ObjectId, 
     ref: 'User', 
     unique: true, 
-    sparse: true // Allows multiple documents to have a null userId
+    sparse: true // Allows multiple employees with no userId
   },
-  // employerId links this employee to their employer (which is also a User with role 'employer')
+
+  // Reference to employer (User with role 'employer')
   employerId: { 
     type: mongoose.Schema.Types.ObjectId, 
     ref: 'User', 
     required: true 
   },
-  // Field to control if this employee's timesheet actions trigger notifications to the employer
+
+  // Should this employee's actions trigger notifications to employer?
   receivesActionNotifications: {
     type: Boolean,
-    default: true // By default, employees will trigger notifications if employer has them enabled
+    default: true
   }
 });
 
-// No pre('remove') hook here for cascading deletes, as controllers will handle this explicitly.
+// No automatic cascading deletes; handled in controllers if needed.
 
 export default mongoose.model("Employee", EmployeeSchema);

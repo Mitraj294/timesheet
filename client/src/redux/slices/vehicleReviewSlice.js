@@ -46,6 +46,7 @@ export const createVehicleReview = createAsyncThunk(
     if (!token) return rejectWithValue('Authentication required.');
     if (!vehicleId) return rejectWithValue('Vehicle ID is required to add a review.');
     try {
+      // Only send reviewData as body, not wrapped in another object
       const response = await axios.post(`${API_URL}/vehicles/${vehicleId}/reviews`, reviewData, getAuthHeaders(token));
       return response.data;
     } catch (error) {

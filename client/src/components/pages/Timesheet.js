@@ -218,24 +218,55 @@ const Timesheet = () => {
   );
   const isDownloading = useMemo(() => timesheetDownloadStatus === 'loading', [timesheetDownloadStatus]);
   const isSending = useMemo(() => timesheetSendStatus === 'loading', [timesheetSendStatus]);
+  const isDeleting = useMemo(() => timesheetSendStatus === 'loading', [timesheetSendStatus]); // Assuming delete status is similar to send status
   const combinedError = useMemo(() =>
     employeeError || clientError || projectError || timesheetError,
     [employeeError, clientError, projectError, timesheetError]
   );
 
+  // Component lifecycle and action logs
+  useEffect(() => {
+    console.log("[Timesheet] Component mounted");
+    return () => {
+      console.log("[Timesheet] Component unmounted");
+    };
+  }, []);
+
   // Show alerts for errors
   useEffect(() => {
-    const reduxError = combinedError || timesheetDownloadError || timesheetSendError;
-    if (reduxError) dispatch(setAlert(reduxError, 'danger'));
+    if (combinedError) {
+      console.error("[Timesheet] Error:", combinedError);
+      dispatch(setAlert(combinedError, 'danger'));
+    }
+    if (timesheetDownloadError) {
+      console.error("[Timesheet] Download error:", timesheetDownloadError);
+      dispatch(setAlert(timesheetDownloadError, 'danger'));
+    }
+    if (timesheetSendError) {
+      console.error("[Timesheet] Send error:", timesheetSendError);
+      dispatch(setAlert(timesheetSendError, 'danger'));
+    }
   }, [combinedError, timesheetDownloadError, timesheetSendError, dispatch]);
 
   // Initial data fetch
   useEffect(() => {
     if (isAuthenticated) {
-      if (employeeStatus === 'idle') dispatch(fetchEmployees());
-      if (clientStatus === 'idle') dispatch(fetchClients());
-      if (projectStatus === 'idle') dispatch(fetchProjects());
-      if (settingsStatus === 'idle') dispatch(fetchEmployerSettings());
+      if (employeeStatus === 'idle') {
+        console.log("[Timesheet] Fetching employees...");
+        dispatch(fetchEmployees());
+      }
+      if (clientStatus === 'idle') {
+        console.log("[Timesheet] Fetching clients...");
+        dispatch(fetchClients());
+      }
+      if (projectStatus === 'idle') {
+        console.log("[Timesheet] Fetching projects...");
+        dispatch(fetchProjects());
+      }
+      if (settingsStatus === 'idle') {
+        console.log("[Timesheet] Fetching employer settings...");
+        dispatch(fetchEmployerSettings());
+      }
     }
   }, [dispatch, isAuthenticated, employeeStatus, clientStatus, projectStatus, settingsStatus]);
 
@@ -243,6 +274,7 @@ const Timesheet = () => {
   useEffect(() => {
     if (settingsStatus === 'succeeded' && employerSettings?.defaultTimesheetViewType) {
       setViewType(employerSettings.defaultTimesheetViewType);
+      console.log("[Timesheet] Set default view type from settings:", employerSettings.defaultTimesheetViewType);
     }
   }, [settingsStatus, employerSettings]);
 
@@ -253,14 +285,26 @@ const Timesheet = () => {
       const { start, end } = calculateDateRange(currentDate, viewType, startDaySetting);
       const startDateStr = DateTime.fromJSDate(start).toFormat('yyyy-MM-dd');
       const endDateStr = DateTime.fromJSDate(end).toFormat('yyyy-MM-dd');
+      console.log("[Timesheet] Fetching timesheets for:", { startDate: startDateStr, endDate: endDateStr });
       dispatch(fetchTimesheets({ startDate: startDateStr, endDate: endDateStr }));
     }
   }, [dispatch, isAuthenticated, currentDate, viewType, employerSettings?.timesheetStartDayOfWeek]);
 
   // UI handlers
-  const toggleExpand = (id) => setExpandedRows(prev => ({ ...prev, [id]: !prev[id] }));
-  const handleDeleteClick = (timesheetId) => { setItemToDelete({ id: timesheetId }); setShowDeleteConfirm(true); };
-  const cancelDelete = () => { setShowDeleteConfirm(false); setItemToDelete(null); };
+  const toggleExpand = (id) => {
+    setExpandedRows(prev => ({ ...prev, [id]: !prev[id] }));
+    console.log("[Timesheet] Toggled expand for employee:", id);
+  };
+  const handleDeleteClick = (timesheetId) => {
+    setItemToDelete({ id: timesheetId });
+    setShowDeleteConfirm(true);
+    console.log("[Timesheet] Request to delete timesheet:", timesheetId);
+  };
+  const cancelDelete = () => {
+    setShowDeleteConfirm(false);
+    setItemToDelete(null);
+    console.log("[Timesheet] Cancelled timesheet deletion");
+  };
 
   const canEditTimesheet = useCallback((timesheetEntry) => {
     if (user?.role === 'employer') return true;
@@ -277,6 +321,7 @@ const Timesheet = () => {
   const handleUpdate = (timesheetEntry) => {
     if (timesheetEntry && timesheetEntry._id) {
       if (canEditTimesheet(timesheetEntry)) {
+        console.log("[Timesheet] Navigating to edit timesheet:", timesheetEntry._id);
         navigate(`/timesheet/create/${timesheetEntry._id}`);
       } else {
         dispatch(setAlert("Editing of this timesheet is not allowed.", "warning"));
@@ -288,6 +333,7 @@ const Timesheet = () => {
 
   const confirmDeleteTimesheet = useCallback(async () => {
     if (!itemToDelete) return;
+    console.log("[Timesheet] Confirming delete for timesheet:", itemToDelete);
     const { id } = itemToDelete;
     dispatch(deleteTimesheet(id))
       .unwrap()
@@ -295,35 +341,43 @@ const Timesheet = () => {
         dispatch(setAlert('Timesheet entry deleted successfully', 'success'));
         setShowDeleteConfirm(false);
         setItemToDelete(null);
+        console.log("[Timesheet] Timesheet deleted:", itemToDelete);
       })
       .catch((err) => {
         dispatch(setAlert(`Error deleting timesheet: ${err}`, 'danger'));
+        console.error("[Timesheet] Failed to delete timesheet:", err);
       });
   }, [itemToDelete, dispatch]);
 
   const handlePrev = () => {
     setCurrentDate(prevDate => {
       let dt = DateTime.fromJSDate(prevDate);
+      let newDate;
       switch (viewType) {
-        case 'Daily': return dt.minus({ days: 1 }).toJSDate();
-        case 'Weekly': return dt.minus({ weeks: 1 }).toJSDate();
-        case 'Fortnightly': return dt.minus({ weeks: 2 }).toJSDate();
-        case 'Monthly': return dt.minus({ months: 1 }).toJSDate();
-        default: return dt.minus({ weeks: 1 }).toJSDate();
+        case 'Daily': newDate = dt.minus({ days: 1 }).toJSDate(); break;
+        case 'Weekly': newDate = dt.minus({ weeks: 1 }).toJSDate(); break;
+        case 'Fortnightly': newDate = dt.minus({ weeks: 2 }).toJSDate(); break;
+        case 'Monthly': newDate = dt.minus({ months: 1 }).toJSDate(); break;
+        default: newDate = dt.minus({ weeks: 1 }).toJSDate(); break;
       }
+      console.log("[Timesheet] Navigated to previous period:", newDate);
+      return newDate;
     });
   };
 
   const handleNext = () => {
     setCurrentDate(prevDate => {
       let dt = DateTime.fromJSDate(prevDate);
+      let newDate;
       switch (viewType) {
-        case 'Daily': return dt.plus({ days: 1 }).toJSDate();
-        case 'Weekly': return dt.plus({ weeks: 1 }).toJSDate();
-        case 'Fortnightly': return dt.plus({ weeks: 2 }).toJSDate();
-        case 'Monthly': return dt.plus({ months: 1 }).toJSDate();
-        default: return dt.plus({ weeks: 1 }).toJSDate();
+        case 'Daily': newDate = dt.plus({ days: 1 }).toJSDate(); break;
+        case 'Weekly': newDate = dt.plus({ weeks: 1 }).toJSDate(); break;
+        case 'Fortnightly': newDate = dt.plus({ weeks: 2 }).toJSDate(); break;
+        case 'Monthly': newDate = dt.plus({ months: 1 }).toJSDate(); break;
+        default: newDate = dt.plus({ weeks: 1 }).toJSDate(); break;
       }
+      console.log("[Timesheet] Navigated to next period:", newDate);
+      return newDate;
     });
   };
 
@@ -341,14 +395,18 @@ const Timesheet = () => {
       endDate: sendEndDate ? DateTime.fromJSDate(sendEndDate).toFormat('yyyy-MM-dd') : null,
       timezone: browserTimezone,
     };
+    console.log("[Timesheet] Sending timesheet report to:", sendEmail);
     dispatch(sendTimesheet(params))
       .unwrap()
       .then((result) => {
         setShowSendFilters(false);
         setSendEmail(''); setSendSelectedEmployee(''); setSendStartDate(null); setSendEndDate(null);
         dispatch(setAlert(`Timesheet report sent successfully to ${result.email}`, 'success'));
+        console.log("[Timesheet] Timesheet report sent.");
       })
-      .catch(() => {});
+      .catch((err) => {
+        console.error("[Timesheet] Failed to send timesheet report:", err);
+      });
   }, [sendEmail, sendSelectedEmployee, sendStartDate, sendEndDate, browserTimezone, dispatch]);
 
   const handleDownload = useCallback(async () => {
@@ -359,13 +417,16 @@ const Timesheet = () => {
       endDate: downloadEndDate ? DateTime.fromJSDate(downloadEndDate).toFormat('yyyy-MM-dd') : null,
       timezone: browserTimezone,
     };
+    console.log("[Timesheet] Downloading timesheet report...");
     dispatch(downloadTimesheet(params))
       .unwrap()
       .then((result) => {
         const url = window.URL.createObjectURL(result.blob);
         const link = document.createElement('a');
         link.href = url;
-        link.setAttribute('download', result.filename || 'timesheets_report.xlsx');
+        // Always use the backend-provided descriptive filename, fallback to a date-based name if missing
+        let fallbackFilename = 'Timesheet_Report_' + new Date().toISOString().slice(0,10) + '.xlsx';
+        link.setAttribute('download', result.filename || fallbackFilename);
         document.body.appendChild(link);
         link.click();
         link.remove();
@@ -373,8 +434,11 @@ const Timesheet = () => {
         setShowDownloadFilters(false);
         dispatch(setAlert('Timesheet report downloaded successfully.', 'success'));
         setDownloadSelectedEmployee(''); setDownloadStartDate(null); setDownloadEndDate(null);
+        console.log("[Timesheet] Timesheet report downloaded.");
       })
-      .catch(() => {});
+      .catch((err) => {
+        console.error("[Timesheet] Failed to download timesheet report:", err);
+      });
   }, [downloadSelectedEmployee, downloadStartDate, downloadEndDate, browserTimezone, dispatch]);
 
   const toggleSendReport = () => {
@@ -382,6 +446,7 @@ const Timesheet = () => {
     setShowDownloadFilters(false);
     dispatch(clearSendStatus());
     if (!showSendFilters) { setSendStartDate(null); setSendEndDate(null); }
+    console.log("[Timesheet] Toggled send report filter");
   };
 
   const toggleDownloadReport = () => {
@@ -389,6 +454,7 @@ const Timesheet = () => {
     setShowSendFilters(false);
     dispatch(clearDownloadStatus());
     if (!showDownloadFilters) { setDownloadStartDate(null); setDownloadEndDate(null); }
+    console.log("[Timesheet] Toggled download report filter");
   };
 
   const startDayOfWeekSetting = useMemo(() => employerSettings?.timesheetStartDayOfWeek || 'Monday', [employerSettings]);
@@ -676,7 +742,10 @@ const Timesheet = () => {
               />
               <DatePicker selected={sendStartDate} onChange={setSendStartDate} selectsStart startDate={sendStartDate} endDate={sendEndDate} placeholderText="From Date" dateFormat="yyyy-MM-dd" className="filter-datepicker" wrapperClassName="date-picker-wrapper" aria-label="Send Start Date" />
               <DatePicker selected={sendEndDate} onChange={setSendEndDate} selectsEnd startDate={sendStartDate} endDate={sendEndDate} minDate={sendStartDate} placeholderText="To Date" dateFormat="yyyy-MM-dd" className="filter-datepicker" wrapperClassName="date-picker-wrapper" aria-label="Send End Date" />
-              <input type="email" placeholder="Recipient email" value={sendEmail} onChange={e => { setSendEmail(e.target.value); }} className="filter-email" aria-label="Recipient Email" required />
+              <input type="email" placeholder="Recipient email" value={sendEmail} onChange={e => {
+                setSendEmail(e.target.value);
+                console.log("[Timesheet] Send email changed:", e.target.value);
+              }} className="filter-email" aria-label="Recipient Email" required />
               <button className="btn btn-purple action-button" onClick={handleSendEmail} disabled={isSending || !sendEmail || !/\S+@\S+\.\S+/.test(sendEmail)}>
                 {isSending ? (<><FontAwesomeIcon icon={faSpinner} spin /> Sending...</>) : (<><FontAwesomeIcon icon={faEnvelope} /> Send</>)}
               </button>
@@ -913,14 +982,14 @@ const Timesheet = () => {
 
       {/* Delete Confirmation Modal */}
       {showDeleteConfirm && itemToDelete && (
-          <div className="logout-confirm-overlay"> {/* Re-use styles */}
+          <div className="logout-confirm-overlay">
             <div className="logout-confirm-dialog">
               <h4>Confirm Timesheet Deletion</h4>
               <p>Are you sure you want to permanently delete this timesheet entry? This action cannot be undone.</p>
               <div className="logout-confirm-actions">
-                <button className="btn btn-secondary" onClick={cancelDelete} disabled={timesheetStatus === 'loading'}>Cancel</button>
-                <button className="btn btn-danger" onClick={confirmDeleteTimesheet} disabled={timesheetStatus === 'loading'}>
-                  {timesheetStatus === 'loading' ? <><FontAwesomeIcon icon={faSpinner} spin /> Deleting...</> : 'Delete Entry'}
+                <button className="btn btn-secondary" onClick={cancelDelete} disabled={isDeleting}>Cancel</button>
+                <button className="btn btn-danger" onClick={confirmDeleteTimesheet} disabled={isDeleting}>
+                  {isDeleting ? <><FontAwesomeIcon icon={faSpinner} spin /> Deleting...</> : 'Delete'}
                 </button>
               </div>
             </div>

@@ -11,17 +11,26 @@ import {
 import { protect, employerOnly } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
-// GET /api/clients/download - Download client-related timesheet data as an Excel file
-// This route should remain employerOnly if only employers can download all client data
+
+// Download all client data as Excel (employer only)
 router.get('/download', protect, employerOnly, downloadClients);
 
-// POST /api/clients/report/email - Send client timesheet report via email
+// Send client report via email (employer only)
 router.post('/report/email', protect, employerOnly, sendClientsReportEmail);
 
-router.post("/", protect, employerOnly, createClient); // Creating clients is employer-only
-router.get("/", protect, getClients); // Now accessible by authenticated users (employer/employee), controller handles scoping
-router.get("/:id", protect, getClientById); // Now accessible by authenticated users (employer/employee), controller handles scoping
-router.put("/:id", protect, employerOnly, updateClient); // Updating clients remains employer-only
-router.delete("/:id", protect, employerOnly, deleteClient); // Deleting clients is employer-only
+// Create a new client (employer only)
+router.post("/", protect, employerOnly, createClient);
+
+// Get all clients (any authenticated user, controller handles access)
+router.get("/", protect, getClients);
+
+// Get a single client by ID (any authenticated user, controller handles access)
+router.get("/:id", protect, getClientById);
+
+// Update a client (employer only)
+router.put("/:id", protect, employerOnly, updateClient);
+
+// Delete a client (employer only)
+router.delete("/:id", protect, employerOnly, deleteClient);
 
 export default router;

@@ -41,27 +41,39 @@ const Register = () => {
 
   // Clear errors on mount/unmount
   useEffect(() => {
+    console.log("[Register] Component mounted");
     dispatch(clearAuthError());
     dispatch(clearProspectiveEmployeeCheck());
-    return () => { dispatch(clearAuthError()); };
+    return () => { 
+      dispatch(clearAuthError());
+      console.log("[Register] Component unmounted");
+    };
   }, [dispatch]);
 
   // Redirect if registered
   useEffect(() => {
-    if (isAuthenticated) navigate("/dashboard");
+    if (isAuthenticated) {
+      console.log("[Register] User is authenticated, navigating to dashboard");
+      navigate("/dashboard");
+    }
   }, [isAuthenticated, navigate]);
 
   // Show alerts for errors
   useEffect(() => {
-    if (authApiError) dispatch(setAlert(authApiError, 'danger'));
+    if (authApiError) {
+      console.log("[Register] Auth API error:", authApiError);
+      dispatch(setAlert(authApiError, 'danger'));
+    }
   }, [authApiError, dispatch]);
 
   // Show alerts for employee check
   useEffect(() => {
     if (prospectiveEmployeeCheck.status === 'succeeded' && prospectiveEmployeeCheck.result && !prospectiveEmployeeCheck.result.canProceed) {
+      console.log("[Register] Prospective employee check: cannot proceed", prospectiveEmployeeCheck.result.message);
       dispatch(setAlert(prospectiveEmployeeCheck.result.message, 'warning'));
     } else if (prospectiveEmployeeCheck.status === 'failed' && prospectiveEmployeeCheck.error) {
       const errorMessage = typeof prospectiveEmployeeCheck.error === 'string' ? prospectiveEmployeeCheck.error : prospectiveEmployeeCheck.error?.message || 'Failed to verify email.';
+      console.log("[Register] Prospective employee check failed:", errorMessage);
       dispatch(setAlert(errorMessage, 'danger'));
     }
   }, [prospectiveEmployeeCheck, dispatch]);
@@ -70,8 +82,10 @@ const Register = () => {
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData({ ...formData, [name]: value });
+    console.log(`[Register] Changed ${name}:`, value);
     if (name === 'role' && step === 1 && value) {
       setStep(2);
+      console.log("[Register] Role selected:", value, "Moving to step 2");
       if (value === 'employee') {
         setInvitationFormData(prev => ({
           ...prev,
@@ -86,6 +100,7 @@ const Register = () => {
   const handleBack = () => {
     setStep(1);
     setFormData(prev => ({ ...prev, role: '' }));
+    console.log("[Register] Back to step 1 (role selection)");
   };
 
   // Register employer
@@ -93,32 +108,40 @@ const Register = () => {
     e.preventDefault();
     const { email, password, role } = formData;
     dispatch(clearAuthError());
+    console.log("[Register] Submitting registration for:", email, "as", role);
     if (role === 'employer' && password !== confirmPassword) {
       dispatch(setAlert('Passwords do not match', 'danger'));
+      console.log("[Register] Passwords do not match");
       return;
     }
     if (role === 'employer' && formData.phoneNumber) {
       try {
         if (!isValidPhoneNumber(formData.phoneNumber, countryCode)) {
           dispatch(setAlert(`Please enter a valid phone number for the selected country (${countryCode}).`, 'warning'));
+          console.log("[Register] Invalid phone number:", formData.phoneNumber, countryCode);
           return;
         }
       } catch (e) {
         dispatch(setAlert("Invalid phone number format.", 'warning'));
+        console.log("[Register] Invalid phone number format");
         return;
       }
     }
     try {
       await dispatch(register(formData)).unwrap();
+      console.log("[Register] Registration successful");
       dispatch(setAlert('Registration successful!', 'success'));
       try {
         await dispatch(login({ email, password })).unwrap();
+        console.log("[Register] Auto-login successful");
         dispatch(setAlert('Login successful!', 'success'));
       } catch (loginError) {
+        console.log("[Register] Auto-login failed:", loginError);
         dispatch(setAlert(loginError || 'Automatic login failed. Please log in manually.', 'warning'));
         navigate('/login', { state: { email } });
       }
     } catch (registerError) {
+      console.log("[Register] Registration failed:", registerError);
       dispatch(setAlert('Registration failed. Please try again.', 'danger'));
     }
   };
@@ -127,6 +150,7 @@ const Register = () => {
   const handleInvitationChange = (e) => {
     const { name, value } = e.target;
     setInvitationFormData({ ...invitationFormData, [name]: value });
+    console.log(`[Register] Invitation form changed ${name}:`, value);
   };
 
   // Check if employee email is already used
@@ -135,8 +159,10 @@ const Register = () => {
       if (!/\S+@\S+\.\S+/.test(invitationFormData.prospectiveEmployeeEmail)) {
         dispatch(setAlert('Invalid email format.', 'warning'));
         dispatch(clearProspectiveEmployeeCheck());
+        console.log("[Register] Invalid prospective employee email format");
         return;
       }
+      console.log("[Register] Checking prospective employee email:", invitationFormData.prospectiveEmployeeEmail);
       dispatch(checkProspectiveEmployee({ email: invitationFormData.prospectiveEmployeeEmail }));
     } else {
       dispatch(clearProspectiveEmployeeCheck());
@@ -148,16 +174,20 @@ const Register = () => {
     e.preventDefault();
     dispatch(clearAuthError());
     setIsSubmittingInvitation(true);
+    console.log("[Register] Submitting invitation request:", invitationFormData);
     try {
       if (prospectiveEmployeeCheck.result && !prospectiveEmployeeCheck.result.canProceed) {
         dispatch(setAlert(prospectiveEmployeeCheck.result.message || "Cannot proceed with this email. It's already associated with an active employee.", 'warning'));
         setIsSubmittingInvitation(false);
+        console.log("[Register] Cannot proceed with invitation:", prospectiveEmployeeCheck.result.message);
         return;
       }
       await dispatch(requestCompanyInvitation(invitationFormData)).unwrap();
       setInvitationFormData({ prospectiveEmployeeName: "", prospectiveEmployeeEmail: "", companyName: "", companyEmail: "" });
       setStep(1);
+      console.log("[Register] Invitation request sent successfully");
     } catch (error) {
+      console.log("[Register] Invitation request failed:", error);
       // Error alert handled by thunk
     } finally {
       setIsSubmittingInvitation(false);

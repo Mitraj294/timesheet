@@ -96,17 +96,23 @@ const TabletView = () => {
     setEmployeeFetchError(null);
     try {
       if (currentUser.role === 'employer') {
+        console.log("[TabletView] Fetching all employees...");
         const response = await axios.get(`/api/employees`);
         setEmployees(response.data || []);
+        console.log("[TabletView] Employees loaded:", response.data?.length);
       } else if (currentUser.role === 'employee') {
+        console.log("[TabletView] Fetching self employee record...");
         const response = await axios.get(`/api/employees/me`);
         setEmployees(response.data ? [response.data] : []);
+        console.log("[TabletView] Loaded self employee record.");
       } else {
         setEmployees([]);
+        console.warn("[TabletView] No valid user role for fetching employees.");
       }
-    } catch {
+    } catch (err) {
       setEmployeeFetchError("Failed to load employees. Please try again.");
       setEmployees([]);
+      console.error("[TabletView] Error fetching employees:", err);
     } finally {
       setIsLoadingEmployees(false);
     }
@@ -117,12 +123,14 @@ const TabletView = () => {
     if (isTabletViewUnlocked && currentUser?.id) {
       fetchEmployeesCallback();
       setInitialStatusChecked(false);
+      console.log("[TabletView] Tablet view unlocked, fetching employees...");
     }
   }, [isTabletViewUnlocked, currentUser?.id, fetchEmployeesCallback]);
 
   // Fetch employer settings if needed
   useEffect(() => {
     if (currentUser?.role === 'employer' && (!employerSettings || employerSettingsStatus === 'idle' || employerSettingsStatus === 'failed')) {
+      console.log("[TabletView] Fetching employer settings...");
       dispatch(fetchEmployerSettings());
     }
   }, [dispatch, currentUser, employerSettings, employerSettingsStatus]);
@@ -158,6 +166,7 @@ const TabletView = () => {
             if (checkAction.exists && checkAction.timesheet && !checkAction.timesheet.endTime) {
               if (employerSettings?.tabletViewRecordingType === 'Automatically Record') {
                 newActiveClockIns[emp._id] = { id: checkAction.timesheet._id, date: checkAction.timesheet.date };
+                console.log("[TabletView] Found active clock-in for:", emp.name);
               } else if (employerSettings?.tabletViewRecordingType === 'Manually Record') {
                 const localStartTime = DateTime.fromISO(checkAction.timesheet.startTime).setZone(userTimezone).toFormat('HH:mm');
                 newActiveManualEntries[emp._id] = {
@@ -167,9 +176,12 @@ const TabletView = () => {
                   lunchBreak: checkAction.timesheet.lunchBreak || 'No',
                   notes: checkAction.timesheet.notes || ''
                 };
+                console.log("[TabletView] Found active manual entry for:", emp.name);
               }
             }
-          } catch {}
+          } catch (err) {
+            console.warn("[TabletView] Error checking initial status for:", emp.name, err);
+          }
         }
         setActiveClockIns(prev => ({ ...prev, ...newActiveClockIns }));
         setActiveManualEntries(prev => ({ ...prev, ...newActiveManualEntries }));
@@ -203,6 +215,7 @@ const TabletView = () => {
       return;
     }
     try {
+      console.log("[TabletView] Verifying unlock password for user:", currentUser.email);
       const response = await axios.post('/api/auth/verify-password', {
         userId: currentUser.id,
         password: passwordInput,
@@ -215,6 +228,7 @@ const TabletView = () => {
       }
     } catch (error) {
       setPasswordError(error.response?.data?.message || 'An error occurred.');
+      console.error("[TabletView] Unlock password error:", error);
     } finally {
       setIsVerifyingPassword(false);
     }
@@ -234,6 +248,7 @@ const TabletView = () => {
       return;
     }
     try {
+      console.log("[TabletView] Verifying exit password for user:", currentUser.email);
       const response = await axios.post('/api/auth/verify-password', {
         userId: currentUser.id,
         password: exitPasswordInput
@@ -245,6 +260,7 @@ const TabletView = () => {
       }
     } catch (error) {
       setExitPasswordError(error.response?.data?.message || 'An error occurred.');
+      console.error("[TabletView] Exit password error:", error);
     } finally {
       setIsVerifyingExitPassword(false);
     }
@@ -304,16 +320,18 @@ const TabletView = () => {
                     notes: todayIncomplete.notes || ''
                 }
             }));
+            console.log("[TabletView] Found today's incomplete entry for:", employee.name);
         } else if (allIncomplete.length > 0) {
-            // There are older incomplete entries, but not for today
-            setOldestIncompleteEntry(allIncomplete[0]); // Assuming sorted by date, oldest first
+            setOldestIncompleteEntry(allIncomplete[0]);
             setShowOldIncompletePrompt(true);
-            return; // Stop here, let user decide on the prompt
+            console.log("[TabletView] Found old incomplete entry for:", employee.name, allIncomplete[0]);
+            return;
         }
         // If no incomplete entries at all, or if today's was found (and activeManualEntries updated), proceed
     } else {
         // Handle error fetching incomplete timesheets if necessary
         dispatch(setAlert('Could not check for incomplete entries. Proceeding with current day action.', 'warning'));
+        console.warn("[TabletView] Could not check for incomplete entries for:", employee.name);
     }
 
     // Proceed with password check or final action
@@ -347,6 +365,7 @@ const TabletView = () => {
     setEmployeePasswordError(null);
     setIsVerifyingEmployeePassword(true);
     try {
+      console.log("[TabletView] Verifying employee password for:", selectedEmployeeForAction?.name);
       const response = await axios.post('/api/auth/verify-password', {
         userId: actualUserId,
         password: employeePasswordInput,
@@ -359,6 +378,7 @@ const TabletView = () => {
       }
     } catch (error) {
       setEmployeePasswordError(error.response?.data?.message || 'An error occurred.');
+      console.error("[TabletView] Employee password error:", error);
     } finally {
       setIsVerifyingEmployeePassword(false);
     }
@@ -377,6 +397,7 @@ const TabletView = () => {
       const todayIncompleteManualEntry = activeManualEntries[employeeId];
 
       if (todayIncompleteManualEntry && todayIncompleteManualEntry.timesheetId && todayIncompleteManualEntry.date === todayDate) {
+        console.log("[TabletView] Completing today's manual entry for:", employee.name);
         // An incomplete entry for *TODAY* exists, pre-fill modal for completion
         setLogTimeData({
             startTime: todayIncompleteManualEntry.startTime,
@@ -393,11 +414,12 @@ const TabletView = () => {
           dispatch(clearCheckStatus());
           const checkAction = await dispatch(checkTimesheetExists({ employee: employeeId, date: todayDate })).unwrap();
           if (checkAction.exists && checkAction.timesheet && checkAction.timesheet.endTime) {
+             console.log("[TabletView] Already completed shift for today:", employee.name);
              dispatch(setAlert(`${employee.name} has already recorded a complete shift for today. You can edit it from the main timesheet page.`, 'info', 7000));
              return;
           }
         } catch (err) {
-          console.warn("Could not check for existing complete timesheet before starting new manual log:", err);
+          console.warn("[TabletView] Could not check for existing complete timesheet before starting new manual log:", err);
         }
 
         // Proceed to log a new entry for today
@@ -423,7 +445,8 @@ const TabletView = () => {
         const checkAction = await dispatch(checkTimesheetExists({ employee: employee._id, date: todayDate })).unwrap();
         if (checkAction.exists && checkAction.timesheet) {
           if (!checkAction.timesheet.endTime) {
-            setActiveClockIns(prev => ({ ...prev, [employee._id]: { id: checkAction.timesheet._id, date: checkAction.timesheet.date, isActiveStatus: checkAction.timesheet.isActiveStatus } })); // Store status
+            console.log("[TabletView] Already signed in:", employee.name);
+            setActiveClockIns(prev => ({ ...prev, [employee._id]: { id: checkAction.timesheet._id, date: checkAction.timesheet.date, isActiveStatus: checkAction.timesheet.isActiveStatus } }));
             setSignInSuccessMessage(`${employee.name} is already signed in.`);
             setShowSignInSuccessModal(true);
             setIsSubmittingLogTime(false);
@@ -469,17 +492,19 @@ const TabletView = () => {
         };
         const createdTimesheetAction = await dispatch(createTimesheet(timesheetPayload)).unwrap();
         if (createdTimesheetAction && createdTimesheetAction.data) {
-            setActiveClockIns(prev => ({
-                ...prev, // Keep existing active clock-ins
-                [employee._id]: { id: createdTimesheetAction.data._id, date: createdTimesheetAction.data.date }
-            }));
-            setSignInSuccessMessage(`${employee.name} signed in successfully at ${currentTimeStr}.`);
-            setShowSignInSuccessModal(true);
+          console.log("[TabletView] Signed in successfully:", employee.name);
+          setActiveClockIns(prev => ({
+              ...prev,
+              [employee._id]: { id: createdTimesheetAction.data._id, date: createdTimesheetAction.data.date }
+          }));
+          setSignInSuccessMessage(`${employee.name} signed in successfully at ${currentTimeStr}.`);
+          setShowSignInSuccessModal(true);
         } else {
-            dispatch(setAlert(`Sign in attempt for ${employee.name} did not return expected data.`, 'warning'));
+          dispatch(setAlert(`Sign in attempt for ${employee.name} did not return expected data.`, 'warning'));
+          console.warn("[TabletView] Sign in did not return expected data for:", employee.name);
         }
       } catch (error) {
-        console.error("Error during automatic sign-in (create timesheet):", error);
+        console.error("[TabletView] Error during automatic sign-in:", error);
         dispatch(setAlert(error.message || error || `Failed to sign in ${employee.name}.`, 'danger', 5000));
       } finally {
         setIsSubmittingLogTime(false);
@@ -516,17 +541,18 @@ const TabletView = () => {
             endLocation: endLocation, // Include end location
         };
         await dispatch(updateTimesheet({ id: timesheetIdToUpdate, timesheetData: updatePayload })).unwrap();
+        console.log("[TabletView] Signed out successfully:", currentEmployee?.name);
         setActiveClockIns(prev => {
-            const { [employeeId]: _, ...rest } = prev; // Remove the signed-out employee
-            return rest;
+          const { [employeeId]: _, ...rest } = prev; // Remove the signed-out employee
+          return rest;
         });
         dispatch(setAlert(`${currentEmployee?.name || 'Employee'} signed out successfully at ${currentTimeStr}.`, 'success', 4000));
     } catch (error) {
-        console.error("Error during sign-out (update timesheet):", error);
-        dispatch(setAlert(error.message || error || `Failed to sign out ${currentEmployee?.name || 'employee'}.`, 'danger', 5000));
+      console.error("[TabletView] Error during sign-out:", error);
+      dispatch(setAlert(error.message || error || `Failed to sign out ${currentEmployee?.name || 'employee'}.`, 'danger', 5000));
     } finally {
-        setIsSubmittingLogTime(false);
-        setSelectedEmployeeForAction(null);
+      setIsSubmittingLogTime(false);
+      setSelectedEmployeeForAction(null);
     }
   };
 
@@ -678,6 +704,7 @@ const TabletView = () => {
         };
         const createdAction = await dispatch(createTimesheet(timesheetPayload)).unwrap();
         if (createdAction && createdAction.data) {
+          console.log("[TabletView] Started new manual entry for:", selectedEmployeeForAction.name);
           const localStartTime = DateTime.fromISO(createdAction.data.startTime).setZone(userTimezone).toFormat('HH:mm');
           setActiveManualEntries(prev => ({
             ...prev,
@@ -717,6 +744,7 @@ const TabletView = () => {
           // should already have its startLocation if it was created with one.
 
           await dispatch(updateTimesheet({ id: timesheetIdToUpdate, timesheetData: timesheetPayload })).unwrap();
+          console.log("[TabletView] Completed manual entry for:", selectedEmployeeForAction.name);
           setActiveManualEntries(prev => {
             const newState = { ...prev };
             delete newState[employeeId];
@@ -745,6 +773,7 @@ const TabletView = () => {
           }
 
           await dispatch(createTimesheet(timesheetPayload)).unwrap();
+          console.log("[TabletView] Logged new complete manual entry for:", selectedEmployeeForAction.name);
           dispatch(setAlert(`Timesheet logged for ${selectedEmployeeForAction.name}.`, 'success', 3000));
         }
       }
@@ -754,7 +783,7 @@ const TabletView = () => {
       setLogTimeCalculatedHours('0.00');
 
     } catch (error) {
-      console.error("Error submitting log time:", error);
+      console.error("[TabletView] Error submitting log time:", error);
       const errorMessage = error.message || (error.response?.data?.message) || "Failed to log time.";
       setLogTimeError(errorMessage);
     } finally {

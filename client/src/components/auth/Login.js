@@ -23,12 +23,16 @@ const Login = () => {
   // Clear errors on mount/unmount
   useEffect(() => {
     dispatch(clearAuthError());
-    return () => { dispatch(clearAuthError()); };
+    return () => { 
+      dispatch(clearAuthError());
+    };
   }, [dispatch]);
 
   // Redirect if logged in
   useEffect(() => {
-    if (isAuthenticated) navigate("/dashboard");
+    if (isAuthenticated) {
+      navigate("/dashboard");
+    }
   }, [isAuthenticated, navigate]);
 
   // Show alerts for errors or password change
@@ -81,6 +85,7 @@ const Login = () => {
                 onChange={handleChange}
                 required
                 disabled={loading}
+                autoComplete="username"
               />
               <FontAwesomeIcon icon={faEnvelope} className="styles_InputIcon styles_InputIconRight" />
             </div>
@@ -97,6 +102,7 @@ const Login = () => {
                 onChange={handleChange}
                 required
                 disabled={loading}
+                autoComplete="current-password"
               />
               <button type="button" onClick={() => setShowPassword(!showPassword)} className="styles_PasswordToggleBtn" disabled={loading}>
                 <FontAwesomeIcon icon={showPassword ? faEyeSlash : faEye} className="styles_InputIcon styles_InputIconRight" />

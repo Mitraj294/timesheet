@@ -1,48 +1,51 @@
 import nodemailer from 'nodemailer';
-import dotenv from 'dotenv';
-dotenv.config();
 
-// Setup email transporter
+// Choose transporter based on environment
 let transporter;
-const emailPort = parseInt(process.env.EMAIL_PORT || '587', 10);
-const maxEmailConnections = parseInt(process.env.EMAIL_MAX_CONNECTIONS || '5', 10);
 
-if (process.env.EMAIL_HOST && process.env.EMAIL_USER && process.env.EMAIL_PASS) {
+if (process.env.NODE_ENV === 'development' && process.env.USE_ETHEREAL === 'true') {
+  // Ethereal for development/testing (set USE_ETHEREAL=true in .env to enable)
+  const testAccount = await nodemailer.createTestAccount();
   transporter = nodemailer.createTransport({
-    host: process.env.EMAIL_HOST,
-    port: emailPort,
-    secure: emailPort === 465,
+    host: 'smtp.ethereal.email',
+    port: 587,
+    auth: {
+      user: testAccount.user,
+      pass: testAccount.pass,
+    },
+  });
+  console.log('[emailService] Using Ethereal test account:', testAccount.user);
+} else {
+  // Gmail or other SMTP for production
+  transporter = nodemailer.createTransport({
+    service: 'gmail', // or your SMTP provider
     auth: {
       user: process.env.EMAIL_USER,
       pass: process.env.EMAIL_PASS,
     },
-    pool: true,
-    maxConnections: maxEmailConnections,
+    maxConnections: 3,
     connectionTimeout: 10000,
     greetingTimeout: 10000,
     socketTimeout: 10000,
   });
-} else {
-  console.warn('Email service not fully configured. Check .env.');
 }
 
-// Send a basic email
-const sendEmail = async (options) => {
-  if (!transporter) throw new Error('Email transporter not initialized.');
-  const mailOptions = {
-    from: process.env.EMAIL_FROM || '"Timesheet App" <noreply@example.com>',
-    to: options.to,
-    subject: options.subject,
-    text: options.text,
-    html: options.html,
-  };
+async function sendEmail({ to, subject, html, text }) {
   try {
-    return await transporter.sendMail(mailOptions);
-  } catch (error) {
-    console.error(`Error sending email to ${options.to}:`, error);
-    throw error;
+    await transporter.sendMail({
+      from: `"Timesheet App" <${process.env.EMAIL_USER || 'no-reply@example.com'}>`,
+      to,
+      subject,
+      html,
+      text,
+    });
+  } catch (err) {
+    console.error('[emailService] Failed to send email:', {
+      to, subject, error: err && err.message, stack: err && err.stack
+    });
+    throw err;
   }
-};
+}
 
 // Notify employee of new role assignment
 export const sendRoleAssignmentEmail = async (employee, roleName) => {
@@ -81,6 +84,7 @@ export const sendScheduleUpdateEmail = async (employee, updatedSchedule) => {
   const { date, startTime, endTime } = updatedSchedule;
   let dateStr = '';
   if (date) {
+    // Format date for email (uses luxon for formatting)
     const { DateTime } = require('luxon');
     dateStr = DateTime.fromJSDate(date).toLocal().toFormat('EEE, MMM d');
   }

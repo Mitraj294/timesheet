@@ -74,19 +74,44 @@ const NotificationSettingsSection = () => {
     }
   }, [employees]);
 
+  useEffect(() => {
+    console.log("[NotificationSettingsSection] Component mounted");
+    return () => {
+      console.log("[NotificationSettingsSection] Component unmounted");
+    };
+  }, []);
+
   // Handlers for form fields
-  const handleActionEmailChange = (e) => setActionNotificationEmail(e.target.value);
-  const handleDailyTimeChange = (day, time) => setDailyNotificationTimes(prev => ({
-    ...prev, [day.toLowerCase()]: time,
-  }));
-  const handleTimezoneChange = (e) => setSelectedTimezone(e.target.value);
-  const handleEmployeeToggleChange = (employeeId, value) => setEmployeeNotificationEnabled(prev => ({
-    ...prev, [employeeId]: value === 'true',
-  }));
+  const handleActionEmailChange = (e) => {
+    setActionNotificationEmail(e.target.value);
+    console.log("[NotificationSettingsSection] Changed actionNotificationEmail:", e.target.value);
+  };
+  const handleDailyTimeChange = (day, time) => {
+    setDailyNotificationTimes(prev => ({
+      ...prev, [day.toLowerCase()]: time,
+    }));
+    console.log(`[NotificationSettingsSection] Changed daily notification time for ${day}:`, time);
+  };
+  const handleTimezoneChange = (e) => {
+    setSelectedTimezone(e.target.value);
+    console.log("[NotificationSettingsSection] Changed timezone:", e.target.value);
+  };
+  const handleEmployeeToggleChange = (employeeId, value) => {
+    setEmployeeNotificationEnabled(prev => ({
+      ...prev, [employeeId]: value === 'true',
+    }));
+    console.log(`[NotificationSettingsSection] Changed notification for employee ${employeeId}:`, value);
+  };
 
   // Save settings
   const handleSubmit = async (e) => {
     e.preventDefault();
+    console.log("[NotificationSettingsSection] Submitting notification settings:", {
+      globalNotificationTimes: dailyNotificationTimes,
+      actionNotificationEmail,
+      timezone: selectedTimezone,
+      employeeNotificationEnabled
+    });
     const employerNotificationSettingsToSave = {
       globalNotificationTimes: dailyNotificationTimes,
       actionNotificationEmail: actionNotificationEmail,

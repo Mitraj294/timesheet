@@ -77,6 +77,7 @@ const Map = () => {
           dispatch(setAlert('Authentication error. Please log in.', 'danger'));
           return;
         }
+        console.log("[Map] Fetching employees...");
         const response = await fetch(`${API_URL}/employees`, {
           headers: {
             'Content-Type': 'application/json',
@@ -91,8 +92,10 @@ const Map = () => {
         }
         const data = await response.json();
         setEmployees(Array.isArray(data) ? data : []);
+        console.log("[Map] Employees loaded:", data.length);
       } catch (error) {
         setEmployees([]);
+        console.error("[Map] Error fetching employees:", error);
         dispatch(setAlert(`Error fetching employees: ${error.message}`, 'danger'));
       }
     };
@@ -127,6 +130,7 @@ const Map = () => {
         endDateStr = endDate.toLocaleDateString('en-US', options);
         setDateRange(`${startDateStr} - ${endDateStr}`);
       }
+      console.log("[Map] Updated date range:", viewType, dateRange);
     };
     updateDateRange();
   }, [viewType, currentDate, dispatch]);
@@ -278,15 +282,33 @@ const Map = () => {
 
         const newLocationData = groupTimesheetsForClustering(clientSideFilteredTimesheets);
         setLocationData(newLocationData);
-
-        if (newLocationData.length > 0) {
-          const lastLocation = newLocationData[0];
+        // Only count markers that will actually be shown on the map for the current period
+        let visibleMarkers = newLocationData;
+        if (viewType === 'Daily') {
+          const selectedDateStr = currentDate.toISOString().slice(0, 10);
+          visibleMarkers = newLocationData.filter(loc => {
+            if (!loc.timestamp) return false;
+            const d = new Date(loc.timestamp);
+            const locDateStr = d.toISOString().slice(0, 10);
+            return locDateStr === selectedDateStr;
+          });
+        } else {
+          const { startDate, endDate } = getQueryDateRange(currentDate, viewType);
+          visibleMarkers = newLocationData.filter(loc => {
+            if (!loc.timestamp) return false;
+            const d = new Date(loc.timestamp);
+            return d >= startDate && d <= endDate;
+          });
+        }
+        if (visibleMarkers.length > 0) {
+          const lastLocation = visibleMarkers[0];
           setMapCenter({ lat: lastLocation.lat, lng: lastLocation.lng });
-          dispatch(setAlert(`Showing ${newLocationData.length} location point(s) for selected period.`, 'info'));
+          dispatch(setAlert(`Showing ${visibleMarkers.length} location point(s) for selected period.`, 'info'));
         } else {
           dispatch(setAlert(`No location data found for selected criteria.`, 'warning'));
         }
       } catch (error) {
+        console.error("[Map] Error fetching location data:", error);
         dispatch(setAlert(`Error fetching location data: ${error.message}`, 'danger'));
         setLocationData([]);
       }
@@ -303,13 +325,17 @@ const Map = () => {
       if (data.latitude && data.longitude) {
         const lat = parseFloat(data.latitude);
         const lon = parseFloat(data.longitude);
-        if (!isNaN(lat) && !isNaN(lon)) return { latitude: lat, longitude: lon };
+        if (!isNaN(lat) && !isNaN(lon)) {
+          console.log("[Map] IP location fetched:", lat, lon);
+          return { latitude: lat, longitude: lon };
+        }
         throw new Error('Invalid latitude/longitude format from IP Geolocation API.');
       } else {
         throw new Error(data.message || 'Could not determine location from IP. API response missing lat/lon.');
       }
     } catch (error) {
       dispatch(setAlert(`Error getting network location: ${error.message}`, 'danger'));
+      console.error("[Map] Error getting IP location:", error);
       return null;
     }
   }, [dispatch]);
@@ -322,12 +348,14 @@ const Map = () => {
       }
       navigator.geolocation.getCurrentPosition(
         (position) => {
+          console.log("[Map] Device geolocation found:", position.coords.latitude, position.coords.longitude);
           resolve({
             latitude: position.coords.latitude,
             longitude: position.coords.longitude,
           });
         },
-        () => {
+        (err) => {
+          console.warn("[Map] Device geolocation error:", err);
           reject(new Error('Permission denied or unable to retrieve location.'));
         }
       );
@@ -337,6 +365,7 @@ const Map = () => {
   // Center map on user
   const handleLocateMe = useCallback(async () => {
     setIsLocating(true);
+    console.log("[Map] Locating user...");
     try {
       const deviceLocation = await fetchDeviceLocation();
       setMapCenter({ lat: deviceLocation.latitude, lng: deviceLocation.longitude });
@@ -345,13 +374,16 @@ const Map = () => {
       return;
     } catch (err) {
       dispatch(setAlert('Could not get precise device location, using network location.', 'warning'));
+      console.warn("[Map] Could not get device location, falling back to IP location.");
     }
     const ipLocation = await fetchIPLocation();
     if (ipLocation) {
+      console.log("[Map] Network IP location found!");
       setMapCenter({ lat: ipLocation.latitude, lng: ipLocation.longitude });
       dispatch(setAlert('Location based on your network IP found!', 'info'));
     } else {
       dispatch(setAlert('Could not determine your location.', 'danger'));
+      console.error("[Map] Could not determine user location.");
     }
     setIsLocating(false);
   }, [dispatch, fetchDeviceLocation, fetchIPLocation]);
@@ -367,17 +399,44 @@ const Map = () => {
       default: break;
     }
     setCurrentDate(newDate);
+    setLocationData([]);
+    console.log("[Map] Date adjusted:", newDate, "unit:", unit, "amount:", amount);
   }, [currentDate]);
 
   const handlePrevClick = useCallback(() => {
     const unitMap = { Daily: 'day', Weekly: 'week', Fortnightly: 'fortnight', Monthly: 'month' };
+    console.log("[Map] Previous button clicked. ViewType:", viewType);
     adjustDate(-1, unitMap[viewType]);
   }, [adjustDate, viewType]);
 
   const handleNextClick = useCallback(() => {
     const unitMap = { Daily: 'day', Weekly: 'week', Fortnightly: 'fortnight', Monthly: 'month' };
+    console.log("[Map] Next button clicked. ViewType:", viewType);
     adjustDate(1, unitMap[viewType]);
   }, [adjustDate, viewType]);
+
+  // Filter locationData for map markers based on viewType and currentDate
+  const filteredLocationData = React.useMemo(() => {
+    if (!currentDate || !locationData.length) return [];
+    if (viewType === 'Daily') {
+      // Only show markers for the selected day
+      const selectedDateStr = currentDate.toISOString().slice(0, 10); // 'YYYY-MM-DD'
+      return locationData.filter(loc => {
+        if (!loc.timestamp) return false;
+        const d = new Date(loc.timestamp);
+        const locDateStr = d.toISOString().slice(0, 10);
+        return locDateStr === selectedDateStr;
+      });
+    } else {
+      // For Weekly, Fortnightly, Monthly: show markers within the calculated date range
+      const { startDate, endDate } = getQueryDateRange(currentDate, viewType);
+      return locationData.filter(loc => {
+        if (!loc.timestamp) return false;
+        const d = new Date(loc.timestamp);
+        return d >= startDate && d <= endDate;
+      });
+    }
+  }, [locationData, viewType, currentDate, getQueryDateRange]);
 
   // Helper to move map center
   const ChangeMapCenter = ({ center }) => {
@@ -393,16 +452,19 @@ const Map = () => {
   return (
     <div className='map-container'>
       <Alert />
-      <div className='employees-header'>
-        <h1>
-          <FontAwesomeIcon icon={faMap} /> Map
-        </h1>
+
+      {/* Heading and breadcrumb for Map page, matching other pages */}
+      <div className="ts-page-header__main-content">
+        <h3 className="ts-page-header__title">
+          <FontAwesomeIcon icon={faMap} className="ts-page-header__title-icon" /> Map
+        </h3>
+        <div className="ts-page-header__breadcrumbs">
+          <Link to="/dashboard" className="ts-page-header__breadcrumb-link">Dashboard</Link>
+          <span className="ts-page-header__breadcrumb-separator"> / </span>
+          <span className="ts-page-header__breadcrumb-current">Map</span>
+        </div>
       </div>
-      <div className='breadcrumb'>
-        <Link to='/dashboard' className='breadcrumb-link'>Dashboard</Link>
-        <span> / </span>
-        <span>Map</span>
-      </div>
+
       <div className='date-range'>
         <h3>{dateRange}</h3>
       </div>
@@ -412,7 +474,10 @@ const Map = () => {
         </button>
         <div className='select-container'>
           <label htmlFor='viewType' className='visually-hidden'>View Type</label>
-          <select id='viewType' value={viewType} onChange={(e) => setViewType(e.target.value)} aria-label="Select time period view type">
+          <select id='viewType' value={viewType} onChange={(e) => {
+            setViewType(e.target.value);
+            console.log("[Map] ViewType changed:", e.target.value);
+          }} aria-label="Select time period view type">
             <option value='Daily'>Daily</option>
             <option value='Weekly'>Weekly</option>
             <option value='Fortnightly'>Fortnightly</option>
@@ -452,7 +517,10 @@ const Map = () => {
             <select
               id='employee'
               value={selectedEmployeeId}
-              onChange={(e) => setSelectedEmployeeId(e.target.value)}
+              onChange={(e) => {
+                setSelectedEmployeeId(e.target.value);
+                console.log("[Map] Employee filter changed:", e.target.value);
+              }}
               aria-label="Select employee to view"
             >
               <option value='All'>All Employees</option>
@@ -488,7 +556,7 @@ const Map = () => {
           url='https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'
         />
         <MarkerClusterGroup>
-          {locationData
+          {filteredLocationData
             .filter(loc => {
               if (loc.type === 'Start Location') return showStartLocation;
               if (loc.type === 'End Location') return showEndLocation;

@@ -155,6 +155,7 @@ const clientSlice = createSlice({
       .addCase(fetchClients.rejected, (state, action) => {
         state.status = 'failed';
         state.error = action.payload;
+        console.error("[clientSlice] Fetch clients error:", action.payload);
       })
       .addCase(fetchClientById.pending, (state) => {
         state.currentClientStatus = 'loading';
@@ -168,39 +169,38 @@ const clientSlice = createSlice({
       .addCase(fetchClientById.rejected, (state, action) => {
         state.currentClientStatus = 'failed';
         state.currentClientError = action.payload;
+        console.error("[clientSlice] Fetch client by ID error:", action.payload);
       })
       .addCase(createClient.pending, (state) => { state.status = 'loading'; state.error = null; })
       .addCase(createClient.fulfilled, (state, action) => { state.status = 'succeeded'; state.clients.push(action.payload); })
-      .addCase(createClient.rejected, (state, action) => { state.status = 'failed'; state.error = action.payload; })
+      .addCase(createClient.rejected, (state, action) => { state.status = 'failed'; state.error = action.payload; console.error("[clientSlice] Create client error:", action.payload); })
       .addCase(updateClient.pending, (state) => { state.status = 'loading'; state.error = null; })
       .addCase(updateClient.fulfilled, (state, action) => {
         state.status = 'succeeded';
         const index = state.clients.findIndex(c => c._id === action.payload._id);
         if (index !== -1) state.clients[index] = action.payload;
       })
-      .addCase(updateClient.rejected, (state, action) => { state.status = 'failed'; state.error = action.payload; })
-      .addCase(deleteClient.pending, (state) => {
-        state.deleteStatus = 'loading';
-        state.error = null;
-      })
-      .addCase(deleteClient.fulfilled, (state, action) => {
-        state.deleteStatus = 'succeeded';
-        state.clients = state.clients.filter(client => client._id !== action.payload);
-      })
+      .addCase(updateClient.rejected, (state, action) => { state.status = 'failed'; state.error = action.payload; console.error("[clientSlice] Update client error:", action.payload); })
+      .addCase(deleteClient.pending, (state) => { console.log("[clientSlice] Deleting client..."); })
+      .addCase(deleteClient.fulfilled, (state, action) => { console.log("[clientSlice] Client deleted."); })
       .addCase(deleteClient.rejected, (state, action) => {
         state.deleteStatus = 'failed';
         state.error = action.payload;
+        console.error("[clientSlice] Delete client error:", action.payload);
       })
       .addCase(downloadClients.pending, (state) => {
         state.downloadStatus = 'loading';
         state.downloadError = null;
+        console.log("[clientSlice] Downloading clients...");
       })
       .addCase(downloadClients.fulfilled, (state) => {
         state.downloadStatus = 'succeeded';
+        console.log("[clientSlice] Clients downloaded.");
       })
       .addCase(downloadClients.rejected, (state, action) => {
         state.downloadStatus = 'failed';
         state.downloadError = action.payload;
+        console.error("[clientSlice] Download clients error:", action.payload);
       });
   },
 });

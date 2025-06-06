@@ -53,6 +53,13 @@ const TimesheetSettingsSection = () => {
     }
   }, [currentSettings]);
 
+  useEffect(() => {
+    console.log("[TimesheetSettingsSection] Component mounted");
+    return () => {
+      console.log("[TimesheetSettingsSection] Component unmounted");
+    };
+  }, []);
+
   // Handle form field changes
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -60,6 +67,7 @@ const TimesheetSettingsSection = () => {
       ...prev,
       [name]: type === 'checkbox' ? checked : value,
     }));
+    console.log(`[TimesheetSettingsSection] Changed ${name}:`, type === 'checkbox' ? checked : value);
   };
 
   // Handle multi-select for report columns
@@ -68,11 +76,13 @@ const TimesheetSettingsSection = () => {
       ...prev,
       reportColumns: selectedOptions ? selectedOptions.map(option => option.value) : [],
     }));
+    console.log("[TimesheetSettingsSection] Changed reportColumns:", selectedOptions ? selectedOptions.map(option => option.value) : []);
   };
 
   // Save settings
   const handleSubmit = async (e) => {
     e.preventDefault();
+    console.log("[TimesheetSettingsSection] Submitting timesheet settings:", formData);
     try {
       await dispatch(updateEmployerSettings(formData)).unwrap();
       dispatch(setAlert('Timesheet settings updated successfully!', 'success'));

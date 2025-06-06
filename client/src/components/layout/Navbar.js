@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useSidebar } from "../../context/SidebarContext";
@@ -37,11 +36,13 @@ const Navbar = () => {
   const handleLogoutClick = () => {
     setIsDropdownOpen(false);
     setShowLogoutConfirm(true);
+    console.log("[Navbar] Logout button clicked, showing confirmation dialog");
   };
 
   // Confirm logout
   const confirmLogoutAction = () => {
     setIsLoggingOut(true);
+    console.log("[Navbar] Confirming logout");
     dispatch(logout());
     dispatch(setAlert('Logout successful!', 'success'));
     navigate("/login");
@@ -52,17 +53,21 @@ const Navbar = () => {
   const cancelLogout = () => {
     setShowLogoutConfirm(false);
     setIsLoggingOut(false);
+    console.log("[Navbar] Logout cancelled");
   };
 
   // Close dropdown if clicked outside
   useEffect(() => {
+    console.log("[Navbar] Component mounted");
     const handleClickOutside = (event) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
         setIsDropdownOpen(false);
       }
     };
     document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
   }, []);
 
   return (
@@ -72,7 +77,14 @@ const Navbar = () => {
         {/* Sidebar toggle button, hidden if tablet view is unlocked */}
         {!isTabletViewUnlocked && (
           <div className="navbar-section">
-            <button className="navbar-icon-button menu-button" onClick={toggleSidebar} aria-label="Toggle Sidebar">
+            <button
+              className="navbar-icon-button menu-button"
+              onClick={() => {
+                toggleSidebar();
+                console.log("[Navbar] Sidebar toggle button clicked");
+              }}
+              aria-label="Toggle Sidebar"
+            >
               <FontAwesomeIcon icon={faBars} />
             </button>
           </div>
@@ -91,18 +103,36 @@ const Navbar = () => {
         {/* User dropdown menu */}
         {!isTabletViewUnlocked && user && (
           <div className="navbar-section navbar-user-nav" ref={dropdownRef}>
-            <button className="navbar-user-button" onClick={() => setIsDropdownOpen(!isDropdownOpen)} aria-haspopup="true" aria-expanded={isDropdownOpen}>
+            <button
+              className="navbar-user-button"
+              onClick={() => {
+                setIsDropdownOpen(!isDropdownOpen);
+                console.log("[Navbar] User dropdown toggled:", !isDropdownOpen);
+              }}
+              aria-haspopup="true"
+              aria-expanded={isDropdownOpen}
+            >
               <FontAwesomeIcon icon={faUserCircle} className="navbar-user-avatar-icon" />
               <span className="navbar-user-name">{userName}</span>
               <FontAwesomeIcon icon={faCaretDown} className="navbar-user-caret" />
             </button>
             {isDropdownOpen && (
               <div className="navbar-user-dropdown">
-                <Link to="/settings" className="navbar-dropdown-link" onClick={() => setIsDropdownOpen(false)}>
+                <Link
+                  to="/settings"
+                  className="navbar-dropdown-link"
+                  onClick={() => {
+                    setIsDropdownOpen(false);
+                    console.log("[Navbar] Navigating to settings from dropdown");
+                  }}
+                >
                   <FontAwesomeIcon icon={faCog} className="navbar-dropdown-icon" />
                   Settings
                 </Link>
-                <button className="navbar-dropdown-link logout-button" onClick={handleLogoutClick}>
+                <button
+                  className="navbar-dropdown-link logout-button"
+                  onClick={handleLogoutClick}
+                >
                   <FontAwesomeIcon icon={faSignOutAlt} className="navbar-dropdown-icon" />
                   Logout
                 </button>

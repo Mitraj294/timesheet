@@ -20,18 +20,22 @@ const EmployerDetailsSection = () => {
     // Fetch employee data if needed
     useEffect(() => {
         if (user?.role === 'employee' && !employee && employeeStatus === 'idle') {
+            console.log("[EmployerDetailsSection] Fetching employees for employee details...");
             dispatch(fetchEmployees());
         }
     }, [dispatch, user, employee, employeeStatus]);
 
     // Check if employer details are available
     const employerDetailsAvailable = useMemo(() => {
-        return user?.role === 'employee' && employee?.employerId && typeof employee.employerId === 'object';
+        const available = user?.role === 'employee' && employee?.employerId && typeof employee.employerId === 'object';
+        console.log("[EmployerDetailsSection] employerDetailsAvailable:", available, "employee:", employee);
+        return available;
     }, [user, employee]);
 
     const isLoading = employeeStatus === 'loading' && !employee;
 
     if (isLoading) {
+        console.log("[EmployerDetailsSection] Loading employer details...");
         return (
             <div className='loading-indicator-container'>
                 <div className='loading-indicator'>
@@ -43,6 +47,7 @@ const EmployerDetailsSection = () => {
     }
 
     if (!employerDetailsAvailable) {
+        console.warn("[EmployerDetailsSection] Employer details not available for user:", user, "employee:", employee);
         return (
             <div className='error-container'>
                 <Alert />
@@ -65,6 +70,7 @@ const EmployerDetailsSection = () => {
 
     // Employer details available
     const employer = employee.employerId;
+    console.log("[EmployerDetailsSection] Displaying employer details:", employer);
 
     return (
         <div className="settings-section form-container">

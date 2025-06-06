@@ -37,7 +37,11 @@ const Employees = () => {
     const handleResize = () => setIsSmallScreen(window.innerWidth < 768);
     window.addEventListener('resize', handleResize);
     handleResize();
-    return () => window.removeEventListener('resize', handleResize);
+    console.log("[Employees] Component mounted");
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      console.log("[Employees] Component unmounted");
+    };
   }, []);
 
   // Redux selectors
@@ -51,31 +55,44 @@ const Employees = () => {
     if (isAuthLoading) return;
     if (!token) return;
     if (employeeStatus === 'idle') {
+      console.log("[Employees] Fetching employees...");
       dispatch(fetchEmployees());
     }
   }, [dispatch, employeeStatus, token, isAuthLoading]);
 
   // Show error alerts
   useEffect(() => {
-    if (error) dispatch(setAlert(error, 'danger'));
+    if (error) {
+      console.error("[Employees] Error:", error);
+      dispatch(setAlert(error, 'danger'));
+    }
   }, [error, dispatch]);
 
   // Delete handlers
   const handleDeleteClick = (id, name) => {
     setItemToDelete({ id, name });
     setShowDeleteConfirm(true);
+    console.log(`[Employees] Request to delete employee: ${name} (${id})`);
   };
   const cancelDelete = () => {
     setShowDeleteConfirm(false);
     setItemToDelete(null);
+    console.log("[Employees] Cancelled employee deletion");
   };
   const confirmDeleteEmployee = useCallback(async () => {
     if (!itemToDelete) return;
     const { id, name } = itemToDelete;
+    console.log(`[Employees] Confirming delete for employee: ${name} (${id})`);
     dispatch(deleteEmployee(id))
       .unwrap()
-      .then(() => dispatch(setAlert(`Employee "${name}" deleted successfully.`, 'success')))
-      .catch((err) => dispatch(setAlert(err?.message || `Failed to delete employee "${name}".`, 'danger')));
+      .then(() => {
+        dispatch(setAlert(`Employee "${name}" deleted successfully.`, 'success'));
+        console.log(`[Employees] Employee "${name}" deleted.`);
+      })
+      .catch((err) => {
+        dispatch(setAlert(err?.message || `Failed to delete employee "${name}".`, 'danger'));
+        console.error(`[Employees] Failed to delete employee "${name}":`, err);
+      });
     setShowDeleteConfirm(false);
     setItemToDelete(null);
   }, [itemToDelete, dispatch]);
@@ -128,7 +145,10 @@ const Employees = () => {
           {user?.role === 'employer' && (
             <button
               className='btn btn-green'
-              onClick={() => navigate('/employees/add')}
+              onClick={() => {
+                console.log("[Employees] Navigating to add employee page");
+                navigate('/employees/add');
+              }}
               disabled={showLoading}
             >
               <FontAwesomeIcon icon={faPlus} /> Add Employee
@@ -142,7 +162,10 @@ const Employees = () => {
           type='text'
           placeholder='Search by Name, Code, or Email...'
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          onChange={(e) => {
+            setSearch(e.target.value);
+            console.log("[Employees] Search changed:", e.target.value);
+          }}
           aria-label='Search Employees'
           disabled={showLoading}
         />
@@ -188,7 +211,10 @@ const Employees = () => {
                   <div className="grid-cell actions-cell" style={getEmployeeCellStyle(i, 'actions')} data-label='Actions'>
                     <button
                       className='btn-icon btn-icon-yellow'
-                      onClick={() => navigate(`/employees/edit/${emp._id}`)}
+                      onClick={() => {
+                        console.log(`[Employees] Navigating to edit employee: ${emp._id}`);
+                        navigate(`/employees/edit/${emp._id}`);
+                      }}
                       aria-label={`Edit ${emp.name}`}
                       title={`Edit ${emp.name}`}
                     >
@@ -219,7 +245,7 @@ const Employees = () => {
             <div className="logout-confirm-actions">
               <button className="btn btn-secondary" onClick={cancelDelete} disabled={employeeStatus === 'loading'}>Cancel</button>
               <button className="btn btn-danger" onClick={confirmDeleteEmployee} disabled={employeeStatus === 'loading'}>
-                {employeeStatus === 'loading' ? <><FontAwesomeIcon icon={faSpinner} spin /> Deleting...</> : 'Delete Employee'}
+                {employeeStatus === 'loading' ? <><FontAwesomeIcon icon={faSpinner} spin /> Deleting...</> : 'Delete'}
               </button>
             </div>
           </div>

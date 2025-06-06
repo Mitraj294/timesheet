@@ -55,11 +55,12 @@ export const downloadTimesheet = createAsyncThunk(
       const body = { employeeIds, startDate, endDate, timezone };
       const response = await axios.post(`${API_URL}/timesheets/download`, body, config);
       const contentDisposition = response.headers['content-disposition'];
-      let filename = `timesheets_report.xlsx`;
+      let filename = null;
       if (contentDisposition) {
         const filenameMatch = contentDisposition.match(/filename\*?=['"]?(?:UTF-\d['"]*)?([^;\r\n"']*)['"]?;?/i);
         if (filenameMatch && filenameMatch[1]) filename = decodeURIComponent(filenameMatch[1]);
       }
+      // Do not fallback to 'timesheets_report.xlsx', let frontend handle fallback
       return { blob: response.data, filename };
     } catch (error) {
       if (error.response?.data instanceof Blob && error.response?.data.type.includes('json')) {
@@ -269,35 +270,45 @@ const timesheetSlice = createSlice({
     clearProjectSendStatus: (state) => {
       state.projectSendStatus = 'idle';
       state.projectSendError = null;
+      console.log("[timesheetSlice] Cleared project send status.");
     },
     clearSendStatus: (state) => {
       state.sendStatus = 'idle';
       state.sendError = null;
+      console.log("[timesheetSlice] Cleared send status.");
     },
     clearCheckStatus: (state) => {
       state.checkStatus = 'idle';
       state.checkError = null;
       state.checkResult = null;
+      console.log("[timesheetSlice] Cleared check status.");
     },
     clearIncompleteStatus: (state) => {
       state.incompleteStatus = 'idle';
       state.incompleteError = null;
       state.incompleteTimesheets = [];
+      console.log("[timesheetSlice] Cleared incomplete status.");
     },
     clearCreateStatus: (state) => {
       state.createStatus = 'idle';
       state.createError = null;
+      console.log("[timesheetSlice] Cleared create status.");
     },
     clearUpdateStatus: (state) => {
       state.updateStatus = 'idle';
       state.updateError = null;
+      console.log("[timesheetSlice] Cleared update status.");
     },
     clearCurrentTimesheet: (state) => {
       state.currentTimesheet = null;
       state.currentTimesheetStatus = 'idle';
       state.currentTimesheetError = null;
+      console.log("[timesheetSlice] Cleared current timesheet.");
     },
-    clearTimesheets: () => initialState,
+    clearTimesheets: () => {
+      console.log("[timesheetSlice] Cleared all timesheets.");
+      return initialState;
+    },
   },
   extraReducers: (builder) => {
     builder

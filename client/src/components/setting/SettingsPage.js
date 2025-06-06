@@ -58,9 +58,17 @@ const SettingsPage = () => {
   }, [user]);
   const [activeSection, setActiveSection] = useState(initialActiveSection);
 
+  useEffect(() => {
+    console.log("[SettingsPage] Component mounted");
+    return () => {
+      console.log("[SettingsPage] Component unmounted");
+    };
+  }, []);
+
   // Fetch employer settings if needed
   useEffect(() => {
     if (user?.role === 'employer' && settingsStatus === 'idle') {
+      console.log("[SettingsPage] Fetching employer settings");
       dispatch(fetchEmployerSettings());
     }
   }, [user, settingsStatus, dispatch]);
@@ -75,8 +83,10 @@ const SettingsPage = () => {
           const config = { headers: { 'Authorization': `Bearer ${token}` } };
           const res = await axios.get(`${API_BASE_URL}/auth/invitations/pending`, config);
           setPendingInvitationsCount(res.data.length);
-        } catch {
+          console.log("[SettingsPage] Pending invitations count:", res.data.length);
+        } catch (err) {
           setPendingInvitationsCount(0);
+          console.log("[SettingsPage] Failed to fetch pending invitations count");
         }
       } else {
         setPendingInvitationsCount(0);
@@ -123,8 +133,10 @@ const SettingsPage = () => {
   useEffect(() => {
     if (menuItems.length > 0 && !menuItems.find(item => item.key === activeSection)) {
       setActiveSection(menuItems[0].key);
+      console.log("[SettingsPage] Active section reset to:", menuItems[0].key);
     } else if (menuItems.length === 0 && activeSection !== null) {
       setActiveSection(null);
+      console.log("[SettingsPage] No menu items, active section set to null");
     }
   }, [menuItems, activeSection]);
 
@@ -164,7 +176,10 @@ const SettingsPage = () => {
               <li
                 key={item.key}
                 className={`settings-menu-item ${activeSection === item.key ? 'active' : ''}`}
-                onClick={() => setActiveSection(item.key)}
+                onClick={() => {
+                  setActiveSection(item.key);
+                  console.log("[SettingsPage] Section changed to:", item.key);
+                }}
               >
                 <FontAwesomeIcon icon={item.icon} className="menu-item-icon" />
                 <span>{item.label}</span>

@@ -1,35 +1,27 @@
 import Schedule from '../models/Schedule.js';
-import Employee from '../models/Employee.js'; // For fetching employerId for employee users
+import Employee from '../models/Employee.js';
 import mongoose from 'mongoose';
 import { DateTime } from 'luxon';
-import sendEmail, { sendScheduleAssignmentEmail, sendScheduleUpdateEmail } from '../services/emailService.js'; // Import the email utility
+import sendEmail, { sendScheduleAssignmentEmail, sendScheduleUpdateEmail } from '../services/emailService.js';
 
-// @desc    Create schedules in bulk
-// @route   POST /api/schedules/bulk
-// @access  Private (Employer)
+// Create schedules in bulk (employer only)
 export const createBulkSchedules = async (req, res) => {
   try {
     const schedules = req.body;
-    const employerId = req.user._id; // Get employerId from authenticated user
-
+    const employerId = req.user._id;
     if (!Array.isArray(schedules) || schedules.length === 0) {
       return res.status(400).json({ message: 'No schedules provided' });
     }
-
+    // Prepare schedules for DB
     const schedulesToSave = schedules.map((sch) => {
-      // Validate required fields from client payload for each schedule
       if (!sch.startTime || !sch.endTime || !sch.date || !sch.employee) {
-        // Log the problematic schedule object for easier debugging
         console.error('Missing required fields in schedule object:', sch);
-        // Throw an error that will be caught and result in a 400 or 500 response
         throw new Error(`Missing required fields for one or more schedules. Ensure employee, date, startTime, and endTime are provided.`);
       }
-
-      // Convert the provided date (local) to UTC for storage
+      // Store date as UTC
       const dateUTC = DateTime.fromISO(sch.date, { zone: 'local' }).toUTC().toJSDate();
-
       return {
-        employerId: employerId, // Use authenticated employer's ID
+        employerId,
         employee: new mongoose.Types.ObjectId(sch.employee),
         role: sch.role ? new mongoose.Types.ObjectId(sch.role) : null,
         startTime: sch.startTime,
@@ -41,8 +33,7 @@ export const createBulkSchedules = async (req, res) => {
 
     const createdSchedules = await Schedule.insertMany(schedulesToSave);
 
-    // Send notifications for bulk created schedules
-    // Group schedules by employee to send one email per employee if multiple shifts are assigned
+    // Notify employees (one email per employee for all their new shifts)
     const employeeNotifications = {};
     for (const sch of createdSchedules) {
       const empId = sch.employee.toString();
@@ -56,14 +47,12 @@ export const createBulkSchedules = async (req, res) => {
         employeeNotifications[empId].shifts.push(`Date: ${DateTime.fromJSDate(sch.date).toLocal().toFormat('EEE, MMM d')}, Time: ${sch.startTime} - ${sch.endTime}`);
       }
     }
-
     for (const empId in employeeNotifications) {
       const { email, name, shifts } = employeeNotifications[empId];
       await sendScheduleAssignmentEmail(email, name, shifts)
         .catch(emailError => console.error(`[ScheduleCtrl] Failed to send bulk schedule notification to ${email}:`, emailError));
     }
-
-    res.status(201).json(createdSchedules); // Return the created schedules
+    res.status(201).json(createdSchedules);
   } catch (err) {
     console.error('Error creating schedules:', err);
     if (err.message.startsWith('Missing required fields')) {
@@ -76,17 +65,13 @@ export const createBulkSchedules = async (req, res) => {
   }
 };
 
-// @desc    Get schedules by week (converts to/from UTC for storage/retrieval)
-// @route   GET /api/schedules
-// @access  Private (Employer, Employee)
+// Get schedules for a week (employer or employee)
 export const getSchedulesByWeek = async (req, res) => {
   try {
     const { weekStart } = req.query;
-
     if (!weekStart) {
       return res.status(400).json({ message: 'Missing weekStart parameter' });
     }
-
     let targetEmployerId;
     if (req.user.role === 'employer') {
       targetEmployerId = req.user._id;
@@ -99,26 +84,22 @@ export const getSchedulesByWeek = async (req, res) => {
     } else {
       return res.status(403).json({ message: 'Forbidden: User role cannot access schedules.' });
     }
-
     if (!targetEmployerId) {
-        return res.status(400).json({ message: 'Could not determine employer for fetching schedules.' });
+      return res.status(400).json({ message: 'Could not determine employer for fetching schedules.' });
     }
-
-    // Convert weekStart to UTC range
+    // Calculate week range in UTC
     const startLocal = DateTime.fromISO(weekStart, { zone: 'local' }).startOf('day');
     const endLocal = startLocal.plus({ days: 6 }).endOf('day');
     const utcStart = startLocal.toUTC();
     const utcEnd = endLocal.toUTC();
-
     const query = {
       employerId: targetEmployerId,
       date: { $gte: utcStart.toJSDate(), $lte: utcEnd.toJSDate() },
     };
-
     const schedules = await Schedule.find(query)
       .populate('employee', 'name')
       .populate('role', 'roleName');
-
+    // Convert dates back to local for client
     const localSchedules = schedules.map((sch) => ({
       _id: sch._id,
       employee: sch.employee,
@@ -130,7 +111,6 @@ export const getSchedulesByWeek = async (req, res) => {
       createdAt: sch.createdAt,
       updatedAt: sch.updatedAt,
     }));
-
     res.status(200).json(localSchedules);
   } catch (err) {
     console.error('Error fetching schedules:', err);
@@ -138,46 +118,36 @@ export const getSchedulesByWeek = async (req, res) => {
   }
 };
 
-// @desc    Update a single schedule by ID
-// @route   PUT /api/schedules/:id
-// @access  Private (Employer)
+// Update a schedule by ID (employer only)
 export const updateSchedule = async (req, res) => {
   try {
     const { id } = req.params;
     const employerId = req.user._id;
     const updateData = req.body;
-
-    // Prevent employerId from being changed via payload
     if (updateData.employerId) {
       delete updateData.employerId;
     }
-
     const schedule = await Schedule.findOne({ _id: id, employerId: employerId });
     if (!schedule) {
-      // Check if schedule exists but doesn't belong to user, or if it doesn't exist at all
       const scheduleExists = await Schedule.findById(id);
       if (scheduleExists) {
         return res.status(403).json({ message: 'Forbidden: You do not own this schedule.' });
       }
       return res.status(404).json({ message: 'Schedule not found.' });
     }
-
-    // Apply updates
+    // Update fields
     if (updateData.employee) schedule.employee = updateData.employee;
-    if (updateData.hasOwnProperty('role')) schedule.role = updateData.role; // Allow setting role to null
+    if (updateData.hasOwnProperty('role')) schedule.role = updateData.role;
     if (updateData.startTime) schedule.startTime = updateData.startTime;
     if (updateData.endTime) schedule.endTime = updateData.endTime;
     if (updateData.date) {
       schedule.date = DateTime.fromISO(updateData.date, { zone: 'local' }).toUTC().toJSDate();
     }
-    // If startTime or endTime are updated, assume they are UTC, so timezone should be UTC
     if (updateData.startTime || updateData.endTime || updateData.date) {
-        schedule.timezone = 'UTC';
+      schedule.timezone = 'UTC';
     }
-
     const updatedSchedule = await schedule.save();
-
-    // Send notification to the assigned employee for individual shift update
+    // Notify employee about update
     if (updatedSchedule.employee) {
       try {
         const employee = await Employee.findById(updatedSchedule.employee).populate('userId', 'email name');
@@ -188,30 +158,25 @@ export const updateSchedule = async (req, res) => {
         console.error(`[ScheduleCtrl] Failed to send schedule update notification to employee ${updatedSchedule.employee}:`, emailError);
       }
     }
-
     res.status(200).json({ message: 'Schedule updated successfully', schedule: updatedSchedule });
   } catch (err) {
     console.error('Error updating schedule:', err);
     if (err.name === 'ValidationError') {
-        return res.status(400).json({ message: err.message });
+      return res.status(400).json({ message: err.message });
     }
     if (err.kind === 'ObjectId') {
-        return res.status(404).json({ message: 'Schedule not found (invalid ID format)' });
+      return res.status(404).json({ message: 'Schedule not found (invalid ID format)' });
     }
     res.status(500).json({ message: 'Failed to update schedule: ' + err.message });
   }
 };
 
-// @desc    Delete a schedule by ID
-// @route   DELETE /api/schedules/:id
-// @access  Private (Employer)
+// Delete a schedule by ID (employer only)
 export const deleteSchedule = async (req, res) => {
   try {
     const { id } = req.params;
     const employerId = req.user._id;
-
     const deletedSchedule = await Schedule.findOneAndDelete({ _id: id, employerId: employerId });
-
     if (!deletedSchedule) {
       const scheduleExists = await Schedule.findById(id);
       if (scheduleExists) {
@@ -219,30 +184,24 @@ export const deleteSchedule = async (req, res) => {
       }
       return res.status(404).json({ message: 'Schedule not found.' });
     }
-
     res.status(200).json({ message: 'Schedule deleted successfully' });
   } catch (err) {
     console.error('Error deleting schedule:', err);
     if (err.kind === 'ObjectId') {
-        return res.status(404).json({ message: 'Schedule not found (invalid ID format)' });
+      return res.status(404).json({ message: 'Schedule not found (invalid ID format)' });
     }
     res.status(500).json({ message: 'Failed to delete schedule: ' + err.message });
   }
 };
 
-// @desc    Delete schedules by date range
-// @route   DELETE /api/schedules/by-date-range
-// @access  Private (Employer)
+// Delete schedules by date range (employer only)
 export const deleteByDateRange = async (req, res) => {
   try {
     const { startDate, endDate } = req.body;
     const employerId = req.user._id;
-
     if (!startDate || !endDate) {
       return res.status(400).json({ message: 'Start date and end date are required.' });
     }
-
-
     const result = await Schedule.deleteMany({
       employerId: employerId,
       date: {
@@ -250,7 +209,6 @@ export const deleteByDateRange = async (req, res) => {
         $lte: new Date(endDate)
       }
     });
-
     res.status(200).json({ message: `${result.deletedCount} schedules deleted successfully.` });
   } catch (err) {
     console.error('Error deleting schedules by date range:', err);

@@ -120,16 +120,19 @@ const projectSlice = createSlice({
       .addCase(fetchProjects.pending, (state) => {
         state.status = 'loading';
         state.error = null;
+        console.log("[projectSlice] Fetching projects...");
       })
       .addCase(fetchProjects.fulfilled, (state, action) => {
         state.status = 'succeeded';
         state.items = Array.isArray(action.payload) ? action.payload : [];
         state.error = null;
+        console.log("[projectSlice] Projects fetched:", state.items.length);
       })
       .addCase(fetchProjects.rejected, (state, action) => {
         state.status = 'failed';
         state.error = action.payload;
         state.items = [];
+        console.error("[projectSlice] Fetch projects error:", action.payload);
       })
       .addCase(fetchProjectById.pending, (state) => {
         state.currentProjectStatus = 'loading';
@@ -149,6 +152,7 @@ const projectSlice = createSlice({
       .addCase(createProject.pending, (state) => {
         state.status = 'loading';
         state.error = null;
+        console.log("[projectSlice] Creating project...");
       })
       .addCase(createProject.fulfilled, (state, action) => {
         state.status = 'succeeded';
@@ -156,14 +160,17 @@ const projectSlice = createSlice({
           state.items.push(action.payload);
         }
         state.error = null;
+        console.log("[projectSlice] Project created.");
       })
       .addCase(createProject.rejected, (state, action) => {
         state.status = 'failed';
         state.error = action.payload;
+        console.error("[projectSlice] Create project error:", action.payload);
       })
       .addCase(updateProject.pending, (state) => {
         state.status = 'loading';
         state.error = null;
+        console.log("[projectSlice] Updating project...");
       })
       .addCase(updateProject.fulfilled, (state, action) => {
         state.status = 'succeeded';
@@ -175,14 +182,17 @@ const projectSlice = createSlice({
           }
         }
         state.error = null;
+        console.log("[projectSlice] Project updated.");
       })
       .addCase(updateProject.rejected, (state, action) => {
         state.status = 'failed';
         state.error = action.payload;
+        console.error("[projectSlice] Update project error:", action.payload);
       })
       .addCase(deleteProject.pending, (state) => {
         state.status = 'loading';
         state.error = null;
+        console.log("[projectSlice] Deleting project...");
       })
       .addCase(deleteProject.fulfilled, (state, action) => {
         state.status = 'succeeded';
@@ -193,10 +203,12 @@ const projectSlice = createSlice({
           state.currentProjectError = null;
         }
         state.error = null;
+        console.log("[projectSlice] Project deleted.");
       })
       .addCase(deleteProject.rejected, (state, action) => {
         state.status = 'failed';
         state.error = action.payload;
+        console.error("[projectSlice] Delete project error:", action.payload);
       });
   }
 });

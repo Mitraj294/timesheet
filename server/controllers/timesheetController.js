@@ -692,44 +692,73 @@ export const deleteTimesheet = async (req, res) => {
         res.status(500).json({ message: `Error deleting timesheet: ${error.message}` });
       }
  };
-const standardReportColumns = [
+const userFriendlyReportColumns = [
   { header: 'Full Name', key: 'employee', width: 25 },
-  { header: 'Date', key: 'date', width: 15, style: { numFmt: 'yyyy-mm-dd' } },
+  { header: 'Date', key: 'date', width: 15 },
   { header: 'Day', key: 'day', width: 12 },
   { header: 'Client', key: 'client', width: 25 },
   { header: 'Project', key: 'project', width: 25 },
   { header: 'Start', key: 'startTime', width: 10 },
+  { header: 'Actual Start', key: 'actualStartTime', width: 12 },
   { header: 'End', key: 'endTime', width: 10 },
+  { header: 'Actual End', key: 'actualEndTime', width: 12 },
   { header: 'Lunch', key: 'lunchDuration', width: 10 },
-  { header: 'Leave Type', key: 'leaveType', width: 15 },
-  { header: 'Description', key: 'description', width: 30 },
-  { header: 'Work Notes', key: 'notes', width: 30 },
-  { header: 'Wage', key: 'hourlyWage', width: 10, style: { numFmt: '$#,##0.00' } },
-  { header: 'Total Hours', key: 'totalHours', width: 12, style: { numFmt: '0.00' } },
+  { header: 'Travel Charge', key: 'travelCharge', width: 12 },
+  { header: 'Leave', key: 'leaveType', width: 15 },
+  { header: 'Hours', key: 'totalHours', width: 10 },
+  { header: 'Wage', key: 'hourlyWage', width: 10 },
+  { header: 'Income', key: 'income', width: 12 },
+  { header: 'Notes', key: 'notes', width: 30 },
+  { header: 'Cost', key: 'cost', width: 12 },
+  { header: 'Total Cost', key: 'totalCost', width: 14 },
 ];
 
-const formatDataForReport = (timesheets, defaultTimezone = 'UTC') => {
+// Format timesheet data for Excel report
+const formatDataForReport = (timesheets, defaultTimezone = 'UTC', employeeNameFilter = null) => {
   if (!Array.isArray(timesheets)) return [];
-  return timesheets.map(ts => {
+  let formatted = timesheets.map(ts => {
     if (!ts) return {};
     const reportTimezone = ts.timezone && moment.tz.zone(ts.timezone) ? ts.timezone : defaultTimezone;
     let localDate = ts.date;
+    // Ensure date is in YYYY-MM-DD format
     if (localDate && !/^\d{4}-\d{2}-\d{2}$/.test(localDate)) {
       try {
         const parsedMoment = moment.utc(localDate);
         if (parsedMoment.isValid()) {
           localDate = parsedMoment.format('YYYY-MM-DD');
-        } else { localDate = "Invalid Date"; }
-      } catch { localDate = "Invalid Date"; }
+        } else {
+          localDate = 'Invalid Date';
+        }
+      } catch {
+        localDate = 'Invalid Date';
+      }
     } else if (!localDate) {
-      localDate = "Invalid Date";
+      localDate = 'Invalid Date';
     }
-    const localStartTime = ts.startTime instanceof Date && !isNaN(ts.startTime.getTime())
-      ? moment(ts.startTime).tz(reportTimezone).format("HH:mm") : (typeof ts.startTime === 'string' ? ts.startTime : "");
-    const localEndTime = ts.endTime instanceof Date && !isNaN(ts.endTime.getTime())
-      ? moment(ts.endTime).tz(reportTimezone).format("HH:mm") : (typeof ts.endTime === 'string' ? ts.endTime : "");
+    // Get day of week from date
     const dayOfWeek = moment(localDate, "YYYY-MM-DD", true).isValid()
-      ? moment(localDate, "YYYY-MM-DD").format('dddd') : "";
+      ? moment(localDate, "YYYY-MM-DD").format('dddd')
+      : "";
+    // Format start/end time to local time string
+    const localStartTime = ts.startTime instanceof Date && !isNaN(ts.startTime.getTime())
+      ? moment(ts.startTime).tz(reportTimezone).format('hh:mm a')
+      : (typeof ts.startTime === 'string' ? ts.startTime : "");
+    const localEndTime = ts.endTime instanceof Date && !isNaN(ts.endTime.getTime())
+      ? moment(ts.endTime).tz(reportTimezone).format('hh:mm a')
+      : (typeof ts.endTime === 'string' ? ts.endTime : "");
+    const localActualStartTime = ts.actualStartTime instanceof Date && !isNaN(ts.actualStartTime.getTime())
+      ? moment(ts.actualStartTime).tz(reportTimezone).format('hh:mm a')
+      : (typeof ts.actualStartTime === 'string' ? ts.actualStartTime : "");
+    const localActualEndTime = ts.actualEndTime instanceof Date && !isNaN(ts.actualEndTime.getTime())
+      ? moment(ts.actualEndTime).tz(reportTimezone).format('hh:mm a')
+      : (typeof ts.actualEndTime === 'string' ? ts.actualEndTime : "");
+    const lunch = ts.lunchBreak === 'Yes' ? (ts.lunchDuration || '00:00') : (ts.lunchDuration || '');
+    const travelCharge = ts.travelCharge != null ? `$${parseFloat(ts.travelCharge).toFixed(2)}` : '';
+    const wage = ts.hourlyWage != null ? `$${parseFloat(ts.hourlyWage).toFixed(2)}` : '';
+    const hours = ts.totalHours != null ? parseFloat(ts.totalHours).toFixed(2) : '0.00';
+    const income = ts.hourlyWage && ts.totalHours ? `$${(parseFloat(ts.hourlyWage) * parseFloat(ts.totalHours)).toFixed(2)}` : '';
+    const cost = ts.cost != null ? `$${parseFloat(ts.cost).toFixed(2)}` : '';
+    const totalCost = ts.totalCost != null ? `$${parseFloat(ts.totalCost).toFixed(2)}` : '';
     return {
       employee: ts.employeeId?.name || ts.employee || '',
       date: localDate,
@@ -737,20 +766,29 @@ const formatDataForReport = (timesheets, defaultTimezone = 'UTC') => {
       client: ts.clientId?.name || ts.client || '',
       project: ts.projectId?.name || ts.project || '',
       startTime: localStartTime,
+      actualStartTime: localActualStartTime,
       endTime: localEndTime,
-      lunchDuration: ts.lunchBreak === 'Yes' ? (ts.lunchDuration || '00:00') : (ts.lunchDuration || ''),
+      actualEndTime: localActualEndTime,
+      lunchDuration: lunch,
+      travelCharge: travelCharge,
       leaveType: ts.leaveType === 'None' ? '' : (ts.leaveType || ''),
-      description: ts.description || '',
+      totalHours: hours,
+      hourlyWage: wage,
+      income: income,
       notes: ts.notes || '',
-      hourlyWage: ts.hourlyWage != null ? `$${parseFloat(ts.hourlyWage).toFixed(2)}` : '',
-      totalHours: ts.totalHours != null ? parseFloat(ts.totalHours).toFixed(2) : '0.00',
+      cost: cost,
+      totalCost: totalCost,
     };
   });
+  if (employeeNameFilter) {
+    formatted = formatted.filter(row => row.employee && row.employee.toLowerCase() === employeeNameFilter.toLowerCase());
+  }
+  return formatted;
 };
 
 const handleReportAction = async (req, res, isDownload, groupBy) => {
   const actionType = isDownload ? 'download' : 'send';
-  const { email, employeeIds: requestedEmployeeIdsParam = [], projectIds = [], startDate, endDate, timezone = 'UTC' } = req.body;
+  const { email, employeeIds: requestedEmployeeIdsParam = [], projectIds = [], startDate, endDate, timezone = 'UTC', employeeNameFilter = null } = req.body;
   const employerId = req.user.id;
 
   if (!isDownload && (!email || !/\S+@\S+\.\S+/.test(email))) {
@@ -763,10 +801,10 @@ const handleReportAction = async (req, res, isDownload, groupBy) => {
 
   try {
     const employerSettings = await EmployerSetting.findOne({ employerId: employerId }).lean();
-    let activeReportColumns = standardReportColumns;
+    let activeReportColumns = userFriendlyReportColumns;
     if (employerSettings && Array.isArray(employerSettings.reportColumns) && employerSettings.reportColumns.length > 0) {
-      activeReportColumns = standardReportColumns.filter(col => employerSettings.reportColumns.includes(col.key));
-      if (activeReportColumns.length === 0) activeReportColumns = standardReportColumns;
+      activeReportColumns = userFriendlyReportColumns.filter(col => employerSettings.reportColumns.includes(col.key));
+      if (activeReportColumns.length === 0) activeReportColumns = userFriendlyReportColumns;
     }
 
     let employeesOfEmployer;
@@ -820,32 +858,49 @@ const handleReportAction = async (req, res, isDownload, groupBy) => {
     }
 
     // Format data for Excel report
-    const formattedData = formatDataForReport(timesheets, reportTimezone);
+    const formattedData = formatDataForReport(timesheets, reportTimezone, employeeNameFilter);
     const columns = activeReportColumns;
     const sheetName = groupBy === 'project' ? 'Project Timesheets' : 'Employee Timesheets';
-    const buffer = await generateExcelReport({ data: formattedData, columns, sheetName });
-
-    let nameLabel = `${groupBy.charAt(0).toUpperCase() + groupBy.slice(1)}_Report`;
-    if (groupBy === 'project' && projectIds && projectIds.length === 1 && projectDetailsMap.has(projectIds[0])) {
-        nameLabel = projectDetailsMap.get(projectIds[0]);
-    } else if (groupBy === 'employee' && finalEmployeeIds.length === 1 && employeeMap.has(finalEmployeeIds[0].toString())) {
-        nameLabel = employeeMap.get(finalEmployeeIds[0].toString()).name;
+    // Use new return value: { buffer } (no filename from service)
+    const result = await generateExcelReport({ data: formattedData, columns, sheetName });
+    const buffer = result.buffer || result;
+    // Always generate a descriptive filename here
+    let fileName;
+    let emp = '';
+    if (Array.isArray(employeeNameFilter) && employeeNameFilter.length === 1) {
+      emp = employeeNameFilter[0];
+    } else if (employeeNameFilter && typeof employeeNameFilter === 'string') {
+      emp = employeeNameFilter;
+    } else if (Array.isArray(requestedEmployeeIdsParam) && requestedEmployeeIdsParam.length === 1 && employeesData.length === 1) {
+      emp = employeesData[0].name;
+    } else if (Array.isArray(requestedEmployeeIdsParam) && requestedEmployeeIdsParam.length > 1) {
+      emp = 'Multiple_Employees';
+    } else {
+      emp = groupBy === 'project' ? 'Project' : 'All_Employees';
     }
-
-    const startLabel = startDate ? moment(startDate, 'YYYY-MM-DD').format('YYYYMMDD') : 'Start';
-    const endLabel = endDate ? moment(endDate, 'YYYY-MM-DD').format('YYYYMMDD') : 'End';
-    const sanitize = (str) => String(str).replace(/[^a-zA-Z0-9_-]/g, '_');
-    const fileName = `${sanitize(nameLabel)}_${groupBy}_Timesheet_${sanitize(startLabel)}_to_${sanitize(endLabel)}.xlsx`;
-
+    let minDate = startDate ? new Date(startDate) : null;
+    let maxDate = endDate ? new Date(endDate) : null;
+    let periodLabel = '';
+    if (minDate && maxDate) {
+      const fmt = d => d.toISOString().slice(0,10);
+      periodLabel = fmt(minDate) === fmt(maxDate) ? fmt(minDate) : `${fmt(minDate)}_to_${fmt(maxDate)}`;
+    } else if (minDate) {
+      periodLabel = new Date(minDate).toISOString().slice(0,10);
+    } else if (maxDate) {
+      periodLabel = new Date(maxDate).toISOString().slice(0,10);
+    } else {
+      periodLabel = 'all_time';
+    }
+    fileName = `${emp.replace(/[^a-zA-Z0-9_-]/g, '_')}_${periodLabel}.xlsx`;
+    // Use the generated fileName for download/email
     if (isDownload) {
       sendExcelDownload(res, buffer, fileName);
       return;
     } else {
       await sendEmail({
         to: email,
-        subject: `${groupBy.charAt(0).toUpperCase() + groupBy.slice(1)} Timesheet Report: ${nameLabel} (${startLabel} - ${endLabel})`,
-        text: `Please find the attached ${groupBy} timesheet report for ${nameLabel} covering the period from ${startDate || 'start'} to ${endDate || 'end'}.
-Report generated using ${reportTimezone} timezone for time formatting.`,
+        subject: `${groupBy.charAt(0).toUpperCase() + groupBy.slice(1)} Timesheet Report: ${fileName}`,
+        text: `Please find the attached ${groupBy} timesheet report for the period covered.\nReport generated using ${reportTimezone} timezone for time formatting.`,
         attachments: [{ filename: fileName, content: buffer }],
       });
       return res.status(200).json({ message: "Timesheet email sent successfully!" });

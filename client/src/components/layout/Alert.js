@@ -11,10 +11,16 @@ const Alert = () => {
   useEffect(() => {
     const timers = alerts.map(alert => {
       if (!alert || !alert.id || typeof alert.timeout !== 'number' || alert.timeout <= 0) return null;
-      return setTimeout(() => dispatch(removeAlert(alert.id)), alert.timeout);
+      return setTimeout(() => {
+        dispatch(removeAlert(alert.id));
+      }, alert.timeout);
     });
     return () => {
-      timers.forEach(timerId => { if (timerId) clearTimeout(timerId); });
+      timers.forEach(timerId => { 
+        if (timerId) {
+          clearTimeout(timerId);
+        }
+      });
     };
   }, [alerts, dispatch]);
 
@@ -29,7 +35,13 @@ const Alert = () => {
         return (
           <div key={alert.id} className={`alert alert-${alert.alertType || 'info'}`}>
             <span>{displayMsg || 'No message provided'}</span>
-            <button onClick={() => dispatch(removeAlert(alert.id))} className="alert-close-btn" aria-label="Close">&times;</button>
+            <button 
+              onClick={() => {
+                dispatch(removeAlert(alert.id));
+              }} 
+              className="alert-close-btn" 
+              aria-label="Close"
+            >&times;</button>
           </div>
         );
       })}

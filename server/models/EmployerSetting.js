@@ -1,11 +1,12 @@
 import mongoose from 'mongoose';
 
+// Settings for each employer (preferences, timesheet, notifications, etc.)
 const EmployerSettingSchema = new mongoose.Schema({
   employerId: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'User', 
+    ref: 'User', // Link to employer user
     required: true,
-    unique: true, 
+    unique: true, // One settings doc per employer
   },
   tabletViewRecordingType: {
     type: String,
@@ -18,9 +19,9 @@ const EmployerSettingSchema = new mongoose.Schema({
   },
   showVehiclesTabInSidebar: {
     type: Boolean,
-    // No default value; will be undefined if not explicitly set
+    // If not set, vehicles tab may be hidden
   },
-  // Timesheet Specific Settings
+  // Timesheet settings
   timesheetStartDayOfWeek: {
     type: String,
     enum: ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'],
@@ -28,11 +29,11 @@ const EmployerSettingSchema = new mongoose.Schema({
   },
   timesheetIsLunchBreakDefault: {
     type: Boolean,
-    default: true, // e.g., Lunch break is typically included
+    default: true, // Lunch break included by default
   },
   timesheetAllowOldEdits: {
     type: Boolean,
-    default: false, // By default, don't allow editing old timesheets
+    default: false, // Don't allow editing old timesheets by default
   },
   defaultTimesheetViewType: {
     type: String,
@@ -41,28 +42,28 @@ const EmployerSettingSchema = new mongoose.Schema({
   },
   timesheetHideWage: {
     type: Boolean,
-    default: false, // By default, show wage information
+    default: false, // Show wage info by default
   },
   timesheetIsProjectClientRequired: {
     type: Boolean,
-    default: false, // Default to No (false)
+    default: false,
   },
   timesheetAreNotesRequired: {
     type: Boolean,
-    default: false,       // Default to No (false)
+    default: false,
   },
   employeeCanCreateProject: {
     type: Boolean,
-    default: false, // By default, employees cannot create projects
+    default: false, // Employees can't create projects by default
   },
   reportColumns: {
-    type: [String], // Array of strings to store selected column keys
-                    // default: [], // No default; undefined means all columns
+    type: [String], // List of columns to show in reports
+    // If not set, show all columns
   },
   weeklyReportEmail: {
     type: String,
     trim: true,
-    default: '', // Default to an empty string
+    default: '', // Email for weekly reports
   },
   globalNotificationTimes: {
     type: {
@@ -74,23 +75,23 @@ const EmployerSettingSchema = new mongoose.Schema({
       saturday: { type: Date, default: null },
       sunday: { type: Date, default: null },
     },
-    default: () => ({ // Use a function for default object
+    default: () => ({
       monday: null, tuesday: null, wednesday: null, thursday: null,
       friday: null, saturday: null, sunday: null
     }),
   },
-  actionNotificationEmail: { // Email to receive notifications for timesheet actions
+  actionNotificationEmail: {
     type: String,
     trim: true,
-    default: '', // Default to empty, employer can set it up
+    default: '', // Email for action notifications
   },
-  timezone: { // To interpret globalNotificationTimes correctly
+  timezone: {
     type: String,
     trim: true,
-    default: 'Asia/Kolkata', // Default to Indian Standard Time
+    default: 'Asia/Kolkata', // Default timezone
   },
 }, {
-  timestamps: true,
+  timestamps: true, // Adds createdAt and updatedAt
 });
 
 const EmployerSetting = mongoose.model('EmployerSetting', EmployerSettingSchema);

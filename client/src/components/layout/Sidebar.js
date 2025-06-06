@@ -31,19 +31,27 @@ const Sidebar = () => {
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (sidebarRef.current && !sidebarRef.current.contains(event.target)) {
-        if (isOpen) toggleSidebar();
+        if (isOpen) {
+          toggleSidebar();
+          console.log("[Sidebar] Clicked outside, closing sidebar");
+        }
       }
     };
     if (isOpen) {
       document.addEventListener("mousedown", handleClickOutside);
+      console.log("[Sidebar] Sidebar opened");
     }
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
+      if (isOpen) console.log("[Sidebar] Sidebar closed");
     };
   }, [isOpen, toggleSidebar]);
 
   const handleMenuItemClick = () => {
-    if (isOpen) toggleSidebar();
+    if (isOpen) {
+      toggleSidebar();
+      console.log("[Sidebar] Menu item clicked, closing sidebar");
+    }
   };
 
   const baseMenuItems = useMemo(() => [
@@ -74,7 +82,12 @@ const Sidebar = () => {
     return items;
   }, [user, baseMenuItems, showVehiclesTabSetting]);
 
-  if (isTabletViewUnlocked) return null;
+  if (isTabletViewUnlocked) {
+    console.log("[Sidebar] Tablet view unlocked, sidebar hidden");
+    return null;
+  }
+
+  console.log("[Sidebar] Rendering sidebar menu items:", menuItems.map(i => i.label));
 
   return (
     <aside ref={sidebarRef} className={`sidebar ${isOpen ? "open" : ""}`}>

@@ -1,30 +1,25 @@
 // /home/digilab/timesheet/server/models/User.js
 import mongoose from "mongoose";
 import bcrypt from 'bcryptjs';
-// Employee model is not directly needed here for cascading delete anymore,
-// as authController will handle finding employees.
-// However, if there are other parts of User model logic that might need Employee, keep it.
-// For now, assuming it's not strictly needed for this simplified hook.
-// import Employee from "./Employee.js"; 
 
+// User schema: stores login and profile info
 const UserSchema = new mongoose.Schema({
-  name: { type: String, required: true },
-  email: { type: String, required: true, unique: true },
-  password: { type: String, required: true },
-  role: { type: String, enum: ["employee", "employer", "admin"], default: "employee" },
+  name: { type: String, required: true }, // User's name
+  email: { type: String, required: true, unique: true }, // Must be unique
+  password: { type: String, required: true }, // Hashed password
+  role: { type: String, enum: ["employee", "employer", "admin"], default: "employee" }, // User type
   country: { type: String },
   phoneNumber: { type: String },
   companyName: { type: String },
   createdAt: { type: Date, default: Date.now },
-  passwordResetToken: { type: String },
+  passwordResetToken: { type: String }, // For password reset
   passwordResetExpires: { type: Date },
-  deleteAccountToken: { type: String },      // Added for account deletion flow
-  deleteAccountTokenExpires: { type: Date }, // Added for account deletion flow
+  deleteAccountToken: { type: String },      // For account deletion flow
+  deleteAccountTokenExpires: { type: Date }, // For account deletion flow
 });
 
-// Pre-save hook for hashing password
+// Hash password before saving if changed or new
 UserSchema.pre('save', async function(next) {
-  // Only hash the password if it has been modified (or is new)
   if (!this.isModified('password')) {
     return next();
   }
@@ -33,11 +28,11 @@ UserSchema.pre('save', async function(next) {
     this.password = await bcrypt.hash(this.password, salt);
     next();
   } catch (error) {
-    next(error); // Pass errors to Mongoose
+    next(error);
   }
 });
 
-// Method to check password
+// Compare entered password with hashed password
 UserSchema.methods.matchPassword = async function(enteredPassword) {
   return await bcrypt.compare(enteredPassword, this.password);
 };

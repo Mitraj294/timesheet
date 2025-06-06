@@ -29,16 +29,25 @@ const TabletViewSettingsSection = () => {
     }
   }, [currentSettings]);
 
+  useEffect(() => {
+    console.log("[TabletViewSettingsSection] Component mounted");
+    return () => {
+      console.log("[TabletViewSettingsSection] Component unmounted");
+    };
+  }, []);
+
   // Handle form field changes
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
+    console.log(`[TabletViewSettingsSection] Changed ${name}:`, value);
   };
 
   // Save settings
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsSaving(true);
+    console.log("[TabletViewSettingsSection] Submitting tablet view settings:", formData);
     try {
       const settingsToSave = {
         ...formData,

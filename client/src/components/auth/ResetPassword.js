@@ -22,14 +22,21 @@ const ResetPassword = () => {
 
   // Clear errors on mount/unmount
   useEffect(() => {
+    console.log("[ResetPassword] Component mounted");
     dispatch(clearAuthError());
-    return () => { dispatch(clearAuthError()); };
+    return () => { 
+      dispatch(clearAuthError());
+      console.log("[ResetPassword] Component unmounted");
+    };
   }, [dispatch]);
 
   // Show error as alert
   useEffect(() => {
     const errorToShow = localError || authError;
-    if (errorToShow) dispatch(setAlert(errorToShow, 'danger'));
+    if (errorToShow) {
+      console.log("[ResetPassword] Error:", errorToShow);
+      dispatch(setAlert(errorToShow, 'danger'));
+    }
   }, [localError, authError, dispatch]);
 
   // Handle form submit
@@ -39,21 +46,26 @@ const ResetPassword = () => {
     dispatch(clearAuthError());
     if (!password || !confirmPassword) {
       setLocalError('Both password fields are required.');
+      console.log("[ResetPassword] Missing password fields");
       return;
     }
     if (password !== confirmPassword) {
       setLocalError('Passwords do not match.');
+      console.log("[ResetPassword] Passwords do not match");
       return;
     }
     if (password.length < 6) {
       setLocalError('Password must be at least 6 characters long.');
+      console.log("[ResetPassword] Password too short");
       return;
     }
     try {
       await dispatch(resetPassword({ token, newPassword: password })).unwrap();
       dispatch(setAlert('Password has been reset successfully. Please log in.', 'success'));
+      console.log("[ResetPassword] Password reset successful");
       navigate('/login');
     } catch (err) {
+      console.log("[ResetPassword] Password reset failed:", err);
       // Error is handled by Redux and alert
     }
   };

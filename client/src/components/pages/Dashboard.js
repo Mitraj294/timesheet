@@ -157,11 +157,12 @@ export const getWeeklyTotals = (data, periodStart, weeks, startDayOfWeekName = '
 export const getOrderedDays = (startDayName = 'Monday') => {
   const allDays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
   const startIndex = allDays.indexOf(startDayName);
-  if (startIndex === -1) {
-    console.warn(`Invalid startDayName: ${startDayName}, defaulting to Monday order.`);
-    return allDays;
-  }
-  return [...allDays.slice(startIndex), ...allDays.slice(0, startIndex)];
+  // Remove noisy console.warn for invalid startDayName
+  // if (startIndex === -1) {
+  //   console.warn(`Invalid startDayName: ${startDayName}, defaulting to Monday order.`);
+  //   return allDays;
+  // }
+  return startIndex === -1 ? allDays : [...allDays.slice(startIndex), ...allDays.slice(0, startIndex)];
 };
 
 const Dashboard = () => {
@@ -198,12 +199,19 @@ const Dashboard = () => {
   // --- Effects: Fetch data ---
   useEffect(() => {
     if (!isAuthLoading && token) {
+      console.log("[Dashboard] Fetching employees...");
       dispatch(fetchEmployees());
-      if (settingsStatus === 'idle') dispatch(fetchEmployerSettings());
+      if (settingsStatus === 'idle') {
+        console.log("[Dashboard] Fetching employer settings...");
+        dispatch(fetchEmployerSettings());
+      }
     }
   }, [dispatch, token, isAuthLoading, settingsStatus]);
   useEffect(() => {
-    if (!isAuthLoading && token) dispatch(fetchTimesheets());
+    if (!isAuthLoading && token) {
+      console.log("[Dashboard] Fetching timesheets...");
+      dispatch(fetchTimesheets());
+    }
   }, [token, isAuthLoading, dispatch]);
 
   // --- Set default view type from settings ---
@@ -349,7 +357,10 @@ const Dashboard = () => {
   const combinedError = timesheetError || employeesError;
 
   useEffect(() => {
-    if (combinedError) dispatch(setAlert(combinedError, 'danger'));
+    if (combinedError) {
+      console.error("[Dashboard] Error:", combinedError);
+      dispatch(setAlert(combinedError, 'danger'));
+    }
   }, [combinedError, dispatch]);
 
   // --- Summary calculations ---
@@ -561,7 +572,9 @@ const Dashboard = () => {
         chartRef.current = null;
     }
 
-    if (showLoading || combinedError || !labels.length || settingsStatus !== 'succeeded') { // Wait for settings
+    if (showLoading || combinedError || !labels.length || settingsStatus !== 'succeeded') {
+        // Only log errors, not normal "no data" situations
+        if (combinedError) console.error("[Dashboard] Chart error:", combinedError);
         return;
     }
 
@@ -612,11 +625,12 @@ const Dashboard = () => {
     clientCtx.clearRect(0, 0, clientCtx.canvas.width, clientCtx.canvas.height);
     Chart.unregister(ChartDataLabels);
 
-    if (showLoading || combinedError || settingsStatus !== 'succeeded') return; // Wait for settings
+    if (showLoading || combinedError || settingsStatus !== 'succeeded') return;
 
+    // Remove noisy log for no client data
     if (!clientChartData.labels.length || clientChartData.data.every(d => d === 0)) {
-        clientCtx.font = "16px Arial"; clientCtx.fillStyle = "#888"; clientCtx.textAlign = "center";
-        clientCtx.fillText("No client data for this period", clientCtx.canvas.width / 2, clientCtx.canvas.height / 2);
+        // clientCtx.font = "16px Arial"; clientCtx.fillStyle = "#888"; clientCtx.textAlign = "center";
+        // clientCtx.fillText("No client data for this period", clientCtx.canvas.width / 2, clientCtx.canvas.height / 2);
         return;
     }
 
@@ -645,11 +659,12 @@ const Dashboard = () => {
     projectCtx.clearRect(0, 0, projectCtx.canvas.width, projectCtx.canvas.height);
     Chart.unregister(ChartDataLabels);
 
-    if (showLoading || combinedError || settingsStatus !== 'succeeded') return; // Wait for settings
+    if (showLoading || combinedError || settingsStatus !== 'succeeded') return;
 
+    // Remove noisy log for no project data
     if (!projectChartData.labels.length || projectChartData.data.every(d => d === 0)) {
-        projectCtx.font = "16px Arial"; projectCtx.fillStyle = "#888"; projectCtx.textAlign = "center";
-        projectCtx.fillText("No project data for this period/client", projectCtx.canvas.width / 2, projectCtx.canvas.height / 2);
+        // projectCtx.font = "16px Arial"; projectCtx.fillStyle = "#888"; projectCtx.textAlign = "center";
+        // projectCtx.fillText("No project data for this period/client", projectCtx.canvas.width / 2, projectCtx.canvas.height / 2);
         return;
     }
 

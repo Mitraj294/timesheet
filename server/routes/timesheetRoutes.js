@@ -10,10 +10,10 @@ import {
   getTimesheetsByProject,
   getTimesheetsByEmployee,
   getTimesheetsByClient,
-  getIncompleteTimesheetsByEmployee, // Import the new controller function
+  getIncompleteTimesheetsByEmployee,
   updateTimesheet,
   deleteTimesheet,
-  downloadTimesheets ,
+  downloadTimesheets,
   sendTimesheetEmail,
   downloadProjectTimesheets,
   sendProjectTimesheetEmail
@@ -21,29 +21,32 @@ import {
 
 const router = express.Router();
 
-// Base timesheet routes
+// Get all timesheets (filtered by user/role)
 router.get('/', protect, getTimesheets);
+
+// Create a new timesheet
 router.post('/', protect, createTimesheet);
 
-// Check for existing timesheet (MUST be before /:id route)
+// Check if a timesheet exists for a date/employee
 router.get('/check', protect, checkTimesheet);
 
+// Get, update, or delete a timesheet by ID
 router.route('/:id')
-  .get(protect, getTimesheetById) 
+  .get(protect, getTimesheetById)
   .put(protect, updateTimesheet)
   .delete(protect, deleteTimesheet);
 
-// Get timesheets by specific criteria
+// Get timesheets by project, employee, or client
 router.get('/project/:projectId', protect, getTimesheetsByProject);
 router.get('/employee/:employeeId', protect, getTimesheetsByEmployee);
-router.get('/employee/:employeeId/incomplete', protect, getIncompleteTimesheetsByEmployee); // New route
+router.get('/employee/:employeeId/incomplete', protect, getIncompleteTimesheetsByEmployee);
 router.get('/client/:clientId', protect, getTimesheetsByClient);
 
-// Download and email general timesheet reports
+// Download and email timesheet reports (employer only)
 router.post('/download', protect, employerOnly, downloadTimesheets);
 router.post('/send', protect, employerOnly, sendTimesheetEmail);
 
-// Download and email project-specific timesheet reports
+// Download and email project-specific timesheet reports (employer only)
 router.post('/download/project', protect, employerOnly, downloadProjectTimesheets);
 router.post('/send-email/project', protect, employerOnly, sendProjectTimesheetEmail);
 

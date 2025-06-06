@@ -55,27 +55,37 @@ const ViewVehicle = () => {
 
   // Fetch vehicle and reviews on mount
   useEffect(() => {
+    console.log("[ViewVehicle] Fetching vehicle and reviews for vehicleId:", vehicleId);
     dispatch(fetchVehicleById(vehicleId));
     dispatch(fetchReviewsByVehicleId(vehicleId));
     return () => {
       dispatch(resetReviewState());
       dispatch(clearReportStatus());
       dispatch(clearReviewOperationStatus());
+      console.log("[ViewVehicle] Cleanup: Cleared review state and report status.");
     };
   }, [vehicleId, dispatch]);
 
   // Show errors as alerts
   useEffect(() => {
     const reduxError = fetchError || reviewOperationError || reportError;
-    if (reduxError) dispatch(setAlert(reduxError, 'danger'));
+    if (reduxError) {
+      dispatch(setAlert(reduxError, 'danger'));
+      console.error("[ViewVehicle] Error:", reduxError);
+    }
   }, [fetchError, reviewOperationError, reportError, dispatch]);
 
   // Delete review handlers
   const handleDeleteClick = (reviewId, employeeName) => {
     setItemToDelete({ id: reviewId, name: employeeName || 'this employee' });
     setShowDeleteConfirm(true);
+    console.log(`[ViewVehicle] Request to delete review by: ${employeeName} (${reviewId})`);
   };
-  const cancelDelete = () => { setShowDeleteConfirm(false); setItemToDelete(null); };
+  const cancelDelete = () => {
+    setShowDeleteConfirm(false);
+    setItemToDelete(null);
+    console.log("[ViewVehicle] Cancelled review deletion");
+  };
   const confirmDeleteReview = async () => {
     if (!itemToDelete) return;
     const { id: reviewId, name: employeeName } = itemToDelete;
@@ -85,12 +95,21 @@ const ViewVehicle = () => {
       dispatch(setAlert(`Review by ${employeeName || 'employee'} deleted successfully.`, 'success'));
       setShowDeleteConfirm(false);
       setItemToDelete(null);
-    } catch (err) {}
+      console.log(`[ViewVehicle] Review by ${employeeName} deleted.`);
+    } catch (err) {
+      // Error handled by alert
+    }
   };
 
   // Navigation handlers
-  const handleCreateReviewClick = () => navigate(`/vehicles/${vehicleId}/review`);
-  const handleViewReviewClick = (item) => navigate(`/vehicles/reviews/${item._id}/view`);
+  const handleCreateReviewClick = () => {
+    console.log("[ViewVehicle] Navigating to create review for vehicle:", vehicleId);
+    navigate(`/vehicles/${vehicleId}/review`);
+  };
+  const handleViewReviewClick = (item) => {
+    console.log("[ViewVehicle] Navigating to view review:", item._id);
+    navigate(`/vehicles/reviews/${item._id}/view`);
+  };
 
   // Download Excel report
   const handleDownloadExcelReport = async () => {
@@ -98,6 +117,7 @@ const ViewVehicle = () => {
     const reportParams = { vehicleId };
     if (startDate) reportParams.startDate = startDate.toISOString();
     if (endDate) reportParams.endDate = endDate.toISOString();
+    console.log("[ViewVehicle] Downloading vehicle report...", reportParams);
     try {
       const resultAction = await dispatch(downloadVehicleReport(reportParams)).unwrap();
       const { blob, filename } = resultAction;
@@ -123,7 +143,10 @@ const ViewVehicle = () => {
       window.URL.revokeObjectURL(url);
       setShowDateRangePicker(false);
       dispatch(setAlert('Vehicle report downloaded successfully.', 'success'));
-    } catch (err) {}
+      console.log("[ViewVehicle] Vehicle report downloaded.");
+    } catch (err) {
+      // Error handled by alert
+    }
   };
 
   // Send vehicle report by email
@@ -136,6 +159,7 @@ const ViewVehicle = () => {
     const reportData = { vehicleId, email: sendEmail };
     if (startDate) reportData.startDate = startDate.toISOString();
     if (endDate) reportData.endDate = endDate.toISOString();
+    console.log("[ViewVehicle] Sending vehicle report to:", sendEmail, reportData);
     try {
       await dispatch(sendVehicleReportByEmail(reportData)).unwrap();
       setShowSendReport(false);
@@ -143,7 +167,10 @@ const ViewVehicle = () => {
       setStartDate(null);
       setEndDate(null);
       dispatch(setAlert('Vehicle report sent successfully.', 'success'));
-    } catch (err) {}
+      console.log("[ViewVehicle] Vehicle report sent.");
+    } catch (err) {
+      // Error handled by alert
+    }
   };
 
   // Toggle report filter sections
@@ -152,12 +179,14 @@ const ViewVehicle = () => {
     setShowDateRangePicker(false);
     dispatch(clearReportStatus());
     if (!showSendReport) { setStartDate(null); setEndDate(null); }
+    console.log("[ViewVehicle] Toggled send report filter");
   };
   const toggleDownloadReport = () => {
     setShowDateRangePicker(prev => !prev);
     setShowSendReport(false);
     dispatch(clearReportStatus());
     if (!showDateRangePicker) { setStartDate(null); setEndDate(null); }
+    console.log("[ViewVehicle] Toggled download report filter");
   };
 
   // Filter reviews by employee name
@@ -327,7 +356,10 @@ const ViewVehicle = () => {
           type='text'
           placeholder='Search Reviews by Employee...'
           value={search}
-          onChange={e => setSearch(e.target.value)}
+          onChange={e => {
+            setSearch(e.target.value);
+            console.log("[ViewVehicle] Search changed:", e.target.value);
+          }}
           aria-label='Search Reviews'
         />
         <FontAwesomeIcon icon={faSearch} className='search-icon' />
@@ -418,7 +450,7 @@ const ViewVehicle = () => {
             <div className="logout-confirm-actions">
               <button className="btn btn-secondary" onClick={cancelDelete} disabled={isDeletingReview}>Cancel</button>
               <button className="btn btn-danger" onClick={confirmDeleteReview} disabled={isDeletingReview}>
-                {isDeletingReview ? <><FontAwesomeIcon icon={faSpinner} spin /> Deleting...</> : 'Delete Review'}
+                {isDeletingReview ? <><FontAwesomeIcon icon={faSpinner} spin /> Deleting...</> : 'Delete'}
               </button>
             </div>
           </div>

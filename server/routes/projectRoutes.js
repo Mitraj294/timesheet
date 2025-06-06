@@ -13,28 +13,28 @@ import { protect, employerOnly } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 
-// POST /api/projects/client/:clientId - Create a new project for a specific client
+// Create a new project for a client
 router.post("/client/:clientId", createProject);
 
-// GET /api/projects/client/:clientId - Get all projects for a specific client
-router.get("/client/:clientId", getProjectsByClientId);  
+// Get all projects for a specific client
+router.get("/client/:clientId", getProjectsByClientId);
 
-// GET /api/projects/:projectId - Get a single project by its ID
+// Get a single project by its ID
 router.get("/:projectId", getProjectById);
 
-// PUT /api/projects/:projectId - Update a project by its ID
+// Update a project by its ID
 router.put("/:projectId", updateProject);
 
-// DELETE /api/projects/:projectId - Delete a project by its ID
+// Delete a project by its ID
 router.delete("/:projectId", deleteProject);
 
-// GET /api/projects - Get all projects (e.g., for an admin overview)
+// Get all projects (admin or overview)
 router.get("/", getAllProjects);
 
-// POST /api/projects/report/download - Download project timesheet report as Excel
+// Download project timesheet report as Excel (employer only)
 router.post('/report/download', protect, employerOnly, downloadProjectReport);
 
-// POST /api/projects/report/email - Send project timesheet report via email
+// Send project timesheet report via email (employer only)
 router.post('/report/email', protect, employerOnly, sendProjectReportEmail);
 
 export default router;

@@ -107,7 +107,9 @@ const CreateTimesheet = () => {
   // Find the Employee record for the logged-in user if their role is 'employee'
   const loggedInEmployeeRecord = useMemo(() => {
     if (user?.role === 'employee' && Array.isArray(employees) && user?._id) {
-      return employees.find(emp => emp.userId === user._id);
+      const found = employees.find(emp => emp.userId === user._id);
+      console.log("[CreateTimesheet] loggedInEmployeeRecord:", found);
+      return found;
     }
     return null;
   }, [employees, user]);
@@ -151,6 +153,7 @@ const CreateTimesheet = () => {
   useEffect(() => {
     const reduxError = projectError || checkError || createError || updateError || (isEditing && currentTimesheetStatus === 'failed' && !timesheetToEdit ? "Failed to load timesheet for editing." : null);
     if (reduxError) {
+      console.error("[CreateTimesheet] Redux error:", reduxError);
       dispatch(setAlert(reduxError, 'danger'));
     }
   }, [projectError, checkError, createError, updateError, isEditing, currentTimesheetStatus, timesheetToEdit, dispatch]);
@@ -158,50 +161,49 @@ const CreateTimesheet = () => {
   // Fetch settings if not already loaded
   useEffect(() => {
     if (settingsStatus === 'idle') {
+      console.log("[CreateTimesheet] Fetching employer settings...");
       dispatch(fetchEmployerSettings());
     }
   }, [dispatch, settingsStatus]);
 
-  // Fetches initial data: employees, clients.
-  // Fetches the specific timesheet if in edit mode and it hasn't been fetched or has changed.
+  // Fetches initial data: employees, clients, and timesheet if editing
   useEffect(() => {
-    if (employeeStatus === 'idle') dispatch(fetchEmployees());
-    if (clientStatus === 'idle') dispatch(fetchClients());
-
+    if (employeeStatus === 'idle') {
+      console.log("[CreateTimesheet] Fetching employees...");
+      dispatch(fetchEmployees());
+    }
+    if (clientStatus === 'idle') {
+      console.log("[CreateTimesheet] Fetching clients...");
+      dispatch(fetchClients());
+    }
     if (isEditing && timesheetIdForEdit) {
-      // Only fetch if the current timesheet in store is not the one we need,
-      // or if the status is idle (initial load for this ID),
-      // and we are not currently loading, and the last attempt for *this* ID didn't fail.
       if (currentTimesheetStatus !== 'loading') {
         if (timesheetToEdit?._id !== timesheetIdForEdit) {
-          // If the ID has changed or no timesheet is loaded, clear previous and fetch new.
-          // Also, only fetch if the previous attempt for *this specific ID* didn't fail.
-          // This check `currentTimesheetStatus !== 'failed'` is crucial.
-          // If timesheetToEdit is null and status is 'failed', it means the fetch for timesheetIdForEdit failed.
           if (!(timesheetToEdit === null && currentTimesheetStatus === 'failed')) {
-            dispatch(clearCurrentTimesheet()); // Clear any old timesheet data before fetching new
+            dispatch(clearCurrentTimesheet());
+            console.log("[CreateTimesheet] Fetching timesheet for edit:", timesheetIdForEdit);
             dispatch(fetchTimesheetById(timesheetIdForEdit));
           }
         } else if (currentTimesheetStatus === 'idle') {
-          // If status is 'idle' (e.g., first time loading this component for this ID), fetch.
           dispatch(fetchTimesheetById(timesheetIdForEdit));
         }
       }
     } else if (!isEditing) {
-      // If switching from edit mode to create mode, clear any existing timesheetToEdit
       if (timesheetToEdit) {
         dispatch(clearCurrentTimesheet());
+        console.log("[CreateTimesheet] Cleared current timesheet for create mode.");
       }
     }
   }, [dispatch, isEditing, timesheetIdForEdit, employeeStatus, clientStatus, currentTimesheetStatus, timesheetToEdit?._id]);
 
-
   useEffect(() => {
     if (formData.clientId && !isLeaveSelected) {
+      console.log("[CreateTimesheet] Fetching projects for clientId:", formData.clientId);
       dispatch(fetchProjects(formData.clientId));
     } else if (!isLeaveSelected) {
       dispatch(clearProjects());
       setFilteredProjects([]);
+      console.log("[CreateTimesheet] Cleared projects (no client or leave selected).");
     }
   }, [formData.clientId, isLeaveSelected, dispatch, clientIdFromUrl, preselectedClientId]);
 
@@ -209,8 +211,10 @@ const CreateTimesheet = () => {
     if (formData.clientId && allProjects && allProjects.length > 0) {
       const clientProjects = allProjects.filter(p => (p.clientId?._id || p.clientId) === formData.clientId);
       setFilteredProjects(clientProjects);
+      console.log("[CreateTimesheet] Filtered projects for client:", clientProjects);
     } else {
       setFilteredProjects([]);
+      console.log("[CreateTimesheet] No projects to filter for client.");
     }
   }, [allProjects, formData.clientId]);
 
@@ -218,6 +222,7 @@ const CreateTimesheet = () => {
   useEffect(() => {
     if (isEditing) {
       if (currentTimesheetStatus === 'succeeded' && timesheetToEdit && timesheetToEdit._id === timesheetIdForEdit) {
+        console.log("[CreateTimesheet] Populating form for edit:", timesheetToEdit);
         const entryTimezone = timesheetToEdit.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
         const utcToLocalTimeInput = (isoStr) => {
           if (!isoStr) return '';
@@ -264,10 +269,11 @@ const CreateTimesheet = () => {
           notes: '', description: '',
           timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
         }));
+        console.log("[CreateTimesheet] Reset form for edit mode (timesheet not found or failed).");
       }
-    } else { // Create mode
-      // Wait for settings and employee record (if applicable) to be loaded
+    } else {
       if (settingsStatus === 'succeeded' && (user?.role !== 'employee' || (user?.role === 'employee' && loggedInEmployeeRecord))) {
+        console.log("[CreateTimesheet] Initializing form for create mode.");
         const defaultLunchBreakFromSettings = employerSettings?.timesheetIsLunchBreakDefault === true ? 'Yes' : 'No';
         let initialCreateData = {
           ...DEFAULT_FORM_DATA,
@@ -291,8 +297,8 @@ const CreateTimesheet = () => {
   }, [
       isEditing, currentTimesheetStatus, timesheetToEdit, timesheetIdForEdit,
       clientIdFromUrl, preselectedClientId, projectIdFromUrl, preselectedProjectId,
-      calculateHoursPure, dispatch, employees, user, loggedInEmployeeRecord, // Added user, loggedInEmployeeRecord
-      settingsStatus, employerSettings // Added settings dependencies
+      calculateHoursPure, dispatch, employees, user, loggedInEmployeeRecord,
+      settingsStatus, employerSettings
     ]);
   
   useEffect(() => {
@@ -303,13 +309,14 @@ const CreateTimesheet = () => {
               const roundedPrev = parseFloat(prev.totalHours || 0).toFixed(2);
               const roundedCurrent = calculatedHoursValue.toFixed(2);
               if (roundedPrev !== roundedCurrent) {
+                  console.log("[CreateTimesheet] Recalculated total hours:", calculatedHoursValue);
                   return { ...prev, totalHours: calculatedHoursValue };
               }
               return prev;
           });
           if (error && error.startsWith("Calculation Error:")) setError(null);
       } catch (calcError) {
-        // console.error("Calculation Error in useEffect:", calcError.message);
+        console.error("[CreateTimesheet] Calculation Error in useEffect:", calcError.message);
       }
   }, [formData.startTime, formData.endTime, formData.lunchBreak, formData.lunchDuration, formData.leaveType, calculateHoursPure, error]);
   
@@ -318,7 +325,7 @@ const CreateTimesheet = () => {
     setFormData(prev => {
         let updated = { ...prev, [name]: value };
         if (name === 'employeeId') {
-            if (user?.role !== 'employee') { // Employees cannot change their pre-filled wage via this dropdown
+            if (user?.role !== 'employee') {
               const selectedEmployee = employees.find((emp) => emp._id === value);
               updated.hourlyWage = selectedEmployee ? selectedEmployee.wage || '' : '';
             }
@@ -347,6 +354,7 @@ const CreateTimesheet = () => {
         return updated;
     });
     if (error) setError(null);
+    console.log(`[CreateTimesheet] Input changed: ${name} =`, value);
   };
 
   const validateForm = (dataToValidate) => { // Accept data to validate
@@ -396,21 +404,23 @@ const CreateTimesheet = () => {
     dispatch(clearUpdateStatus());
     setError(null);
 
-    let finalFormData = { ...formData }; // Create a mutable copy for this submission
+    let finalFormData = { ...formData };
     try {
         const calculatedHoursValue = calculateHoursPure(finalFormData);
-        finalFormData.totalHours = calculatedHoursValue; // Update the copy
+        finalFormData.totalHours = calculatedHoursValue;
     } catch (calcError) {
         setError(calcError.message);
         dispatch(setAlert(calcError.message, 'danger'));
+        console.error("[CreateTimesheet] Calculation error on submit:", calcError.message);
         return;
     }
 
-    const validationError = validateForm(finalFormData); // Validate the copy
+    const validationError = validateForm(finalFormData);
 
     if (validationError) {
       setError(validationError);
-      dispatch(setAlert(validationError, 'danger')); // Ensure 'danger' for blocking errors
+      dispatch(setAlert(validationError, 'danger'));
+      console.warn("[CreateTimesheet] Validation error:", validationError);
       return;
     }
 
@@ -423,6 +433,7 @@ const CreateTimesheet = () => {
         if (checkAction.exists) {
           dispatch(setAlert('A timesheet for this employee on this date already exists.', 'warning'));
           setError('A timesheet for this employee on this date already exists.');
+          console.warn("[CreateTimesheet] Duplicate timesheet exists for employee/date.");
           return;
         }
       }
@@ -482,9 +493,11 @@ const CreateTimesheet = () => {
       if (isEditing) {
         await dispatch(updateTimesheet({ id: timesheetIdForEdit, timesheetData: requestData })).unwrap();
         dispatch(setAlert('Timesheet updated successfully!', 'success'));
+        console.log("[CreateTimesheet] Timesheet updated successfully.");
       } else {
         await dispatch(createTimesheet(requestData)).unwrap();
         dispatch(setAlert('Timesheet created successfully!', 'success'));
+        console.log("[CreateTimesheet] Timesheet created successfully.");
       }
 
       const finalNavClientId = clientIdFromUrl || preselectedClientId || timesheetToEdit?.clientId?._id || timesheetToEdit?.clientId;
@@ -500,6 +513,7 @@ const CreateTimesheet = () => {
       const errorMessage = typeof apiError === 'string' ? apiError : (apiError?.message || `Failed to ${isEditing ? 'update' : 'create'} timesheet.`);
       setError(errorMessage);
       dispatch(setAlert(errorMessage, 'danger'));
+      console.error("[CreateTimesheet] API error on submit:", errorMessage);
     }
   };
 
@@ -512,6 +526,7 @@ const CreateTimesheet = () => {
     } else {
         navigate('/timesheet');
     }
+    console.log("[CreateTimesheet] Cancel button clicked, navigating back.");
   };
 
   const isProjectLoading = projectStatus === 'loading';

@@ -6,28 +6,27 @@ import {
   updateEmployee,
   deleteEmployee,
   getMyEmployeeProfile,
-  batchUpdateEmployeeNotificationPreferences // Import the controller for batch updates
+  batchUpdateEmployeeNotificationPreferences
 } from "../controllers/employeeController.js";
 
 const router = express.Router();
 
-// GET /api/employees/me - Fetch current logged-in employee's profile (protected)
-// This route should be defined before /:id to avoid 'me' being treated as an ID
+// Get current logged-in employee's profile
 router.get("/me", protect, getMyEmployeeProfile);
 
-// GET /api/employees - Fetch all employees (protected)
+// Get all employees (employer sees all, employee sees own team)
 router.get("/", protect, getEmployees);
 
-// POST /api/employees - Add a new employee (protected, employer only)
+// Add a new employee (employer only)
 router.post("/", protect, employerOnly, addEmployee);
 
-// PUT /api/employees/:id - Update an employee (protected, employer only)
+// Update an employee (employer only)
 router.put("/:id", protect, employerOnly, updateEmployee);
 
-// PATCH /api/employees/batch-update-notifications - Batch update notification preferences for employees
+// Batch update notification preferences for employees
 router.patch("/batch-update-notifications", protect, batchUpdateEmployeeNotificationPreferences);
 
-// DELETE /api/employees/:id - Delete an employee (protected, employer only)
+// Delete an employee (employer only)
 router.delete("/:id", protect, employerOnly, deleteEmployee);
 
 export default router;

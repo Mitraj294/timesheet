@@ -48,6 +48,8 @@ const store = configureStore({
   devTools: process.env.NODE_ENV !== "production",
 });
 
+console.log("[store] Redux store created.");
+
 // This file creates the Redux store.
 // The store holds all app state and connects all reducers.
 // Without this file, Redux state will not work in  app.

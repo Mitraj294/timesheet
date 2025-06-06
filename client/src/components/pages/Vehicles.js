@@ -45,6 +45,7 @@ const Vehicles = () => {
   // Fetch vehicles on mount
   useEffect(() => {
     if (loadingStatus === 'idle') {
+      console.log("[Vehicles] Fetching vehicles...");
       dispatch(fetchVehicles()).unwrap().catch((error) => {
         if (
           error?.message?.includes('401') ||
@@ -61,12 +62,16 @@ const Vehicles = () => {
   // Show errors as alerts
   useEffect(() => {
     const reduxError = fetchError || operationError || reportError;
-    if (reduxError) dispatch(setAlert(reduxError, 'danger'));
+    if (reduxError) {
+      console.error("[Vehicles] Error:", reduxError);
+      dispatch(setAlert(reduxError, 'danger'));
+    }
   }, [fetchError, operationError, reportError, dispatch]);
 
   // Download vehicle report
   const handleDownloadReport = async () => {
     dispatch(clearReportStatus());
+    console.log("[Vehicles] Downloading vehicle report...");
     const reportParams = {};
     if (startDate) reportParams.startDate = startDate.toISOString();
     if (endDate) reportParams.endDate = endDate.toISOString();
@@ -92,6 +97,7 @@ const Vehicles = () => {
       link.remove();
       window.URL.revokeObjectURL(url);
       dispatch(setAlert('Vehicle report downloaded successfully.', 'success'));
+      console.log("[Vehicles] Vehicle report downloaded.");
     } catch (err) {
       // Error handled by alert
     }
@@ -104,6 +110,7 @@ const Vehicles = () => {
       return;
     }
     dispatch(clearReportStatus());
+    console.log("[Vehicles] Sending vehicle report to:", sendEmail);
     const reportData = { email: sendEmail };
     if (startDate) reportData.startDate = startDate.toISOString();
     if (endDate) reportData.endDate = endDate.toISOString();
@@ -114,6 +121,7 @@ const Vehicles = () => {
       setStartDate(null);
       setEndDate(null);
       dispatch(setAlert('Vehicle report sent successfully.', 'success'));
+      console.log("[Vehicles] Vehicle report sent.");
     } catch (err) {
       // Error handled by alert
     }
@@ -121,19 +129,26 @@ const Vehicles = () => {
 
   // Delete vehicle
   const handleDeleteClick = (vehicleId, vehicleName) => {
+    console.log(`[Vehicles] Request to delete vehicle: ${vehicleName} (${vehicleId})`);
     setItemToDelete({ id: vehicleId, name: vehicleName });
     setShowDeleteConfirm(true);
   };
-  const cancelDelete = () => { setShowDeleteConfirm(false); setItemToDelete(null); };
+  const cancelDelete = () => {
+    setShowDeleteConfirm(false);
+    setItemToDelete(null);
+    console.log("[Vehicles] Cancelled vehicle deletion");
+  };
   const confirmDeleteVehicle = async () => {
     if (!itemToDelete) return;
     const { id: vehicleId, name: vehicleName } = itemToDelete;
     dispatch(clearOperationStatus());
+    console.log(`[Vehicles] Confirming delete for vehicle: ${vehicleName} (${vehicleId})`);
     try {
       await dispatch(deleteVehicle(vehicleId)).unwrap();
       dispatch(setAlert(`Vehicle "${vehicleName}" deleted successfully.`, 'success'));
       setShowDeleteConfirm(false);
       setItemToDelete(null);
+      console.log(`[Vehicles] Vehicle "${vehicleName}" deleted.`);
     } catch (err) {
       // Error handled by alert
     }
@@ -150,12 +165,14 @@ const Vehicles = () => {
     setShowDateRangePicker(false);
     dispatch(clearReportStatus());
     if (!showSendReport) { setStartDate(null); setEndDate(null); }
+    console.log("[Vehicles] Toggled send report filter");
   };
   const toggleDownloadReport = () => {
     setShowDateRangePicker(prev => !prev);
     setShowSendReport(false);
     dispatch(clearReportStatus());
     if (!showDateRangePicker) { setStartDate(null); setEndDate(null); }
+    console.log("[Vehicles] Toggled download report filter");
   };
 
   const isDeleting = operationStatus === 'loading';
@@ -306,7 +323,10 @@ const Vehicles = () => {
           type='text'
           placeholder='Search by Vehicle Name...'
           value={search}
-          onChange={e => setSearch(e.target.value)}
+          onChange={e => {
+            setSearch(e.target.value);
+            console.log("[Vehicles] Search changed:", e.target.value);
+          }}
           aria-label='Search Vehicles'
         />
         <FontAwesomeIcon icon={faSearch} className='search-icon' />
@@ -386,7 +406,7 @@ const Vehicles = () => {
             <div className="logout-confirm-actions">
               <button className="btn btn-secondary" onClick={cancelDelete} disabled={isDeleting}>Cancel</button>
               <button className="btn btn-danger" onClick={confirmDeleteVehicle} disabled={isDeleting}>
-                {isDeleting ? <><FontAwesomeIcon icon={faSpinner} spin /> Deleting...</> : 'Delete Vehicle'}
+                {isDeleting ? <><FontAwesomeIcon icon={faSpinner} spin /> Deleting...</> : 'Delete'}
               </button>
             </div>
           </div>

@@ -15,7 +15,6 @@ import { setAlert } from '../../redux/slices/alertSlice';
 import Alert from '../layout/Alert';
 
 import '../../styles/Forms.scss'; // *** Use Forms.scss ***
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
     faUserTag, 
     faTimes,
@@ -86,29 +85,30 @@ const CreateRole = () => {
     const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
 
     // Effects
-    // Fetches initial data: employees, and the specific role if in edit mode
     useEffect(() => {
         // Fetch employees if not already loaded
         if (employeeStatus === 'idle') {
+            console.log("[CreateRole] Fetching employees...");
             dispatch(fetchEmployees());
         }
 
         if (isEditing && roleId) {
+            console.log("[CreateRole] Fetching role by id:", roleId);
             dispatch(fetchRoleById(roleId));
         } else {
             dispatch(clearCurrentRole());
-            // Reset local form state for creation mode
             setRoleName('');
             setRoleDescription('');
             setColor(COLORS[0]);
             setSelectedEmployees([]);
             setSchedule({});
+            console.log("[CreateRole] Initializing form for new role.");
         }
 
-        // Cleanup: clear current role and any save errors when component unmounts or `roleId` changes
         return () => {
             dispatch(clearCurrentRole());
             dispatch(clearRoleError());
+            console.log("[CreateRole] Cleanup: Cleared current role and errors.");
         };
     }, [roleId, isEditing, dispatch, employeeStatus]);
 
@@ -177,8 +177,8 @@ const CreateRole = () => {
     useEffect(() => {
         const reduxError = employeeError || currentRoleError || saveError;
         if (reduxError) {
+            console.error("[CreateRole] Redux error:", reduxError);
             dispatch(setAlert(reduxError, 'danger'));
-            // Optionally clear the Redux error after showing the alert
         }
     }, [employeeError, currentRoleError, saveError, dispatch]);
 
@@ -187,12 +187,14 @@ const CreateRole = () => {
         const empId = e.target.value;
         if (empId && !selectedEmployees.includes(empId)) {
             setSelectedEmployees((prev) => [...prev, empId]);
+            console.log("[CreateRole] Added employee to role:", empId);
         }
         e.target.value = ""; // Reset select dropdown after adding
     }, [selectedEmployees]);
 
     const removeEmployee = useCallback((empIdToRemove) => {
         setSelectedEmployees((prev) => prev.filter((id) => id !== empIdToRemove));
+        console.log("[CreateRole] Removed employee from role:", empIdToRemove);
     }, []);
 
     const handleTimeChange = useCallback((dayStr, type, value) => {
@@ -206,8 +208,9 @@ const CreateRole = () => {
                 },
             };
         });
-        if (error) setError(null); // Clear local validation error on time change
-    }, [error]); // Added error dependency
+        if (error) setError(null);
+        console.log(`[CreateRole] Time changed for ${dayStr} (${type}):`, value);
+    }, [error]);
 
     // Form Validation
     const validateInputs = () => {
@@ -256,29 +259,32 @@ const CreateRole = () => {
     // Form Submission
     const handleSubmit = async (e) => {
         e.preventDefault();
-        setError(null); // Clear previous local validation errors
-        dispatch(clearRoleError()); // Clear previous Redux save/operation errors
+        setError(null);
+        dispatch(clearRoleError());
 
         const validationError = validateInputs();
         if (validationError) {
             dispatch(setAlert(validationError, 'warning'));
+            console.warn("[CreateRole] Validation error:", validationError);
             return;
         }
 
         const roleData = prepareSubmitData();
+        console.log("[CreateRole] Submitting role data:", roleData);
 
         try {
             if (isEditing) {
                 await dispatch(updateRole({ id: roleId, roleData })).unwrap();
                 dispatch(setAlert('Role updated successfully!', 'success'));
+                console.log("[CreateRole] Role updated successfully.");
             } else {
                 await dispatch(createRole(roleData)).unwrap();
                 dispatch(setAlert('Role created successfully!', 'success'));
+                console.log("[CreateRole] Role created successfully.");
             }
             navigate('/rosterpage');
-
         } catch (err) {
-            console.error('Error submitting role:', err.response?.data || err.message);
+            console.error('[CreateRole] Error submitting role:', err.response?.data || err.message);
             dispatch(setAlert(err || `Failed to ${isEditing ? 'update' : 'create'} role.`, 'danger'));
         }
     };

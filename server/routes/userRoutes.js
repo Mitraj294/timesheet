@@ -1,13 +1,10 @@
 import express from "express";
-import { updateUserProfile } from "../controllers/userController.js"; // Import the new controller function
-import { protect } from '../middleware/authMiddleware.js'; // Import authentication middleware
+import { updateUserProfile } from "../controllers/userController.js";
+import { protect } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
 
-// --- Protected Routes ---
-
-// PUT /api/users/profile - Update the logged-in user's profile (name, email, etc.) (protected)
+// Update the logged-in user's profile (name, email, etc.)
 router.put('/profile', protect, updateUserProfile);
-
 
 export default router;

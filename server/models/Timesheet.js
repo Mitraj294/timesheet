@@ -1,31 +1,34 @@
 // /home/digilab/timesheet/server/models/Timesheet.js
 import mongoose from 'mongoose';
 
+// Timesheet schema: stores a single day's work for an employee
 const timesheetSchema = new mongoose.Schema({
-  employeeId: { type: mongoose.Schema.Types.ObjectId, ref: 'Employee', required: true },
-  clientId: { type: mongoose.Schema.Types.ObjectId, ref: 'Client', default: null },
-  projectId: { type: mongoose.Schema.Types.ObjectId, ref: 'Project', default: null },
+  employeeId: { type: mongoose.Schema.Types.ObjectId, ref: 'Employee', required: true }, // Who worked
+  clientId: { type: mongoose.Schema.Types.ObjectId, ref: 'Client', default: null }, // Optional: client for the work
+  projectId: { type: mongoose.Schema.Types.ObjectId, ref: 'Project', default: null }, // Optional: project for the work
   date: {
     type: String,
     required: true,
-    match: [/^\d{4}-\d{2}-\d{2}$/, 'Date must be in YYYY-MM-DD format']
+    match: [/^\d{4}-\d{2}-\d{2}$/, 'Date must be in YYYY-MM-DD format'] // e.g., "2024-05-01"
   },
-  startTime: { type: Date, default: null }, // Stored as full UTC BSON Date
-  endTime: { type: Date, default: null },   // Stored as full UTC BSON Date
-  lunchBreak: { type: String, enum: ['Yes', 'No'], default: 'No' },
+  startTime: { type: Date, default: null }, // Work start (UTC)
+  endTime: { type: Date, default: null },   // Work end (UTC)
+  lunchBreak: { type: String, enum: ['Yes', 'No'], default: 'No' }, // Did employee take lunch?
   lunchDuration: {
-      type: String,
-      default: '00:00',
-      match: [/^\d{2}:\d{2}$/, 'Lunch duration must be in HH:MM format']
+    type: String,
+    default: '00:00',
+    match: [/^\d{2}:\d{2}$/, 'Lunch duration must be in HH:MM format'] // e.g., "00:30"
   },
-  leaveType: { type: String, default: 'None' },
-  totalHours: { type: Number, default: 0 },
-  notes: { type: String, default: '' },
-  description: { type: String, default: '' },
-  hourlyWage: { type: Number, default: 0 },
-  timezone: { type: String, default: 'UTC' }, // User's local timezone identifier
-  actualEndTime: { type: Date, default: null }, // Actual timestamp when endTime was recorded
-  isActiveStatus: { type: String, enum: ['Active', 'Inactive'], default: 'Inactive' }, // Stored status
+  leaveType: { type: String, default: 'None' }, // Leave type if any
+  totalHours: { type: Number, default: 0 }, // Total hours worked
+  notes: { type: String, default: '' }, // Optional notes
+  description: { type: String, default: '' }, // Optional description
+  hourlyWage: { type: Number, default: 0 }, // Wage at time of entry
+  timezone: { type: String, default: 'UTC' }, // User's timezone
+  actualEndTime: { type: Date, default: null }, // When endTime was actually recorded
+  isActiveStatus: { type: String, enum: ['Active', 'Inactive'], default: 'Inactive' }, // Status of timesheet
+
+  // Start location (geo point and address)
   startLocation: {
     type: {
       type: String,
@@ -34,27 +37,25 @@ const timesheetSchema = new mongoose.Schema({
     },
     coordinates: { // [longitude, latitude]
       type: [Number],
-      default: undefined, // Or [] if you prefer, but undefined means it won't be set if no coords
+      default: undefined,
     },
-    address: { type: String, trim: true, default: '' } // Optional: Store reverse-geocoded address
+    address: { type: String, trim: true, default: '' }
   },
-  endLocation: { // Same structure as startLocation
+  // End location (geo point and address)
+  endLocation: {
     type: { type: String, enum: ['Point'], default: 'Point' },
     coordinates: { type: [Number], default: undefined },
     address: { type: String, trim: true, default: '' }
   },
-  // createdAt and updatedAt will be handled by timestamps option
+  // createdAt and updatedAt handled by timestamps
 }, { 
-  timestamps: true,
-  toJSON: {}, // No virtuals to include
-  toObject: {} // No virtuals to include
+  timestamps: true, // Adds createdAt and updatedAt
+  toJSON: {},
+  toObject: {}
 });
 
-// Ensure a unique timesheet entry per employee per day.
+// Only one timesheet per employee per day
 timesheetSchema.index({ employeeId: 1, date: 1 }, { unique: true });
-
-// The { timestamps: true } option automatically handles createdAt and updatedAt,
-// so the manual pre('save') hook for updatedAt is no longer needed.
 
 const Timesheet = mongoose.model('Timesheet', timesheetSchema);
 
