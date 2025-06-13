@@ -3,7 +3,7 @@ import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import { setAlert } from './alertSlice';
 import axios from 'axios';
 
-const API_URL = process.env.REACT_APP_API_URL || 'https://timesheet-slpc.onrender.com/api';
+const API_URL = 'https://192.168.1.47:5000/api';
 
 // Helpers
 const getAuthHeaders = (token) => ({

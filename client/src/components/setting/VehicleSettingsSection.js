@@ -28,21 +28,12 @@ const VehicleSettingsSection = () => {
     }
   }, [showVehiclesTabFromStore]);
 
-  useEffect(() => {
-    console.log("[VehicleSettingsSection] Component mounted");
-    return () => {
-      console.log("[VehicleSettingsSection] Component unmounted");
-    };
-  }, []);
-
   const handleSelectChange = (e) => {
     setLocalShowVehiclesTab(e.target.value === 'true');
-    console.log("[VehicleSettingsSection] Changed showVehiclesTabInSidebar to:", e.target.value);
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    console.log("[VehicleSettingsSection] Submitting vehicle settings:", localShowVehiclesTab);
     dispatch(updateEmployerSettings({ showVehiclesTabInSidebar: localShowVehiclesTab }));
   };
 

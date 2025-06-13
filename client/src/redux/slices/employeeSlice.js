@@ -143,12 +143,17 @@ const employeeSlice = createSlice({
         state.error = null;
       })
       .addCase(updateEmployee.fulfilled, (state, action) => {
-        const index = state.employees.findIndex(emp => emp._id === action.payload._id);
-        if (index !== -1) state.employees[index] = action.payload;
+        state.status = 'succeeded';
+        state.error = null;
+        // Update the employee in the list
+        const idx = state.employees.findIndex(e => e._id === action.payload._id);
+        if (idx !== -1) {
+          state.employees[idx] = action.payload;
+        }
       })
       .addCase(updateEmployee.rejected, (state, action) => {
         state.status = 'failed';
-        state.error = action.payload;
+        state.error = action.payload || 'Failed to update employee';
       })
       .addCase(deleteEmployee.pending, (state) => {
         state.status = 'loading';

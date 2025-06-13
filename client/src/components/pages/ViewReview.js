@@ -37,7 +37,6 @@ const ViewReview = () => {
 
   // Fetch review on mount
   useEffect(() => {
-    console.log("[ViewReview] Fetching review by ID:", reviewId);
     dispatch(fetchReviewById(reviewId))
       .unwrap()
       .catch(err => {
@@ -48,7 +47,6 @@ const ViewReview = () => {
     return () => {
       dispatch(resetCurrentReview());
       dispatch(clearReviewReportStatus());
-      console.log("[ViewReview] Cleanup: Cleared review and report status.");
     };
   }, [reviewId, navigate, dispatch]);
 
@@ -68,7 +66,6 @@ const ViewReview = () => {
   // Download review report
   const handleDownload = async (format) => {
     dispatch(clearReviewReportStatus());
-    console.log("[ViewReview] Downloading review report:", reviewId, format);
     try {
       const { blob, filename } = await dispatch(downloadReviewReport({ reviewId, format })).unwrap();
       if (blob) {
@@ -82,7 +79,6 @@ const ViewReview = () => {
         window.URL.revokeObjectURL(url);
         setShowDownloadPrompt(false);
         dispatch(setAlert(`Review report (${format}) downloaded successfully.`, 'success'));
-        console.log("[ViewReview] Review report downloaded:", filename || `review_${reviewId}.${format}`);
       } else {
         throw new Error('No data received for download.');
       }
@@ -98,13 +94,11 @@ const ViewReview = () => {
       return;
     }
     dispatch(clearReviewReportStatus());
-    console.log("[ViewReview] Sending review report to:", email, "format:", format);
     try {
       await dispatch(sendReviewReportByClient({ reviewId, email, format })).unwrap();
       setShowEmailPrompt(false);
       setEmail('');
       dispatch(setAlert(`Review report sent successfully to ${email}.`, 'success'));
-      console.log("[ViewReview] Review report sent to:", email);
     } catch (error) {
       // Error handled by alert
     }

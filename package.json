@@ -7,24 +7,63 @@
     "client": "npm start --prefix client",
     "server": "cross-env NODE_ENV=development nodemon server/server.js",
     "start": "node server/server.js",
-    "dev": "concurrently \"npm run server\" \"npm run client\""
+    "dev": "concurrently \"npm run server\" \"npm run client\"",
+    "remove-eslint": "npm uninstall eslint",
+    "test": "concurrently \"npm run test:server\" \"npm run test:client\"",
+    "test:auth": "jest server/tests/authController.test.js --runInBand",
+    "test:client": "npm test --prefix client",
+    "test:employee": "jest server/tests/employeeController.test.js --runInBand",
+    "test:project": "jest server/tests/projectController.test.js --runInBand",
+    "test:role": "jest server/tests/roleController.test.js --runInBand",
+    "test:vehicle": "jest server/tests/vehicleController.test.mjs --runInBand",
+    "test:settings": "jest server/tests/settingsController.test.js --runInBand",
+    "test:sample": "jest server/tests/sample.test.js --runInBand",
+    "test:all": "npm run test:auth && npm test",
+    "test:server": "npm test --prefix server",
+    "test:server:file": "npm test --prefix server --",
+    "test:client:file": "npm test --prefix client --"
   },
   "devDependencies": {
+    "@babel/core": "^7.27.4",
+    "@babel/preset-env": "^7.27.2",
+    "@jest/globals": "^30.0.0",
+    "@testing-library/jest-dom": "^6.6.3",
+    "@testing-library/react": "^16.3.0",
+    "babel-jest": "^30.0.0",
     "chartjs-plugin-datalabels": "^2.2.0",
     "concurrently": "^9.1.2",
     "cross-env": "^7.0.3",
+    "eslint-config-prettier": "^10.1.5",
+    "eslint-plugin-prettier": "^5.4.1",
+    "jest": "^30.0.0",
+    "mongodb-memory-server": "^10.1.4",
+    "prettier": "^3.5.3",
     "react-app-rewired": "^2.2.1",
     "sass": "^1.86.3",
-    "sass-loader": "^13.3.3"
+    "sass-loader": "^16.0.5",
+    "supertest": "^7.1.1",
+    "webpack-bundle-analyzer": "^4.10.2"
   },
   "dependencies": {
     "date-fns": "^4.1.0",
     "date-fns-tz": "^3.2.0",
+    "express": "^5.1.0",
     "express-async-handler": "^1.2.0",
+    "express-rate-limit": "^7.5.0",
     "leaflet": "^1.9.4",
     "leaflet.markercluster": "^1.5.3",
-    "moment-timezone": "^0.5.48",
+    "luxon": "^3.6.1",
+    "moment-timezone": "^0.6.0",
+    "mongoose": "^8.15.1",
     "node-cron": "^4.0.6",
-    "overlapping-marker-spiderfier": "^1.1.4"
+    "overlapping-marker-spiderfier": "^1.1.4",
+    "winston": "^3.17.0"
+  },
+  "type": "module",
+  "jest": {
+    "transform": {
+      "^.+\\.jsx?$": "babel-jest"
+    },
+    "testEnvironment": "node"
   }
 }

@@ -1,7 +1,8 @@
 import axios from "axios";
 
 // API base URL (change in .env for different servers)
-const BASE_API_URL = process.env.REACT_APP_API_URL || 'https://timesheet-slpc.onrender.com/api';
+// Update the base API URL to use the production server
+const BASE_API_URL = 'https://192.168.1.47:5000/api';
 const AUTH_API = `${BASE_API_URL}/auth`;
 
 // Register a new user

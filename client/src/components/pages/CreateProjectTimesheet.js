@@ -41,6 +41,7 @@ import { setAlert } from '../../redux/slices/alertSlice';
 import { selectEmployerSettings, fetchEmployerSettings, selectSettingsStatus } from '../../redux/slices/settingsSlice'; // Import settings
 import Alert from '../layout/Alert';
 import { DateTime } from 'luxon';
+import { localTimeToUtcIso, utcIsoToLocalTime } from '../../utils/time';
 
 // Constants for default values
 const DEFAULT_FORM_DATA = {
@@ -104,7 +105,6 @@ const CreateProjectTimesheet = () => {
   const loggedInEmployeeRecord = useMemo(() => {
     if (user?.role === 'employee' && Array.isArray(employees) && user?._id) {
       const found = employees.find(emp => emp.userId === user._id);
-      console.log("[CreateProjectTimesheet] loggedInEmployeeRecord:", found);
       return found;
     }
     return null;
@@ -160,7 +160,6 @@ const CreateProjectTimesheet = () => {
   // Fetch settings if not already loaded
   useEffect(() => {
     if (settingsStatus === 'idle') {
-      console.log("[CreateProjectTimesheet] Fetching employer settings...");
       dispatch(fetchEmployerSettings());
     }
   }, [dispatch, settingsStatus]);
@@ -168,16 +167,13 @@ const CreateProjectTimesheet = () => {
   // Fetches initial data: employees, and the specific timesheet if in edit mode
   useEffect(() => {
     if (employeeStatus === 'idle' || (employeeStatus !== 'loading' && employees.length === 0)) {
-      console.log("[CreateProjectTimesheet] Fetching employees...");
       dispatch(fetchEmployees());
     }
     if (clientStatus === 'idle' || (clientStatus !== 'loading' && clients.length === 0)) {
-      console.log("[CreateProjectTimesheet] Fetching clients...");
       dispatch(fetchClients());
     }
     if (isEditing && timesheetIdForEdit) {
       if (currentTimesheetStatus === 'idle' || timesheetToEdit?._id !== timesheetIdForEdit) {
-        console.log("[CreateProjectTimesheet] Fetching timesheet for edit:", timesheetIdForEdit);
         dispatch(fetchTimesheetById(timesheetIdForEdit));
       }
     }
@@ -186,7 +182,6 @@ const CreateProjectTimesheet = () => {
   // Fetches projects for the current client if client selection is dynamic and not a leave entry
   useEffect(() => {
     if (formData.clientId && !isLeaveSelected) {
-      console.log("[CreateProjectTimesheet] Fetching projects for clientId:", formData.clientId);
       dispatch(fetchProjects(formData.clientId));
     } else {
       dispatch(clearProjects());
@@ -211,11 +206,6 @@ const CreateProjectTimesheet = () => {
     if (isEditing && currentTimesheetStatus === 'succeeded' && timesheetToEdit && timesheetToEdit._id === timesheetIdForEdit) {
       console.log("[CreateProjectTimesheet] Populating form for edit:", timesheetToEdit);
       const entryTimezone = timesheetToEdit.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
-      const utcToLocalTimeInput = (isoStr) => {
-        if (!isoStr) return '';
-        try { return DateTime.fromISO(isoStr, { zone: 'utc' }).setZone(entryTimezone).toFormat('HH:mm'); }
-        catch (err) { return ''; }
-      };
       let formattedDate = timesheetToEdit.date;
       if (formattedDate && !/^\d{4}-\d{2}-\d{2}$/.test(formattedDate)) {
           try { formattedDate = DateTime.fromISO(formattedDate).toFormat('yyyy-MM-dd'); }
@@ -229,10 +219,10 @@ const CreateProjectTimesheet = () => {
         clientId: clientIdFromUrl, // Keep from URL param
         projectId: projectIdFromUrl, // Keep from URL param
         date: formattedDate,
-        startTime: utcToLocalTimeInput(timesheetToEdit.startTime),
+        startTime: utcIsoToLocalTime(timesheetToEdit.startTime, entryTimezone),
         hourlyWage: employees.find(emp => emp._id === (timesheetToEdit.employeeId?._id || timesheetToEdit.employeeId))?.wage || '',
         hourlyWage: employeeForWage?.wage || timesheetToEdit.hourlyWage || '',
-        endTime: utcToLocalTimeInput(timesheetToEdit.endTime),
+        endTime: utcIsoToLocalTime(timesheetToEdit.endTime, entryTimezone),
         lunchBreak: timesheetToEdit.lunchBreak || 'No',
         lunchDuration: /^\d{2}:\d{2}$/.test(timesheetToEdit.lunchDuration) ? timesheetToEdit.lunchDuration : '00:30',
         leaveType: timesheetToEdit.leaveType || 'None',
@@ -280,7 +270,6 @@ const CreateProjectTimesheet = () => {
         const roundedPrev = parseFloat(prev.totalHours || 0).toFixed(2);
         const roundedCurrent = calculatedHoursValue.toFixed(2);
         if (roundedPrev !== roundedCurrent) {
-          console.log("[CreateProjectTimesheet] Recalculated total hours:", calculatedHoursValue);
           return { ...prev, totalHours: calculatedHoursValue };
         }
         return prev;
@@ -367,21 +356,11 @@ const CreateProjectTimesheet = () => {
     }
 
     try {
-      const localTimeToUtcISO = (timeStr) => {
-        if (!timeStr || !/^\d{2}:\d{2}$/.test(timeStr) || !formData.date || !/^\d{4}-\d{2}-\d{2}$/.test(formData.date)) return null;
-        let conversionTimezone = formData.timezone;
-        if (!conversionTimezone || !DateTime.local().setZone(conversionTimezone).isValid) conversionTimezone = 'UTC';
-        try {
-          const localDT = DateTime.fromISO(`${formData.date}T${timeStr}`, { zone: conversionTimezone });
-          if (!localDT.isValid) throw new Error(`Invalid local time parse: ${formData.date}T${timeStr}`);
-          return localDT.toUTC().toISO();
-        } catch (err) { throw new Error(`UTC Conversion Error: ${err.message}`); }
-      };
+      // Correct argument order: (date, time, tz)
+      const startTimeUTC = !isLeaveSelected ? localTimeToUtcIso(formData.date, formData.startTime, formData.timezone) : null;
+      const endTimeUTC = !isLeaveSelected ? localTimeToUtcIso(formData.date, formData.endTime, formData.timezone) : null;
 
-      const startTimeUTC = !isLeaveSelected ? localTimeToUtcISO(formData.startTime) : null;
-      const endTimeUTC = !isLeaveSelected ? localTimeToUtcISO(formData.endTime) : null;
-
-      if (!isLeaveSelected && (!startTimeUTC || !endTimeUTC)) return; // Error handled by localTimeToUtcISO
+      if (!isLeaveSelected && (!startTimeUTC || !endTimeUTC)) return; // Error handled by localTimeToUtcIso
 
       const timezoneToSend = formData.timezone && DateTime.local().setZone(formData.timezone).isValid
                              ? formData.timezone : Intl.DateTimeFormat().resolvedOptions().timeZone;
@@ -404,6 +383,13 @@ const CreateProjectTimesheet = () => {
         isActiveStatus: isActiveStatus, // Include the calculated status
         timezone: timezoneToSend,
       };
+
+      // Defensive check: ensure startTime/endTime are ISO strings or null
+      const isIso = (v) => v === null || (typeof v === 'string' && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(.\d+)?Z$/.test(v));
+      if (!isIso(requestData.startTime) || !isIso(requestData.endTime)) {
+        console.error('[CreateProjectTimesheet] Invalid time format in payload:', requestData);
+        throw new Error('Internal error: Invalid time format in payload.');
+      }
 
       if (isEditing) {
         await dispatch(updateTimesheet({ id: timesheetIdForEdit, timesheetData: requestData })).unwrap();

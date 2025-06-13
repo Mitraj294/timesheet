@@ -3,48 +3,48 @@
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import mongoose from "mongoose";
-import crypto from 'crypto';
-import User from "../models/User.js";
-import Employee from "../models/Employee.js";
-import Timesheet from "../models/Timesheet.js";
-import VehicleReview from "../models/VehicleReview.js";
-import Schedule from "../models/Schedule.js";
-import Invitation from "../models/Invitation.js";
-import sendEmail from '../services/emailService.js';
+import crypto from "crypto";
 
 // --- Constants ---
 const MIN_PASSWORD_LENGTH = 6;
-const JWT_EXPIRY = '1d';
+const JWT_EXPIRY = "1d";
 const RESET_TOKEN_EXPIRY_MINUTES = 10;
 const RESET_TOKEN_EXPIRY_MS = RESET_TOKEN_EXPIRY_MINUTES * 60 * 1000;
 const USER_ROLES = {
-  EMPLOYER: 'employer',
-  EMPLOYEE: 'employee',
-  ADMIN: 'admin'
+  EMPLOYER: "employer",
+  EMPLOYEE: "employee",
+  ADMIN: "admin",
 };
 
 // Get client base URL for links in emails
 const getClientBaseUrl = () => {
-  if (process.env.NODE_ENV !== 'production') {
-    return 'http://localhost:3000';
+  if (process.env.NODE_ENV !== "production") {
+    return "http://localhost:3000";
   }
-  return process.env.CLIENT_BASE_URL || 'http://localhost:3000';
+  return process.env.CLIENT_BASE_URL || "http://localhost:3000";
 };
 
 // --- User Registration ---
-export const registerUser = async (req, res) => {
+const registerUser = ({ User, sendEmail }) => async (req, res) => {
   try {
-    const { name, email, password, role, country, phoneNumber, companyName } = req.body;
+    const { name, email, password, role, country, phoneNumber, companyName } =
+      req.body;
     // Basic validation
     if (!name || !email || !password || !role) {
-      return res.status(400).json({ message: "Please provide name, email, password, and role" });
+      return res
+        .status(400)
+        .json({ message: "Please provide name, email, password, and role" });
     }
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
-      return res.status(400).json({ message: "Please provide a valid email address" });
+      return res
+        .status(400)
+        .json({ message: "Please provide a valid email address" });
     }
     if (password.length < MIN_PASSWORD_LENGTH) {
-      return res.status(400).json({ message: `Password must be at least ${MIN_PASSWORD_LENGTH} characters long` });
+      return res.status(400).json({
+        message: `Password must be at least ${MIN_PASSWORD_LENGTH} characters long`,
+      });
     }
     if (!Object.values(USER_ROLES).includes(role.toLowerCase())) {
       return res.status(400).json({ message: "Invalid user role provided" });
@@ -52,7 +52,9 @@ export const registerUser = async (req, res) => {
     // Check if user already exists
     const userExists = await User.findOne({ email });
     if (userExists) {
-      return res.status(400).json({ message: "User already exists with this email" });
+      return res
+        .status(400)
+        .json({ message: "User already exists with this email" });
     }
     // Create user (password hashing handled by model)
     const user = await User.create({
@@ -60,9 +62,10 @@ export const registerUser = async (req, res) => {
       email,
       password,
       role,
-      country: country || '',
-      phoneNumber: phoneNumber || '',
-      companyName: role.toLowerCase() === USER_ROLES.EMPLOYER ? (companyName || '') : '',
+      country: country || "",
+      phoneNumber: phoneNumber || "",
+      companyName:
+        role.toLowerCase() === USER_ROLES.EMPLOYER ? companyName || "" : "",
     });
     res.status(201).json({
       message: "User registered successfully",
@@ -74,7 +77,7 @@ export const registerUser = async (req, res) => {
         country: user.country,
         phoneNumber: user.phoneNumber,
         companyName: user.companyName,
-      }
+      },
     });
   } catch (error) {
     console.error("Error in user registration:", error);
@@ -85,19 +88,21 @@ export const registerUser = async (req, res) => {
 // Generate JWT token for authentication
 const generateToken = (userId, userRole, employerId = null) => {
   const payload = { id: userId, role: userRole };
-  if (userRole === USER_ROLES.EMPLOYEE && employerId) {
+  if (userRole === 'employee' && employerId) {
     payload.employerId = employerId;
   }
-  return jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: JWT_EXPIRY });
+  return jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '1d' });
 };
 
 // --- User Login ---
-export const loginUser = async (req, res) => {
+const loginUser = ({ User, Employee }) => async (req, res) => {
   try {
     const { email, password } = req.body;
     // Validate input
     if (!email || !password) {
-      return res.status(400).json({ message: "Please provide email and password" });
+      return res
+        .status(400)
+        .json({ message: "Please provide email and password" });
     }
     const user = await User.findOne({ email });
     // Check credentials
@@ -107,7 +112,9 @@ export const loginUser = async (req, res) => {
     // For employees, get employerId for token
     let employerIdForToken = null;
     if (user.role === USER_ROLES.EMPLOYEE) {
-      const employeeRecord = await Employee.findOne({ userId: user._id }).select('employerId');
+      const employeeRecord = await Employee.findOne({
+        userId: user._id,
+      }).select("employerId");
       if (employeeRecord) {
         employerIdForToken = employeeRecord.employerId;
       }
@@ -123,8 +130,9 @@ export const loginUser = async (req, res) => {
         country: user.country,
         phoneNumber: user.phoneNumber,
         companyName: user.companyName,
-        ...(user.role === USER_ROLES.EMPLOYEE && employerIdForToken && { employerId: employerIdForToken }),
-      }
+        ...(user.role === USER_ROLES.EMPLOYEE &&
+          employerIdForToken && { employerId: employerIdForToken }),
+      },
     });
   } catch (error) {
     console.error("Error in user login:", error);
@@ -133,15 +141,19 @@ export const loginUser = async (req, res) => {
 };
 
 // --- Change Password (Authenticated) ---
-export const changePassword = async (req, res) => {
+const changePassword = ({ User }) => async (req, res) => {
   try {
     const { currentPassword, newPassword } = req.body;
     const userId = req.user.id;
     if (!currentPassword || !newPassword) {
-      return res.status(400).json({ message: "Current and new passwords are required." });
+      return res
+        .status(400)
+        .json({ message: "Current and new passwords are required." });
     }
     if (newPassword.length < MIN_PASSWORD_LENGTH) {
-      return res.status(400).json({ message: `New password must be at least ${MIN_PASSWORD_LENGTH} characters long.` });
+      return res.status(400).json({
+        message: `New password must be at least ${MIN_PASSWORD_LENGTH} characters long.`,
+      });
     }
     const user = await User.findById(userId);
     if (!user) {
@@ -162,20 +174,28 @@ export const changePassword = async (req, res) => {
 };
 
 // --- Forgot Password (Send Reset Link) ---
-export const forgotPassword = async (req, res) => {
+const forgotPassword = ({ User, sendEmail }) => async (req, res) => {
   try {
     const { email } = req.body;
     if (!email) {
-      return res.status(400).json({ message: "Please provide an email address." });
+      return res
+        .status(400)
+        .json({ message: "Please provide an email address." });
     }
     const user = await User.findOne({ email });
     // Always respond with success to avoid leaking user existence
     if (!user) {
-      return res.json({ message: "If an account with that email exists, a password reset link has been sent." });
+      return res.json({
+        message:
+          "If an account with that email exists, a password reset link has been sent.",
+      });
     }
     // Generate reset token and expiry
-    const resetToken = crypto.randomBytes(32).toString('hex');
-    const hashedToken = crypto.createHash('sha256').update(resetToken).digest('hex');
+    const resetToken = crypto.randomBytes(32).toString("hex");
+    const hashedToken = crypto
+      .createHash("sha256")
+      .update(resetToken)
+      .digest("hex");
     user.passwordResetToken = hashedToken;
     user.passwordResetExpires = Date.now() + RESET_TOKEN_EXPIRY_MS;
     await user.save({ validateBeforeSave: false });
@@ -194,35 +214,46 @@ export const forgotPassword = async (req, res) => {
         subject: `Your Password Reset Link (Valid for ${RESET_TOKEN_EXPIRY_MINUTES} min)`,
         html: message,
       });
-      res.json({ message: "If an account with that email exists, a password reset link has been sent." });
+      res.json({
+        message:
+          "If an account with that email exists, a password reset link has been sent.",
+      });
     } catch (emailError) {
       // Clean up token fields if email fails
       user.passwordResetToken = undefined;
       user.passwordResetExpires = undefined;
       await user.save({ validateBeforeSave: false });
-      return res.status(500).json({ message: "Error sending password reset email. Please try again later." });
+      return res.status(500).json({
+        message: "Error sending password reset email. Please try again later.",
+      });
     }
   } catch (error) {
     console.error("Error in forgot password:", error);
-    res.status(500).json({ message: "Server error during forgot password process." });
+    res
+      .status(500)
+      .json({ message: "Server error during forgot password process." });
   }
 };
 
 // --- Reset Password with Token ---
-export const resetPassword = async (req, res) => {
+const resetPassword = ({ User }) => async (req, res) => {
   try {
     const { token } = req.params;
     const { newPassword } = req.body;
     if (!newPassword || newPassword.length < MIN_PASSWORD_LENGTH) {
-      return res.status(400).json({ message: `Password must be at least ${MIN_PASSWORD_LENGTH} characters long.` });
+      return res.status(400).json({
+        message: `Password must be at least ${MIN_PASSWORD_LENGTH} characters long.`,
+      });
     }
-    const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
+    const hashedToken = crypto.createHash("sha256").update(token).digest("hex");
     const user = await User.findOne({
       passwordResetToken: hashedToken,
-      passwordResetExpires: { $gt: Date.now() }
+      passwordResetExpires: { $gt: Date.now() },
     });
     if (!user) {
-      return res.status(400).json({ message: "Password reset token is invalid or has expired." });
+      return res
+        .status(400)
+        .json({ message: "Password reset token is invalid or has expired." });
     }
     user.password = newPassword;
     user.passwordResetToken = undefined;
@@ -236,13 +267,13 @@ export const resetPassword = async (req, res) => {
 };
 
 // --- Check if user exists by email ---
-export const checkUserExists = async (req, res) => {
+const checkUserExists = ({ User }) => async (req, res) => {
   try {
     const { email } = req.body;
     if (!email) {
       return res.status(400).json({ message: "Email is required." });
     }
-    const user = await User.findOne({ email }).select('_id name email role');
+    const user = await User.findOne({ email }).select("_id name email role");
     if (user) {
       return res.json({ exists: true, user });
     } else {
@@ -255,61 +286,105 @@ export const checkUserExists = async (req, res) => {
 };
 
 // --- Check if a prospective employee's email is already in use ---
-export const checkProspectiveEmployee = async (req, res) => {
+const checkProspectiveEmployee = ({ User, Employee }) => async (req, res) => {
   try {
     const { email } = req.body;
     if (!email) {
       return res.status(400).json({ message: "Email is required." });
     }
-    const user = await User.findOne({ email }).select('_id');
+    const user = await User.findOne({ email }).select("_id");
     if (!user) {
-      return res.json({ canProceed: true, userExists: false, isEmployee: false, message: "Email is available." });
+      return res.json({
+        canProceed: true,
+        userExists: false,
+        isEmployee: false,
+        message: "Email is available.",
+      });
     }
-    const employee = await Employee.findOne({ userId: user._id }).select('_id employerId');
+    const employee = await Employee.findOne({ userId: user._id }).select(
+      "_id employerId",
+    );
     if (employee) {
       return res.status(409).json({
         canProceed: false,
         userExists: true,
         isEmployee: true,
-        message: "This email is already an active employee. Please log in or ask your new employer to invite you."
+        message:
+          "This email is already an active employee. Please log in or ask your new employer to invite you.",
       });
     }
     return res.json({
       canProceed: true,
       userExists: true,
       isEmployee: false,
-      message: "This email is already registered. You can proceed to request an invitation."
+      message:
+        "This email is already registered. You can proceed to request an invitation.",
     });
   } catch (error) {
     console.error("Error in checkProspectiveEmployee:", error);
-    res.status(500).json({ message: "Server error while checking email status." });
+    res
+      .status(500)
+      .json({ message: "Server error while checking email status." });
   }
 };
 
 // --- Prospective employee requests an invitation to join a company ---
-export const requestCompanyInvitation = async (req, res) => {
+const requestCompanyInvitation = ({ User, Invitation, sendEmail }) => async (req, res) => {
   try {
-    const { prospectiveEmployeeName, prospectiveEmployeeEmail, companyName, companyEmail } = req.body;
+    const {
+      prospectiveEmployeeName,
+      prospectiveEmployeeEmail,
+      companyName,
+      companyEmail,
+    } = req.body;
     // Validate required fields
-    if (!prospectiveEmployeeName || !prospectiveEmployeeEmail || !companyName || !companyEmail) {
-      return res.status(400).json({ message: "All fields are required: your name, your email, company name, and company email." });
+    if (
+      !prospectiveEmployeeName ||
+      !prospectiveEmployeeEmail ||
+      !companyName ||
+      !companyEmail
+    ) {
+      return res.status(400).json({
+        message:
+          "All fields are required: your name, your email, company name, and company email.",
+      });
     }
     // Prevent duplicate invitation or employee
-    const existingUserForProspective = await User.findOne({ email: prospectiveEmployeeEmail }).select('_id');
+    const existingUserForProspective = await User.findOne({
+      email: prospectiveEmployeeEmail,
+    }).select("_id");
     if (existingUserForProspective) {
-      const existingEmployeeRecord = await Employee.findOne({ userId: existingUserForProspective._id }).select('_id');
+      const existingEmployeeRecord = await Employee.findOne({
+        userId: existingUserForProspective._id,
+      }).select("_id");
       if (existingEmployeeRecord) {
-        return res.status(409).json({ message: "This email is already an active employee. An invitation cannot be requested." });
+        return res.status(409).json({
+          message:
+            "This email is already an active employee. An invitation cannot be requested.",
+        });
       }
     }
-    const existingInvitation = await Invitation.findOne({ prospectiveEmployeeEmail, companyEmail, status: 'pending' });
+    const existingInvitation = await Invitation.findOne({
+      prospectiveEmployeeEmail,
+      companyEmail,
+      status: "pending",
+    });
     if (existingInvitation) {
-      return res.status(400).json({ message: "An invitation request for this email to this company is already pending." });
+      return res.status(400).json({
+        message:
+          "An invitation request for this email to this company is already pending.",
+      });
     }
     // Find employer user
-    const employerUser = await User.findOne({ email: companyEmail, role: USER_ROLES.EMPLOYER });
+    const employerUser = await User.findOne({
+      email: companyEmail,
+      role: USER_ROLES.EMPLOYER,
+    });
     if (!employerUser) {
-      return res.status(404).json({ message: "Employer with the provided company email not found or is not registered as an employer." });
+      return res.status(404).json({
+        message:
+          "Employer with the provided company email not found or is not registered as an employer.",
+      });
     }
     // Create invitation
     const invitation = new Invitation({
@@ -325,32 +400,46 @@ export const requestCompanyInvitation = async (req, res) => {
     const loginUrl = `${getClientBaseUrl()}/login`;
     const employerNotificationHtml = `
       <h1>New Employee Invitation Request</h1>
-      <p>Hello ${employerUser.name || 'Employer'},</p>
+      <p>Hello ${employerUser.name || "Employer"},</p>
       <p><b>${prospectiveEmployeeName}</b> (Email: ${prospectiveEmployeeEmail}) has requested to join your company, "${employerUser.companyName || companyName}".</p>
       <p>Please log in to your employer dashboard to review and manage this request:</p>
       <p><a href="${loginUrl}" clicktracking=off>${loginUrl}</a></p>
       <p>Thank you,<br/>The Timesheet System</p>
     `;
     try {
-      await sendEmail({ to: employerUser.email, subject: employerNotificationSubject, html: employerNotificationHtml });
+      await sendEmail({
+        to: employerUser.email,
+        subject: employerNotificationSubject,
+        html: employerNotificationHtml,
+      });
     } catch (emailError) {
-      console.error(`Failed to send invitation request email to employer ${employerUser.email}:`, emailError);
+      console.error(
+        `Failed to send invitation request email to employer ${employerUser.email}:`,
+        emailError,
+      );
     }
-    res.status(201).json({ message: "Invitation request submitted successfully. The company will be notified." });
+    res.status(201).json({
+      message:
+        "Invitation request submitted successfully. The company will be notified.",
+    });
   } catch (error) {
     console.error("Error requesting invitation:", error);
-    res.status(500).json({ message: "Server error while submitting invitation request." });
+    res
+      .status(500)
+      .json({ message: "Server error while submitting invitation request." });
   }
 };
 
 // --- Employer gets their pending invitations ---
-export const getPendingInvitations = async (req, res) => {
+const getPendingInvitations = ({ Invitation }) => async (req, res) => {
   try {
     if (req.user.role !== USER_ROLES.EMPLOYER) {
       return res.status(403).json({ message: "Access denied." });
     }
-    const invitations = await Invitation.find({ employerId: req.user.id, status: 'pending' })
-                                        .sort({ createdAt: -1 });
+    const invitations = await Invitation.find({
+      employerId: req.user.id,
+      status: "pending",
+    }).sort({ createdAt: -1 });
     res.json(invitations);
   } catch (error) {
     console.error("Error fetching pending invitations:", error);
@@ -359,170 +448,230 @@ export const getPendingInvitations = async (req, res) => {
 };
 
 // --- Employer approves an invitation ---
-export const approveInvitation = async (req, res) => {
-    const { invitationId } = req.params;
-    const employer = req.user;
-    try {
-        const invitation = await Invitation.findById(invitationId);
-        if (!invitation) {
-            return res.status(404).json({ message: "Invitation not found." });
-        }
-        if (invitation.status !== 'pending') {
-            return res.status(400).json({ message: `Invitation has already been ${invitation.status}.` });
-        }
-        if (invitation.employerId.toString() !== employer.id.toString()) {
-            return res.status(403).json({ message: "Access denied. You are not authorized to approve this invitation." });
-        }
-        const { prospectiveEmployeeEmail, prospectiveEmployeeName } = invitation;
-        let employeeUser;
-        let temporaryPassword = null;
-        // Check if the prospective employee already exists
-        const existingUser = await User.findOne({ email: prospectiveEmployeeEmail });
-        if (existingUser) {
-            // Check if there is already an active employee record
-            const existingEmployeeRecord = await Employee.findOne({ userId: existingUser._id });
-            if (existingEmployeeRecord) {
-                if (existingEmployeeRecord.employerId.toString() === employer.id.toString()) {
-                    // The user is already an employee of this employer
-                    invitation.status = 'approved';
-                    invitation.resolvedBy = employer._id;
-                    await invitation.save();
-                    return res.status(200).json({ message: "This user is already an employee of your company. Invitation marked as approved.", employee: existingEmployeeRecord });
-                } else {
-                    // The user is already registered as an employee with another company
-                    return res.status(409).json({ message: "This user is already registered as an employee with another company." });
-                }
-            }
-            employeeUser = existingUser;
+const approveInvitation = ({ Invitation, User, Employee, sendEmail }) => async (req, res) => {
+  const { invitationId } = req.params;
+  const employer = req.user;
+  try {
+    const invitation = await Invitation.findById(invitationId);
+    if (!invitation) {
+      return res.status(404).json({ message: "Invitation not found." });
+    }
+    if (invitation.status !== "pending") {
+      return res
+        .status(400)
+        .json({ message: `Invitation has already been ${invitation.status}.` });
+    }
+    if (invitation.employerId.toString() !== employer.id.toString()) {
+      return res.status(403).json({
+        message:
+          "Access denied. You are not authorized to approve this invitation.",
+      });
+    }
+    const { prospectiveEmployeeEmail, prospectiveEmployeeName } = invitation;
+    let employeeUser;
+    let temporaryPassword = null;
+    // Check if the prospective employee already exists
+    const existingUser = await User.findOne({
+      email: prospectiveEmployeeEmail,
+    });
+    if (existingUser) {
+      // Check if there is already an active employee record
+      const existingEmployeeRecord = await Employee.findOne({
+        userId: existingUser._id,
+      });
+      if (existingEmployeeRecord) {
+        if (
+          existingEmployeeRecord.employerId.toString() ===
+          employer.id.toString()
+        ) {
+          // The user is already an employee of this employer
+          invitation.status = "approved";
+          invitation.resolvedBy = employer._id;
+          await invitation.save();
+          return res.status(200).json({
+            message:
+              "This user is already an employee of your company. Invitation marked as approved.",
+            employee: existingEmployeeRecord,
+          });
         } else {
-            // Create a new user for the employee with a temporary password
-            temporaryPassword = crypto.randomBytes(8).toString('hex');
-            employeeUser = new User({
-                name: prospectiveEmployeeName,
-                email: prospectiveEmployeeEmail,
-                password: temporaryPassword,
-                role: USER_ROLES.EMPLOYEE,
-            });
-            await employeeUser.save();
+          // The user is already registered as an employee with another company
+          return res.status(409).json({
+            message:
+              "This user is already registered as an employee with another company.",
+          });
         }
-        // Check if there is already an employee link for this user and employer
-        const existingEmployeeLink = await Employee.findOne({ userId: employeeUser._id, employerId: employer._id });
-        if (existingEmployeeLink) {
-             invitation.status = 'approved';
-             invitation.resolvedBy = employer._id;
-             await invitation.save();
-            return res.status(200).json({ message: "Employee record already exists for this user in your company. Invitation marked as approved.", employee: existingEmployeeLink });
-        }
-        // Create a new employee record
-        const employeeCode = `EMP-${Date.now().toString().slice(-6)}`;
-        const newEmployee = new Employee({
-            name: prospectiveEmployeeName,
-            email: prospectiveEmployeeEmail,
-            employeeCode,
-            wage: 0,
-            userId: employeeUser._id,
-            employerId: employer._id,
-        });
-        await newEmployee.save();
-        invitation.status = 'approved';
-        invitation.resolvedBy = employer._id;
-        await invitation.save();
-        let employeeNotificationSubject;
-        let employeeNotificationHtml;
-        if (temporaryPassword) {
-            employeeNotificationSubject = "Welcome to the Team! Your Timesheet Account is Ready";
-            employeeNotificationHtml = `
+      }
+      employeeUser = existingUser;
+    } else {
+      // Create a new user for the employee with a temporary password
+      temporaryPassword = crypto.randomBytes(8).toString("hex");
+      employeeUser = new User({
+        name: prospectiveEmployeeName,
+        email: prospectiveEmployeeEmail,
+        password: temporaryPassword,
+        role: USER_ROLES.EMPLOYEE,
+      });
+      await employeeUser.save();
+    }
+    // Check if there is already an employee link for this user and employer
+    const existingEmployeeLink = await Employee.findOne({
+      userId: employeeUser._id,
+      employerId: employer._id,
+    });
+    if (existingEmployeeLink) {
+      invitation.status = "approved";
+      invitation.resolvedBy = employer._id;
+      await invitation.save();
+      return res.status(200).json({
+        message:
+          "Employee record already exists for this user in your company. Invitation marked as approved.",
+        employee: existingEmployeeLink,
+      });
+    }
+    // Create a new employee record
+    const employeeCode = `EMP-${Date.now().toString().slice(-6)}`;
+    const newEmployee = new Employee({
+      name: prospectiveEmployeeName,
+      email: prospectiveEmployeeEmail,
+      employeeCode,
+      wage: 0,
+      userId: employeeUser._id,
+      employerId: employer._id,
+    });
+    await newEmployee.save();
+    invitation.status = "approved";
+    invitation.resolvedBy = employer._id;
+    await invitation.save();
+    let employeeNotificationSubject;
+    let employeeNotificationHtml;
+    if (temporaryPassword) {
+      employeeNotificationSubject =
+        "Welcome to the Team! Your Timesheet Account is Ready";
+      employeeNotificationHtml = `
                 <h1>Welcome, ${prospectiveEmployeeName}!</h1>
-                <p>Your request to join <b>${employer.companyName || 'our company'}</b> has been approved.</p>
+                <p>Your request to join <b>${employer.companyName || "our company"}</b> has been approved.</p>
                 <p>A new account has been created for you. Please use the following credentials to log in:</p>
                 <p><b>Email:</b> ${prospectiveEmployeeEmail}</p>
                 <p><b>Temporary Password:</b> ${temporaryPassword}</p>
                 <p>We recommend changing your password after your first login.</p>
                 <p>Login at: <a href="${getClientBaseUrl()}">${getClientBaseUrl()}</a></p>
-                <p>Thank you,<br/>The ${employer.companyName || 'Company'} Team</p>
+                <p>Thank you,<br/>The ${employer.companyName || "Company"} Team</p>
             `;
-        } else {
-            employeeNotificationSubject = `You've been added to ${employer.companyName || 'a new company'}`;
-            employeeNotificationHtml = `
+    } else {
+      employeeNotificationSubject = `You've been added to ${employer.companyName || "a new company"}`;
+      employeeNotificationHtml = `
                 <h1>Hello ${prospectiveEmployeeName}!</h1>
-                <p>You have been successfully added as an employee to <b>${employer.companyName || 'our company'}</b>.</p>
+                <p>You have been successfully added as an employee to <b>${employer.companyName || "our company"}</b>.</p>
                 <p>You can now log in using your existing credentials to access your timesheet and other company resources.</p>
                 <p>Login at: <a href="${getClientBaseUrl()}">${getClientBaseUrl()}</a></p>
-                <p>Thank you,<br/>The ${employer.companyName || 'Company'} Team</p>
+                <p>Thank you,<br/>The ${employer.companyName || "Company"} Team</p>
             `;
-        }
-        res.status(200).json({
-            message: "Invitation approved successfully. Employee created/linked.",
-            employee: newEmployee,
-            user: { _id: employeeUser._id, email: employeeUser.email, name: employeeUser.name }
-        });
-        try {
-            await sendEmail({ to: prospectiveEmployeeEmail, subject: employeeNotificationSubject, html: employeeNotificationHtml });
-        } catch (emailError) {
-            console.error(`Failed to send approval email to employee ${prospectiveEmployeeEmail}:`, emailError);
-        }
-    } catch (error) {
-        console.error("Error approving invitation:", error);
-        if (error.code === 11000) {
-            return res.status(409).json({ message: "Failed to approve invitation due to a conflict. An employee with similar details might already exist.", details: error.message });
-        }
-        res.status(500).json({ message: "Server error while approving invitation." });
     }
+    res.status(200).json({
+      message: "Invitation approved successfully. Employee created/linked.",
+      employee: newEmployee,
+      user: {
+        _id: employeeUser._id,
+        email: employeeUser.email,
+        name: employeeUser.name,
+      },
+    });
+    try {
+      await sendEmail({
+        to: prospectiveEmployeeEmail,
+        subject: employeeNotificationSubject,
+        html: employeeNotificationHtml,
+      });
+    } catch (emailError) {
+      console.error(
+        `Failed to send approval email to employee ${prospectiveEmployeeEmail}:`,
+        emailError,
+      );
+    }
+  } catch (error) {
+    console.error("Error approving invitation:", error);
+    if (error.code === 11000) {
+      return res.status(409).json({
+        message:
+          "Failed to approve invitation due to a conflict. An employee with similar details might already exist.",
+        details: error.message,
+      });
+    }
+    res
+      .status(500)
+      .json({ message: "Server error while approving invitation." });
+  }
 };
 
 // --- Employer rejects an invitation ---
-export const rejectInvitation = async (req, res) => {
-    const { invitationId } = req.params;
-    const employer = req.user;
-    try {
-        const invitation = await Invitation.findById(invitationId);
-        if (!invitation) {
-            return res.status(404).json({ message: "Invitation not found." });
-        }
-        if (invitation.status !== 'pending') {
-            return res.status(400).json({ message: `Invitation has already been ${invitation.status}.` });
-        }
-        if (invitation.employerId.toString() !== employer.id.toString()) {
-            return res.status(403).json({ message: "Access denied. You are not authorized to reject this invitation." });
-        }
-        invitation.status = 'rejected';
-        invitation.resolvedBy = employer._id;
-        await invitation.save();
-        const rejectionSubject = `Update on your application to ${invitation.companyName}`;
-        const rejectionHtml = `
+const rejectInvitation = ({ Invitation, sendEmail }) => async (req, res) => {
+  const { invitationId } = req.params;
+  const employer = req.user;
+  try {
+    const invitation = await Invitation.findById(invitationId);
+    if (!invitation) {
+      return res.status(404).json({ message: "Invitation not found." });
+    }
+    if (invitation.status !== "pending") {
+      return res
+        .status(400)
+        .json({ message: `Invitation has already been ${invitation.status}.` });
+    }
+    if (invitation.employerId.toString() !== employer.id.toString()) {
+      return res.status(403).json({
+        message:
+          "Access denied. You are not authorized to reject this invitation.",
+      });
+    }
+    invitation.status = "rejected";
+    invitation.resolvedBy = employer._id;
+    await invitation.save();
+    const rejectionSubject = `Update on your application to ${invitation.companyName}`;
+    const rejectionHtml = `
             <h1>Hello ${invitation.prospectiveEmployeeName},</h1>
             <p>Thank you for your interest in joining <b>${invitation.companyName}</b>.</p>
             <p>We regret to inform you that your application has not been approved at this time.</p>
             <p>We wish you the best in your job search.</p>
             <p>Sincerely,<br/>The ${invitation.companyName} Team</p>
         `;
-        try {
-            await sendEmail({ to: invitation.prospectiveEmployeeEmail, subject: rejectionSubject, html: rejectionHtml });
-        } catch (emailError) {
-            console.error(`Failed to send rejection email to ${invitation.prospectiveEmployeeEmail}:`, emailError);
-        }
-        res.status(200).json({ message: "Invitation rejected successfully." });
-    } catch (error) {
-        console.error("Error rejecting invitation:", error);
-        res.status(500).json({ message: "Server error while rejecting invitation." });
+    try {
+      await sendEmail({
+        to: invitation.prospectiveEmployeeEmail,
+        subject: rejectionSubject,
+        html: rejectionHtml,
+      });
+    } catch (emailError) {
+      console.error(
+        `Failed to send rejection email to ${invitation.prospectiveEmployeeEmail}:`,
+        emailError,
+      );
     }
+    res.status(200).json({ message: "Invitation rejected successfully." });
+  } catch (error) {
+    console.error("Error rejecting invitation:", error);
+    res
+      .status(500)
+      .json({ message: "Server error while rejecting invitation." });
+  }
 };
 
 // --- Request an account deletion link via email ---
-export const requestAccountDeletionLink = async (req, res) => {
+const requestAccountDeletionLink = ({ User, sendEmail }) => async (req, res) => {
   try {
     const user = await User.findById(req.user.id);
     if (!user) {
-      return res.status(404).json({ message: 'User not found.' });
+      return res.status(404).json({ message: "User not found." });
     }
     if (!user.email) {
-      return res.status(400).json({ message: 'No email address found for your account.' });
+      return res
+        .status(400)
+        .json({ message: "No email address found for your account." });
     }
-    const deleteToken = crypto.randomBytes(32).toString('hex');
+    const deleteToken = crypto.randomBytes(32).toString("hex");
     user.deleteAccountToken = crypto
-      .createHash('sha256')
+      .createHash("sha256")
       .update(deleteToken)
-      .digest('hex');
+      .digest("hex");
     user.deleteAccountTokenExpires = Date.now() + 10 * 60 * 1000;
     await user.save({ validateBeforeSave: false });
     const deletionUrl = `${getClientBaseUrl()}/confirm-delete-account/${deleteToken}`;
@@ -535,62 +684,80 @@ export const requestAccountDeletionLink = async (req, res) => {
     `;
     await sendEmail({
       to: user.email,
-      subject: 'Account Deletion Request - Timesheet App',
+      subject: "Account Deletion Request - Timesheet App",
       html: emailMessage,
     });
-    res.status(200).json({ message: `A secure link to delete your account has been sent to ${user.email}. Please check your inbox.` });
+    res.status(200).json({
+      message: `A secure link to delete your account has been sent to ${user.email}. Please check your inbox.`,
+    });
   } catch (error) {
-    console.error('Error in requestAccountDeletionLink:', error);
+    console.error("Error in requestAccountDeletionLink:", error);
     if (req.user && req.user.id) {
-        try {
-            const userToClean = await User.findById(req.user.id);
-            if (userToClean) {
-                userToClean.deleteAccountToken = undefined;
-                userToClean.deleteAccountTokenExpires = undefined;
-                await userToClean.save({ validateBeforeSave: false });
-            }
-        } catch (cleanupError) {
-            console.error('Error cleaning up deletion token fields:', cleanupError);
+      try {
+        const userToClean = await User.findById(req.user.id);
+        if (userToClean) {
+          userToClean.deleteAccountToken = undefined;
+          userToClean.deleteAccountTokenExpires = undefined;
+          await userToClean.save({ validateBeforeSave: false });
         }
+      } catch (cleanupError) {
+        console.error("Error cleaning up deletion token fields:", cleanupError);
+      }
     }
-    res.status(500).json({ message: 'Error sending account deletion email. Please try again.' });
+    res.status(500).json({
+      message: "Error sending account deletion email. Please try again.",
+    });
   }
 };
 
 // --- Confirm account deletion using a token and password ---
-export const confirmAccountDeletion = async (req, res) => {
+const confirmAccountDeletion = ({ User, Employee }) => async (req, res) => {
   const { token } = req.params;
   let session;
   try {
-    const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
+    const hashedToken = crypto.createHash("sha256").update(token).digest("hex");
     const { password } = req.body;
     const user = await User.findOne({
       deleteAccountToken: hashedToken,
       deleteAccountTokenExpires: { $gt: Date.now() },
     });
     if (!user) {
-      return res.status(400).json({ message: 'Deletion token is invalid or has expired.' });
+      return res
+        .status(400)
+        .json({ message: "Deletion token is invalid or has expired." });
     }
     if (!password || !(await user.matchPassword(password))) {
-      return res.status(401).json({ message: 'Incorrect password. Account deletion failed.' });
+      return res
+        .status(401)
+        .json({ message: "Incorrect password. Account deletion failed." });
     }
     session = await mongoose.startSession();
     session.startTransaction();
-    const employeesToDelete = await Employee.find({ userId: user._id }).session(session);
+    const employeesToDelete = await Employee.find({ userId: user._id }).session(
+      session,
+    );
     if (employeesToDelete.length > 0) {
-        for (const emp of employeesToDelete) {
-          await Employee.findByIdAndDelete(emp._id, { session });
-        }
+      for (const emp of employeesToDelete) {
+        await Employee.findByIdAndDelete(emp._id, { session });
       }
+    }
     await User.findByIdAndDelete(user._id, { session });
     await session.commitTransaction();
-    res.status(200).json({ message: 'Your account has been successfully deleted.' });
+    res
+      .status(200)
+      .json({ message: "Your account has been successfully deleted." });
   } catch (error) {
-    console.error(`[authController.confirmAccountDeletion] Critical error for token (param): ${token}. Error:`, error);
+    console.error(
+      `[authController.confirmAccountDeletion] Critical error for token (param): ${token}. Error:`,
+      error,
+    );
     if (session && session.inTransaction()) {
-        await session.abortTransaction();
-      }
-    res.status(500).json({ message: 'An internal server error occurred while deleting the account. Please try again.' });
+      await session.abortTransaction();
+    }
+    res.status(500).json({
+      message:
+        "An internal server error occurred while deleting the account. Please try again.",
+    });
   } finally {
     if (session) {
       session.endSession();
@@ -599,37 +766,93 @@ export const confirmAccountDeletion = async (req, res) => {
 };
 
 // --- Verify current user's password ---
-export const verifyCurrentUserPassword = async (req, res) => {
+const verifyCurrentUserPassword = ({ User, Employee }) => async (req, res) => {
   try {
     const { userId, password } = req.body;
     if (!userId || !password) {
-      return res.status(400).json({ success: false, message: "User ID and password are required." });
+      return res.status(400).json({
+        success: false,
+        message: "User ID and password are required.",
+      });
     }
     const authenticatedUser = req.user;
     if (authenticatedUser.id === userId) {
       // Proceed as before
-    }
-    else if (authenticatedUser.role === USER_ROLES.EMPLOYER) {
-      const employeeRecord = await Employee.findOne({ userId: userId, employerId: authenticatedUser.id });
+    } else if (authenticatedUser.role === USER_ROLES.EMPLOYER) {
+      const employeeRecord = await Employee.findOne({
+        userId: userId,
+        employerId: authenticatedUser.id,
+      });
       if (!employeeRecord) {
-        return res.status(403).json({ success: false, message: "Forbidden: You are not authorized to verify this user's password." });
+        return res.status(403).json({
+          success: false,
+          message:
+            "Forbidden: You are not authorized to verify this user's password.",
+        });
       }
+    } else {
+      return res.status(403).json({
+        success: false,
+        message: "Forbidden: User ID mismatch or insufficient permissions.",
+      });
     }
-    else {
-        return res.status(403).json({ success: false, message: "Forbidden: User ID mismatch or insufficient permissions." });
-    }
-    const userToVerify = await User.findById(userId).select('+password');
+    const userToVerify = await User.findById(userId).select("+password");
     if (!userToVerify) {
-      return res.status(404).json({ success: false, message: "User not found." });
+      return res
+        .status(404)
+        .json({ success: false, message: "User not found." });
     }
     const isMatch = await bcrypt.compare(password, userToVerify.password);
     if (isMatch) {
-      return res.status(200).json({ success: true, message: "Password verified." });
+      return res
+        .status(200)
+        .json({ success: true, message: "Password verified." });
     } else {
-      return res.status(401).json({ success: false, message: "Incorrect password." });
+      return res
+        .status(401)
+        .json({ success: false, message: "Incorrect password." });
     }
   } catch (error) {
     console.error("Error verifying password:", error);
-    res.status(500).json({ success: false, message: "Server error during password verification." });
+    res.status(500).json({
+      success: false,
+      message: "Server error during password verification.",
+    });
   }
 };
+
+const authControllerFactory = ({ User, Employee, Invitation, bcrypt, jwt, crypto, sendEmail }) => ({
+  registerUser: registerUser({ User, sendEmail }),
+  loginUser: loginUser({ User, Employee }),
+  changePassword: changePassword({ User }),
+  forgotPassword: forgotPassword({ User, sendEmail }),
+  resetPassword: resetPassword({ User }),
+  checkUserExists: checkUserExists({ User }),
+  checkProspectiveEmployee: checkProspectiveEmployee({ User, Employee }),
+  requestCompanyInvitation: requestCompanyInvitation({ User, Invitation, sendEmail }),
+  getPendingInvitations: getPendingInvitations({ Invitation }),
+  approveInvitation: approveInvitation({ Invitation, User, Employee, sendEmail }),
+  rejectInvitation: rejectInvitation({ Invitation, sendEmail }),
+  requestAccountDeletionLink: requestAccountDeletionLink({ User, sendEmail }),
+  confirmAccountDeletion: confirmAccountDeletion({ User, Employee }),
+  verifyCurrentUserPassword: verifyCurrentUserPassword({ User, Employee }),
+});
+
+export {
+  registerUser,
+  loginUser,
+  changePassword,
+  forgotPassword,
+  resetPassword,
+  checkUserExists,
+  checkProspectiveEmployee,
+  requestCompanyInvitation,
+  getPendingInvitations,
+  approveInvitation,
+  rejectInvitation,
+  requestAccountDeletionLink,
+  confirmAccountDeletion,
+  verifyCurrentUserPassword
+};
+
+export default authControllerFactory;

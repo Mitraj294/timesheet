@@ -187,19 +187,15 @@ const RosterPage = () => {
   // Fetches necessary data (employees, roles, schedules) when the component mounts or currentWeekStart changes
   useEffect(() => {
     if (employeeStatus === 'idle') {
-      console.log("[RosterPage] Fetching employees...");
       dispatch(fetchEmployees());
     }
-    console.log("[RosterPage] Fetching roles...");
     dispatch(fetchRoles());
-    console.log("[RosterPage] Fetching schedules for week:", format(currentWeekStart, 'yyyy-MM-dd'));
     dispatch(fetchSchedules({ weekStart: format(currentWeekStart, 'yyyy-MM-dd') }));
 
     // Cleanup: clear role and schedule errors when dependencies change
     return () => {
         dispatch(clearRoleError());
         dispatch(clearScheduleError());
-        console.log("[RosterPage] Cleanup: Cleared role and schedule errors.");
     };
   }, [currentWeekStart, dispatch, employeeStatus]);
 
@@ -277,7 +273,6 @@ const RosterPage = () => {
     setConfirmButtonClass('btn-danger');
     setConfirmAction(() => () => executeDeleteScheduleFromRole(roleId, scheduleEntryId));
     setShowConfirmModal(true);
-    console.log("[RosterPage] Request to delete role schedule entry:", roleId, scheduleEntryId, roleName, day);
   };
 
   // Executes the deletion of a role's schedule entry
@@ -287,7 +282,6 @@ const RosterPage = () => {
       .unwrap()
       .then(() => {
         dispatch(setAlert('Role schedule entry removed.', 'success'));
-        console.log("[RosterPage] Role schedule entry removed:", roleId, scheduleEntryId);
       })
       .catch((err) => {
         dispatch(setAlert(`Failed to remove role entry: ${err}`, 'danger'));
@@ -303,7 +297,6 @@ const RosterPage = () => {
     setConfirmButtonClass('btn-danger');
     setConfirmAction(() => () => executeDeleteRole(roleId, roleName));
     setShowConfirmModal(true);
-    console.log("[RosterPage] Request to delete role:", roleId, roleName);
   };
 
   // Executes the deletion of a role
@@ -313,7 +306,6 @@ const RosterPage = () => {
       .unwrap()
       .then(() => {
         dispatch(setAlert('Role deleted successfully.', 'success'));
-        console.log("[RosterPage] Role deleted:", roleId, roleName);
       })
       .catch((error) => {
         dispatch(setAlert(`Failed to delete role: ${error}`, 'danger'));
@@ -329,10 +321,9 @@ const RosterPage = () => {
     setConfirmButtonClass('btn-warning');
     setConfirmAction(() => executeRollout);
     setShowConfirmModal(true);
-    console.log("[RosterPage] Rollout button clicked.");
   };
 
-  // Executes the schedule rollout
+  // Updated executeRollout function to fix nextWeek ReferenceError and separate alerts
   const executeRollout = async () => {
     setIsLoading(true);
     dispatch(clearScheduleError());
@@ -344,7 +335,6 @@ const RosterPage = () => {
       const nextWeekEnd = endOfWeek(nextWeekStart, { weekStartsOn: 1 });
       const nextWeekEndStr = format(nextWeekEnd, 'yyyy-MM-dd');
 
-      console.log("[RosterPage] Rollout: Deleting and cloning schedules for next week...");
       // Delete existing employee schedules in the next week range
       await dispatch(deleteSchedulesByDateRange({ startDate: nextWeekStartStr, endDate: nextWeekEndStr })).unwrap();
 
@@ -364,7 +354,10 @@ const RosterPage = () => {
                     endTime: sch.endTime,
                     date: format(nextDate, 'yyyy-MM-dd'),
                 };
-            } catch(e) { return null; }
+            } catch(e) {
+                console.error("[RosterPage] Error processing schedule for rollout:", e);
+                return null;
+            }
         })
         .filter(Boolean);
 
@@ -420,19 +413,25 @@ const RosterPage = () => {
           // 5. Notify assigned employees about the rolled-out role schedule
           if (clonedEntriesForNextWeek.length > 0 && role.assignedEmployees && role.assignedEmployees.length > 0) {
           }
-          console.log(`[RosterPage] executeRollout: Finished processing role ${role.roleName}`);
         })
       );
 
       // Navigate to the next week view and show success message
-      setCurrentWeekStart(nextWeek);
+      setCurrentWeekStart(nextWeekStart);
       dispatch(setAlert("Schedule successfully rolled out to the next week!", 'success'));
-      console.log("[RosterPage] Rollout completed.");
     } catch (err) {
-      console.error('[RosterPage] Error during rollout:', err.response?.data || err.message, err);
-      dispatch(setAlert(`Error during rollout: ${err}`, 'danger'));
+      // Show a user-friendly alert if email is disabled
+      if (
+        err?.message?.includes("Email notifications are currently disabled") ||
+        err?.response?.data?.message?.includes("Email notifications are currently disabled")
+      ) {
+        dispatch(setAlert("Email notifications are currently disabled on the server. Please contact your administrator.", "warning"));
+      } else {
+        dispatch(setAlert("Error sending email notifications. Please check the server logs.", "error"));
+      }
+      console.error("[RosterPage] Error sending email notifications:", err);
     } finally {
-        setIsLoading(false);
+      setIsLoading(false);
     }
   };
 
@@ -443,7 +442,6 @@ const RosterPage = () => {
     setStartTime({});
     setEndTime({});
     setShowModal(true);
-    console.log("[RosterPage] Assign shift modal opened for employee:", emp.name);
   };
 
   // Handles submission of the assign shift modal
@@ -493,7 +491,6 @@ const RosterPage = () => {
       setEndTime({});
       dispatch(setAlert('Shift(s) assigned successfully.', 'success'));
 
-      console.log('[RosterPage] handleAssignShift: Refetching schedules after assignment.');
       dispatch(fetchSchedules({ weekStart: format(currentWeekStart, 'yyyy-MM-dd') }));
 
     } catch (err) {
@@ -512,7 +509,6 @@ const RosterPage = () => {
     setConfirmButtonClass('btn-danger');
     setConfirmAction(() => () => executeDeleteSchedule(scheduleId));
     setShowConfirmModal(true);
-    console.log("[RosterPage] Request to delete shift:", scheduleId, employeeName);
   };
 
   const executeDeleteSchedule = async (scheduleId) => {
@@ -520,7 +516,6 @@ const RosterPage = () => {
     try {
       await dispatch(deleteSchedule(scheduleId)).unwrap();
       dispatch(setAlert('Shift deleted successfully.', 'success'));
-      console.log("[RosterPage] Shift deleted:", scheduleId);
     } catch (err) {
       console.error('Error deleting schedule:', err.response?.data?.message || err.message);
       dispatch(setAlert(`Failed to delete shift: ${err}`, 'danger'));

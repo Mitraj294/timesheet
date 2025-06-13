@@ -96,15 +96,11 @@ const TabletView = () => {
     setEmployeeFetchError(null);
     try {
       if (currentUser.role === 'employer') {
-        console.log("[TabletView] Fetching all employees...");
         const response = await axios.get(`/api/employees`);
         setEmployees(response.data || []);
-        console.log("[TabletView] Employees loaded:", response.data?.length);
       } else if (currentUser.role === 'employee') {
-        console.log("[TabletView] Fetching self employee record...");
         const response = await axios.get(`/api/employees/me`);
         setEmployees(response.data ? [response.data] : []);
-        console.log("[TabletView] Loaded self employee record.");
       } else {
         setEmployees([]);
         console.warn("[TabletView] No valid user role for fetching employees.");
@@ -168,7 +164,18 @@ const TabletView = () => {
                 newActiveClockIns[emp._id] = { id: checkAction.timesheet._id, date: checkAction.timesheet.date };
                 console.log("[TabletView] Found active clock-in for:", emp.name);
               } else if (employerSettings?.tabletViewRecordingType === 'Manually Record') {
-                const localStartTime = DateTime.fromISO(checkAction.timesheet.startTime).setZone(userTimezone).toFormat('HH:mm');
+                const localStartTime = (() => {
+                  try {
+                    const dateTime = DateTime.fromISO(checkAction.timesheet.startTime).setZone(userTimezone);
+                    if (!dateTime.isValid) {
+                      throw new Error('Invalid DateTime object');
+                    }
+                    return dateTime.toFormat('HH:mm');
+                  } catch (err) {
+                    console.error('Error converting startTime to local time:', err);
+                    return '';
+                  }
+                })();
                 newActiveManualEntries[emp._id] = {
                   timesheetId: checkAction.timesheet._id,
                   startTime: localStartTime,
@@ -215,7 +222,7 @@ const TabletView = () => {
       return;
     }
     try {
-      console.log("[TabletView] Verifying unlock password for user:", currentUser.email);
+      console.log(`[TabletView] Verifying unlock password for user: ${currentUser?.email}`);
       const response = await axios.post('/api/auth/verify-password', {
         userId: currentUser.id,
         password: passwordInput,
@@ -248,7 +255,7 @@ const TabletView = () => {
       return;
     }
     try {
-      console.log("[TabletView] Verifying exit password for user:", currentUser.email);
+      console.log(`[TabletView] Verifying exit password for user: ${currentUser?.email}`);
       const response = await axios.post('/api/auth/verify-password', {
         userId: currentUser.id,
         password: exitPasswordInput
@@ -282,7 +289,7 @@ const TabletView = () => {
     setExitPasswordInput('');
     setExitPasswordError(null);
     dispatch(setTabletViewUnlocked(false));
-    setTimeout(() => navigate('/dashboard'), 0);
+    navigate('/dashboard'); // Removed setTimeout
   };
 
   const handleEmployeeActionTrigger = async (employee) => {
@@ -492,7 +499,7 @@ const TabletView = () => {
         };
         const createdTimesheetAction = await dispatch(createTimesheet(timesheetPayload)).unwrap();
         if (createdTimesheetAction && createdTimesheetAction.data) {
-          console.log("[TabletView] Signed in successfully:", employee.name);
+          console.log(`[TabletView] Signed in successfully: ${employee.name}`);
           setActiveClockIns(prev => ({
               ...prev,
               [employee._id]: { id: createdTimesheetAction.data._id, date: createdTimesheetAction.data.date }
@@ -534,7 +541,26 @@ const TabletView = () => {
             console.warn("Failed to get end location:", geoError.message);
         }
 
+        // --- NEW: Fetch the original timesheet to get the correct startTime in UTC ---
+        let originalStartTimeISO = null;
+        try {
+          const response = await axios.get(`/api/timesheets/${timesheetIdToUpdate}`, {
+            headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+          });
+          if (response.data && response.data.startTime) {
+            // If backend returns ISO string, use as is
+            originalStartTimeISO = response.data.startTime;
+          }
+        } catch (fetchErr) {
+          console.warn("Could not fetch original timesheet for startTime, using fallback.");
+        }
+
+        // If we have the original startTime as ISO, use it. Otherwise, fallback to now.
         const updatePayload = {
+            // Always send startTime as ISO string if available, else fallback to now
+            startTime: originalStartTimeISO
+              ? originalStartTimeISO
+              : localTimeToUtcISO(currentTimeStr, originalTimesheetDate, userTimezone),
             endTime: localTimeToUtcISO(currentTimeStr, originalTimesheetDate, userTimezone),
             notes: (currentEmployee?.tabletViewSignOutNotes || "") + " Clocked out via Tablet View",
             isActiveStatus: 'Inactive', // Set status to Inactive on sign out
@@ -1149,7 +1175,7 @@ const TabletView = () => {
               className="tv-button-footer-action" // Default green
               onClick={() => {
                 setShowOldIncompletePrompt(false);
-                dispatch(setTabletViewUnlocked(false)); // Explicitly unlock before navigating
+                // Do NOT unlock tablet view here!
                 navigate(`/timesheet/create/${oldestIncompleteEntry._id}`); // Navigate to edit page
                 setOldestIncompleteEntry(null);
               }}

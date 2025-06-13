@@ -39,10 +39,7 @@ import Alert from '../layout/Alert';
 import '../../styles/Forms.scss';
 
 const CreateOrUpdateVehicleReview = () => {
-  // const params = useParams(); 
-  // console.log('[CreateOrUpdateVehicleReview] Raw params from useParams():', params);
   const { vehicleId, reviewId } = useParams();
-  // console.log('[CreateOrUpdateVehicleReview] Destructured params - vehicleId:', vehicleId, 'reviewId:', reviewId);
 
   const navigate = useNavigate();
   const isEditMode = Boolean(reviewId);
@@ -111,20 +108,16 @@ const CreateOrUpdateVehicleReview = () => {
 
   // Fetches essential data (vehicle, employees, and review if editing)
   useEffect(() => {
-    console.log("[CreateOrUpdateVehicleReview] useEffect: vehicleId =", vehicleId, "reviewId =", reviewId, "isEditMode =", isEditMode);
     if (vehicleId && (!vehicle || vehicle._id !== vehicleId)) {
-      console.log("[CreateOrUpdateVehicleReview] Fetching vehicle by id:", vehicleId);
       dispatch(fetchVehicleById(vehicleId));
     }
     if (user?.role !== 'employee') {
       if (employeeFetchStatus === 'idle' || !employees || employees.length === 0) {
-        console.log("[CreateOrUpdateVehicleReview] Fetching employees for employer role...");
         dispatch(fetchEmployees());
       }
     }
     if (isEditMode && reviewId) {
       if (!currentReview || currentReview._id !== reviewId) {
-        console.log("[CreateOrUpdateVehicleReview] Fetching review by id:", reviewId);
         dispatch(fetchReviewById(reviewId));
       }
     } else if (!isEditMode) {
@@ -138,11 +131,9 @@ const CreateOrUpdateVehicleReview = () => {
         notes: '',
       }));
       dispatch(resetCurrentReviewState());
-      console.log("[CreateOrUpdateVehicleReview] Reset form and review state for create mode.");
     }
     return () => {
       dispatch(clearReviewOperationStatus());
-      console.log("[CreateOrUpdateVehicleReview] Cleanup: cleared review operation status.");
     };
   }, [vehicleId, reviewId, isEditMode, dispatch, vehicle, currentReview, employeeFetchStatus, employees, user]);
 
@@ -150,7 +141,6 @@ const CreateOrUpdateVehicleReview = () => {
   useEffect(() => {
     if (!isEditMode && vehicleFetchStatus === 'succeeded' && vehicle?.hours != null && formData.hours === '') {
       setFormData(prev => ({ ...prev, hours: vehicle.hours.toString() }));
-      console.log("[CreateOrUpdateVehicleReview] Set default hours from vehicle:", vehicle.hours);
     }
   }, [isEditMode, vehicleFetchStatus, vehicle, formData.hours]);
 
@@ -168,7 +158,6 @@ const CreateOrUpdateVehicleReview = () => {
       };
       setFormData(prevData => {
         if (JSON.stringify(prevData) !== JSON.stringify(newReviewData)) {
-          console.log("[CreateOrUpdateVehicleReview] Populated form for editing review:", currentReview);
           return newReviewData;
         }
         return prevData;
@@ -184,7 +173,6 @@ const CreateOrUpdateVehicleReview = () => {
       [name]: type === 'checkbox' ? checked : value,
     }));
     if (formError) setFormError(null);
-    console.log(`[CreateOrUpdateVehicleReview] Input changed: ${name} =`, type === 'checkbox' ? checked : value);
   };
 
   const validateForm = () => {
@@ -228,11 +216,6 @@ const CreateOrUpdateVehicleReview = () => {
         ...formData,
         hours: parseFloat(formData.hours),
       };
-      // Debug log for POST body
-      console.log("[CreateOrUpdateVehicleReview] Submitting review data:", {
-        vehicleId,
-        ...reviewDataForBody,
-      });
       let operationSuccessful = false;
       let successMessage = '';
       if (isEditMode && reviewId) {

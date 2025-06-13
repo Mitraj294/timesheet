@@ -11,8 +11,6 @@ import {
 } from '@fortawesome/free-solid-svg-icons';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import { ZoomControl } from 'react-leaflet';
-import { setAlert } from '../../redux/slices/alertSlice';
-import Alert from '../layout/Alert';
 import L from 'leaflet';
 import MarkerClusterGroup from 'react-leaflet-cluster';
 import 'leaflet/dist/leaflet.css';
@@ -74,7 +72,7 @@ const Map = () => {
       try {
         const token = localStorage.getItem('token');
         if (!token) {
-          dispatch(setAlert('Authentication error. Please log in.', 'danger'));
+          console.log('Authentication error. Please log in.');
           return;
         }
         console.log("[Map] Fetching employees...");
@@ -86,7 +84,7 @@ const Map = () => {
         });
         if (!response.ok) {
           if (response.status === 401) {
-            dispatch(setAlert('Session expired. Please log in again.', 'danger'));
+            console.log('Session expired. Please log in again.');
           }
           throw new Error(`HTTP error! status: ${response.status}`);
         }
@@ -96,7 +94,7 @@ const Map = () => {
       } catch (error) {
         setEmployees([]);
         console.error("[Map] Error fetching employees:", error);
-        dispatch(setAlert(`Error fetching employees: ${error.message}`, 'danger'));
+        console.log(`Error fetching employees: ${error.message}`);
       }
     };
     fetchEmployees();
@@ -198,7 +196,6 @@ const Map = () => {
           }
         );
         if (!response.ok) {
-          dispatch(setAlert(`Failed to fetch timesheets. Status: ${response.status}.`, 'danger'));
           setLocationData([]);
           return;
         }
@@ -303,13 +300,13 @@ const Map = () => {
         if (visibleMarkers.length > 0) {
           const lastLocation = visibleMarkers[0];
           setMapCenter({ lat: lastLocation.lat, lng: lastLocation.lng });
-          dispatch(setAlert(`Showing ${visibleMarkers.length} location point(s) for selected period.`, 'info'));
+          // console.log(`Showing ${visibleMarkers.length} location point(s) for selected period.`);
         } else {
-          dispatch(setAlert(`No location data found for selected criteria.`, 'warning'));
+          // console.log(`No location data found for selected criteria.`);
         }
       } catch (error) {
         console.error("[Map] Error fetching location data:", error);
-        dispatch(setAlert(`Error fetching location data: ${error.message}`, 'danger'));
+        console.log(`Error fetching location data: ${error.message}`);
         setLocationData([]);
       }
     };
@@ -334,11 +331,11 @@ const Map = () => {
         throw new Error(data.message || 'Could not determine location from IP. API response missing lat/lon.');
       }
     } catch (error) {
-      dispatch(setAlert(`Error getting network location: ${error.message}`, 'danger'));
+      console.log(`Error getting network location: ${error.message}`);
       console.error("[Map] Error getting IP location:", error);
       return null;
     }
-  }, [dispatch]);
+  }, []);
 
   const fetchDeviceLocation = useCallback(() => {
     return new Promise((resolve, reject) => {
@@ -369,24 +366,24 @@ const Map = () => {
     try {
       const deviceLocation = await fetchDeviceLocation();
       setMapCenter({ lat: deviceLocation.latitude, lng: deviceLocation.longitude });
-      dispatch(setAlert('Accurate device location found!', 'success'));
+      // console.log('Accurate device location found!');
       setIsLocating(false);
       return;
     } catch (err) {
-      dispatch(setAlert('Could not get precise device location, using network location.', 'warning'));
+      // console.log('Could not get precise device location, using network location.');
       console.warn("[Map] Could not get device location, falling back to IP location.");
     }
     const ipLocation = await fetchIPLocation();
     if (ipLocation) {
       console.log("[Map] Network IP location found!");
       setMapCenter({ lat: ipLocation.latitude, lng: ipLocation.longitude });
-      dispatch(setAlert('Location based on your network IP found!', 'info'));
+      // console.log('Location based on your network IP found!');
     } else {
-      dispatch(setAlert('Could not determine your location.', 'danger'));
+      // console.log('Could not determine your location.');
       console.error("[Map] Could not determine user location.");
     }
     setIsLocating(false);
-  }, [dispatch, fetchDeviceLocation, fetchIPLocation]);
+  }, [fetchDeviceLocation, fetchIPLocation]);
 
   // Change date by period
   const adjustDate = useCallback((amount, unit) => {
@@ -451,7 +448,6 @@ const Map = () => {
 
   return (
     <div className='map-container'>
-      <Alert />
 
       {/* Heading and breadcrumb for Map page, matching other pages */}
       <div className="ts-page-header__main-content">

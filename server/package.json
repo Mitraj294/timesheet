@@ -7,9 +7,12 @@
     "start": "node server.js",
     "server": "nodemon server",
     "client": "npm start --prefix ../client",
-    "dev": "concurrently \"npm run server\" \"npm run client\""
+    "dev": "concurrently \"npm run server\" \"npm run client\"",
+    "test": "NODE_OPTIONS=--experimental-vm-modules jest"
   },
   "dependencies": {
+    "awilix": "^12.0.5",
+    "awilix-express": "^9.0.2",
     "axios": "^1.8.4",
     "bcryptjs": "^3.0.2",
     "body-parser": "^2.2.0",
@@ -20,24 +23,28 @@
     "dayjs": "^1.11.13",
     "dotenv": "^16.5.0",
     "exceljs": "^4.4.0",
-    "express": "^4.21.2",
+    "express": "^5.1.0",
     "express-async-handler": "^1.2.0",
     "express-validator": "^7.2.1",
     "helmet": "^8.1.0",
     "jsonwebtoken": "^9.0.2",
     "luxon": "^3.6.1",
-    "moment-timezone": "^0.5.48",
-    "mongodb": "^6.15.0",
-    "mongoose": "^8.13.2",
+    "moment-timezone": "^0.6.0",
+    "mongodb": "^6.17.0",
+    "mongoose": "^8.15.1",
     "morgan": "^1.10.0",
     "mysql2": "^3.14.0",
-    "node-cron": "^4.0.6",
-    "nodemailer": "^6.10.1",
+    "node-cron": "^4.1.0",
+    "nodemailer": "^7.0.3",
     "pdfkit": "^0.17.0",
     "spawn-command": "^1.0.0"
   },
   "devDependencies": {
-    "concurrently": "^8.2.2",
-    "nodemon": "^3.1.9"
+    "@babel/core": "^7.27.4",
+    "@babel/preset-env": "^7.27.2",
+    "babel-jest": "^30.0.0",
+    "concurrently": "^9.1.2",
+    "nodemon": "^3.1.9",
+    "supertest": "^7.1.1"
   }
 }

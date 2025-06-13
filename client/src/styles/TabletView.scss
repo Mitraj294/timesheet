@@ -253,15 +253,19 @@ $modal-backdrop-color: rgba(0, 0, 0, 0.4);
 
 // --- Verified View Styles ---
 .tv-main-content-card {
-    background-color: $background-white;
+    background-color: $background-light; // Match page background
     padding: $spacing-xxl;
     border-radius: $border-radius-md;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.07);
+    // Remove border and shadow for seamless look
+    border: none;
+    box-shadow: none;
     display: flex;
     flex-direction: column;
     gap: $spacing-xxl;
     width: 100%;
     flex-grow: 1;
+    max-width: 900px;
+    margin: 2rem auto;
 }
 
 .tv-top-bar {
@@ -452,11 +456,6 @@ $modal-backdrop-color: rgba(0, 0, 0, 0.4);
 }
 
 // --- New Styles for Traditional Form Layout in Modals ---
-.tv-form-group {
-    // This class wraps a label and its corresponding input/select/textarea container.
-    // The tv-mt-1 class (defined below) will be applied to this div for vertical spacing.
-}
-
 .tv-form-group-label {
     display: block; // Ensures the label takes its own line
     font-weight: 600; // Makes the label bold
@@ -470,12 +469,10 @@ $modal-backdrop-color: rgba(0, 0, 0, 0.4);
 .tv-textarea-container {
     position: relative;
     display: flex;
-    // flex-direction: column; // No longer needed as label is external
 
     .tv-input,
     .tv-textarea {
         @extend .form-input;
-        // order: 2; // No longer needed
         padding-top: $spacing-md; // Adjusted from $spacing-xxl
         padding-bottom: $spacing-md; // Adjusted from 0.75rem
 
@@ -496,18 +493,6 @@ $modal-backdrop-color: rgba(0, 0, 0, 0.4);
         resize: vertical;
     }
 
-    // Floating label styles are removed/commented out as they are no longer used for these fields
-    /*
-    .tv-input-label,
-    .tv-textarea-label {
-        // ... old floating label styles ...
-    }
-    .tv-input[type="time"]+.tv-input-label,
-    select.tv-input+.tv-input-label {
-        // ... old floating label styles for time/select ...
-    }
-    */
-
     .tv-input-icon,
     .tv-textarea-icon {
         position: absolute;
@@ -515,8 +500,6 @@ $modal-backdrop-color: rgba(0, 0, 0, 0.4);
         top: 50%;
         transform: translateY(-50%);
         color: $text-color-light;
-        // order: 0; // No longer needed
-        // margin-top: calc(#{$spacing-xs} + 1px); // No longer needed
     }
 }
 

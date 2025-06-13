@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { removeAlert } from '../../redux/slices/alertSlice';
 import '../../styles/Alerts.scss';
@@ -6,22 +6,21 @@ import '../../styles/Alerts.scss';
 const Alert = () => {
   const alerts = useSelector(state => state.alert);
   const dispatch = useDispatch();
+  // Use a ref to store alert IDs that have timers set
+  const timeoutIds = useRef(new Set());
 
-  // Remove each alert after its timeout
   useEffect(() => {
-    const timers = alerts.map(alert => {
-      if (!alert || !alert.id || typeof alert.timeout !== 'number' || alert.timeout <= 0) return null;
-      return setTimeout(() => {
-        dispatch(removeAlert(alert.id));
-      }, alert.timeout);
-    });
-    return () => {
-      timers.forEach(timerId => { 
-        if (timerId) {
-          clearTimeout(timerId);
+    if (Array.isArray(alerts)) {
+      alerts.forEach(alert => {
+        if (alert && alert.id && !timeoutIds.current.has(alert.id)) {
+          timeoutIds.current.add(alert.id);
+          setTimeout(() => {
+            dispatch(removeAlert(alert.id));
+            timeoutIds.current.delete(alert.id);
+          }, 3500);
         }
       });
-    };
+    }
   }, [alerts, dispatch]);
 
   return (
@@ -38,6 +37,7 @@ const Alert = () => {
             <button 
               onClick={() => {
                 dispatch(removeAlert(alert.id));
+                timeoutIds.current.delete(alert.id);
               }} 
               className="alert-close-btn" 
               aria-label="Close"

@@ -1,6 +1,7 @@
 # Timesheet MERN Project
 
 ## Overview
+
 A full-stack MERN (MongoDB, Express, React, Node.js) application for employee timesheet management, reporting, notifications, and more. The project is structured for scalability, maintainability, and clean architecture.
 
 ---
@@ -46,6 +47,7 @@ root/
 ---
 
 ## Key Features
+
 - **User Authentication** (JWT, roles: employer/employee)
 - **Timesheet Management** (CRUD, Excel/email reports)
 - **Client/Project/Vehicle Management**
@@ -59,15 +61,18 @@ root/
 ## How to Run
 
 ### 1. Install Dependencies
+
 ```
 cd client && npm install
 cd ../server && npm install
 ```
 
 ### 2. Environment Variables
+
 - Copy `.env.example` to `.env` in `server/` and fill in your MongoDB URI, JWT secret, email credentials, etc.
 
 ### 3. Start the App
+
 ```
 # In one terminal:
 cd server && npm run dev
@@ -76,12 +81,58 @@ cd client && npm start
 ```
 
 ### 4. Access
+
 - Frontend: `http://localhost:3000`
 - Backend API: `https://localhost:5000`
 
 ---
 
+## SSL Configuration
+
+### Automating SSL Certificate Renewal
+
+To automate SSL certificate renewal, use Let's Encrypt or Certbot:
+
+#### Steps:
+
+1. Install Certbot:
+
+   ```bash
+   sudo apt update
+   sudo apt install certbot
+   ```
+
+2. Generate SSL Certificates:
+
+   ```bash
+   sudo certbot certonly --standalone -d yourdomain.com
+   ```
+
+3. Configure Renewal:
+   Certbot automatically sets up a cron job for renewal. Verify it:
+
+   ```bash
+   sudo crontab -l
+   ```
+
+4. Update `server.js` to use the generated certificates:
+   ```javascript
+   const options = {
+     key: fs.readFileSync("/etc/letsencrypt/live/yourdomain.com/privkey.pem"),
+     cert: fs.readFileSync(
+       "/etc/letsencrypt/live/yourdomain.com/fullchain.pem",
+     ),
+   };
+   ```
+
+### Secure Storage
+
+Ensure `key.pem` and `cert.pem` files are stored securely and not exposed in the repository.
+
+---
+
 ## Project Structure Philosophy
+
 - **Controllers**: Handle HTTP requests, call services.
 - **Services**: Contain business logic, reusable utilities (email, reports, notifications).
 - **Models**: Mongoose schemas for MongoDB.
@@ -93,6 +144,7 @@ cd client && npm start
 ---
 
 ## Customization & Extensibility
+
 - Add new features by creating new controllers, services, and models.
 - For new report types, add logic to `services/reportService.js` and call from controllers.
 - For new notification types, add to `services/notificationService.js`.
@@ -100,6 +152,7 @@ cd client && npm start
 ---
 
 ## Contributing
+
 1. Fork the repo
 2. Create a feature branch
 3. Commit and push your changes
@@ -108,9 +161,11 @@ cd client && npm start
 ---
 
 ## License
+
 MIT
 
 ---
 
 ## Contact
+
 For questions or support, open an issue or contact the maintainer.

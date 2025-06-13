@@ -18,7 +18,6 @@ const ManageInvitations = () => {
   // Fetch pending invitations
   const fetchPendingInvitations = useCallback(async () => {
     setLoading(true);
-    console.log("[ManageInvitations] Fetching pending invitations");
     try {
       const token = localStorage.getItem('token');
       const config = {
@@ -27,7 +26,6 @@ const ManageInvitations = () => {
       if (token) config.headers['Authorization'] = `Bearer ${token}`;
       const res = await axios.get(`${API_BASE_URL}/auth/invitations/pending`, config);
       setInvitations(res.data);
-      console.log("[ManageInvitations] Invitations fetched:", res.data.length);
     } catch (err) {
       let errorMessage = 'Failed to fetch invitations';
       if (err.response) {
@@ -39,7 +37,6 @@ const ManageInvitations = () => {
         errorMessage = err.message || 'An unexpected error occurred.';
       }
       dispatch(setAlert(errorMessage, 'danger'));
-      console.log("[ManageInvitations] Failed to fetch invitations:", errorMessage);
       setInvitations([]);
     } finally {
       setLoading(false);
@@ -48,16 +45,13 @@ const ManageInvitations = () => {
 
   useEffect(() => {
     fetchPendingInvitations();
-    console.log("[ManageInvitations] Component mounted");
     return () => {
-      console.log("[ManageInvitations] Component unmounted");
     };
   }, [fetchPendingInvitations]);
 
   // Approve or reject invitation
   const handleAction = async (invitationId, action) => {
     setActionLoading(prev => ({ ...prev, [invitationId]: action }));
-    console.log(`[ManageInvitations] ${action} invitation:`, invitationId);
     try {
       const token = localStorage.getItem('token');
       const config = {
@@ -67,7 +61,6 @@ const ManageInvitations = () => {
       const res = await axios.post(`${API_BASE_URL}/auth/invitations/${invitationId}/${action}`, {}, config);
       dispatch(setAlert(res.data.message, 'success'));
       fetchPendingInvitations();
-      console.log(`[ManageInvitations] Invitation ${action}d successfully:`, invitationId);
     } catch (err) {
       let errorMessage = `Failed to ${action} invitation`;
       if (err.response) {
@@ -79,7 +72,6 @@ const ManageInvitations = () => {
         errorMessage = err.message || 'An unexpected error occurred.';
       }
       dispatch(setAlert(errorMessage, 'danger'));
-      console.log(`[ManageInvitations] Failed to ${action} invitation:`, errorMessage);
     } finally {
       setActionLoading(prev => ({ ...prev, [invitationId]: false }));
     }

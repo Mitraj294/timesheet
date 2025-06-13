@@ -1,16 +1,30 @@
 import Project from "../models/Project.js";
 import Timesheet from "../models/Timesheet.js";
-import mongoose from 'mongoose';
-import sendEmail from '../services/emailService.js';
-import { generateProjectTimesheetReport, sendExcelDownload } from '../services/reportService.js';
+import mongoose from "mongoose";
+import sendEmail from "../services/emailService.js";
+import {
+  generateProjectTimesheetReport,
+  sendExcelDownload,
+} from "../services/reportService.js";
 
 // Create a new project for a client
 export const createProject = async (req, res) => {
   const { clientId } = req.params;
-  const { name, startDate, finishDate, address, expectedHours, notes, isImportant, status } = req.body;
+  const {
+    name,
+    startDate,
+    finishDate,
+    address,
+    expectedHours,
+    notes,
+    isImportant,
+    status,
+  } = req.body;
 
   if (!name || !clientId) {
-    return res.status(400).json({ message: "Project name and client ID are required." });
+    return res
+      .status(400)
+      .json({ message: "Project name and client ID are required." });
   }
   if (!mongoose.Types.ObjectId.isValid(clientId)) {
     return res.status(400).json({ message: "Invalid Client ID format." });
@@ -18,19 +32,28 @@ export const createProject = async (req, res) => {
 
   try {
     const newProject = new Project({
-      name, startDate, finishDate, address, expectedHours, notes,
+      name,
+      startDate,
+      finishDate,
+      address,
+      expectedHours,
+      notes,
       isImportant: isImportant || false,
       status: status || "Ongoing",
-      clientId
+      clientId,
     });
     await newProject.save();
     // Populate clientId to include client name in the response
-    await newProject.populate('clientId', 'name');
-    res.status(201).json({ message: "Project created successfully", project: newProject });
+    await newProject.populate("clientId", "name");
+    res
+      .status(201)
+      .json({ message: "Project created successfully", project: newProject });
   } catch (error) {
     console.error("Error creating project:", error);
     if (error.code === 11000) {
-      return res.status(409).json({ message: "A project with this name might already exist for the client." });
+      return res.status(409).json({
+        message: "A project with this name might already exist for the client.",
+      });
     }
     res.status(500).json({ message: "Server error while creating project." });
   }
@@ -39,11 +62,13 @@ export const createProject = async (req, res) => {
 // Get all projects (for admin/employer)
 export const getAllProjects = async (req, res) => {
   try {
-    const projects = await Project.find().populate('clientId', 'name');
+    const projects = await Project.find().populate("clientId", "name");
     res.status(200).json(projects);
   } catch (error) {
     console.error("Error fetching all projects:", error);
-    res.status(500).json({ message: "Server error while fetching all projects." });
+    res
+      .status(500)
+      .json({ message: "Server error while fetching all projects." });
   }
 };
 
@@ -54,11 +79,16 @@ export const getProjectsByClientId = async (req, res) => {
     return res.status(400).json({ message: "Invalid client ID format." });
   }
   try {
-    const projects = await Project.find({ clientId }).populate('clientId', 'name');
+    const projects = await Project.find({ clientId }).populate(
+      "clientId",
+      "name",
+    );
     res.status(200).json(projects);
   } catch (error) {
     console.error("Error fetching projects by client:", error);
-    res.status(500).json({ message: "Server error while fetching projects for the client." });
+    res.status(500).json({
+      message: "Server error while fetching projects for the client.",
+    });
   }
 };
 
@@ -70,17 +100,25 @@ export const getProjectById = async (req, res) => {
   }
   try {
     const project = await Project.findById(projectId)
-      .populate('clientId', 'name')
+      .populate("clientId", "name")
       .lean();
     if (!project) {
       return res.status(404).json({ message: "Project not found" });
     }
     // Calculate total actual hours from timesheets
     const timesheetHoursResult = await Timesheet.aggregate([
-      { $match: { projectId: new mongoose.Types.ObjectId(projectId), leaveType: 'None' } },
-      { $group: { _id: null, totalActualHours: { $sum: "$totalHours" } } }
+      {
+        $match: {
+          projectId: new mongoose.Types.ObjectId(projectId),
+          leaveType: "None",
+        },
+      },
+      { $group: { _id: null, totalActualHours: { $sum: "$totalHours" } } },
     ]);
-    project.totalActualHours = timesheetHoursResult.length > 0 ? timesheetHoursResult[0].totalActualHours : 0;
+    project.totalActualHours =
+      timesheetHoursResult.length > 0
+        ? timesheetHoursResult[0].totalActualHours
+        : 0;
     res.status(200).json(project);
   } catch (error) {
     console.error("Error fetching project:", error);
@@ -96,28 +134,45 @@ export const updateProject = async (req, res) => {
     return res.status(400).json({ message: "Invalid Project ID format" });
   }
   if (updates.clientId && !mongoose.Types.ObjectId.isValid(updates.clientId)) {
-    return res.status(400).json({ message: "Invalid Client ID format in update data." });
+    return res
+      .status(400)
+      .json({ message: "Invalid Client ID format in update data." });
   }
   try {
     const updatedProject = await Project.findByIdAndUpdate(
       projectId,
       { $set: updates },
-      { new: true, runValidators: true }
-    ).populate('clientId', 'name').lean();
+      { new: true, runValidators: true },
+    )
+      .populate("clientId", "name")
+      .lean();
     if (!updatedProject) {
       return res.status(404).json({ message: "Project not found" });
     }
     // Update total actual hours after update
     const timesheetHoursResult = await Timesheet.aggregate([
-      { $match: { projectId: new mongoose.Types.ObjectId(projectId), leaveType: 'None' } },
-      { $group: { _id: null, totalActualHours: { $sum: "$totalHours" } } }
+      {
+        $match: {
+          projectId: new mongoose.Types.ObjectId(projectId),
+          leaveType: "None",
+        },
+      },
+      { $group: { _id: null, totalActualHours: { $sum: "$totalHours" } } },
     ]);
-    updatedProject.totalActualHours = timesheetHoursResult.length > 0 ? timesheetHoursResult[0].totalActualHours : 0;
-    res.status(200).json({ message: "Project updated successfully", project: updatedProject });
+    updatedProject.totalActualHours =
+      timesheetHoursResult.length > 0
+        ? timesheetHoursResult[0].totalActualHours
+        : 0;
+    res.status(200).json({
+      message: "Project updated successfully",
+      project: updatedProject,
+    });
   } catch (error) {
     console.error("Error updating project:", error);
     if (error.code === 11000) {
-      return res.status(409).json({ message: "Update failed due to duplicate key constraint." });
+      return res
+        .status(409)
+        .json({ message: "Update failed due to duplicate key constraint." });
     }
     res.status(500).json({ message: "Server error while updating project." });
   }
@@ -153,18 +208,30 @@ export const downloadProjectReport = async (req, res) => {
       projects = await Project.find().lean();
     }
     if (!projects.length) {
-      return res.status(404).json({ message: 'No projects found to generate a report.' });
+      return res
+        .status(404)
+        .json({ message: "No projects found to generate a report." });
     }
-    const projectTimesheets = await Timesheet.find({ projectId: { $in: projects.map(p => p._id) } })
-      .populate('employeeId', 'name')
+    const projectTimesheets = await Timesheet.find({
+      projectId: { $in: projects.map((p) => p._id) },
+    })
+      .populate("employeeId", "name")
       .lean();
-    const buffer = await generateProjectTimesheetReport({ projects, projectTimesheets });
-    const filename = `Project_Timesheet_Report_${new Date().toISOString().replace(/[-:.TZ]/g, '').slice(0, 14)}.xlsx`;
+    const buffer = await generateProjectTimesheetReport({
+      projects,
+      projectTimesheets,
+    });
+    const filename = `Project_Timesheet_Report_${new Date()
+      .toISOString()
+      .replace(/[-:.TZ]/g, "")
+      .slice(0, 14)}.xlsx`;
     sendExcelDownload(res, buffer, filename);
   } catch (error) {
-    console.error('Project Excel download error:', error);
+    console.error("Project Excel download error:", error);
     if (!res.headersSent) {
-      res.status(500).json({ message: `Failed to generate Excel file: ${error.message}` });
+      res
+        .status(500)
+        .json({ message: `Failed to generate Excel file: ${error.message}` });
     } else {
       res.end();
     }
@@ -176,7 +243,9 @@ export const sendProjectReportEmail = async (req, res) => {
   try {
     const { email, projectIds = [] } = req.body;
     if (!email || !/\S+@\S+\.\S+/.test(email)) {
-      return res.status(400).json({ message: 'Valid recipient email is required.' });
+      return res
+        .status(400)
+        .json({ message: "Valid recipient email is required." });
     }
     let projects;
     if (projectIds.length > 0) {
@@ -185,22 +254,36 @@ export const sendProjectReportEmail = async (req, res) => {
       projects = await Project.find().lean();
     }
     if (!projects.length) {
-      return res.status(404).json({ message: 'No projects found to generate a report.' });
+      return res
+        .status(404)
+        .json({ message: "No projects found to generate a report." });
     }
-    const projectTimesheets = await Timesheet.find({ projectId: { $in: projects.map(p => p._id) } })
-      .populate('employeeId', 'name')
+    const projectTimesheets = await Timesheet.find({
+      projectId: { $in: projects.map((p) => p._id) },
+    })
+      .populate("employeeId", "name")
       .lean();
-    const buffer = await generateProjectTimesheetReport({ projects, projectTimesheets });
-    const filename = `Project_Timesheet_Report_${new Date().toISOString().replace(/[-:.TZ]/g, '').slice(0, 14)}.xlsx`;
+    const buffer = await generateProjectTimesheetReport({
+      projects,
+      projectTimesheets,
+    });
+    const filename = `Project_Timesheet_Report_${new Date()
+      .toISOString()
+      .replace(/[-:.TZ]/g, "")
+      .slice(0, 14)}.xlsx`;
     await sendEmail({
       to: email,
-      subject: 'Project Timesheet Report',
-      text: 'Please find the attached project timesheet report.',
+      subject: "Project Timesheet Report",
+      text: "Please find the attached project timesheet report.",
       attachments: [{ filename, content: buffer }],
     });
-    res.status(200).json({ message: 'Project timesheet report sent successfully!' });
+    res
+      .status(200)
+      .json({ message: "Project timesheet report sent successfully!" });
   } catch (error) {
-    console.error('Project report email error:', error);
-    res.status(500).json({ message: `Failed to send project report: ${error.message}` });
+    console.error("Project report email error:", error);
+    res
+      .status(500)
+      .json({ message: `Failed to send project report: ${error.message}` });
   }
 };

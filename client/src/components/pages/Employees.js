@@ -37,10 +37,8 @@ const Employees = () => {
     const handleResize = () => setIsSmallScreen(window.innerWidth < 768);
     window.addEventListener('resize', handleResize);
     handleResize();
-    console.log("[Employees] Component mounted");
     return () => {
       window.removeEventListener('resize', handleResize);
-      console.log("[Employees] Component unmounted");
     };
   }, []);
 
@@ -55,7 +53,6 @@ const Employees = () => {
     if (isAuthLoading) return;
     if (!token) return;
     if (employeeStatus === 'idle') {
-      console.log("[Employees] Fetching employees...");
       dispatch(fetchEmployees());
     }
   }, [dispatch, employeeStatus, token, isAuthLoading]);
@@ -176,6 +173,13 @@ const Employees = () => {
         <div className='loading-indicator'>
           <FontAwesomeIcon icon={faSpinner} spin size='2x' />
           <p>{isAuthLoading ? 'Authenticating...' : 'Loading employees...'}</p>
+        </div>
+      )}
+
+      {!showLoading && error && (
+        <div className='error-message'>
+          <FontAwesomeIcon icon={faSpinner} />
+          <p>{error}</p>
         </div>
       )}
 

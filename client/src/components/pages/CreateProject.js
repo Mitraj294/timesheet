@@ -1,16 +1,22 @@
-import React, { useState, useEffect, useMemo } from "react";
-import { Link, useParams, useNavigate } from "react-router-dom";
-import { useDispatch, useSelector } from "react-redux";
-import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import React, { useState, useEffect, useMemo } from 'react';
+import { Link, useParams, useNavigate } from 'react-router-dom';
+import { useDispatch, useSelector } from 'react-redux';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 
 import {
-  fetchProjectById, createProject, updateProject,
-  selectCurrentProject, selectCurrentProjectStatus, selectCurrentProjectError,
-  selectProjectStatus, selectProjectError,
-  clearCurrentProject, clearProjectError
-} from "../../redux/slices/projectSlice";
-import { setAlert } from "../../redux/slices/alertSlice";
-import Alert from "../layout/Alert";
+  fetchProjectById,
+  createProject,
+  updateProject,
+  selectCurrentProject,
+  selectCurrentProjectStatus,
+  selectCurrentProjectError,
+  selectProjectStatus,
+  selectProjectError,
+  clearCurrentProject,
+  clearProjectError,
+} from '../../redux/slices/projectSlice';
+import { setAlert } from '../../redux/slices/alertSlice';
+import Alert from '../layout/Alert';
 
 import {
   faBriefcase,
@@ -18,11 +24,10 @@ import {
   faSave,
   faTimes,
   faSpinner,
-  faExclamationCircle,
   faStar,
   faPen,
-} from "@fortawesome/free-solid-svg-icons";
-import "../../styles/Forms.scss"; //  Use Forms.scss for styling
+} from '@fortawesome/free-solid-svg-icons';
+import '../../styles/Forms.scss'; //  Use Forms.scss for styling
 
 const CreateProject = () => {
   const { clientId, projectId } = useParams();
@@ -35,24 +40,23 @@ const CreateProject = () => {
   const currentProjectStatus = useSelector(selectCurrentProjectStatus);
   const currentProjectError = useSelector(selectCurrentProjectError);
   const saveStatus = useSelector(selectProjectStatus); // Tracks status of create/update operations
-  const saveError = useSelector(selectProjectError);   // Tracks errors from create/update operations
-
+  const saveError = useSelector(selectProjectError); // Tracks errors from create/update operations
 
   const [formData, setFormData] = useState({
-    name: "",
-    startDate: "",
-    finishDate: "",
-    address: "",
-    expectedHours: "",
-    notes: "",
-    isImportant: false
+    name: '',
+    startDate: '',
+    finishDate: '',
+    address: '',
+    expectedHours: '',
+    notes: '',
+    isImportant: false,
   });
 
   const [error, setError] = useState(null);
 
   // Derived loading state from Redux statuses
-  const isLoading = useMemo(() =>
-    currentProjectStatus === 'loading' || saveStatus === 'loading',
+  const isLoading = useMemo(
+    () => currentProjectStatus === 'loading' || saveStatus === 'loading',
     [currentProjectStatus, saveStatus]
   );
 
@@ -62,7 +66,7 @@ const CreateProject = () => {
   useEffect(() => {
     const reduxError = currentProjectError || saveError;
     if (reduxError) {
-      console.error("[CreateProject] Error:", reduxError);
+      console.error('[CreateProject] Error:', reduxError);
       dispatch(setAlert(reduxError, 'danger'));
     }
   }, [currentProjectError, saveError, dispatch]);
@@ -70,70 +74,69 @@ const CreateProject = () => {
   // Handles fetching existing project data for editing, or initializing form for creation
   useEffect(() => {
     if (isEditing) {
-      if (projectId && (!currentProject || currentProject._id !== projectId) && currentProjectStatus !== 'loading') {
-        console.log(`[CreateProject] Fetching project for edit: ${projectId}`);
+      if (
+        projectId &&
+        (!currentProject || currentProject._id !== projectId)
+      ) {
         dispatch(fetchProjectById(projectId));
       }
     } else {
-      dispatch(clearCurrentProject());
+      if (currentProject) {
+        dispatch(clearCurrentProject());
+      }
       setFormData({
-        name: "", startDate: "", finishDate: "", address: "", expectedHours: "", notes: "", isImportant: false
+        name: '',
+        startDate: '',
+        finishDate: '',
+        address: '',
+        expectedHours: '',
+        notes: '',
+        isImportant: false,
       });
-      console.log("[CreateProject] Initializing form for new project.");
     }
     return () => {
       dispatch(clearCurrentProject());
       dispatch(clearProjectError());
-      console.log("[CreateProject] Cleanup: Cleared current project and errors.");
     };
-  }, [projectId, isEditing, dispatch]);
+  }, [isEditing, projectId, dispatch]);
 
   // Populates the form when editing and project data is successfully fetched
   useEffect(() => {
     if (isEditing && currentProjectStatus === 'succeeded' && currentProject) {
-      console.log("[CreateProject] Loaded project for editing:", currentProject);
       setFormData({
-        name: currentProject.name || "",
-        startDate: currentProject.startDate ? currentProject.startDate.split("T")[0] : "",
-        finishDate: currentProject.finishDate ? currentProject.finishDate.split("T")[0] : "",
-        address: currentProject.address || "",
-        expectedHours: currentProject.expectedHours || "",
-        notes: currentProject.notes || "",
-        isImportant: currentProject.isImportant || false
+        name: currentProject.name || '',
+        startDate: currentProject.startDate ? currentProject.startDate.slice(0, 10) : '',
+        finishDate: currentProject.finishDate ? currentProject.finishDate.slice(0, 10) : '',
+        address: currentProject.address || '',
+        expectedHours: currentProject.expectedHours != null ? String(currentProject.expectedHours) : '',
+        notes: currentProject.notes || '',
+        isImportant: !!currentProject.isImportant,
       });
-      setError(null);
     }
-  }, [
-    isEditing,
-    currentProjectStatus,
-    currentProject?.name,
-    currentProject?.startDate,
-    currentProject?.finishDate,
-    currentProject?.address,
-    currentProject?.expectedHours,
-    currentProject?.notes,
-    currentProject?.isImportant
-  ]);
+  }, [isEditing, currentProjectStatus, currentProject]);
 
   // Event Handlers for form input changes
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
     setFormData((prevData) => ({
       ...prevData,
-      [name]: type === "checkbox" ? checked : value
+      [name]: type === 'checkbox' ? checked : value,
     }));
     if (error) setError(null);
-    console.log(`[CreateProject] Changed field: ${e.target.name} = ${type === "checkbox" ? checked : value}`);
   };
 
   // Client-side form validation logic
   const validateForm = () => {
-    if (!formData.name.trim()) return "Project Name is required.";
-    if (formData.startDate && formData.finishDate && formData.startDate > formData.finishDate) {
-      return "Finish Date cannot be earlier than Start Date.";
+    if (!formData.name.trim()) return 'Project Name is required.';
+    if (
+      formData.startDate &&
+      formData.finishDate &&
+      formData.startDate > formData.finishDate
+    ) {
+      return 'Finish Date cannot be earlier than Start Date.';
     }
     if (formData.expectedHours && parseFloat(formData.expectedHours) < 0) {
-      return "Expected Hours cannot be negative.";
+      return 'Expected Hours cannot be negative.';
     }
     return null;
   };
@@ -142,40 +145,47 @@ const CreateProject = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     dispatch(clearProjectError());
-    console.log("[CreateProject] Submitting form:", formData);
 
     const validationError = validateForm();
     if (validationError) {
       dispatch(setAlert(validationError, 'warning'));
-      console.warn("[CreateProject] Validation error:", validationError);
+      console.warn('[CreateProject] Validation error:', validationError);
       return;
     }
 
     const payload = {
       ...formData,
-      expectedHours: formData.expectedHours ? parseFloat(formData.expectedHours) : null,
-      clientId: isEditing ? undefined : clientId
+      expectedHours: formData.expectedHours
+        ? parseFloat(formData.expectedHours)
+        : null,
+      clientId: isEditing ? undefined : clientId,
     };
     if (isEditing) {
-        delete payload.clientId;
+      delete payload.clientId;
     }
 
     try {
       if (isEditing) {
-        console.log("[CreateProject] Updating project:", projectId, payload);
-        await dispatch(updateProject({ projectId, projectData: payload })).unwrap();
-        console.log("[CreateProject] Project updated successfully.");
+        await dispatch(
+          updateProject({ projectId, projectData: payload })
+        ).unwrap();
         dispatch(setAlert('Project updated successfully!', 'success'));
       } else {
-        console.log("[CreateProject] Creating project for clientId:", clientId, payload);
-        await dispatch(createProject({ clientId, projectData: payload })).unwrap();
-        console.log("[CreateProject] Project created successfully.");
+        await dispatch(
+          createProject({ clientId, projectData: payload })
+        ).unwrap();
         dispatch(setAlert('Project created successfully!', 'success'));
       }
       navigate(`/clients/view/${clientId}`);
     } catch (err) {
-      console.error("[CreateProject] Error saving project:", err.response || err);
-      const errorMessage = err?.response?.data?.message || err?.message || `Failed to ${isEditing ? 'update' : 'create'} project.`;
+      console.error(
+        '[CreateProject] Error saving project:',
+        err.response || err
+      );
+      const errorMessage =
+        err?.response?.data?.message ||
+        err?.message ||
+        `Failed to ${isEditing ? 'update' : 'create'} project.`;
       dispatch(setAlert(errorMessage, 'danger'));
     }
   };
@@ -183,9 +193,9 @@ const CreateProject = () => {
   // Render logic for the component
   if (isLoading) {
     return (
-      <div className='vehicles-page'>
-        <div className='loading-indicator'>
-          <FontAwesomeIcon icon={faSpinner} spin size='2x' />
+      <div className="vehicles-page">
+        <div className="loading-indicator">
+          <FontAwesomeIcon icon={faSpinner} spin size="2x" />
           <p>Loading project data...</p>
         </div>
       </div>
@@ -194,21 +204,29 @@ const CreateProject = () => {
 
   return (
     <div className="vehicles-page">
-       <Alert />
-       <div className="vehicles-header">
+      <Alert />
+      <div className="vehicles-header">
         <div className="title-breadcrumbs">
           <h2>
             <FontAwesomeIcon icon={faBriefcase} />
-            {isEditing ? "Update Project" : "Create Project"}
+            {isEditing ? 'Update Project' : 'Create Project'}
           </h2>
           <div className="breadcrumbs">
-            <Link to="/dashboard" className="breadcrumb-link">Dashboard</Link>
+            <Link to="/dashboard" className="breadcrumb-link">
+              Dashboard
+            </Link>
             <span className="breadcrumb-separator"> / </span>
-            <Link to="/clients" className="breadcrumb-link">Clients</Link>
+            <Link to="/clients" className="breadcrumb-link">
+              Clients
+            </Link>
             <span className="breadcrumb-separator"> / </span>
-            <Link to={`/clients/view/${clientId}`} className="breadcrumb-link">View Client</Link>
+            <Link to={`/clients/view/${clientId}`} className="breadcrumb-link">
+              View Client
+            </Link>
             <span className="breadcrumb-separator"> / </span>
-            <span className="breadcrumb-current">{isEditing ? "Update Project" : "Create Project"}</span>
+            <span className="breadcrumb-current">
+              {isEditing ? 'Update Project' : 'Create Project'}
+            </span>
           </div>
         </div>
       </div>
@@ -218,7 +236,6 @@ const CreateProject = () => {
           <div className="form-group">
             <label htmlFor="projectName">Project Name*</label>
             <div className="input-with-icon">
-
               <input
                 id="projectName"
                 type="text"
@@ -235,7 +252,6 @@ const CreateProject = () => {
           <div className="form-group">
             <label htmlFor="startDate">Start Date</label>
             <div className="input-with-icon">
-
               <input
                 id="startDate"
                 type="date"
@@ -250,7 +266,6 @@ const CreateProject = () => {
           <div className="form-group">
             <label htmlFor="finishDate">Finish Date</label>
             <div className="input-with-icon">
-
               <input
                 id="finishDate"
                 type="date"
@@ -265,7 +280,6 @@ const CreateProject = () => {
           <div className="form-group">
             <label htmlFor="projectAddress">Address</label>
             <div className="input-with-icon">
-
               <input
                 id="projectAddress"
                 type="text"
@@ -281,7 +295,6 @@ const CreateProject = () => {
           <div className="form-group">
             <label htmlFor="expectedHours">Expected Hours</label>
             <div className="input-with-icon">
-
               <input
                 id="expectedHours"
                 type="number"
@@ -299,7 +312,10 @@ const CreateProject = () => {
           <div className="form-group">
             <label htmlFor="projectNotes">Notes</label>
             <div className="input-with-icon">
-              <FontAwesomeIcon icon={faStickyNote} className="input-icon textarea-icon" />
+              <FontAwesomeIcon
+                icon={faStickyNote}
+                className="input-icon textarea-icon"
+              />
               <textarea
                 id="projectNotes"
                 name="notes"
@@ -335,7 +351,11 @@ const CreateProject = () => {
             >
               <FontAwesomeIcon icon={faTimes} /> Cancel
             </button>
-            <button type="submit" className="btn btn-green" disabled={isLoading}>
+            <button
+              type="submit"
+              className="btn btn-green"
+              disabled={isLoading}
+            >
               {isLoading ? (
                 <>
                   <FontAwesomeIcon icon={faSpinner} spin /> Saving...
@@ -343,7 +363,7 @@ const CreateProject = () => {
               ) : (
                 <>
                   <FontAwesomeIcon icon={isEditing ? faPen : faSave} />
-                  {isEditing ? "Update Project" : "Create Project"}
+                  {isEditing ? 'Update Project' : 'Create Project'}
                 </>
               )}
             </button>

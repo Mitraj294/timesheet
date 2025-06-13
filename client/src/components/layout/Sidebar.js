@@ -33,24 +33,20 @@ const Sidebar = () => {
       if (sidebarRef.current && !sidebarRef.current.contains(event.target)) {
         if (isOpen) {
           toggleSidebar();
-          console.log("[Sidebar] Clicked outside, closing sidebar");
         }
       }
     };
     if (isOpen) {
       document.addEventListener("mousedown", handleClickOutside);
-      console.log("[Sidebar] Sidebar opened");
     }
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
-      if (isOpen) console.log("[Sidebar] Sidebar closed");
     };
   }, [isOpen, toggleSidebar]);
 
   const handleMenuItemClick = () => {
     if (isOpen) {
       toggleSidebar();
-      console.log("[Sidebar] Menu item clicked, closing sidebar");
     }
   };
 
@@ -83,11 +79,8 @@ const Sidebar = () => {
   }, [user, baseMenuItems, showVehiclesTabSetting]);
 
   if (isTabletViewUnlocked) {
-    console.log("[Sidebar] Tablet view unlocked, sidebar hidden");
     return null;
   }
-
-  console.log("[Sidebar] Rendering sidebar menu items:", menuItems.map(i => i.label));
 
   return (
     <aside ref={sidebarRef} className={`sidebar ${isOpen ? "open" : ""}`}>

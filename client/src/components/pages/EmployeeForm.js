@@ -171,6 +171,8 @@ const EmployeeForm = () => {
       if (isEditMode) {
         console.log("[EmployeeForm] Updating employee:", id, employeeData);
         await dispatch(updateEmployee({ id, employeeData })).unwrap();
+        // Immediately re-fetch employees after update
+        dispatch(fetchEmployees());
         dispatch(setAlert('Employee updated successfully!', 'success'));
       } else {
         console.log("[EmployeeForm] Adding new employee:", employeeData);

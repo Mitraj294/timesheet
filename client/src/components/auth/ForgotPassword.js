@@ -17,18 +17,15 @@ const ForgotPassword = () => {
 
   // Clear errors on mount/unmount
   useEffect(() => {
-    console.log("[ForgotPassword] Component mounted");
     dispatch(clearAuthError());
-    return () => { 
+    return () => {
       dispatch(clearAuthError());
-      console.log("[ForgotPassword] Component unmounted");
     };
   }, [dispatch]);
 
   // Show error as alert
   useEffect(() => {
     if (authError) {
-      console.log("[ForgotPassword] Auth error:", authError);
       dispatch(setAlert(authError, 'danger'));
     }
   }, [authError, dispatch]);
@@ -38,17 +35,14 @@ const ForgotPassword = () => {
     e.preventDefault();
     if (!email || !/\S+@\S+\.\S+/.test(email)) {
       dispatch(setAlert('Please enter a valid email address.', 'warning'));
-      console.log("[ForgotPassword] Invalid email entered:", email);
       return;
     }
     dispatch(clearAuthError());
     try {
       await dispatch(forgotPassword({ email })).unwrap();
       dispatch(setAlert('Password reset email sent. Check your inbox.', 'success'));
-      console.log("[ForgotPassword] Password reset email sent to:", email);
       setEmail('');
     } catch (err) {
-      console.log("[ForgotPassword] Password reset failed:", err);
       // Error is handled by Redux and alert
     }
   };

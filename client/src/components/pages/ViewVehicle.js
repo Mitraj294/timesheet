@@ -55,14 +55,12 @@ const ViewVehicle = () => {
 
   // Fetch vehicle and reviews on mount
   useEffect(() => {
-    console.log("[ViewVehicle] Fetching vehicle and reviews for vehicleId:", vehicleId);
     dispatch(fetchVehicleById(vehicleId));
     dispatch(fetchReviewsByVehicleId(vehicleId));
     return () => {
       dispatch(resetReviewState());
       dispatch(clearReportStatus());
       dispatch(clearReviewOperationStatus());
-      console.log("[ViewVehicle] Cleanup: Cleared review state and report status.");
     };
   }, [vehicleId, dispatch]);
 

@@ -13,7 +13,6 @@ import {
   selectClientDeleteStatus,
   selectClientDownloadStatus,
   selectClientDownloadError,
-  clearClientError,
   clearDownloadStatus
 } from "../../redux/slices/clientSlice";
 import { fetchEmployees, selectAllEmployees, selectEmployeeStatus } from "../../redux/slices/employeeSlice";
@@ -28,7 +27,6 @@ import {
   faPen,
   faTrash,
   faSpinner,
-  faExclamationCircle,
 } from "@fortawesome/free-solid-svg-icons";
 import "../../styles/Vehicles.scss";
 
@@ -57,10 +55,8 @@ const Clients = () => {
     const handleResize = () => setIsSmallScreen(window.innerWidth < 768);
     window.addEventListener('resize', handleResize);
     handleResize();
-    console.log("[Clients] Component mounted");
     return () => {
       window.removeEventListener('resize', handleResize);
-      console.log("[Clients] Component unmounted");
     };
   }, []);
 
@@ -71,13 +67,10 @@ const Clients = () => {
 
   // Fetch clients and employees on load
   useEffect(() => {
-    console.log("[Clients] useEffect: clientStatus =", clientStatus, "employeeStatus =", employeeStatus, "user =", user);
     if (clientStatus === 'idle') {
-      console.log("[Clients] Fetching clients...");
       dispatch(fetchClients());
     }
     if (user?.role === 'employee' && (employeeStatus === 'idle' || employeeStatus === 'failed')) {
-      console.log("[Clients] Fetching employees for employee role...");
       dispatch(fetchEmployees());
     }
   }, [dispatch, clientStatus, user, employeeStatus]);
@@ -99,23 +92,19 @@ const Clients = () => {
 
   // Delete client handlers
   const handleDeleteClick = (clientId, clientName) => {
-    console.log(`[Clients] Request to delete client: ${clientName} (${clientId})`);
     setItemToDelete({ id: clientId, name: clientName });
     setShowDeleteConfirm(true);
   };
   const cancelDelete = () => {
     setShowDeleteConfirm(false);
     setItemToDelete(null);
-    console.log("[Clients] Cancelled client deletion");
   };
   const confirmDeleteClient = () => {
     if (!itemToDelete) return;
     const { id, name } = itemToDelete;
-    console.log(`[Clients] Confirming delete for client: ${name} (${id})`);
     dispatch(deleteClient(id))
       .unwrap()
       .then(() => {
-        console.log(`[Clients] Client "${name}" deleted successfully.`);
         dispatch(setAlert(`Client "${name}" deleted successfully.`, 'success'));
       })
       .catch((err) => {
@@ -131,7 +120,6 @@ const Clients = () => {
   const loggedInEmployeeRecord = useMemo(() => {
     if (user?.role === 'employee' && Array.isArray(employees) && user?._id) {
       const found = employees.find(emp => emp.userId === user._id);
-      console.log("[Clients] loggedInEmployeeRecord:", found);
       return found;
     }
     return null;
@@ -142,14 +130,12 @@ const Clients = () => {
     if (!user || !allClients) return [];
     if (user.role === 'employer') {
       const filtered = allClients.filter(client => client.employerId === user._id);
-      console.log("[Clients] Filtering clients for employer:", filtered);
       return filtered;
     } else if (user.role === 'employee' && loggedInEmployeeRecord?.employerId) {
       const employerId = typeof loggedInEmployeeRecord.employerId === 'object'
         ? loggedInEmployeeRecord.employerId._id
         : loggedInEmployeeRecord.employerId;
       const filtered = allClients.filter(client => client.employerId === employerId);
-      console.log("[Clients] Filtering clients for employee's employer:", filtered);
       return filtered;
     }
     return [];
@@ -161,13 +147,9 @@ const Clients = () => {
     client?.emailAddress?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     client?.phoneNumber?.toLowerCase().includes(searchTerm.toLowerCase())
   );
-  useEffect(() => {
-    console.log("[Clients] Filtered clients after search:", filteredClients);
-  }, [filteredClients]);
 
   // Download clients as Excel
   const handleDownloadClients = async () => {
-    console.log("[Clients] Downloading clients as Excel...");
     dispatch(clearDownloadStatus());
     dispatch(downloadClients())
       .unwrap()
@@ -181,7 +163,6 @@ const Clients = () => {
         link.click();
         link.remove();
         window.URL.revokeObjectURL(url);
-        console.log("[Clients] Client report downloaded.");
         dispatch(setAlert('Client report downloaded.', 'success'));
       })
       .catch(() => {}); // Error handled by useEffect
@@ -234,7 +215,6 @@ const Clients = () => {
               <button
                 className="btn btn-green"
                 onClick={() => {
-                  console.log("[Clients] Navigating to create client page");
                   navigate('/clients/create');
                 }}
               >
@@ -251,7 +231,6 @@ const Clients = () => {
           value={searchTerm}
           onChange={(e) => {
             setSearchTerm(e.target.value);
-            console.log("[Clients] Search changed:", e.target.value);
           }}
           aria-label="Search Clients"
         />
@@ -287,7 +266,6 @@ const Clients = () => {
                   <button
                     className="btn-icon btn-icon-blue"
                     onClick={() => {
-                      console.log(`[Clients] Navigating to view client: ${client._id}`);
                       navigate(`/clients/view/${client._id}`);
                     }}
                     title={`View ${client.name}`}
@@ -300,7 +278,6 @@ const Clients = () => {
                       <button
                         className="btn-icon btn-icon-yellow"
                         onClick={() => {
-                          console.log(`[Clients] Navigating to edit client: ${client._id}`);
                           navigate(`/clients/update/${client._id}`);
                         }}
                         title={`Edit ${client.name}`}
@@ -329,7 +306,7 @@ const Clients = () => {
         <div className="logout-confirm-overlay">
           <div className="logout-confirm-dialog">
             <h4>Confirm Client Deletion</h4>
-            <p>Are you sure you want to permanently delete client "<strong>{itemToDelete.name}</strong>"? This action cannot be undone.</p>
+            <p>Are you sure you want to permanently delete client &quot;<strong>{itemToDelete.name}</strong>&quot;? This action cannot be undone.</p>
             <div className="logout-confirm-actions">
               <button className="btn btn-secondary" onClick={cancelDelete} disabled={isDeleting}>Cancel</button>
               <button className="btn btn-danger" onClick={confirmDeleteClient} disabled={isDeleting}>

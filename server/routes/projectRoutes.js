@@ -7,7 +7,7 @@ import {
   deleteProject,
   getAllProjects,
   downloadProjectReport,
-  sendProjectReportEmail
+  sendProjectReportEmail,
 } from "../controllers/projectController.js";
 import { protect, employerOnly } from "../middleware/authMiddleware.js";
 
@@ -32,9 +32,9 @@ router.delete("/:projectId", deleteProject);
 router.get("/", getAllProjects);
 
 // Download project timesheet report as Excel (employer only)
-router.post('/report/download', protect, employerOnly, downloadProjectReport);
+router.post("/report/download", protect, employerOnly, downloadProjectReport);
 
 // Send project timesheet report via email (employer only)
-router.post('/report/email', protect, employerOnly, sendProjectReportEmail);
+router.post("/report/email", protect, employerOnly, sendProjectReportEmail);
 
 export default router;

@@ -1657,3 +1657,35 @@
         min-width: 0;
     }
 }
+
+.timesheet-details {
+    background: #f9f9fc;
+    border-radius: 6px;
+    padding: 12px 16px;
+    margin: 8px 0;
+    font-size: 0.98em;
+}
+
+.timesheet-details-row {
+    display: flex;
+    align-items: baseline;
+    margin-bottom: 4px;
+}
+
+.timesheet-label {
+    font-weight: 600;
+    margin-right: 8px;
+    min-width: 90px;
+    color: #333;
+}
+
+.timesheet-value {
+    color: #222;
+}
+
+.timesheet-note {
+    margin-left: 12px;
+    color: #888;
+    font-size: 0.95em;
+    font-style: italic;
+}

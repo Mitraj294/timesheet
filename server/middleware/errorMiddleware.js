@@ -8,7 +8,7 @@ const errorHandler = (err, req, res, next) => {
   // Log error details (hide stack in production)
   console.error("Error:", {
     message: err.message,
-    stack: process.env.NODE_ENV === 'production' ? '' : err.stack,
+    stack: process.env.NODE_ENV === "production" ? "" : err.stack,
     url: req.originalUrl,
     method: req.method,
   });
@@ -16,7 +16,7 @@ const errorHandler = (err, req, res, next) => {
   // Send error response (hide stack in production)
   res.json({
     message: err.message,
-    stack: process.env.NODE_ENV === 'production' ? null : err.stack,
+    stack: process.env.NODE_ENV === "production" ? null : err.stack,
   });
 };
 
