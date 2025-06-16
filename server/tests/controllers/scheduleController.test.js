@@ -1,21 +1,29 @@
 // Basic test file for scheduleController
 import { jest } from '@jest/globals';
-import * as scheduleController from '../../../server/controllers/scheduleController.js';
+
+let Schedule, Employee, sendScheduleAssignmentEmail, scheduleController;
 
 describe('scheduleController', () => {
-  let req, res, Schedule, Employee, sendScheduleAssignmentEmail;
-
-  beforeEach(() => {
+  let req, res;
+  beforeEach(async () => {
+    jest.resetModules();
     req = { user: { _id: 'employer1', role: 'employer' }, body: [] };
     res = { status: jest.fn().mockReturnThis(), json: jest.fn().mockReturnThis() };
     Schedule = { insertMany: jest.fn() };
     Employee = { findById: jest.fn() };
     sendScheduleAssignmentEmail = jest.fn();
-    jest.clearAllMocks();
-    // Patch the controller's model references if needed
-    scheduleController.Schedule = Schedule;
-    scheduleController.Employee = Employee;
-    scheduleController.sendScheduleAssignmentEmail = sendScheduleAssignmentEmail;
+    jest.unstable_mockModule('../../../server/models/Schedule.js', () => ({
+      default: Schedule,
+    }));
+    jest.unstable_mockModule('../../../server/models/Employee.js', () => ({
+      default: Employee,
+    }));
+    jest.unstable_mockModule('../../../server/services/emailService.js', () => ({
+      sendScheduleAssignmentEmail,
+      sendScheduleUpdateEmail: jest.fn(),
+      default: { sendScheduleAssignmentEmail, sendScheduleUpdateEmail: jest.fn() },
+    }));
+    scheduleController = await import('../../../server/controllers/scheduleController.js');
   });
 
   it('should return 400 if no schedules provided', async () => {

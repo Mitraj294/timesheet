@@ -50,9 +50,6 @@ const calculateNextScheduledUTC = (
   };
   const targetDayNumber = dayMapping[dayOfWeekStr.toLowerCase()];
   if (typeof targetDayNumber !== "number") {
-    console.error(
-      `[calculateNextScheduledUTC] Invalid dayOfWeekStr: ${dayOfWeekStr}`,
-    );
     return null;
   }
   let scheduledMomentInEmployerTZ = nowInEmployerTZ
@@ -161,10 +158,6 @@ export const getEmployerSettings = async (req, res) => {
     }
     res.json(settings);
   } catch (error) {
-    console.error(
-      "[settingsController] Error fetching employer settings:",
-      error,
-    );
     res.status(500).json({ message: getErrorMessage(error) });
   }
 };
@@ -248,10 +241,6 @@ export const updateEmployerSettings = async (req, res, next) => {
     }
     res.json(updatedSettings);
   } catch (error) {
-    console.error(
-      "[settingsController] Error updating employer settings:",
-      error,
-    );
     if (typeof next === "function") {
       next(error);
     } else {

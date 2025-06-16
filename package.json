@@ -4,10 +4,10 @@
   "private": true,
   "scripts": {
     "install-all": "npm install --prefix server && npm install --prefix client",
-    "client": "npm start --prefix client",
+    "client": "cd client && NODE_NO_WARNINGS=1 npm start",
     "server": "cross-env NODE_ENV=development nodemon server/server.js",
     "start": "node server/server.js",
-    "dev": "concurrently \"npm run server\" \"npm run client\"",
+    "dev": "concurrently \"npm run server\" \"npm run client\" \"sleep 5 && xdg-open https://192.168.1.47:3000\"",
     "remove-eslint": "npm uninstall eslint",
     "test": "concurrently \"npm run test:server\" \"npm run test:client\"",
     "test:auth": "jest server/tests/authController.test.js --runInBand",
@@ -21,7 +21,12 @@
     "test:all": "npm run test:auth && npm test",
     "test:server": "npm test --prefix server",
     "test:server:file": "npm test --prefix server --",
-    "test:client:file": "npm test --prefix client --"
+    "test:client:file": "npm test --prefix client --",
+    "cypress:open": "cypress open",
+    "cypress:run": "cypress run",
+    "test:e2e:server": "NODE_ENV=test npm run server --prefix server",
+    "test:e2e:client": "BROWSER=none npm start --prefix client",
+    "test:e2e": "concurrently \"npm run test:e2e:server\" \"npm run test:e2e:client\""
   },
   "devDependencies": {
     "@babel/core": "^7.27.4",
@@ -33,6 +38,7 @@
     "chartjs-plugin-datalabels": "^2.2.0",
     "concurrently": "^9.1.2",
     "cross-env": "^7.0.3",
+    "cypress": "^14.4.1",
     "eslint-config-prettier": "^10.1.5",
     "eslint-plugin-prettier": "^5.4.1",
     "jest": "^30.0.0",
@@ -64,6 +70,9 @@
     "transform": {
       "^.+\\.jsx?$": "babel-jest"
     },
-    "testEnvironment": "node"
+    "testEnvironment": "node",
+    "setupFilesAfterEnv": [
+      "<rootDir>/jest.setup.js"
+    ]
   }
 }

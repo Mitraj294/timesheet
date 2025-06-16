@@ -25,10 +25,14 @@ import { sendWeeklyTimesheetReports } from './controllers/timesheetController.js
 import settingsRoutes from './routes/settingsRoutes.js';
 import { startNotificationService } from './services/notificationService.js';
 
-// Use __dirname and path.join for Jest compatibility
+// Load correct .env for E2E
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-dotenv.config({ path: path.join(__dirname, '../.env') });
+if (process.env.NODE_ENV === 'test') {
+  dotenv.config({ path: path.join(__dirname, '../.env.e2e') });
+} else {
+  dotenv.config({ path: path.join(__dirname, '../.env') });
+}
 
 console.log('[EMAIL CONFIG CHECK]');
 console.log('EMAIL_HOST:', process.env.EMAIL_HOST);
@@ -65,15 +69,21 @@ const allowedOrigins = [
   "https://timesheet00.netlify.app", // Your Netlify production site
   /^https:\/\/[a-zA-Z0-9-]+--timesheet00\.netlify\.app$/, // Regex for Netlify deploy previews
   "https://192.168.1.47:3000", // Your local HTTPS client
-  "http://192.168.1.47:3000", // Local HTTP client (if you switch back and server is HTTP)
-  "http://localhost:3000", // Common local HTTP client
-  "https://192.168.1.47:5000", // Allow backend's own origin for proxy scenarios (HTTP for local dev)
+  "http://192.168.1.47:3000", // Local HTTP client
+  "https://192.168.1.47:5000", // Allow backend's own origin for proxy scenarios
+  "http://192.168.1.47:5000", // Allow backend's own origin for HTTP
+  // For local dev, allow all origins (uncomment next line if needed)
+  // '*',
 ];
 
 const corsOptions = {
   origin: function (origin, callback) {
+    if (!origin) {
+      // Allow non-browser requests like curl, Postman, etc.
+      callback(null, true);
+      return;
+    }
     if (
-      !origin ||
       allowedOrigins.some((allowedOrigin) => {
         if (allowedOrigin instanceof RegExp) {
           return allowedOrigin.test(origin);
@@ -83,6 +93,7 @@ const corsOptions = {
     ) {
       callback(null, true);
     } else {
+      console.error(`[CORS] Blocked origin: ${origin}`); // Log the blocked origin
       callback(new Error("Not allowed by CORS")); // Reject
     }
   },
@@ -111,11 +122,8 @@ const connectDB = async () => {
   }
 };
 
-connectDB();
-
-// Use BASE_API_URL for all routes
+// Always register routes, even in test mode (for supertest)
 const BASE_API_URL = process.env.BASE_API_URL || "/api";
-
 app.use(`${BASE_API_URL}/clients`, clientRoutes);
 app.use(`${BASE_API_URL}/employees`, employeeRoutes);
 app.use(`${BASE_API_URL}/auth`, authRoutes);
@@ -132,71 +140,59 @@ app.get("/", (req, res) => {
   res.send("TimeSheet Backend is Running...");
 });
 
-// --- Schedulers ---
+// Only connect to DB and start server if run directly
+if (process.env.JEST_WORKER_ID === undefined && process.env.NODE_ENV !== 'test' && import.meta.url === `file://${process.argv[1]}`) {
+  connectDB();
 
-// CRON Pattern: 'minute hour day-of-month month day-of-week'
-const weeklyReportSchedule =
-  process.env.WEEKLY_REPORT_CRON_SCHEDULE || "00 19 * * 6"; // Default to Sat 7 PM if not set
-const serverTimezone = process.env.SERVER_TIMEZONE || "Asia/Kolkata";
+  // --- Schedulers ---
 
-if (cron.validate(weeklyReportSchedule)) {
-  cron.schedule(
-    weeklyReportSchedule,
-    () => {
-      console.log(
-        `[Scheduler] Triggered: Running sendWeeklyTimesheetReports at ${new Date().toLocaleString()} (${serverTimezone})`,
-      );
-      sendWeeklyTimesheetReports();
-    },
-    {
-      scheduled: true,
-      timezone: serverTimezone,
-    },
-  );
-  console.log(
-    `[Scheduler] Weekly timesheet report job scheduled with pattern "${weeklyReportSchedule}" in timezone "${serverTimezone}".`,
-  );
-} else {
-  console.error(
-    `[Scheduler] Invalid CRON pattern specified for weekly reports: "${weeklyReportSchedule}". Job not scheduled.`,
-  );
-}
+  // CRON Pattern: 'minute hour day-of-month month day-of-week'
+  const weeklyReportSchedule =
+    process.env.WEEKLY_REPORT_CRON_SCHEDULE || "00 19 * * 6"; // Default to Sat 7 PM if not set
+  const serverTimezone = process.env.SERVER_TIMEZONE || "Asia/Kolkata";
 
-startNotificationService();
-
-// TODO: Uncomment and implement if lock screen cleanup is needed
-// import { startLockScreenCleanupScheduler } from './scheduler/lockScreenCleanupScheduler.js';
-// startLockScreenCleanupScheduler();
-
-// Global Error Handler
-// This should be the last piece of middleware before app.listen.
-app.use(errorHandler);
-
-// Enable HTTPS using cert.pem and key.pem
-const options = {
-  key: fs.readFileSync(path.resolve(__dirname, '../key.pem')),
-  cert: fs.readFileSync(path.resolve(__dirname, '../cert.pem')),
-};
-
-const PORT = 5000; // Ensure the server uses port 5000
-const HOST = process.env.HOST || '0.0.0.0'; // Dynamically assign host
-
-if (process.env.NODE_ENV !== 'development') {
-  // Changed condition
-  // In production (like on Render), Render handles SSL termination.
-  // The app should listen on HTTP via the port Render provides.
-  app.listen(PORT, HOST, () =>
+  if (cron.validate(weeklyReportSchedule)) {
+    cron.schedule(
+      weeklyReportSchedule,
+      () => {
+        console.log(
+          `[Scheduler] Triggered: Running sendWeeklyTimesheetReports at ${new Date().toLocaleString()} (${serverTimezone})`,
+        );
+        sendWeeklyTimesheetReports();
+      },
+      {
+        scheduled: true,
+        timezone: serverTimezone,
+      },
+    );
     console.log(
-      `HTTP Server successfully started in production on http://${HOST}:${PORT}`,
-    ),
-  );
-} else {
-  // In development, run on HTTPS.
-  // You'll need to generate self-signed certificates (key.pem, cert.pem)
-  // and place them in the 'server' directory or update paths.
+      `[Scheduler] Weekly timesheet report job scheduled with pattern "${weeklyReportSchedule}" in timezone "${serverTimezone}".`,
+    );
+  } else {
+    console.error(
+      `[Scheduler] Invalid CRON pattern specified for weekly reports: "${weeklyReportSchedule}". Job not scheduled.`,
+    );
+  }
+
+  startNotificationService();
+
+  // Global Error Handler
+  app.use(errorHandler);
+
+  // Enable HTTPS using cert.pem and key.pem
+  const options = {
+    key: fs.readFileSync(path.resolve(__dirname, '../key.pem')),
+    cert: fs.readFileSync(path.resolve(__dirname, '../cert.pem')),
+  };
+
+  const PORT = 5000; // Ensure the server uses port 5000
+  const HOST = '0.0.0.0'; // Always listen on all interfaces
+
   https
     .createServer(options, app)
-    .listen(PORT, () => {
+    .listen(PORT, HOST, () => {
       console.log(`Server is running on https://192.168.1.47:${PORT}`);
     });
 }
+
+export default app;

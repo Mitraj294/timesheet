@@ -1,4 +1,4 @@
-import store from '../../../src/store/store';
+import store from '../../src/store/store';
 
 describe('Redux store', () => {
   it('should initialize without crashing', () => {

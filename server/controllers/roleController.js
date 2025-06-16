@@ -60,10 +60,7 @@ export const createRole = async (req, res) => {
             await sendRoleAssignmentEmail(employee, newRole.roleName);
           }
         } catch (emailError) {
-          console.error(
-            `[RoleCtrl] Failed to send new role notification to employee ${empId}:`,
-            emailError,
-          );
+          // [RoleCtrl] Failed to send new role notification to employee
         }
       }
     }
@@ -72,7 +69,7 @@ export const createRole = async (req, res) => {
       .status(201)
       .json({ message: "Role created successfully", role: newRole });
   } catch (err) {
-    console.error("Error creating role:", err);
+    // Error creating role
     if (err.name === "ValidationError") {
       return res.status(400).json({ message: err.message });
     }
@@ -114,7 +111,7 @@ export const getRoles = async (req, res) => {
       .sort({ createdAt: -1 });
     res.status(200).json(roles);
   } catch (err) {
-    console.error("Get roles error:", err);
+    // Get roles error
     res
       .status(500)
       .json({ message: "Server error while fetching roles: " + err.message });
@@ -156,7 +153,7 @@ export const getRoleById = async (req, res) => {
     }
     res.status(200).json(role);
   } catch (err) {
-    console.error("Error fetching role:", err);
+    // Error fetching role
     if (err.kind === "ObjectId") {
       return res
         .status(404)
@@ -228,10 +225,7 @@ export const updateRole = async (req, res) => {
             }
           }
         } catch (emailError) {
-          console.error(
-            `[RoleCtrl] Failed to send role update notification to employee ${empId}:`,
-            emailError,
-          );
+          // [RoleCtrl] Failed to send role update notification to employee
         }
       }
     }
@@ -239,7 +233,7 @@ export const updateRole = async (req, res) => {
       .status(200)
       .json({ message: "Role updated successfully", role: updatedRole });
   } catch (err) {
-    console.error("Error updating role:", err);
+    // Error updating role
     if (err.name === "ValidationError") {
       return res.status(400).json({ message: err.message });
     }
@@ -279,7 +273,7 @@ export const deleteRole = async (req, res) => {
     }
     res.status(200).json({ message: "Role deleted successfully" });
   } catch (err) {
-    console.error("Error deleting role:", err);
+    // Error deleting role
     if (err.kind === "ObjectId") {
       return res
         .status(404)
@@ -323,7 +317,7 @@ export const deleteScheduleFromRole = async (req, res) => {
       .status(200)
       .json({ message: "Schedule entry removed from role", role: updatedRole });
   } catch (err) {
-    console.error("Error deleting schedule entry from role:", err);
+    // Error deleting schedule entry from role
     if (err.kind === "ObjectId") {
       return res
         .status(404)

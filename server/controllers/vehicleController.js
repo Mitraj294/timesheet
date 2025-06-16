@@ -189,12 +189,7 @@ export const deleteVehicle = async (req, res) => {
 
 // Create a new vehicle review
 export const createVehicleReview = async (req, res) => {
-  console.log(
-    "POST /api/vehicles/:vehicleId/reviews called with params:",
-    req.params,
-    "body:",
-    req.body,
-  );
+  // POST /api/vehicles/:vehicleId/reviews called with params
   try {
     const { vehicleId } = req.params;
     const {

@@ -18,7 +18,7 @@ export const createBulkSchedules = async (req, res) => {
     // Prepare schedules for DB
     const schedulesToSave = schedules.map((sch) => {
       if (!sch.startTime || !sch.endTime || !sch.date || !sch.employee) {
-        console.error("Missing required fields in schedule object:", sch);
+        // Missing required fields in schedule object
         throw new Error(
           `Missing required fields for one or more schedules. Ensure employee, date, startTime, and endTime are provided.`,
         );
@@ -81,7 +81,7 @@ export const createBulkSchedules = async (req, res) => {
         message: "Email notifications are currently disabled on the server. Please contact your administrator.",
       });
     }
-    console.error("Error creating schedules:", err);
+    // Error creating schedules
     if (err.message.startsWith("Missing required fields")) {
       return res.status(400).json({ message: err.message });
     }
@@ -153,7 +153,7 @@ export const getSchedulesByWeek = async (req, res) => {
     }));
     res.status(200).json(localSchedules);
   } catch (err) {
-    console.error("Error fetching schedules:", err);
+    // Error fetching schedules
     res
       .status(500)
       .json({ message: "Failed to fetch schedules: " + err.message });
@@ -217,7 +217,7 @@ export const updateSchedule = async (req, res) => {
       schedule: updatedSchedule,
     });
   } catch (err) {
-    console.error("Error updating schedule:", err);
+    // Error updating schedule
     if (err.name === "ValidationError") {
       return res.status(400).json({ message: err.message });
     }
@@ -252,7 +252,7 @@ export const deleteSchedule = async (req, res) => {
     }
     res.status(200).json({ message: "Schedule deleted successfully" });
   } catch (err) {
-    console.error("Error deleting schedule:", err);
+    // Error deleting schedule
     if (err.kind === "ObjectId") {
       return res
         .status(404)
@@ -285,7 +285,7 @@ export const deleteByDateRange = async (req, res) => {
       message: `${result.deletedCount} schedules deleted successfully.`,
     });
   } catch (err) {
-    console.error("Error deleting schedules by date range:", err);
+    // Error deleting schedules by date range
     res.status(500).json({
       message: "Failed to delete schedules by date range: " + err.message,
     });

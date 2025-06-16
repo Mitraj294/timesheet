@@ -118,11 +118,13 @@ const processPendingNotifications = async () => {
   }
 };
 
+let notificationCronJob = null;
+
 // Start the notification service with cron
 export const startNotificationService = () => {
   const cronSchedule = process.env.NOTIFICATION_SCHEDULER_CRON || "* * * * *"; // Default: every minute
   if (cron.validate(cronSchedule)) {
-    cron.schedule(cronSchedule, () => {
+    notificationCronJob = cron.schedule(cronSchedule, () => {
       processPendingNotifications().catch((err) => {
         console.error(
           "[NotificationService] Unhandled error in notification processing service called by cron job:",
@@ -137,5 +139,13 @@ export const startNotificationService = () => {
     console.error(
       `[NotificationService] Invalid CRON pattern for notification service: "${cronSchedule}". Job not started.`,
     );
+  }
+};
+
+export const stopNotificationService = () => {
+  if (notificationCronJob) {
+    notificationCronJob.stop();
+    notificationCronJob = null;
+    console.log('[NotificationService] Notification cron job stopped.');
   }
 };

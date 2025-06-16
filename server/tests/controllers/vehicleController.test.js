@@ -1,14 +1,16 @@
 // Basic test file for vehicleController
-import { describe, it, expect, jest } from '@jest/globals';
+import { describe, it, expect, jest, beforeAll, beforeEach } from '@jest/globals';
 
-const mockVehicle = {
-  find: jest.fn(),
-  findById: jest.fn(),
-  findOne: jest.fn(),
-  findByIdAndUpdate: jest.fn(),
-  findOneAndDelete: jest.fn(),
-  save: jest.fn(),
-};
+// Mock Vehicle as a constructor function
+const mockVehicle = jest.fn(function () {
+  return { save: mockVehicle.save };
+});
+mockVehicle.find = jest.fn();
+mockVehicle.findById = jest.fn();
+mockVehicle.findOne = jest.fn();
+mockVehicle.findByIdAndUpdate = jest.fn();
+mockVehicle.findOneAndDelete = jest.fn();
+mockVehicle.save = jest.fn();
 const mockVehicleReview = {
   findById: jest.fn(),
   find: jest.fn(),
@@ -20,18 +22,28 @@ const mockEmployee = {
 };
 const mockMongoose = { Types: { ObjectId: { isValid: jest.fn(() => true) } } };
 
-jest.unstable_mockModule('../../../server/models/Vehicle.js', () => mockVehicle);
-jest.unstable_mockModule('../../../server/models/VehicleReview.js', () => mockVehicleReview);
-jest.unstable_mockModule('../../../server/models/Employee.js', () => mockEmployee);
-jest.unstable_mockModule('mongoose', () => mockMongoose);
-import * as vehicleController from '../../../server/controllers/vehicleController.js';
+jest.unstable_mockModule('../../../server/models/Vehicle.js', () => ({ default: mockVehicle }));
+jest.unstable_mockModule('../../../server/models/VehicleReview.js', () => ({ default: mockVehicleReview }));
+jest.unstable_mockModule('../../../server/models/Employee.js', () => ({ default: mockEmployee }));
+jest.unstable_mockModule('mongoose', () => ({ default: mockMongoose }));
+
+let vehicleController;
+beforeAll(async () => {
+  vehicleController = await import('../../../server/controllers/vehicleController.js');
+});
 
 describe('vehicleController', () => {
   let req, res;
   beforeEach(() => {
     req = { user: { id: 'employer1', role: 'employer' }, params: {}, body: {} };
     res = { status: jest.fn().mockReturnThis(), json: jest.fn().mockReturnThis() };
-    Object.values(mockVehicle).forEach(fn => fn.mockReset && fn.mockReset());
+    mockVehicle.mockClear();
+    mockVehicle.find.mockReset();
+    mockVehicle.findById.mockReset();
+    mockVehicle.findOne.mockReset();
+    mockVehicle.findByIdAndUpdate.mockReset();
+    mockVehicle.findOneAndDelete.mockReset();
+    mockVehicle.save.mockReset();
     Object.values(mockVehicleReview).forEach(fn => fn.mockReset && fn.mockReset());
     Object.values(mockEmployee).forEach(fn => fn.mockReset && fn.mockReset());
     mockMongoose.Types.ObjectId.isValid.mockReturnValue(true);

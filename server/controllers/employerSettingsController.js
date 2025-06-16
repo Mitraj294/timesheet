@@ -42,9 +42,6 @@ function calculateNextScheduledUTC(
   if (!localTimeStr) return null;
   const targetDayNumber = dayMapping[dayOfWeekName.toLowerCase()];
   if (targetDayNumber === undefined) {
-    console.error(
-      `[SchedulerHelper] Invalid day of week name: ${dayOfWeekName}`,
-    );
     return null;
   }
   const [hours, minutes] = localTimeStr.split(":").map(Number);
@@ -56,9 +53,6 @@ function calculateNextScheduledUTC(
     minutes < 0 ||
     minutes > 59
   ) {
-    console.error(
-      `[SchedulerHelper] Invalid time string: ${localTimeStr} for day ${dayOfWeekName}`,
-    );
     return null;
   }
   const nowInSystemTime = new Date();
@@ -169,10 +163,6 @@ export const updateEmployerSettingsAndReschedule = async (req, res) => {
       settings: updatedSettings,
     });
   } catch (error) {
-    console.error(
-      "Error updating employer settings and rescheduling notifications:",
-      error,
-    );
     res.status(500).json({ message: "Server error while updating settings." });
   }
 };

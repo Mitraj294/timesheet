@@ -156,6 +156,7 @@ const AppContent = () => {
         <Route path="/clients/:clientId/projects/update/:projectId" element={<PrivateRoute><CreateProject /></PrivateRoute>} />
         <Route path="/clients/:clientId/projects/view/:projectId" element={<PrivateRoute><ViewProject /></PrivateRoute>} />
         <Route path="/timesheet" element={<PrivateRoute><Timesheet /></PrivateRoute>} />
+        <Route path="/timesheets" element={<PrivateRoute><Timesheet /></PrivateRoute>} />
         <Route path="/timesheet/create" element={<PrivateRoute><CreateTimesheet /></PrivateRoute>} />
         <Route path="/timesheet/create/:timesheetId" element={<PrivateRoute><CreateTimesheet /></PrivateRoute>} />
         <Route path="/timesheet/project/create/:clientId/:projectId" element={<PrivateRoute><CreateProjectTimesheet /></PrivateRoute>} />

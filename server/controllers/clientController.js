@@ -51,7 +51,6 @@ export default ({
       const savedClient = await newClient.save();
       res.status(201).json({ _id: savedClient._id, name: savedClient.name });
     } catch (error) {
-      console.error("Error creating client:", error);
       res.status(500).json({ message: "Error creating client" });
     }
   },
@@ -79,7 +78,6 @@ export default ({
       });
       res.status(200).json(clients || []);
     } catch (error) {
-      console.error("Error fetching clients:", error);
       res.status(500).json({ message: "Error fetching clients" });
     }
   },
@@ -116,7 +114,6 @@ export default ({
       }
       res.status(200).json(client);
     } catch (error) {
-      console.error("Error fetching client by ID:", error);
       if (error.kind === "ObjectId" && error.path === "_id") {
         return res.status(404).json({
           message: "Client not found (invalid ID format during query).",
@@ -172,7 +169,6 @@ export default ({
       );
       res.status(200).json(updatedClient);
     } catch (error) {
-      console.error("Error updating client:", error);
       res.status(500).json({ message: "Error updating client" });
     }
   },
@@ -189,7 +185,6 @@ export default ({
       }
       res.json({ message: "Client deleted successfully" });
     } catch (error) {
-      console.error("Error deleting client:", error);
       res.status(500).json({ message: "Error deleting client" });
     }
   },
@@ -206,7 +201,6 @@ export default ({
       const projects = await Project.find({ clientId: id });
       res.status(200).json(projects);
     } catch (error) {
-      console.error("Error fetching projects:", error);
       res.status(500).json({ message: "Error fetching client projects" });
     }
   },
@@ -271,7 +265,6 @@ export default ({
       )}.xlsx`;
       sendExcelDownload(res, buffer, filename);
     } catch (error) {
-      console.error("Excel download error:", error);
       if (!res.headersSent) {
         res
           .status(500)
@@ -352,7 +345,6 @@ export default ({
         .status(200)
         .json({ message: "Client timesheet report sent successfully!" });
     } catch (error) {
-      console.error("Client report email error:", error);
       res
         .status(500)
         .json({ message: `Failed to send client report: ${error.message}` });

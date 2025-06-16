@@ -2,7 +2,11 @@ import mongoose from "mongoose";
 import dotenv from "dotenv";
 
 // Load .env variables
-dotenv.config();
+if (process.env.NODE_ENV === 'test') {
+  dotenv.config({ path: '.env.e2e' });
+} else {
+  dotenv.config();
+}
 
 // Connect to MongoDB
 const connectDB = async () => {

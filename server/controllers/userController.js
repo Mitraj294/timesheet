@@ -47,7 +47,7 @@ export const updateUserProfile = async (req, res) => {
       companyName: updatedUser.companyName,
     });
   } catch (error) {
-    console.error("Error updating user profile:", error);
+    // Error updating user profile
     res.status(500).json({ message: "Server error during profile update." });
   }
 };

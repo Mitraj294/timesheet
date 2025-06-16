@@ -1,19 +1,24 @@
-// Basic test file for employerSettingsController
 import { jest } from '@jest/globals';
-import * as employerSettingsController from '../../../server/controllers/employerSettingsController.js';
+
+let EmployerSetting, ScheduledNotification, employerSettingsController;
 
 describe('employerSettingsController', () => {
-  let req, res, EmployerSetting, ScheduledNotification;
-  // Patch the controller's model imports for ESM
-  beforeEach(() => {
+  let req, res;
+  beforeEach(async () => {
+    jest.resetModules();
     req = { user: { id: 'employer1' }, body: {} };
     res = { status: jest.fn().mockReturnThis(), json: jest.fn().mockReturnThis() };
-    EmployerSetting = { findOneAndUpdate: jest.fn() };
-    ScheduledNotification = { find: jest.fn() };
-    jest.clearAllMocks();
-    // Patch the controller's model references
-    employerSettingsController.EmployerSetting = EmployerSetting;
-    employerSettingsController.ScheduledNotification = ScheduledNotification;
+    EmployerSetting = function () {};
+    EmployerSetting.findOneAndUpdate = jest.fn();
+    ScheduledNotification = function () {};
+    ScheduledNotification.find = jest.fn();
+    jest.unstable_mockModule('../../../server/models/EmployerSetting.js', () => ({
+      default: EmployerSetting,
+    }));
+    jest.unstable_mockModule('../../../server/models/ScheduledNotification.js', () => ({
+      default: ScheduledNotification,
+    }));
+    employerSettingsController = await import('../../../server/controllers/employerSettingsController.js');
   });
 
   it('should update settings and return 200', async () => {

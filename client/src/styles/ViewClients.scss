@@ -1,10 +1,10 @@
 @use 'sass:color';
-@import 'variables'; // Import shared variables
+@use './_variables' as variables;
 
 .btn {
     padding: 0.6rem 1.2rem;
     border: none;
-    border-radius: $border-radius;
+    border-radius: variables.$border-radius;
     font-weight: 500;
     cursor: pointer;
     transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease, opacity 0.2s ease;
@@ -15,7 +15,7 @@
     white-space: nowrap;
     font-size: 1rem;
     line-height: 1.5;
-    font-family: $font-family;
+    font-family: variables.$font-family;
     text-decoration: none;
 
     &:disabled {
@@ -25,47 +25,47 @@
 }
 
 .btn-primary {
-    background-color: $primary-color;
-    color: $white;
+    background-color: variables.$primary-color;
+    color: variables.$white;
 
     &:hover:not(:disabled) {
-        background-color: color.adjust($primary-color, $lightness: -10%);
+        background-color: color.adjust(variables.$primary-color, $lightness: -10%);
     }
 }
 
 .btn-warning {
-    background-color: $warning-color;
+    background-color: variables.$warning-color;
     color: #212529;
 
     &:hover:not(:disabled) {
-        background-color: color.adjust($warning-color, $lightness: -10%);
+        background-color: color.adjust(variables.$warning-color, $lightness: -10%);
     }
 }
 
 .btn-danger {
-    background-color: $danger-color;
-    color: $white;
+    background-color: variables.$danger-color;
+    color: variables.$white;
 
     &:hover:not(:disabled) {
-        background-color: color.adjust($danger-color, $lightness: -10%);
+        background-color: color.adjust(variables.$danger-color, $lightness: -10%);
     }
 }
 
 .btn-secondary {
-    background-color: $secondary-color;
-    color: $white;
+    background-color: variables.$secondary-color;
+    color: variables.$white;
 
     &:hover:not(:disabled) {
-        background-color: color.adjust($secondary-color, $lightness: -10%);
+        background-color: color.adjust(variables.$secondary-color, $lightness: -10%);
     }
 }
 
 .btn-success {
-    background-color: $success-color;
-    color: $white;
+    background-color: variables.$success-color;
+    color: variables.$white;
 
     &:hover:not(:disabled) {
-        background-color: color.adjust($success-color, $lightness: -10%);
+        background-color: color.adjust(variables.$success-color, $lightness: -10%);
     }
 }
 
@@ -74,16 +74,16 @@
     border: none;
     padding: 0.3rem;
     cursor: pointer;
-    border-radius: $border-radius;
+    border-radius: variables.$border-radius;
     font-size: 1.1rem;
     line-height: 1;
     transition: background-color 0.2s ease, color 0.2s ease;
-    color: $dark-grey;
+    color: variables.$dark-grey;
     vertical-align: middle;
     margin: 0 0.15rem;
 
     &:hover:not(:disabled) {
-        background-color: color.adjust($medium-grey, $lightness: -5%);
+        background-color: color.adjust(variables.$medium-grey, $lightness: -5%);
     }
 
     &:disabled {
@@ -94,37 +94,37 @@
 
 .btn-icon-blue {
     @extend .btn-icon;
-    color: $primary-color;
+    color: variables.$primary-color;
 
     &:hover:not(:disabled) {
-        color: color.adjust($primary-color, $lightness: -15%);
+        color: color.adjust(variables.$primary-color, $lightness: -15%);
     }
 }
 
 .btn-icon-yellow {
     @extend .btn-icon;
-    color: color.adjust($warning-color, $lightness: -10%);
+    color: color.adjust(variables.$warning-color, $lightness: -10%);
 
     &:hover:not(:disabled) {
-        color: color.adjust($warning-color, $lightness: -25%);
+        color: color.adjust(variables.$warning-color, $lightness: -25%);
     }
 }
 
 .btn-icon-red {
     @extend .btn-icon;
-    color: $danger-color;
+    color: variables.$danger-color;
 
     &:hover:not(:disabled) {
-        color: color.adjust($danger-color, $lightness: -15%);
+        color: color.adjust(variables.$danger-color, $lightness: -15%);
     }
 }
 
 .view-client-page {
     padding: clamp(1rem, 2vw, 1.5rem);
-    max-width: $breakpoint-xl;
+    max-width: variables.$breakpoint-xl;
     margin: 0 auto;
-    font-family: $font-family;
-    background-color: $light-grey;
+    font-family: variables.$font-family;
+    background-color: variables.$light-grey;
     min-height: calc(100vh - 60px);
 }
 
@@ -136,9 +136,9 @@
     flex-wrap: wrap;
     gap: 1rem;
     padding: 1rem;
-    background-color: $white;
-    border-radius: $border-radius;
-    box-shadow: $box-shadow;
+    background-color: variables.$white;
+    border-radius: variables.$border-radius;
+    box-shadow: variables.$box-shadow;
 
     .title-breadcrumbs {
         display: flex;
@@ -151,20 +151,20 @@
             display: flex;
             align-items: center;
             gap: 0.6rem;
-            color: $text-color;
+            color: variables.$text-color;
             margin: 0;
             font-weight: 600;
         }
 
         .breadcrumbs {
             font-size: 0.875rem;
-            color: $dark-grey;
+            color: variables.$dark-grey;
             display: flex;
             align-items: center;
             flex-wrap: wrap;
 
             .breadcrumb-link {
-                color: $primary-color;
+                color: variables.$primary-color;
                 text-decoration: none;
                 font-weight: 500;
                 white-space: nowrap;
@@ -176,12 +176,12 @@
 
             .breadcrumb-separator {
                 margin: 0 0.4rem;
-                color: color.adjust($dark-grey, $lightness: 15%);
+                color: color.adjust(variables.$dark-grey, $lightness: 15%);
                 white-space: nowrap;
             }
 
             .breadcrumb-current {
-                color: $dark-grey;
+                color: variables.$dark-grey;
                 white-space: nowrap;
                 font-weight: 500;
             }
@@ -197,11 +197,11 @@
 
 .client-info-card,
 .client-hours-card {
-    background-color: $white;
+    background-color: variables.$white;
     padding: clamp(1rem, 3vw, 1.5rem);
-    border-radius: $border-radius;
-    box-shadow: $box-shadow;
-    border: 1px solid $border-color;
+    border-radius: variables.$border-radius;
+    box-shadow: variables.$box-shadow;
+    border: 1px solid variables.$border-color;
     margin-bottom: 1.5rem;
 }
 
@@ -220,7 +220,7 @@
     font-size: 0.95rem;
 
     .detail-icon {
-        color: $primary-color;
+        color: variables.$primary-color;
         width: 1.1em;
         text-align: center;
         flex-shrink: 0;
@@ -228,12 +228,12 @@
 
     .detail-label {
         font-weight: 600;
-        color: $dark-grey;
+        color: variables.$dark-grey;
         flex-shrink: 0;
     }
 
     .detail-value {
-        color: $text-color;
+        color: variables.$text-color;
         word-break: break-word;
     }
 }
@@ -244,12 +244,12 @@
     .section-header {
         margin-bottom: 1rem;
         padding-bottom: 0.5rem;
-        border-bottom: 1px solid $border-color;
+        border-bottom: 1px solid variables.$border-color;
 
         h3 {
             font-size: 1.5rem;
             font-weight: 600;
-            color: $text-color;
+            color: variables.$text-color;
             margin: 0;
             display: flex;
             align-items: center;
@@ -259,16 +259,16 @@
 }
 
 .data-grid {
-    background-color: $white;
-    border-radius: $border-radius;
-    box-shadow: $box-shadow;
+    background-color: variables.$white;
+    border-radius: variables.$border-radius;
+    box-shadow: variables.$box-shadow;
     overflow: hidden;
-    border: 1px solid $border-color;
+    border: 1px solid variables.$border-color;
 
     .data-row {
         display: grid;
         align-items: center;
-        border-bottom: 1px solid $border-color;
+        border-bottom: 1px solid variables.$border-color;
 
         &:last-child {
             border-bottom: none;
@@ -277,16 +277,16 @@
         &>div {
             padding: 0.8rem 1rem;
             font-size: 0.95rem;
-            color: $text-color;
+            color: variables.$text-color;
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
         }
 
         &.header {
-            background-color: $light-grey;
+            background-color: variables.$light-grey;
             font-weight: 600;
-            color: color.adjust($dark-grey, $lightness: -10%);
+            color: color.adjust(variables.$dark-grey, $lightness: -10%);
             border-bottom-width: 2px;
 
             &>div {
@@ -295,14 +295,14 @@
         }
 
         &:not(.header):not(.no-results):hover {
-            background-color: $medium-grey;
+            background-color: variables.$medium-grey;
         }
 
         &.no-results {
             display: block;
             text-align: center;
             padding: 1.5rem;
-            color: $dark-grey;
+            color: variables.$dark-grey;
             font-style: italic;
         }
 
@@ -323,11 +323,11 @@
     justify-content: center;
     padding: 2rem;
     margin: 1.5rem auto;
-    background-color: $white;
-    border-radius: $border-radius;
-    box-shadow: $box-shadow;
+    background-color: variables.$white;
+    border-radius: variables.$border-radius;
+    box-shadow: variables.$box-shadow;
     text-align: center;
-    color: $dark-grey;
+    color: variables.$dark-grey;
     max-width: 600px;
 
     p {
@@ -342,12 +342,12 @@
 }
 
 .error-message {
-    color: color.adjust($danger-color, $lightness: -10%);
-    border: 1px solid color.adjust($danger-color, $lightness: 30%);
-    background-color: color.adjust($danger-color, $lightness: 45%);
+    color: color.adjust(variables.$danger-color, $lightness: -10%);
+    border: 1px solid color.adjust(variables.$danger-color, $lightness: 30%);
+    background-color: color.adjust(variables.$danger-color, $lightness: 45%);
 }
 
-@media (max-width: $breakpoint-md) {
+@media (max-width: variables.$breakpoint-md) {
     .data-grid {
         background-color: transparent;
         box-shadow: none;
@@ -363,15 +363,15 @@
 
         .data-row.data-card {
             display: block;
-            background-color: $white;
-            border: 1px solid $border-color;
-            border-radius: $border-radius;
-            box-shadow: $box-shadow;
+            background-color: variables.$white;
+            border: 1px solid variables.$border-color;
+            border-radius: variables.$border-radius;
+            box-shadow: variables.$box-shadow;
             padding: 1rem;
-            border-bottom: 1px solid $border-color;
+            border-bottom: 1px solid variables.$border-color;
 
             &:last-child {
-                border-bottom: 1px solid $border-color;
+                border-bottom: 1px solid variables.$border-color;
             }
 
             &>div {
@@ -381,7 +381,7 @@
                 display: flex;
                 justify-content: space-between;
                 align-items: baseline;
-                border-bottom: 1px dashed color.adjust($border-color, $lightness: 5%);
+                border-bottom: 1px dashed color.adjust(variables.$border-color, $lightness: 5%);
 
                 &:last-child {
                     border-bottom: none;
@@ -390,7 +390,7 @@
                 &::before {
                     content: attr(data-label);
                     font-weight: 600;
-                    color: $dark-grey;
+                    color: variables.$dark-grey;
                     margin-right: 0.5rem;
                     flex-shrink: 0;
                 }
@@ -408,16 +408,16 @@
         }
 
         .data-row.no-results {
-            background-color: $white;
-            border-radius: $border-radius;
-            box-shadow: $box-shadow;
+            background-color: variables.$white;
+            border-radius: variables.$border-radius;
+            box-shadow: variables.$box-shadow;
             padding: 1.5rem;
-            border: 1px solid $border-color;
+            border: 1px solid variables.$border-color;
         }
     }
 }
 
-@media (max-width: $breakpoint-sm) {
+@media (max-width: variables.$breakpoint-sm) {
     .page-header {
         align-items: flex-start;
 

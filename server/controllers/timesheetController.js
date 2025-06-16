@@ -76,9 +76,7 @@ const buildTimesheetData = (body) => {
   if (timezone && moment.tz.zone(timezone)) {
     userTimezone = timezone;
   } else {
-    console.warn(
-      `[Server Build] Invalid or missing timezone received: '${timezone}'. Falling back to UTC.`,
-    );
+    // [Server Build] Invalid or missing timezone received
   }
 
   const isWorkDay = !leaveType || leaveType === "None";
@@ -234,15 +232,11 @@ const sendImmediateNotificationEmail = async (details) => {
     details;
 
   if (!recipientEmail) {
-    console.warn(
-      "[Notification] No recipient email provided for immediate notification.",
-    );
+    // [Notification] No recipient email provided for immediate notification.
     return;
   }
   if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
-    console.error(
-      "[Notification] Email credentials (EMAIL_USER, EMAIL_PASS) are not configured in .env. Cannot send email.",
-    );
+    // [Notification] Email credentials (EMAIL_USER, EMAIL_PASS) are not configured in .env. Cannot send email.
     return;
   }
 
@@ -262,14 +256,9 @@ const sendImmediateNotificationEmail = async (details) => {
 
   try {
     await transporter.sendMail(mailOptions);
-    console.log(
-      `[Notification] Immediate notification email sent to ${recipientEmail} for ${employeeName}'s timesheet ${action}.`,
-    );
+    // [Notification] Immediate notification email sent
   } catch (error) {
-    console.error(
-      `[Notification] Failed to send immediate email to ${recipientEmail}:`,
-      error,
-    );
+    // [Notification] Failed to send immediate email to recipient
   }
 };
 
@@ -285,17 +274,13 @@ const handleTimesheetActionNotification = async (
       .lean();
 
     if (!employee || employee.receivesActionNotifications === false) {
-      console.log(
-        `[Notification] Notifications disabled for employee ${employee?.name || timesheet.employeeId} or employee not found. Skipping.`,
-      );
+      // [Notification] Notifications disabled for employee or employee not found. Skipping.
       return;
     }
 
     const employerIdToUse = employerIdForTimesheet || employee.employerId;
     if (!employerIdToUse) {
-      console.warn(
-        `[Notification] Could not determine employer ID for employee ${employee.name}. Skipping notification.`,
-      );
+      // [Notification] Could not determine employer ID for employee. Skipping notification.
       return;
     }
     const employerSettings = await EmployerSetting.findOne({
@@ -309,9 +294,7 @@ const handleTimesheetActionNotification = async (
       .lean(); // Get employer name for email
 
     if (!employerSettings || !employerSettings.actionNotificationEmail) {
-      console.log(
-        `[Notification] Action notification email not configured for employer ${employerIdToUse}. Skipping.`,
-      );
+      // [Notification] Action notification email not configured for employer. Skipping.
       return;
     }
 
@@ -338,9 +321,7 @@ const handleTimesheetActionNotification = async (
       ) {
         finalScheduledTimeUTC = scheduledTimeFromSettings;
         refDayOfWeek = dayOfWeekOfAction;
-        console.log(
-          `[Notification] Queued: Action for ${employee.name}. Will follow daily schedule for ${dayOfWeekOfAction} (today). Scheduled at ${finalScheduledTimeUTC.toISOString()} to ${employerSettings.actionNotificationEmail}.`,
-        );
+        // [Notification] Queued: Action for employee. Will follow daily schedule for dayOfWeekOfAction (today). Scheduled at finalScheduledTimeUTC to employerSettings.actionNotificationEmail.
       } else {
         let foundNextDay = false;
         for (let i = 1; i <= 7; i++) {
@@ -355,9 +336,7 @@ const handleTimesheetActionNotification = async (
           ) {
             finalScheduledTimeUTC = nextDayScheduledTimeFromSettings;
             refDayOfWeek = nextDayKey;
-            console.log(
-              `[Notification] Queued: Action for ${employee.name}. Today's time passed. Rolled over to ${nextDayKey}. Scheduled at ${finalScheduledTimeUTC.toISOString()} to ${employerSettings.actionNotificationEmail}.`,
-            );
+            // [Notification] Queued: Action for employee. Today's time passed. Rolled over to nextDayKey. Scheduled at finalScheduledTimeUTC to employerSettings.actionNotificationEmail.
             foundNextDay = true;
             break;
           }
@@ -365,17 +344,13 @@ const handleTimesheetActionNotification = async (
         if (!foundNextDay) {
           // If no scheduled time in the next 7 days, schedule for "immediate" processing relative to now.
           finalScheduledTimeUTC = nowUTC.toDate();
-          console.log(
-            `[Notification] Queued: Action for ${employee.name}. No specific future daily schedule found within 7 days. Scheduled for immediate delivery at ${finalScheduledTimeUTC.toISOString()} to ${employerSettings.actionNotificationEmail}.`,
-          );
+          // [Notification] Queued: Action for employee. No specific future daily schedule found within 7 days. Scheduled for immediate delivery at finalScheduledTimeUTC to employerSettings.actionNotificationEmail.
         }
       }
     } else {
       finalScheduledTimeUTC = nowUTC.toDate();
       refDayOfWeek = null;
-      console.log(
-        `[Notification] Queued: Action for ${employee.name}. Scheduled for immediate delivery at ${finalScheduledTimeUTC.toISOString()} to ${employerSettings.actionNotificationEmail}.`,
-      );
+      // [Notification] Queued: Action for employee. Scheduled for immediate delivery at finalScheduledTimeUTC to employerSettings.actionNotificationEmail.
     }
 
     const emailSubject = `Timesheet ${action} by ${employee.name}`;
@@ -393,14 +368,9 @@ const handleTimesheetActionNotification = async (
     });
 
     await newNotification.save();
-    console.log(
-      `[Notification] ScheduledNotification document ${newNotification._id} created for ${employee.name}'s timesheet ${action}.`,
-    );
+    // [Notification] ScheduledNotification document newNotification._id created for employee's timesheet action.
   } catch (error) {
-    console.error(
-      "[Notification] Error in handleTimesheetActionNotification:",
-      error,
-    );
+    // [Notification] Error in handleTimesheetActionNotification
   }
 };
 
@@ -484,7 +454,7 @@ export const createTimesheet = async (req, res) => {
         message: `A timesheet for this employee on the specified date already exists (Duplicate key error on field: ${field}).`,
       });
     }
-    console.error("[Server Create] Error creating timesheet:", error);
+    // [Server Create] Error creating timesheet
     res
       .status(400)
       .json({ message: error.message || "Error creating timesheet" });
@@ -515,7 +485,7 @@ export const checkTimesheet = async (req, res) => {
     }).lean();
     return res.json({ exists: !!existing, timesheet: existing || null });
   } catch (err) {
-    console.error("[Server Check] Error checking timesheet:", err);
+    // [Server Check] Error checking timesheet
     res.status(500).json({ message: "Server error during timesheet check" });
   }
 };
@@ -531,9 +501,7 @@ export const getTimesheets = async (req, res) => {
     if (projectId && mongoose.Types.ObjectId.isValid(projectId)) {
       filter.projectId = projectId;
     } else if (projectId) {
-      console.log(
-        "[Server Get] Invalid project ID provided, ignoring project filter.",
-      );
+      // [Server Get] Invalid project ID provided, ignoring project filter.
     }
 
     if (
@@ -547,9 +515,7 @@ export const getTimesheets = async (req, res) => {
       if (validIds.length > 0) {
         filter.employeeId = { $in: validIds };
       } else {
-        console.log(
-          "[Server Get] No valid employee IDs provided in filter, returning empty.",
-        );
+        // [Server Get] No valid employee IDs provided in filter, returning empty.
         return res.json({ timesheets: [], totalHours: 0, avgHours: 0 });
       }
     } else if (
@@ -560,9 +526,7 @@ export const getTimesheets = async (req, res) => {
       if (mongoose.Types.ObjectId.isValid(employeeIds)) {
         filter.employeeId = employeeIds;
       } else {
-        console.log(
-          "[Server Get] Invalid single employee ID provided, returning empty.",
-        );
+        // [Server Get] Invalid single employee ID provided, returning empty.
         return res.json({ timesheets: [], totalHours: 0, avgHours: 0 });
       }
     }
@@ -591,16 +555,11 @@ export const getTimesheets = async (req, res) => {
           if (parsedMoment.isValid()) {
             formattedDate = parsedMoment.format("YYYY-MM-DD");
           } else {
-            console.warn(
-              `[Server Get] Could not re-format date for timesheet ${ts._id}: ${ts.date}`,
-            );
+            // [Server Get] Could not re-format date for timesheet
             formattedDate = "INVALID_DATE";
           }
         } catch (e) {
-          console.warn(
-            `[Server Get] Error re-formatting date for timesheet ${ts._id}: ${ts.date}`,
-            e,
-          );
+          // [Server Get] Error re-formatting date for timesheet
           formattedDate = "INVALID_DATE";
         }
       }
@@ -622,7 +581,7 @@ export const getTimesheets = async (req, res) => {
       avgHours: avg,
     });
   } catch (error) {
-    console.error("[Server Get] Error fetching timesheets:", error.message);
+    // [Server Get] Error fetching timesheets
     res
       .status(500)
       .json({ message: `Failed to fetch timesheets: ${error.message}` });
@@ -650,7 +609,7 @@ export const getTimesheetById = async (req, res) => {
     }
     res.json(timesheet);
   } catch (error) {
-    console.error("[Server GetById] Error fetching timesheet:", error);
+    // [Server GetById] Error fetching timesheet
     res
       .status(500)
       .json({ message: `Error fetching timesheet: ${error.message}` });
@@ -689,9 +648,7 @@ export const updateTimesheet = async (req, res) => {
       employerId: employerIdForSettings,
     });
     if (!settings) {
-      console.warn(
-        `[Server Update] Settings not found for employer ${employerIdForSettings}. Proceeding without settings-based validation.`,
-      );
+      // [Server Update] Settings not found for employer. Proceeding without settings-based validation.
     }
 
     if (req.user.role === "employee") {
@@ -845,7 +802,7 @@ export const updateTimesheet = async (req, res) => {
         message: `Updating caused a conflict with another entry (Duplicate key error on field: ${field}).`,
       });
     }
-    console.error("[Server Update] Error updating timesheet:", error);
+    // [Server Update] Error updating timesheet
     res
       .status(400)
       .json({ message: error.message || "Error updating timesheet" });
@@ -870,7 +827,7 @@ export const getIncompleteTimesheetsByEmployee = async (req, res) => {
       .lean();
     res.json(incompleteTimesheets);
   } catch (error) {
-    console.error("[Server GetIncompleteByEmployee] Error:", error);
+    // [Server GetIncompleteByEmployee] Error
     res.status(500).json({
       message: `Error fetching incomplete timesheets: ${error.message}`,
     });
@@ -893,7 +850,7 @@ export const getTimesheetsByProject = async (req, res) => {
       .lean();
     res.json(timesheets);
   } catch (error) {
-    console.error("[Server GetByProject] Error:", error);
+    // [Server GetByProject] Error
     res.status(500).json({
       message: `Error fetching timesheets by project: ${error.message}`,
     });
@@ -916,7 +873,7 @@ export const getTimesheetsByEmployee = async (req, res) => {
       .lean();
     res.json(timesheets);
   } catch (error) {
-    console.error("[Server GetByEmployee] Error:", error);
+    // [Server GetByEmployee] Error
     res.status(500).json({
       message: `Error fetching timesheets by employee: ${error.message}`,
     });
@@ -939,7 +896,7 @@ export const getTimesheetsByClient = async (req, res) => {
       .lean();
     res.json(timesheets);
   } catch (error) {
-    console.error("[Server GetByClient] Error:", error);
+    // [Server GetByClient] Error
     res.status(500).json({
       message: `Error fetching timesheets by client: ${error.message}`,
     });
@@ -959,10 +916,9 @@ export const deleteTimesheet = async (req, res) => {
     if (!deletedTimesheet) {
       return res.status(404).json({ message: "Timesheet not found" });
     }
-    console.log("[Server Delete] Timesheet deleted successfully:", id);
     res.status(200).json({ message: "Timesheet deleted successfully", id: id });
   } catch (error) {
-    console.error("[Server Delete] Error deleting timesheet:", error);
+    // [Server Delete] Error deleting timesheet
     res
       .status(500)
       .json({ message: `Error deleting timesheet: ${error.message}` });
@@ -1118,9 +1074,7 @@ const handleReportAction = async (req, res, isDownload, groupBy) => {
   const reportTimezone =
     timezone && moment.tz.zone(timezone) ? timezone : "UTC";
   if (reportTimezone === "UTC" && timezone !== "UTC") {
-    console.warn(
-      `[Server Report] Invalid report timezone '${timezone}'. Using UTC for formatting times.`,
-    );
+    // [Server Report] Invalid report timezone. Using UTC for formatting times.
   }
 
   try {
@@ -1286,10 +1240,7 @@ const handleReportAction = async (req, res, isDownload, groupBy) => {
         .json({ message: "Timesheet email sent successfully!" });
     }
   } catch (error) {
-    console.error(
-      `[Server Report] Exception during ${actionType} process:`,
-      error,
-    );
+    // [Server Report] Exception during actionType process
     return res
       .status(500)
       .json({ message: `Failed to ${actionType} report: ${error.message}` });
@@ -1445,10 +1396,7 @@ export const sendWeeklyTimesheetReports = async () => {
       "[WeeklyReportTask] Finished processing all configured employers.",
     );
   } catch (error) {
-    console.error(
-      "[WeeklyReportTask] Error during weekly report generation:",
-      error,
-    );
+    // [WeeklyReportTask] Error during weekly report generation
   }
 };
 

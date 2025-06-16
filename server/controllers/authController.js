@@ -19,9 +19,9 @@ const USER_ROLES = {
 // Get client base URL for links in emails
 const getClientBaseUrl = () => {
   if (process.env.NODE_ENV !== "production") {
-    return "http://localhost:3000";
+    return "https://192.168.1.47:3000";
   }
-  return process.env.CLIENT_BASE_URL || "http://localhost:3000";
+  return process.env.CLIENT_BASE_URL || "https://192.168.1.47:3000";
 };
 
 // --- User Registration ---
@@ -80,7 +80,7 @@ const registerUser = ({ User, sendEmail }) => async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("Error in user registration:", error);
+    // Error in user registration
     res.status(500).json({ message: "Server error during registration" });
   }
 };
@@ -135,7 +135,7 @@ const loginUser = ({ User, Employee }) => async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("Error in user login:", error);
+    // Error in user login
     res.status(500).json({ message: "Server error during login" });
   }
 };
@@ -168,7 +168,7 @@ const changePassword = ({ User }) => async (req, res) => {
     await user.save();
     res.json({ message: "Password updated successfully." });
   } catch (error) {
-    console.error("Error changing password:", error);
+    // Error changing password
     res.status(500).json({ message: "Server error during password change." });
   }
 };
@@ -228,7 +228,7 @@ const forgotPassword = ({ User, sendEmail }) => async (req, res) => {
       });
     }
   } catch (error) {
-    console.error("Error in forgot password:", error);
+    // Error in forgot password
     res
       .status(500)
       .json({ message: "Server error during forgot password process." });
@@ -261,7 +261,7 @@ const resetPassword = ({ User }) => async (req, res) => {
     await user.save();
     res.json({ message: "Password has been reset successfully." });
   } catch (error) {
-    console.error("Error in reset password:", error);
+    // Error in reset password
     res.status(500).json({ message: "Server error during password reset." });
   }
 };
@@ -280,7 +280,7 @@ const checkUserExists = ({ User }) => async (req, res) => {
       return res.json({ exists: false });
     }
   } catch (error) {
-    console.error("Error checking user existence:", error);
+    // Error checking user existence
     res.status(500).json({ message: "Server error while checking user." });
   }
 };
@@ -321,10 +321,8 @@ const checkProspectiveEmployee = ({ User, Employee }) => async (req, res) => {
         "This email is already registered. You can proceed to request an invitation.",
     });
   } catch (error) {
-    console.error("Error in checkProspectiveEmployee:", error);
-    res
-      .status(500)
-      .json({ message: "Server error while checking email status." });
+    // Error checking prospective employee
+    res.status(500).json({ message: "Server error while checking prospective employee." });
   }
 };
 
@@ -413,17 +411,20 @@ const requestCompanyInvitation = ({ User, Invitation, sendEmail }) => async (req
         html: employerNotificationHtml,
       });
     } catch (emailError) {
-      console.error(
-        `Failed to send invitation request email to employer ${employerUser.email}:`,
-        emailError,
-      );
+      // Error sending invitation email
+      user.passwordResetToken = undefined;
+      user.passwordResetExpires = undefined;
+      await user.save({ validateBeforeSave: false });
+      return res.status(500).json({
+        message: "Error sending password reset email. Please try again later.",
+      });
     }
     res.status(201).json({
       message:
         "Invitation request submitted successfully. The company will be notified.",
     });
   } catch (error) {
-    console.error("Error requesting invitation:", error);
+    // Error requesting invitation
     res
       .status(500)
       .json({ message: "Server error while submitting invitation request." });
@@ -442,7 +443,7 @@ const getPendingInvitations = ({ Invitation }) => async (req, res) => {
     }).sort({ createdAt: -1 });
     res.json(invitations);
   } catch (error) {
-    console.error("Error fetching pending invitations:", error);
+    // Error fetching pending invitations
     res.status(500).json({ message: "Server error fetching invitations." });
   }
 };
@@ -583,13 +584,10 @@ const approveInvitation = ({ Invitation, User, Employee, sendEmail }) => async (
         html: employeeNotificationHtml,
       });
     } catch (emailError) {
-      console.error(
-        `Failed to send approval email to employee ${prospectiveEmployeeEmail}:`,
-        emailError,
-      );
+      // Error sending approval email
     }
   } catch (error) {
-    console.error("Error approving invitation:", error);
+    // Error approving invitation
     if (error.code === 11000) {
       return res.status(409).json({
         message:
@@ -641,14 +639,11 @@ const rejectInvitation = ({ Invitation, sendEmail }) => async (req, res) => {
         html: rejectionHtml,
       });
     } catch (emailError) {
-      console.error(
-        `Failed to send rejection email to ${invitation.prospectiveEmployeeEmail}:`,
-        emailError,
-      );
+      // Error sending rejection email
     }
     res.status(200).json({ message: "Invitation rejected successfully." });
   } catch (error) {
-    console.error("Error rejecting invitation:", error);
+    // Error rejecting invitation
     res
       .status(500)
       .json({ message: "Server error while rejecting invitation." });
@@ -691,7 +686,7 @@ const requestAccountDeletionLink = ({ User, sendEmail }) => async (req, res) => 
       message: `A secure link to delete your account has been sent to ${user.email}. Please check your inbox.`,
     });
   } catch (error) {
-    console.error("Error in requestAccountDeletionLink:", error);
+    // Error in requestAccountDeletionLink
     if (req.user && req.user.id) {
       try {
         const userToClean = await User.findById(req.user.id);
@@ -701,7 +696,7 @@ const requestAccountDeletionLink = ({ User, sendEmail }) => async (req, res) => 
           await userToClean.save({ validateBeforeSave: false });
         }
       } catch (cleanupError) {
-        console.error("Error cleaning up deletion token fields:", cleanupError);
+        // Error cleaning up deletion token fields
       }
     }
     res.status(500).json({
@@ -813,7 +808,7 @@ const verifyCurrentUserPassword = ({ User, Employee }) => async (req, res) => {
         .json({ success: false, message: "Incorrect password." });
     }
   } catch (error) {
-    console.error("Error verifying password:", error);
+    // Error verifying password
     res.status(500).json({
       success: false,
       message: "Server error during password verification.",

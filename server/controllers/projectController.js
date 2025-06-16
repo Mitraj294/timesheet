@@ -49,7 +49,7 @@ export const createProject = async (req, res) => {
       .status(201)
       .json({ message: "Project created successfully", project: newProject });
   } catch (error) {
-    console.error("Error creating project:", error);
+    // Error creating project
     if (error.code === 11000) {
       return res.status(409).json({
         message: "A project with this name might already exist for the client.",
@@ -65,7 +65,7 @@ export const getAllProjects = async (req, res) => {
     const projects = await Project.find().populate("clientId", "name");
     res.status(200).json(projects);
   } catch (error) {
-    console.error("Error fetching all projects:", error);
+    // Error fetching all projects
     res
       .status(500)
       .json({ message: "Server error while fetching all projects." });
@@ -85,7 +85,7 @@ export const getProjectsByClientId = async (req, res) => {
     );
     res.status(200).json(projects);
   } catch (error) {
-    console.error("Error fetching projects by client:", error);
+    // Error fetching projects by client
     res.status(500).json({
       message: "Server error while fetching projects for the client.",
     });
@@ -121,7 +121,7 @@ export const getProjectById = async (req, res) => {
         : 0;
     res.status(200).json(project);
   } catch (error) {
-    console.error("Error fetching project:", error);
+    // Error fetching project
     res.status(500).json({ message: "Server error while fetching project." });
   }
 };
@@ -168,7 +168,7 @@ export const updateProject = async (req, res) => {
       project: updatedProject,
     });
   } catch (error) {
-    console.error("Error updating project:", error);
+    // Error updating project
     if (error.code === 11000) {
       return res
         .status(409)
@@ -192,7 +192,7 @@ export const deleteProject = async (req, res) => {
     }
     res.status(200).json({ message: "Project deleted successfully" });
   } catch (error) {
-    console.error("Error deleting project:", error);
+    // Error deleting project
     res.status(500).json({ message: "Server error while deleting project." });
   }
 };
@@ -227,7 +227,7 @@ export const downloadProjectReport = async (req, res) => {
       .slice(0, 14)}.xlsx`;
     sendExcelDownload(res, buffer, filename);
   } catch (error) {
-    console.error("Project Excel download error:", error);
+    // Project Excel download error
     if (!res.headersSent) {
       res
         .status(500)
@@ -281,7 +281,7 @@ export const sendProjectReportEmail = async (req, res) => {
       .status(200)
       .json({ message: "Project timesheet report sent successfully!" });
   } catch (error) {
-    console.error("Project report email error:", error);
+    // Project report email error
     res
       .status(500)
       .json({ message: `Failed to send project report: ${error.message}` });

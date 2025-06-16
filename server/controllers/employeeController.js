@@ -29,10 +29,6 @@ export const getEmployees = async (req, res) => {
     }
     res.json(employees);
   } catch (error) {
-    console.error(
-      "[employeeController.getEmployees] Error fetching employees:",
-      error,
-    );
     res.status(500).json({ message: "Server error fetching employees" });
   }
 };
@@ -53,10 +49,6 @@ export const getMyEmployeeProfile = async (req, res) => {
     }
     res.json(employeeProfile);
   } catch (error) {
-    console.error(
-      "[employeeController.getMyEmployeeProfile] Error fetching employee profile:",
-      error,
-    );
     res.status(500).json({ message: "Server error fetching employee profile" });
   }
 };
@@ -126,10 +118,6 @@ export const addEmployee = async (req, res) => {
     await newEmployee.save();
     res.status(201).json(newEmployee);
   } catch (error) {
-    console.error(
-      "[employeeController.addEmployee] Error adding employee:",
-      error,
-    );
     if (error.code === 11000) {
       let field = Object.keys(error.keyValue)[0];
       field =
@@ -234,10 +222,6 @@ export const updateEmployee = async (req, res) => {
     );
     res.json(updatedEmployee);
   } catch (error) {
-    console.error(
-      "[employeeController.updateEmployee] Error updating employee:",
-      error,
-    );
     if (error.code === 11000) {
       let field = Object.keys(error.keyValue)[0];
       field =
@@ -314,10 +298,6 @@ export const batchUpdateEmployeeNotificationPreferences = asyncHandler(
         });
       }
     } catch (error) {
-      console.error(
-        "Error batch updating employee notification preferences:",
-        error,
-      );
       res.status(500).json({
         message:
           "Server error during batch update of notification preferences.",
@@ -374,10 +354,6 @@ export const deleteEmployee = async (req, res) => {
     if (session && session.inTransaction()) {
       await session.abortTransaction();
     }
-    console.error(
-      "[employeeController.deleteEmployee] Error deleting employee:",
-      error,
-    );
     res.status(500).json({
       message: "Server error during employee deletion process.",
       error: error.message,
@@ -388,5 +364,3 @@ export const deleteEmployee = async (req, res) => {
     }
   }
 };
-
-export default employeeControllerFactory;

@@ -3,7 +3,6 @@ import { render, screen } from '@testing-library/react';
 import App from '../src/App';
 import { Provider } from 'react-redux';
 import store from '../src/store/store';
-import { BrowserRouter } from 'react-router-dom';
 
 // Mock leaflet image imports for this test only
 jest.mock('leaflet/dist/images/marker-icon-2x.png', () => 'marker-icon-2x.png');
@@ -20,9 +19,7 @@ test('renders sign in header', () => {
 test('renders App component', () => {
   render(
     <Provider store={store}>
-      <BrowserRouter>
-        <App />
-      </BrowserRouter>
+      <App />
     </Provider>
   );
 });
