@@ -1,8 +1,7 @@
 import axios from "axios";
 
-// API base URL (change in .env for different servers)
-// Update the base API URL to use the production server
-const BASE_API_URL = 'https://192.168.1.47:5000/api';
+// Use environment variable for API base URL, fallback to Render backend if not set
+const BASE_API_URL = process.env.REACT_APP_API_URL || 'https://timesheet-c4mj.onrender.com/api';
 const AUTH_API = `${BASE_API_URL}/auth`;
 
 // Register a new user

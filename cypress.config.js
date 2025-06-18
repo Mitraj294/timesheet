@@ -3,7 +3,7 @@ import { defineConfig } from "cypress";
 export default defineConfig({
   projectId: 'ywsxoj',
   e2e: {
-    baseUrl: "https://192.168.1.47:3000",
+    baseUrl: process.env.CYPRESS_BASE_URL || "https://timesheet00.netlify.app",
     chromeWebSecurity: false, // Allow self-signed certs for local HTTPS
     async setupNodeEvents(on, config) {
       on('task', {
