@@ -1,577 +1,219 @@
-@use 'sass:color';
-
-$primary-color: #007bff;
-$secondary-color: #6c757d;
-$success-color: #28a745;
-$warning-color: #ffc107;
-$danger-color: #dc3545;
-$info-color: #17a2b8;
-$light-grey: #f8f9fa;
-$medium-grey: #e9ecef;
-$dark-grey: #6c757d;
-$text-color: #333;
-$border-color: #dee2e6;
-$border-radius: 5px;
-$box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
-$font-family: 'Segoe UI', sans-serif; // Added from Vehicles.scss
-
-// Breakpoints
-$breakpoint-md: 768px;
-$breakpoint-sm: 576px;
-
-// Button Mixins
-@mixin base-button {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    padding: 0.5rem 1rem;
-    font-size: 0.9rem;
-    font-weight: 500;
-    line-height: 1.5;
-    text-align: center;
-    text-decoration: none;
-    vertical-align: middle;
-    cursor: pointer;
-    user-select: none;
-    background-color: transparent;
-    border: 1px solid transparent;
-    border-radius: 0.25rem; // Using radius from .btn definition
-    transition: color 0.15s ease-in-out, background-color 0.15s ease-in-out, border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
-    white-space: nowrap;
-
-    &:disabled {
-        opacity: 0.65;
-        cursor: not-allowed;
-    }
-
-    .svg-inline--fa {
-        margin-right: 0.4em;
-    }
-
-    span+.svg-inline--fa {
-        margin-right: 0;
-        margin-left: 0.4em;
-    }
-
-    .svg-inline--fa:only-child {
-        margin-right: 0;
-    }
-}
-
-@mixin button-primary {
-    color: #fff;
-    background-color: $primary-color;
-    border-color: $primary-color;
-
-    &:hover:not(:disabled) {
-        background-color: color.adjust($primary-color, $lightness: -7%);
-        border-color: color.adjust($primary-color, $lightness: -10%);
-    }
-
-    &:disabled {
-        background-color: $primary-color;
-        border-color: $primary-color;
-    }
-}
-
-@mixin button-secondary {
-    color: #fff;
-    background-color: $secondary-color;
-    border-color: $secondary-color;
-
-    &:hover:not(:disabled) {
-        background-color: color.adjust($secondary-color, $lightness: -7%);
-        border-color: color.adjust($secondary-color, $lightness: -10%);
-    }
-
-    &:disabled {
-        background-color: $secondary-color;
-        border-color: $secondary-color;
-    }
-}
-
-
-.visually-hidden {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    margin: -1px;
-    padding: 0;
-    overflow: hidden;
-    clip: rect(0, 0, 0, 0);
-    border: 0;
-}
-
-// Custom Marker Styles
-.custom-leaflet-marker {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 50%;
-    color: white;
-    font-weight: bold;
-    font-size: 10px; // Adjusted for potentially two initials
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
-    text-align: center;
-    line-height: 1; // Ensure text is vertically centered
-
-    // Default size, can be overridden by L.divIcon iconSize
-    width: 28px; // Slightly smaller to accommodate border
-    height: 28px;
-
-    // Employee initial or icon
-    .marker-label {
-        // If you want to show an initial or small icon inside
-    }
-}
-
-.start-marker {
-    background-color: $success-color; // Green for start
-    border: 2px solid color.adjust($success-color, $lightness: -15%);
-}
-
-.end-marker {
-    background-color: $danger-color; // Red for end
-    border: 2px solid color.adjust($danger-color, $lightness: -15%);
-}
-
-// Custom Cluster Icon Styles
-.custom-cluster-icon {
-    display: flex;
-    flex-direction: column; // Stack count and type indicator
-    align-items: center;
-    justify-content: center;
-    border-radius: 50%;
-    color: white;
-    font-weight: bold;
-    text-align: center;
-    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
-    opacity: 0.9;
-    line-height: 1.2; // Adjust for better text spacing
-
-    .cluster-count {
-        font-size: 1em; // Base size for the count
-    }
-
-    .cluster-type-indicator {
-        font-size: 0.6em; // Smaller for type/employee info
-        display: block; // Ensure it takes its own line if needed
-        margin-top: 1px; // Small space from the count
-        font-weight: normal;
-    }
-}
-
-// Specific styles for cluster types (optional, can be expanded)
-.cluster-starts-only {
-    background-color: rgba(40, 167, 69, 0.8); // Greenish tint
-    border: 2px solid color.adjust($success-color, $lightness: -20%);
-}
-
-.cluster-ends-only {
-    background-color: rgba(220, 53, 69, 0.8); // Reddish tint
-    border: 2px solid color.adjust($danger-color, $lightness: -20%);
-}
-
-.cluster-mixed-types {
-    background-color: rgba(0, 123, 255, 0.8); // Default blueish tint for mixed
-    border: 2px solid color.adjust($primary-color, $lightness: -20%);
-}
-
-// If you want to indicate clusters for a single employee (can get complex)
-.cluster-single-employee {
-    // Example: add a distinct border or slightly different background
-    // border: 2px dashed yellow;
-}
-
-// Ensure Leaflet's default cluster styles don't overly interfere
-// You might need to inspect and override specific Leaflet cluster styles if they clash.
-.marker-cluster-small,
-.marker-cluster-medium,
-.marker-cluster-large {
-    // If using custom-cluster-icon for all, these might not need much styling
-    // unless you want to keep Leaflet's size-based classes and style them.
-    // For L.divIcon, the size is set by iconSize property.
-    // If you want to use Leaflet's default sizing circles, you'd style these.
-    // For now, we assume iconCreateFunction returns a divIcon with its own class.
-
-    // Example if you were to style Leaflet's default circles:
-    // background-color: transparent; // To let our custom-cluster-icon show through
-    // & > div { // Target the inner div where count is usually placed
-    //   display: none; // Hide default count if we're fully custom
-    // }
+body {
+    background: #f4f6fa;
 }
 
 .map-container {
-    padding: clamp(1rem, 2vw, 1.5rem);
-    background-color: $light-grey;
-    border-radius: $border-radius;
-    font-family: $font-family; // Use variable
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
+    padding: 2.5rem 2.5rem 2rem 2.5rem;
+    margin: 2.5rem auto;
     max-width: 1200px;
-    margin: 0 auto;
+    font-family: 'Segoe UI', Arial, sans-serif;
+    min-height: 600px;
+}
 
-    .employees-header {
-        h1 {
-            font-size: clamp(1.4rem, 3vw, 1.75rem); // Match Vehicles.scss header
-            display: flex;
-            align-items: center;
-            margin-bottom: 0; // Remove margin if part of a larger header block
-            color: $text-color; // Use variable
-            font-weight: 600; // Match Vehicles.scss header
+.ts-page-header__main-content {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    background: #fff;
+    border-radius: 10px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    padding: 1.5rem 2rem 1rem 2rem;
+    margin-bottom: 1.5rem;
+}
+
+.ts-page-header__title {
+    font-size: 2rem;
+    font-weight: 700;
+    color: #222;
+    margin-bottom: 0.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+}
+
+.ts-page-header__breadcrumbs {
+    font-size: 1rem;
+    color: #6c757d;
+    margin-bottom: 0;
+}
+
+.ts-page-header__breadcrumb-link {
+    color: #007bff;
+    text-decoration: none;
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+.ts-page-header__breadcrumb-link:hover {
+    text-decoration: underline;
+}
+
+.ts-page-header__breadcrumb-separator {
+    margin: 0 0.3rem;
+    color: #bdbdbd;
+}
+
+.ts-page-header__breadcrumb-current {
+    color: #6c757d;
+    white-space: nowrap;
+}
+
+.date-range {
+    text-align: center;
+    margin-bottom: 1.5rem;
+
+    h3 {
+        font-size: 1.3rem;
+        font-weight: 600;
+        color: #222;
+    }
+}
+
+.map-navigation {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: #f8f9fa;
+    padding: 1rem 1.5rem;
+    border-radius: 8px;
+    margin-bottom: 1.5rem;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+    gap: 1.5rem;
+
+    .nav-button {
+        background: #007bff;
+        color: #fff;
+        border: none;
+        border-radius: 6px;
+        padding: 0.7rem 1.5rem;
+        font-size: 1rem;
+        font-weight: 600;
+        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+        transition: background 0.2s;
+
+        &:hover {
+            background: #0056b3;
         }
     }
 
-    // Combined Header Block (Optional - if you want header/breadcrumbs together like Vehicles.scss)
-    .map-page-header {
-        // Wrapper for title and breadcrumbs
-        display: flex;
-        justify-content: space-between;
-        align-items: flex-start; // Align items to top
-        margin-bottom: 1.5rem;
-        flex-wrap: wrap;
-        gap: 1rem;
-        padding: 1rem;
-        background-color: #fff;
-        border-radius: $border-radius;
-        box-shadow: $box-shadow;
-
-        .title-breadcrumbs {
-            display: flex;
-            flex-direction: column;
-            gap: 0.25rem;
-            flex-grow: 1;
-            min-width: 200px;
-
-            h1 {
-                // Styles moved from .employees-header h1
-                font-size: clamp(1.4rem, 3vw, 1.75rem);
-                display: flex;
-                align-items: center;
-                gap: 0.6rem;
-                color: $text-color;
-                margin: 0;
-                font-weight: 600;
-            }
-
-            .breadcrumb {
-                // Styles moved from top-level .breadcrumb
-                font-size: 0.875rem; // Match Vehicles.scss
-                color: $dark-grey;
-                display: flex;
-                align-items: center;
-                flex-wrap: wrap;
-                margin-bottom: 0; // Remove margin as it's inside header
-
-                .breadcrumb-link {
-                    color: $primary-color; // Use variable
-                    text-decoration: none;
-                    font-weight: 500; // Match Vehicles.scss
-                    white-space: nowrap;
-
-                    &:hover {
-                        text-decoration: underline;
-                    }
-                }
-
-                .breadcrumb-separator {
-                    // Use class for separator span
-                    margin: 0 0.3rem; // Match Vehicles.scss
-                    color: color.adjust($dark-grey, $lightness: 15%); // Match Vehicles.scss
-                    white-space: nowrap;
-                }
-
-                .breadcrumb-current {
-                    // Use class for current page span
-                    color: $dark-grey; // Match Vehicles.scss
-                    white-space: nowrap;
-                }
-            }
-        }
-
-        // Add .header-actions div here if needed
-    }
-
-
-    .date-range {
-        text-align: center;
-        margin-bottom: 1.5rem;
-
-        h3 {
-            font-size: 1.1rem; // Slightly smaller than main header
-            font-weight: 600;
-            color: $dark-grey; // Use variable
-        }
-    }
-
-    .map-navigation {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
+    .select-container select {
+        border-radius: 6px;
+        border: 1px solid #dee2e6;
+        padding: 0.7rem 1.2rem;
+        font-size: 1rem;
         background: #fff;
-        padding: 0.75rem 1rem; // Adjusted padding
-        border-radius: $border-radius; // Use variable
-        margin-bottom: 1.5rem;
-        box-shadow: $box-shadow;
-        flex-wrap: wrap; // Allow wrapping
-        gap: 0.75rem; // Add gap for wrapped items
+        color: #222;
+    }
+}
 
-        .nav-button {
-            @include base-button;
-            @include button-primary;
-            gap: 5px;
+.map-filters-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2rem;
+    align-items: flex-end;
+    margin-bottom: 2rem;
+    background: #f8f9fa;
+    padding: 1.5rem 2rem;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+    border: 1px solid #dee2e6;
+
+    .marker-filters,
+    .employee-filter {
+        flex: 1 1 220px;
+
+        h3,
+        h4 {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #222;
+            border-bottom: 1px solid #dee2e6;
+            padding-bottom: 0.5rem;
+            margin-bottom: 1rem;
         }
 
-        .select-container {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            flex-grow: 1; // Allow select to grow on smaller screens if wrapped
-            justify-content: center; // Center if it wraps to its own line
-
-            select {
-                padding: 0.5rem 0.8rem; // Match button padding vertical
-                border: 1px solid $border-color;
-                border-radius: 0.25rem; // Match button radius
-                background-color: #fff;
-                font-size: 0.9rem;
-                min-width: 150px; // Give select a min width
-            }
+        .check-box label {
+            font-size: 1rem;
+            color: #222;
         }
+
+        .select-container select {
+            border-radius: 6px;
+            border: 1px solid #dee2e6;
+            padding: 0.7rem 1.2rem;
+            font-size: 1rem;
+            background: #fff;
+            color: #222;
+        }
+    }
+
+    .locate-button {
+        background: #6c757d;
+        color: #fff;
+        border: none;
+        border-radius: 6px;
+        padding: 0.7rem 1.5rem;
+        font-size: 1rem;
+        font-weight: 600;
+        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+        transition: background 0.2s;
+
+        &:hover {
+            background: #495057;
+        }
+    }
+}
+
+.leaflet-map-container {
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    border: 1px solid #dee2e6;
+    height: 400px;
+    width: 100%;
+    margin-bottom: 2rem;
+}
+
+// Responsive adjustments
+@media (max-width: 900px) {
+    .map-container {
+        padding: 1.2rem 0.5rem;
+    }
+
+    .ts-page-header__main-content {
+        padding: 1rem 1rem 0.5rem 1rem;
     }
 
     .map-filters-toolbar {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 1.25rem; // Consistent gap
-        align-items: flex-end; // Align items to bottom for button alignment
-        margin-bottom: 1.5rem;
-        background: #fff;
-        padding: 1rem 1.25rem; // Adjusted padding
-        border-radius: $border-radius;
-        box-shadow: $box-shadow;
-        border: 1px solid $border-color; // Add border like report options
+        padding: 1rem 0.5rem;
+        gap: 1rem;
+    }
+}
 
-        .marker-filters,
-        .employee-filter {
-            flex: 1 1 200px; // Allow growing and shrinking, base width 200px
+@media (max-width: 600px) {
+    .map-container {
+        padding: 0.5rem 0.2rem;
+    }
 
-            h3,
-            h4 {
-                margin-top: 0;
-                margin-bottom: 0.75rem; // Consistent spacing
-                font-size: 1rem; // Slightly smaller
-                font-weight: 600; // Bolder heading
-                color: $text-color;
-                border-bottom: 1px solid $border-color; // Add separator like report options
-                padding-bottom: 0.5rem; // Space below separator
-            }
+    .ts-page-header__main-content {
+        padding: 0.7rem 0.5rem 0.3rem 0.5rem;
+    }
 
-            .check-box {
-                display: flex;
-                flex-direction: column;
-                gap: 0.5rem; // Space between checkboxes
+    .map-navigation {
+        flex-direction: column;
+        gap: 0.7rem;
+        padding: 0.7rem 0.5rem;
+    }
 
-                label {
-                    display: flex;
-                    align-items: center;
-                    gap: 0.4rem; // Smaller gap
-                    cursor: pointer;
-                    font-size: 0.9rem;
-                }
-            }
-
-            .select-container {
-                select {
-                    width: 100%;
-                    padding: 0.5rem 0.8rem; // Match button padding vertical
-                    border: 1px solid $border-color;
-                    border-radius: 0.25rem; // Match button radius
-                    background-color: #fff;
-                    font-size: 0.9rem;
-                }
-            }
-        }
-
-        .locate-me-container {
-            margin-left: auto; // Push to the right on wider screens
-            padding-top: 1rem; // Add some space above if filters wrap
-        }
-
-        .locate-button {
-            @include base-button;
-            @include button-secondary;
-            gap: 5px;
-        }
+    .map-filters-toolbar {
+        flex-direction: column;
+        gap: 0.7rem;
+        padding: 0.7rem 0.5rem;
     }
 
     .leaflet-map-container {
-        border-radius: $border-radius;
-        box-shadow: $box-shadow;
-        border: 1px solid $border-color;
-        height: 500px; // Example height - adjust as needed or set in JS
-        width: 100%;
+        height: 250px;
     }
-}
-
-// Responsive Adjustments
-@media (max-width: $breakpoint-md) {
-
-    // Using variable from Vehicles.scss
-    .map-container {
-        .map-page-header {
-
-            // Adjust combined header if used
-            .title-breadcrumbs {
-                min-width: 150px; // Allow smaller width
-            }
-        }
-
-        .map-navigation {
-            justify-content: center; // Center items when wrapped
-        }
-
-        .map-filters-toolbar {
-            align-items: stretch; // Stretch items vertically when wrapped
-
-            .marker-filters,
-            .employee-filter {
-                flex-basis: 100%; // Full width when wrapped
-            }
-
-            .locate-me-container {
-                margin-left: 0; // Reset margin
-                width: 100%; // Full width
-
-                .locate-button {
-                    width: 100%; // Make button full width
-                }
-            }
-        }
-    }
-}
-
-@media (max-width: $breakpoint-sm) {
-
-    // Using variable from Vehicles.scss
-    .map-container {
-        padding: 1rem; // Reduce padding
-
-        .map-page-header {
-            // Adjust combined header if used
-            padding: 0.75rem;
-
-            .title-breadcrumbs {
-                h1 {
-                    font-size: 1.25rem;
-                }
-
-                .breadcrumb {
-                    font-size: 0.8rem;
-                }
-            }
-        }
-
-        .map-navigation {
-            padding: 0.5rem 0.75rem;
-
-            .nav-button,
-            .select-container select {
-                font-size: 0.85rem;
-                padding: 0.4rem 0.8rem;
-            }
-        }
-
-        .map-filters-toolbar {
-            padding: 0.75rem;
-            gap: 1rem;
-
-            .marker-filters,
-            .employee-filter {
-
-                h3,
-                h4 {
-                    font-size: 0.95rem;
-                }
-            }
-
-            .locate-button {
-                font-size: 0.85rem;
-                padding: 0.4rem 0.8rem;
-            }
-        }
-
-        .leaflet-map-container {
-            height: 400px; // Reduce map height on small screens
-        }
-    }
-}
-
-// Map.scss
-.leaflet-container {
-    border-radius: 8px;
-    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-}
-
-.marker-cluster-custom {
-    background: #444;
-    color: white;
-    border-radius: 50%;
-    text-align: center;
-    font-weight: bold;
-    font-size: 14px;
-}
-
-// /home/digilab/timesheet/client/src/styles/Map.scss
-// ... (your existing styles)
-
-// Marker Cluster Customizations (add this section)
-.marker-cluster-small {
-    background-color: rgba(181, 226, 140, 0.6);
-}
-
-.marker-cluster-small div {
-    background-color: rgba(110, 204, 57, 0.6);
-    color: #fff;
-    font-weight: bold;
-    text-shadow: 1px 1px 1px #333;
-}
-
-.marker-cluster-medium {
-    background-color: rgba(241, 211, 87, 0.6);
-}
-
-.marker-cluster-medium div {
-    background-color: rgba(240, 194, 12, 0.6);
-    color: #fff;
-    font-weight: bold;
-    text-shadow: 1px 1px 1px #333;
-}
-
-.marker-cluster-large {
-    background-color: rgba(253, 156, 115, 0.6);
-}
-
-.marker-cluster-large div {
-    background-color: rgba(241, 128, 23, 0.6);
-    color: #fff;
-    font-weight: bold;
-    text-shadow: 1px 1px 1px #333;
-}
-
-// General style for the text inside the cluster
-.marker-cluster div {
-    width: 30px;
-    height: 30px;
-    margin-left: 5px;
-    margin-top: 5px;
-    text-align: center;
-    border-radius: 15px;
-    font: 12px "Helvetica Neue", Arial, Helvetica, sans-serif;
-    line-height: 30px; // Vertically center text
-}
-
-.marker-cluster {
-    border-radius: 50%; // Make cluster icons circular
-    // Example: Add a border
-    // border: 2px solid white;
-    // box-shadow: 0 0 5px #000;
 }

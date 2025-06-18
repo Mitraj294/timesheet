@@ -1,3 +1,5 @@
+const path = require('path');
+
 module.exports = {
     webpack: {
       configure: (webpackConfig) => {
@@ -36,20 +38,35 @@ module.exports = {
         // Only override host and server, do not replace the whole devServer object
         webpackConfig.devServer = {
           ...webpackConfig.devServer,
-          host: '192.168.1.47',
+          allowedHosts: 'all',
+          host: '0.0.0.0',
           port: 3000,
-          server: {
-            type: 'https',
-            options: {
-              key: require('fs').readFileSync('../key.pem'),
-              cert: require('fs').readFileSync('../cert.pem'),
-            },
+          https: {
+            key: path.resolve(__dirname, '../key.pem'),
+            cert: path.resolve(__dirname, '../cert.pem'),
           },
-          allowedHosts: ['all'],
-          setupMiddlewares: (middlewares, devServer) => {
-            console.log('Custom middlewares setup');
-            return middlewares;
+          historyApiFallback: true,
+          hot: true,
+          headers: {
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, PATCH, OPTIONS',
+            'Access-Control-Allow-Headers': 'X-Requested-With, content-type, Authorization'
           },
+          proxy: {
+            '/api': {
+              target: 'https://192.168.1.47:5000',
+              changeOrigin: true,
+              secure: false
+            }
+          },
+          client: {
+            webSocketURL: {
+              hostname: '0.0.0.0',
+              pathname: '/ws',
+              port: 0,
+              protocol: 'ws'
+            }
+          }
         };
         webpackConfig.devServer.onBeforeSetupMiddleware = undefined;
         webpackConfig.devServer.onAfterSetupMiddleware = undefined;

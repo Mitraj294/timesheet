@@ -91,7 +91,11 @@ const EmployeeForm = () => {
       setFormData(initialFormState);
       console.log("[EmployeeForm] Initializing form for new employee.");
     }
-  }, [id, employees, employeeStatus, dispatch]);
+  }, 
+
+
+
+);
 
   // Handle input changes
   const handleChange = (e) => {

@@ -3,7 +3,6 @@ import React, { useEffect, useLayoutEffect } from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate, useLocation } from "react-router-dom";
 import { useSelector, Provider, useDispatch } from "react-redux";
 import store from "./store/store";
-import { SidebarProvider } from "./context/SidebarContext";
 import {
   loadUserFromToken,
   selectIsAuthenticated,
@@ -13,8 +12,10 @@ import {
 } from './redux/slices/authSlice';
 import { setAlert } from './redux/slices/alertSlice';
 import { fetchEmployerSettings } from './redux/slices/settingsSlice';
+import * as Sentry from '@sentry/react';
 
 // Layout
+
 import Navbar from "./components/layout/Navbar";
 import Sidebar from "./components/layout/Sidebar";
 import Alert from "./components/layout/Alert";
@@ -32,7 +33,7 @@ import EmployeeForm from "./components/pages/EmployeeForm";
 import Clients from "./components/pages/Clients";
 import CreateClient from "./components/pages/CreateClient";
 import ViewClient from "./components/pages/ViewClient";
-import Map from "./components/pages/Map";
+import MapPage from "./components/pages/Map";
 import Timesheet from "./components/pages/Timesheet";
 import CreateTimesheet from "./components/pages/CreateTimesheet";
 import CreateProjectTimesheet from './components/pages/CreateProjectTimesheet';
@@ -131,6 +132,11 @@ const AppContent = () => {
     }
   }, [isTabletViewUnlocked, location.pathname, navigate, dispatch]);
 
+  // Test Sentry error reporting
+  useEffect(() => {
+    Sentry.captureException(new Error('Frontend Sentry production test error!'));
+  }, []);
+
   return (
     <LayoutWrapper>
       <Alert />
@@ -161,7 +167,7 @@ const AppContent = () => {
         <Route path="/timesheet/create/:timesheetId" element={<PrivateRoute><CreateTimesheet /></PrivateRoute>} />
         <Route path="/timesheet/project/create/:clientId/:projectId" element={<PrivateRoute><CreateProjectTimesheet /></PrivateRoute>} />
         <Route path="/timesheet/project/edit/:clientId/:projectId/:timesheetId" element={<PrivateRoute><CreateProjectTimesheet /></PrivateRoute>} />
-        <Route path="/map" element={<PrivateRoute><Map /></PrivateRoute>} />
+        <Route path="/map" element={<PrivateRoute><MapPage /></PrivateRoute>} />
         <Route path="/rosterpage" element={<PrivateRoute><RosterPage /></PrivateRoute>} />
         <Route path="/createrole" element={<PrivateRoute><CreateRole /></PrivateRoute>} />
         <Route path="/createrole/:roleId?" element={<PrivateRoute><CreateRole /></PrivateRoute>} />
@@ -184,11 +190,9 @@ const AppContent = () => {
 function App() {
   return (
     <Provider store={store}>
-      <SidebarProvider>
-        <Router>
-          <AppContent />
-        </Router>
-      </SidebarProvider>
+      <Router>
+        <AppContent />
+      </Router>
     </Provider>
   );
 }

@@ -82,7 +82,7 @@ cd client && npm start
 
 ### 4. Access
 
-- Frontend: `http://localhost:3000`
+- Frontend: `https://localhost:3000`
 - Backend API: `https://localhost:5000`
 
 ---
@@ -169,3 +169,7 @@ MIT
 ## Contact
 
 For questions or support, open an issue or contact the maintainer.
+
+
+
+#rollbar

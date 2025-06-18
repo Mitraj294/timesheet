@@ -1,5 +1,5 @@
 // /home/digilab/timesheet/client/src/components/pages/Map.js
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { useDispatch } from 'react-redux';
@@ -12,12 +12,8 @@ import {
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import { ZoomControl } from 'react-leaflet';
 import L from 'leaflet';
-import MarkerClusterGroup from 'react-leaflet-cluster';
 import 'leaflet/dist/leaflet.css';
-import '../../styles/Map.scss';
 import iconRetinaUrl from 'leaflet/dist/images/marker-icon-2x.png';
-import 'leaflet.markercluster/dist/MarkerCluster.css';
-import 'leaflet.markercluster/dist/MarkerCluster.Default.css';
 import iconUrl from 'leaflet/dist/images/marker-icon.png';
 import shadowUrl from 'leaflet/dist/images/marker-shadow.png';
 
@@ -49,10 +45,10 @@ if (typeof window !== "undefined") {
   }
 }
 
-const API_URL = process.env.REACT_APP_API_URL || 'https://timesheet-slpc.onrender.com/api';
+const API_URL = process.env.REACT_APP_API_URL
 const DEFAULT_MAP_CENTER = { lat: 37.7749, lng: -122.4194 };
 
-const Map = () => {
+const MapPage = () => {
   const dispatch = useDispatch();
   // State for filters, employees, date, map, and markers
   const [viewType, setViewType] = useState('Daily');
@@ -122,7 +118,9 @@ const Map = () => {
           endDate.setDate(startDate.getDate() + 13);
         } else if (viewType === 'Monthly') {
           startDate = new Date(baseDate.getFullYear(), baseDate.getMonth(), 1);
+          startDate.setHours(0, 0, 0, 0);
           endDate = new Date(baseDate.getFullYear(), baseDate.getMonth() + 1, 0);
+          endDate.setHours(23, 59, 59, 999);
         }
         startDateStr = startDate.toLocaleDateString('en-US', options);
         endDateStr = endDate.toLocaleDateString('en-US', options);
@@ -131,7 +129,7 @@ const Map = () => {
       console.log("[Map] Updated date range:", viewType, dateRange);
     };
     updateDateRange();
-  }, [viewType, currentDate, dispatch]);
+  }, [viewType, currentDate, dispatch, dateRange]);
 
   // Helper: get start/end date for API query
   const getQueryDateRange = useCallback((baseDateInput, viewTypeInput) => {
@@ -435,16 +433,18 @@ const Map = () => {
     }
   }, [locationData, viewType, currentDate, getQueryDateRange]);
 
-  // Helper to move map center
+  // Helper component to change map center
   const ChangeMapCenter = ({ center }) => {
     const map = useMap();
     useEffect(() => {
-      if (center && typeof center.lat === 'number' && typeof center.lng === 'number') {
-        map.flyTo([center.lat, center.lng], map.getZoom());
+      if (map && center) {
+        map.setView([center.lat, center.lng]);
       }
     }, [center, map]);
     return null;
   };
+
+  // Removed MapContent component definition and useMemo hook
 
   return (
     <div className='map-container'>
@@ -539,6 +539,7 @@ const Map = () => {
           </button>
         </div>
       </div>
+      {/* Render MapContainer directly */}
       <MapContainer
         center={[mapCenter.lat, mapCenter.lng]}
         zoom={12}
@@ -546,55 +547,56 @@ const Map = () => {
         zoomControl={false}
         className="leaflet-map-container"
       >
-        <ZoomControl position="topright" />
+        {/* Children of MapContainer */}
         <TileLayer
           attribution='&copy; <a href="https://openstreetmap.org/copyright">OpenStreetMap</a> contributors'
           url='https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'
         />
-        <MarkerClusterGroup>
-          {filteredLocationData
-            .filter(loc => {
-              if (loc.type === 'Start Location') return showStartLocation;
-              if (loc.type === 'End Location') return showEndLocation;
-              if (loc.type === 'Combined Location') return showStartLocation && showEndLocation;
-              return true;
-            })
-            .map(loc => {
-              let iconToUse;
-              if (loc.type === 'Combined Location') iconToUse = blueIcon;
-              else if (loc.type === 'Start Location') iconToUse = greenIcon;
-              else if (loc.type === 'End Location') iconToUse = redIcon;
-              else iconToUse = L.Icon.Default();
-              const formattedDate = loc.timestamp
-                ? (() => {
-                  const d = new Date(loc.timestamp);
-                  const day = String(d.getDate()).padStart(2, '0');
-                  const month = String(d.getMonth() + 1).padStart(2, '0');
-                  const year = d.getFullYear();
-                  return `${day}/${month}/${year}`;
-                })()
-                : '';
-              return (
-                <Marker key={loc.id} position={[loc.lat, loc.lng]} icon={iconToUse}>
-                  <Popup>
-                    <strong>{loc.employeeNames[0]}</strong> <br />
-                    {loc.type} {loc.address && loc.address !== 'N/A' ? `at ${loc.address}` : ''}<br />
-                    Date: {formattedDate}
-                    {loc.popupNotes.length > 0 && <hr style={{ margin: '5px 0' }} />}
-                    {loc.popupNotes.map((note, index) => (
-                      <div key={index} style={{ fontSize: '0.9em', marginBottom: '3px' }}>
-                        {note}
-                      </div>
-                    ))}
-                  </Popup>
-                </Marker>
-              );
-            })}
-        </MarkerClusterGroup>
+        {filteredLocationData
+          .filter(loc => {
+            if (loc.type === 'Start Location') return showStartLocation;
+            if (loc.type === 'End Location') return showEndLocation;
+            if (loc.type === 'Combined Location') return showStartLocation && showEndLocation;
+            return true;
+          })
+          .map(loc => {
+            let iconToUse;
+            if (loc.type === 'Combined Location') iconToUse = blueIcon;
+            else if (loc.type === 'Start Location') iconToUse = greenIcon;
+            else if (loc.type === 'End Location') iconToUse = redIcon;
+            else iconToUse = blueIcon;
+
+            const formattedDate = loc.timestamp
+              ? (() => {
+                const d = new Date(loc.timestamp);
+                const day = String(d.getDate()).padStart(2, '0');
+                const month = String(d.getMonth() + 1).padStart(2, '0');
+                const year = d.getFullYear();
+                return `${day}/${month}/${year}`;
+              })()
+              : '';
+
+            return (
+              <Marker key={loc.id} position={[loc.lat, loc.lng]} icon={iconToUse}>
+                <Popup>
+                  <strong>{loc.employeeNames[0]}</strong> <br />
+                  {loc.type} {loc.address && loc.address !== 'N/A' ? `at ${loc.address}` : ''}<br />
+                  Date: {formattedDate}
+                  {loc.popupNotes.length > 0 && <hr style={{ margin: '5px 0' }} />}
+                  {loc.popupNotes.map((note, index) => (
+                    <div key={index} style={{ fontSize: '0.9em', marginBottom: '3px' }}>
+                      {note}
+                    </div>
+                  ))}
+                </Popup>
+              </Marker>
+            );
+          })}
+        <ZoomControl position="topright" />
         <ChangeMapCenter center={mapCenter} />
       </MapContainer>
     </div>
   );
 };
 
-export default Map;
+export default MapPage;

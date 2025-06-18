@@ -59,7 +59,7 @@ const NotificationSettingsSection = () => {
       setDailyNotificationTimes(initialDailyTimes);
       setActionNotificationEmail(currentEmployerSettings.actionNotificationEmail || '');
     }
-  }, [currentEmployerSettings]);
+  }, [currentEmployerSettings, selectedTimezone]);
 
   // Load per-employee notification preferences
   useEffect(() => {

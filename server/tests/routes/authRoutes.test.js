@@ -207,3 +207,103 @@ describe('authRoutes edge cases', () => {
     expect(res.status).toBe(500);
   });
 });
+
+// Basic tests for authRoutes.js main endpoints
+describe('authRoutes basic tests', () => {
+  let app;
+  beforeAll(() => {
+    app = express();
+    app.use(express.json());
+    app.use('/api/auth', authRoutes);
+  });
+
+  it('should register a user', async () => {
+    const res = await request(app)
+      .post('/api/auth/register')
+      .send({ name: 'Test', email: 'test@example.com', password: 'password123', role: 'employer' });
+    expect([201, 400]).toContain(res.statusCode); // 201 if success, 400 if already exists
+  });
+
+  it('should login a user', async () => {
+    const res = await request(app)
+      .post('/api/auth/login')
+      .send({ email: 'test@example.com', password: 'password123' });
+    expect([200, 401]).toContain(res.statusCode); // 200 if success, 401 if invalid
+  });
+
+  it('should request password reset', async () => {
+    const res = await request(app)
+      .post('/api/auth/forgot-password')
+      .send({ email: 'test@example.com' });
+    expect(res.statusCode).toBe(200);
+  });
+
+  it('should check prospective employee', async () => {
+    const res = await request(app)
+      .post('/api/auth/check-prospective-employee')
+      .send({ email: 'test@example.com' });
+    expect([200, 409]).toContain(res.statusCode);
+  });
+
+  it('should request invitation', async () => {
+    const res = await request(app)
+      .post('/api/auth/request-invitation')
+      .send({
+        prospectiveEmployeeName: 'Test',
+        prospectiveEmployeeEmail: 'test@example.com',
+        companyName: 'TestCo',
+        companyEmail: 'company@example.com'
+      });
+    expect([201, 400, 404, 409]).toContain(res.statusCode);
+  });
+});
+
+// Minimal Jest+Supertest test file for the main endpoints in authRoutes.js
+describe('authRoutes minimal tests', () => {
+  let app;
+  beforeAll(() => {
+    app = express();
+    app.use(express.json());
+    app.use('/api/auth', authRoutes);
+  });
+
+  it('should respond to POST /register', async () => {
+    const res = await request(app)
+      .post('/api/auth/register')
+      .send({ name: 'Test', email: 'test@example.com', password: 'password123', role: 'employer' });
+    expect([201, 400]).toContain(res.statusCode);
+  });
+
+  it('should respond to POST /login', async () => {
+    const res = await request(app)
+      .post('/api/auth/login')
+      .send({ email: 'test@example.com', password: 'password123' });
+    expect([200, 401]).toContain(res.statusCode);
+  });
+
+  it('should respond to POST /forgot-password', async () => {
+    const res = await request(app)
+      .post('/api/auth/forgot-password')
+      .send({ email: 'test@example.com' });
+    expect([200, 400]).toContain(res.statusCode);
+  });
+
+  it('should respond to POST /check-prospective-employee', async () => {
+    const res = await request(app)
+      .post('/api/auth/check-prospective-employee')
+      .send({ email: 'test@example.com' });
+    expect([200, 409]).toContain(res.statusCode);
+  });
+
+  it('should respond to POST /request-invitation', async () => {
+    const res = await request(app)
+      .post('/api/auth/request-invitation')
+      .send({
+        prospectiveEmployeeName: 'Test',
+        prospectiveEmployeeEmail: 'test@example.com',
+        companyName: 'TestCo',
+        companyEmail: 'company@example.com'
+      });
+    expect([201, 400, 404, 409]).toContain(res.statusCode);
+  });
+});

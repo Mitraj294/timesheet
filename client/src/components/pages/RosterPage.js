@@ -12,8 +12,8 @@ import {
 } from 'date-fns';
 
 import { fetchEmployees, selectAllEmployees, selectEmployeeStatus, selectEmployeeError } from '../../redux/slices/employeeSlice';
-import { fetchRoles, deleteRole, deleteRoleScheduleEntry, updateRole, selectAllRoles, selectRoleStatus, selectRoleError, clearRoleError, sendRoleUpdateNotificationEmail } from '../../redux/slices/roleSlice'; // Added sendRoleUpdateNotificationEmail
-import { fetchSchedules, bulkCreateSchedules, deleteSchedule, deleteSchedulesByDateRange, selectAllSchedules, selectScheduleStatus, selectScheduleError, clearScheduleError, sendScheduleUpdateNotificationEmail } from '../../redux/slices/scheduleSlice'; // Added sendScheduleUpdateNotificationEmail
+import { fetchRoles, deleteRole, deleteRoleScheduleEntry, updateRole, selectAllRoles, selectRoleStatus, selectRoleError, clearRoleError } from '../../redux/slices/roleSlice'; // Added sendRoleUpdateNotificationEmail
+import { fetchSchedules, bulkCreateSchedules, deleteSchedule, deleteSchedulesByDateRange, selectAllSchedules, selectScheduleStatus, selectScheduleError, clearScheduleError } from '../../redux/slices/scheduleSlice'; // Added sendScheduleUpdateNotificationEmail
 import { selectAuthUser } from '../../redux/slices/authSlice';
 import { setAlert } from '../../redux/slices/alertSlice';
 import Alert from '../layout/Alert';
@@ -30,12 +30,12 @@ import {
   faPlus,
   faSyncAlt,
   faCalendar,
-  faEye,
+ 
   faTimes,
   faSave,
   faTrash,
   faSpinner, // Added for loading states
-  faExclamationCircle, // Added for error states
+
 } from '@fortawesome/free-solid-svg-icons';
 
 // ShiftCard: Shows a single employee shift

@@ -24,6 +24,13 @@ import userRoutes from './routes/userRoutes.js';
 import { sendWeeklyTimesheetReports } from './controllers/timesheetController.js';
 import settingsRoutes from './routes/settingsRoutes.js';
 import { startNotificationService } from './services/notificationService.js';
+import * as Sentry from '@sentry/node';
+
+// Initialize Sentry before using its handlers
+Sentry.init({
+  dsn: process.env.SENTRY_DSN || '', // Set your DSN in .env
+  tracesSampleRate: 1.0, // Adjust as needed
+});
 
 // Load correct .env for E2E
 const __filename = fileURLToPath(import.meta.url);
@@ -69,9 +76,9 @@ const allowedOrigins = [
   "https://timesheet00.netlify.app", // Your Netlify production site
   /^https:\/\/[a-zA-Z0-9-]+--timesheet00\.netlify\.app$/, // Regex for Netlify deploy previews
   "https://192.168.1.47:3000", // Your local HTTPS client
-  "http://192.168.1.47:3000", // Local HTTP client
+  "https://192.168.1.47:3000", // Local HTTP client
   "https://192.168.1.47:5000", // Allow backend's own origin for proxy scenarios
-  "http://192.168.1.47:5000", // Allow backend's own origin for HTTP
+  "https://192.168.1.47:5000", // Allow backend's own origin for HTTP
   // For local dev, allow all origins (uncomment next line if needed)
   // '*',
 ];
@@ -135,6 +142,11 @@ app.use(`${BASE_API_URL}/vehicles`, vehicleRoutes);
 app.use(`${BASE_API_URL}/users`, userRoutes);
 app.use(`${BASE_API_URL}/settings`, settingsRoutes);
 
+// Add this route temporarily for testing Sentry in production
+app.get('/sentry-test', (req, res, next) => {
+  next(new Error('Sentry production test error!'));
+});
+
 // Root Route
 app.get("/", (req, res) => {
   res.send("TimeSheet Backend is Running...");
@@ -196,3 +208,4 @@ if (process.env.JEST_WORKER_ID === undefined && process.env.NODE_ENV !== 'test' 
 }
 
 export default app;
+

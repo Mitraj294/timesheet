@@ -4,11 +4,11 @@ import { useSelector, useDispatch } from 'react-redux';
 import { Link, useNavigate } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
-  faUserCog, faLock, faSpinner, faSave, faEdit, faExclamationCircle, faTrashAlt, faTimes,
-  faEye, faEyeSlash, faPhone, faGlobe
+  faSpinner, faSave, faEdit, faExclamationCircle, faTrashAlt, faTimes,
+  faEye, faEyeSlash
 } from '@fortawesome/free-solid-svg-icons';
 import {
-  selectAuthUser, changePassword, requestAccountDeletionLink, logout, updateUserProfile,
+  selectAuthUser, changePassword, requestAccountDeletionLink,updateUserProfile,
   selectAuthError, selectIsAuthLoading, clearAuthError
 } from '../../redux/slices/authSlice';
 import { selectEmployeeByUserId, fetchEmployees, selectEmployeeStatus } from '../../redux/slices/employeeSlice';

@@ -6,7 +6,7 @@
     "install-all": "npm install --prefix server && npm install --prefix client",
     "client": "cd client && NODE_NO_WARNINGS=1 npm start",
     "server": "cross-env NODE_ENV=development nodemon server/server.js",
-    "start": "node server/server.js",
+    "start": "HOST=0.0.0.0 HTTPS=true SSL_CRT_FILE=./ssl/server.crt SSL_KEY_FILE=./ssl/server.key react-scripts start",
     "dev": "concurrently \"npm run server\" \"npm run client\" \"sleep 5 && xdg-open https://192.168.1.47:3000\"",
     "remove-eslint": "npm uninstall eslint",
     "test": "concurrently \"npm run test:server\" \"npm run test:client\"",
@@ -34,35 +34,45 @@
     "@jest/globals": "^30.0.0",
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.3.0",
+    "@types/react": "^19.1.8",
+    "@types/react-dom": "^19.1.6",
+    "ajv": "^8.17.1",
+    "ajv-keywords": "^5.1.0",
     "babel-jest": "^30.0.0",
     "chartjs-plugin-datalabels": "^2.2.0",
     "concurrently": "^9.1.2",
     "cross-env": "^7.0.3",
-    "cypress": "^14.4.1",
+    "cypress": "^14.5.0",
     "eslint-config-prettier": "^10.1.5",
-    "eslint-plugin-prettier": "^5.4.1",
+    "eslint-plugin-prettier": "^5.5.0",
     "jest": "^30.0.0",
     "mongodb-memory-server": "^10.1.4",
     "prettier": "^3.5.3",
     "react-app-rewired": "^2.2.1",
-    "sass": "^1.86.3",
+    "react-scripts": "^5.0.1",
+    "sass": "^1.89.2",
     "sass-loader": "^16.0.5",
     "supertest": "^7.1.1",
     "webpack-bundle-analyzer": "^4.10.2"
   },
   "dependencies": {
+    "@sentry/node": "^9.30.0",
     "date-fns": "^4.1.0",
     "date-fns-tz": "^3.2.0",
     "express": "^5.1.0",
     "express-async-handler": "^1.2.0",
     "express-rate-limit": "^7.5.0",
+    "jsonwebtoken": "^9.0.2",
     "leaflet": "^1.9.4",
     "leaflet.markercluster": "^1.5.3",
     "luxon": "^3.6.1",
     "moment-timezone": "^0.6.0",
-    "mongoose": "^8.15.1",
-    "node-cron": "^4.0.6",
+    "mongoose": "^8.16.0",
+    "node-cron": "^4.1.0",
     "overlapping-marker-spiderfier": "^1.1.4",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "react-router-dom": "^7.6.2",
     "winston": "^3.17.0"
   },
   "type": "module",
@@ -73,6 +83,18 @@
     "testEnvironment": "node",
     "setupFilesAfterEnv": [
       "<rootDir>/jest.setup.js"
+    ]
+  },
+  "browserslist": {
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
     ]
   }
 }

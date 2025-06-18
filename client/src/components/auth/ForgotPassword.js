@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, } from 'react-router-dom';
+//import { useNavigate } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faSpinner, faPaperPlane, faArrowLeft } from '@fortawesome/free-solid-svg-icons';
 import { forgotPassword, clearAuthError, selectAuthError, selectIsAuthLoading } from '../../redux/slices/authSlice';
@@ -11,7 +12,7 @@ import '../../styles/Login.scss';
 const ForgotPassword = () => {
   const [email, setEmail] = useState('');
   const dispatch = useDispatch();
-  const navigate = useNavigate();
+ // const navigate = useNavigate();
   const authError = useSelector(selectAuthError);
   const isLoading = useSelector(selectIsAuthLoading);
 

@@ -105,17 +105,16 @@ const SubscriptionSection = () => {
           </div>
           {currentPlans.map(plan => (
             <div className="plan-item" key={plan.id}>
-              <a
+              <button
+                type="button"
                 className={`plan-card ${selectedPlanId === plan.id ? 'active' : ''}`}
                 onClick={() => handlePlanSelect(plan.id)}
-                role="button"
-                tabIndex={0}
-                onKeyPress={(e) => e.key === 'Enter' && handlePlanSelect(plan.id)}
+                onKeyDown={(e) => e.key === 'Enter' && handlePlanSelect(plan.id)}
               >
                 <div className="plan-name">{plan.name}</div>
                 <div className="plan-desc">{plan.desc}</div>
                 <div className="plan-price">${plan.price} / employee</div>
-              </a>
+              </button>
             </div>
           ))}
         </div>

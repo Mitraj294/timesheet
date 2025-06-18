@@ -30,7 +30,7 @@ import {
   selectAllTimesheets, selectTimesheetStatus, selectTimesheetError,
   selectTimesheetProjectDownloadStatus, selectTimesheetProjectDownloadError,
   selectTimesheetProjectSendStatus, selectTimesheetProjectSendError,
-  clearTimesheetError, clearProjectDownloadStatus, clearProjectSendStatus
+  clearProjectDownloadStatus, clearProjectSendStatus
 } from '../../redux/slices/timesheetSlice';
 import {
   selectEmployerSettings, fetchEmployerSettings, selectSettingsStatus
@@ -46,14 +46,14 @@ const dayNameToLuxonWeekday = {
 };
 
 // Format date string to readable format
-const formatDateString = (dateString, format = 'yyyy-MM-dd') => {
+/*const formatDateString = (dateString, format = 'yyyy-MM-dd') => {
   if (!dateString || !/^\d{4}-\d{2}-\d{2}$/.test(dateString)) return 'Invalid Date';
   try {
     return DateTime.fromISO(dateString).toFormat(format);
   } catch {
     return 'Invalid Date';
   }
-};
+};*/
 
 // Format ISO time string to local time
 const formatTimeFromISO = (isoString, timezoneIdentifier, format = 'hh:mm a') => {
@@ -245,6 +245,7 @@ const ProjectTimesheet = ({
     if (reduxError) {
       console.error("[ProjectTimesheet] Error:", reduxError);
       dispatch(setAlert(reduxError, 'danger'));
+      setError(reduxError); // <-- use setError so error is updated
     }
   }, [employeeError, clientError, projectError, timesheetError, downloadErrorRedux, sendErrorRedux, dispatch]);
 
@@ -679,7 +680,7 @@ const ProjectTimesheet = ({
   ], []);
 
   // Add this helper function near the top of the file
-  function normalizeTimeInput(timeValue) {
+  /*function normalizeTimeInput(timeValue) {
     if (!timeValue) return '';
     // If already in HH:mm format
     if (typeof timeValue === 'string' && /^\d{2}:\d{2}$/.test(timeValue)) {
@@ -696,7 +697,7 @@ const ProjectTimesheet = ({
     }
     // fallback
     return '';
-  }
+  }*/
 
   // Add this helper at the top (after imports)
   function formatDisplayTime(timeValue, timezone = Intl.DateTimeFormat().resolvedOptions().timeZone) {
@@ -725,6 +726,11 @@ const ProjectTimesheet = ({
   return (
     <div className='project-timesheet-container timesheet-page'>
       <Alert />
+      {error && (
+        <div className="form-error-message" style={{ marginBottom: 16 }}>
+          <strong>Error:</strong> {error}
+        </div>
+      )}
       <div className="ts-page-header">
         <div className="ts-page-header__main-content">
           <h3 className="ts-page-header__title">
@@ -939,8 +945,8 @@ const ProjectTimesheet = ({
                                     {isExpanded ? (
                                       <div className="day-details-wrapper">
                                         {dailyEntries.length > 0 ? dailyEntries.map(entry => {
-                                            const entryTimezone = entry.timezone || browserTimezone;
-                                            const isLeaveEntry = entry.leaveType && entry.leaveType !== 'None';
+                                           // const entryTimezone = entry.timezone || browserTimezone;
+                                           // const isLeaveEntry = entry.leaveType && entry.leaveType !== 'None';
                                             const totalHours = parseFloat(entry.totalHours) || 0;
                                             return (
                                               <div key={entry._id} className="timesheet-entry-detail-inline">

@@ -23,7 +23,7 @@ import {
     faCalendar,
     faXmark,
     faSpinner,
-    faExclamationCircle,
+
     faSave, 
     faPen,
 } from '@fortawesome/free-solid-svg-icons'; // Added Edit icon

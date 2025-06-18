@@ -1,6 +1,10 @@
 // /home/digilab/timesheet/server/middleware/errorMiddleware.js
 
+import { Sentry } from '../sentry.js';
+
 const errorHandler = (err, req, res, next) => {
+  Sentry.captureException(err);
+
   // Use 500 if no error status set
   const statusCode = res.statusCode === 200 ? 500 : res.statusCode;
   res.status(statusCode);
@@ -20,4 +24,5 @@ const errorHandler = (err, req, res, next) => {
   });
 };
 
+// Only export once
 export { errorHandler };
