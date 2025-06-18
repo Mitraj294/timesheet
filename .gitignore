@@ -3,6 +3,9 @@ node_modules/
 client/node_modules/
 server/node_modules/
 .env
+.env.*
+client/.env
+server/.env
 .DS_Store
 *.log
 #git add . git commit -m "Today's work: RosterPage updates" git pushtimesheet.zip

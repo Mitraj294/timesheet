@@ -13,7 +13,7 @@ const ManageInvitations = () => {
   const [actionLoading, setActionLoading] = useState({});
 
   // Use environment variable for API base URL, with a fallback
-  const API_BASE_URL = process.env.REACT_APP_API_URL || 'https://timesheet-slpc.onrender.com';
+  const API_BASE_URL = process.env.REACT_APP_API_URL || (process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : 'https://timesheet-c4mj.onrender.com');
 
   // Fetch pending invitations
   const fetchPendingInvitations = useCallback(async () => {

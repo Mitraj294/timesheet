@@ -7,7 +7,6 @@ import mongoose from 'mongoose';
 import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
 import cron from 'node-cron';
-import https from 'https';
 import fs from 'fs';
 import container from './container.js';
 import { scopePerRequest } from 'awilix-express';
@@ -191,21 +190,28 @@ if (process.env.JEST_WORKER_ID === undefined && process.env.NODE_ENV !== 'test' 
   // Global Error Handler
   app.use(errorHandler);
 
-  // Enable HTTPS using cert.pem and key.pem
-  const options = {
-    key: fs.readFileSync(path.resolve(__dirname, '../key.pem')),
-    cert: fs.readFileSync(path.resolve(__dirname, '../cert.pem')),
-  };
+  // Remove HTTPS/SSL config for production; let Render/Netlify handle HTTPS
+  // Use .env for local, but always use process.env.PORT for production (Render)
+  const PORT = process.env.PORT || 5000;
 
-  const PORT = 5000; // Ensure the server uses port 5000
-  const HOST = '0.0.0.0'; // Always listen on all interfaces
+  // Only use HOST for local development, not in production
+  let HOST;
+  if (process.env.NODE_ENV === 'development') {
+    HOST = process.env.HOST || '0.0.0.0';
+  }
 
-  https
-    .createServer(options, app)
-    .listen(PORT, HOST, () => {
-      console.log(`Server is running on https://192.168.1.47:${PORT}`);
+  // Use correct app.listen for environment
+  if (process.env.NODE_ENV === 'development' && HOST) {
+    app.listen(PORT, HOST, () => {
+      console.log(`Server is running on http://${HOST}:${PORT}`);
     });
+  } else {
+    app.listen(PORT, () => {
+      console.log(`Server is running on port ${PORT}`);
+    });
+  }
 }
 
 export default app;
+
 

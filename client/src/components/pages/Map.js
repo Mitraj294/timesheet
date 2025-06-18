@@ -45,7 +45,7 @@ if (typeof window !== "undefined") {
   }
 }
 
-const API_URL = process.env.REACT_APP_API_URL
+const API_URL = process.env.REACT_APP_API_URL || (process.env.NODE_ENV === 'development' ? 'http://localhost:5000/api' : 'https://timesheet-c4mj.onrender.com/api');
 const DEFAULT_MAP_CENTER = { lat: 37.7749, lng: -122.4194 };
 
 const MapPage = () => {

@@ -5,7 +5,7 @@
 
 [[redirects]]
   from = "/api/*"
-  to = "https://timesheet-slpc.onrender.com/api/:splat" # Your backend URL
+  to = "https://timesheet-c4mj.onrender.com/api/:splat" # Your backend URL
   status = 200
   force = true
   methods = ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"]
