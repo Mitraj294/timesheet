@@ -24,6 +24,8 @@ import { sendWeeklyTimesheetReports } from './controllers/timesheetController.js
 import settingsRoutes from './routes/settingsRoutes.js';
 import { startNotificationService } from './services/notificationService.js';
 import * as Sentry from '@sentry/node';
+import https from 'https';
+import os from 'os';
 
 // Initialize Sentry before using its handlers
 Sentry.init({
@@ -78,6 +80,7 @@ const allowedOrigins = [
   "https://192.168.1.47:3000", // Local HTTP client
   "https://192.168.1.47:5000", // Allow backend's own origin for proxy scenarios
   "https://192.168.1.47:5000", // Allow backend's own origin for HTTP
+  "https://192.168.1.48:3000", // Allow frontend running on 192.168.1.48
   // For local dev, allow all origins (uncomment next line if needed)
   // '*',
 ];
@@ -200,16 +203,30 @@ if (process.env.JEST_WORKER_ID === undefined && process.env.NODE_ENV !== 'test' 
     HOST = process.env.HOST || '0.0.0.0';
   }
 
-  // Use correct app.listen for environment
-  if (process.env.NODE_ENV === 'development' && HOST) {
-    app.listen(PORT, HOST, () => {
-      console.log(`Server is running on http://${HOST}:${PORT}`);
-    });
-  } else {
-    app.listen(PORT, () => {
-      console.log(`Server is running on port ${PORT}`);
-    });
+  // Use HTTPS for local development and allow access from network
+  const sslOptions = {
+    key: fs.readFileSync(path.join(__dirname, '../key.pem')),
+    cert: fs.readFileSync(path.join(__dirname, '../cert.pem')),
+  };
+  const localHost = 'localhost';
+
+const networkHost = os.networkInterfaces();  
+  // Find the first non-internal IPv4 address
+  let networkIp = 'localhost';
+  for (const iface of Object.values(networkHost)) {
+    for (const alias of iface) {
+      if (alias.family === 'IPv4' && !alias.internal) {
+        networkIp = alias.address;
+        break;
+      }
+    }
+    if (networkIp !== 'localhost') break;
   }
+  https.createServer(sslOptions, app).listen(PORT, '0.0.0.0', () => {
+    console.log('Server is running:');
+    console.log(`  Local:            https://${localHost}:${PORT}`);
+    console.log(`  On Your Network:  https://${networkIp}:${PORT}`);
+  });
 }
 
 export default app;

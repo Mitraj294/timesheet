@@ -4,18 +4,18 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
-  faDownload, faPlus, faEye, faSearch, faCheck, faTimes, faPen, faTrash, faPaperPlane, faCar, faSpinner, faExclamationCircle,
+  faDownload, faPlus, faEye, faSearch, faCheck, faTimes, faPen, faTrash, faPaperPlane, faCar, faSpinner,
 } from '@fortawesome/free-solid-svg-icons';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 import {
   fetchVehicleById, downloadVehicleReport, sendVehicleReportByEmail,
   selectVehicleByIdState, selectCurrentVehicleStatus, selectCurrentVehicleError,
-  selectVehicleReportStatus, selectVehicleReportError, resetCurrentVehicle, clearReportStatus,
+  selectVehicleReportStatus, selectVehicleReportError,  clearReportStatus,
 } from '../../redux/slices/vehicleSlice';
 import {
   fetchReviewsByVehicleId, deleteVehicleReview, selectAllReviewsForVehicle,
-  selectReviewListStatus, selectReviewListError, selectReviewOperationStatus, selectReviewOperationError,
+ selectReviewOperationStatus, selectReviewOperationError,
   clearReviewOperationStatus, resetReviewState,
 } from '../../redux/slices/vehicleReviewSlice';
 import { setAlert } from '../../redux/slices/alertSlice';

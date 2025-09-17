@@ -12,7 +12,6 @@ import {
 } from './redux/slices/authSlice';
 import { setAlert } from './redux/slices/alertSlice';
 import { fetchEmployerSettings } from './redux/slices/settingsSlice';
-import * as Sentry from '@sentry/react';
 
 // Layout
 
@@ -131,11 +130,6 @@ const AppContent = () => {
       dispatch(setAlert('Redirected to Tablet View as it is active.', 'warning', 3500));
     }
   }, [isTabletViewUnlocked, location.pathname, navigate, dispatch]);
-
-  // Test Sentry error reporting
-  useEffect(() => {
-    Sentry.captureException(new Error('Frontend Sentry production test error!'));
-  }, []);
 
   return (
     <LayoutWrapper>
