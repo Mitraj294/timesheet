@@ -39,3 +39,6 @@ jest-results.json
 *.swp
 *.swo
 *~
+
+# Local backup folder (contains sensitive configs)
+backup/
