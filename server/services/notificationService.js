@@ -1,5 +1,4 @@
 import cron from "node-cron";
-import moment from "moment-timezone";
 import ScheduledNotification from "../models/ScheduledNotification.js";
 import sendEmail from "./emailService.js";
 import config from "../config/env.js";

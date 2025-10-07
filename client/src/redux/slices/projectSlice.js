@@ -13,7 +13,7 @@ const getErrorMessage = (error) =>
 // Thunks
 export const fetchProjects = createAsyncThunk(
   'projects/fetchProjects',
-  async (clientId = null, { getState, rejectWithValue }) => {
+  async (clientId, { getState, rejectWithValue }) => {
     try {
       const token = getState().auth?.token;
       const url = clientId
