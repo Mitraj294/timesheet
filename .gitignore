@@ -5,16 +5,37 @@ node_modules/
 client/node_modules/
 server/node_modules/
 
-# Environment files - Active/Local configs only (NOT the templates)
-# Backend active configs (templates are tracked: .env.development, .env.staging, .env.production, .env.example)
-server/.env.test  # Active test config with real credentials
-client/.env.test  # Client test config
+# Build directories (generated files - should not be committed)
+client/build/
+build/
+dist/
+
+# Environment files - ALL .env files should be local only
+*.env
+.env
+.env.*
+server/.env*
+client/.env*
+!*.env.example  # Exception: .env.example templates are OK to track
 
 # SSL Certificates (local development only - NEVER commit)
 key.pem
 cert.pem
+*.pem
+
+# Test results and coverage
+coverage/
+*.lcov
+jest-results.json
 
 # System files
 .DS_Store
 *.log
-#git add . git commit -m "Today's work: RosterPage updates" git pushtimesheet.zip
+*.zip
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
