@@ -22,11 +22,9 @@ if (
   });
   emailEnabled = true;
   console.log(`Email service initialized (${config.email.host}:${config.email.port})`);
-} else {
-  if (!global.__EMAIL_CONFIG_WARNED && !config.isTest) {
-    console.warn("Email functionality disabled (missing configuration)");
-    global.__EMAIL_CONFIG_WARNED = true;
-  }
+} else if (!global.__EMAIL_CONFIG_WARNED && !config.isTest) {
+  console.warn("Email functionality disabled (missing configuration)");
+  global.__EMAIL_CONFIG_WARNED = true;
 }
 
 const sendEmail = async (options) => {
@@ -87,10 +85,11 @@ export const sendRoleUpdateEmail = async (employee, roleName) => {
 // Notify employee of new shifts (bulk)
 export const sendScheduleAssignmentEmail = async (email, name, shifts) => {
   if (!email) return;
+  const shiftsList = shifts.map((s) => `<li>${s}</li>`).join("");
   return sendEmail({
     to: email,
     subject: "New Shifts Assigned",
-    html: `<p>Hi ${name || "Employee"},</p><p>You have new shifts:</p><ul>${shifts.map((s) => `<li>${s}</li>`).join("")}</ul>`,
+    html: `<p>Hi ${name || "Employee"},</p><p>You have new shifts:</p><ul>${shiftsList}</ul>`,
   });
 };
 

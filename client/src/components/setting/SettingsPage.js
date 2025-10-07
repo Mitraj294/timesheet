@@ -174,23 +174,17 @@ const SettingsPage = () => {
         {menuItems.length > 0 ? (
           <ul className="settings-menu-list">
             {menuItems.map(item => (
-              <li
-                key={item.key}
-                role="button"
-                tabIndex={0}
-                className={`settings-menu-item ${activeSection === item.key ? 'active' : ''}`}
-                onClick={() => {
-                  setActiveSection(item.key);
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault();
+              <li key={item.key}>
+                <button
+                  type="button"
+                  className={`settings-menu-item ${activeSection === item.key ? 'active' : ''}`}
+                  onClick={() => {
                     setActiveSection(item.key);
-                  }
-                }}
-              >
-                <FontAwesomeIcon icon={item.icon} className="menu-item-icon" />
-                <span>{item.label}</span>
+                  }}
+                >
+                  <FontAwesomeIcon icon={item.icon} className="menu-item-icon" />
+                  <span>{item.label}</span>
+                </button>
               </li>
             ))}
           </ul>

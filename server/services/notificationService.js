@@ -14,7 +14,6 @@ const processPendingNotifications = async () => {
   let totalSentThisRun = 0;
   let totalFailedThisRun = 0;
   let batchesProcessedThisRun = 0;
-  const overallStartTime = moment();
 
   try {
     while (totalProcessedThisRun < MAX_NOTIFICATIONS_PER_RUN) {
@@ -28,7 +27,6 @@ const processPendingNotifications = async () => {
       if (pendingNotifications.length === 0) break;
 
       batchesProcessedThisRun++;
-      const internalBatchStartTime = moment();
 
       let currentBatchSuccessCount = 0;
       let currentBatchFailureCount = 0;
