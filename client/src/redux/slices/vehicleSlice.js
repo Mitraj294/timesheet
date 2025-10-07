@@ -97,11 +97,11 @@ export const downloadVehicleReport = createAsyncThunk(
       let filename = `vehicle_${vehicleId}_report.xlsx`;
       if (contentDisposition) {
         const filenameMatch = contentDisposition.match(/filename\*?=['"]?(?:UTF-\d['"]*)?([^;\r\n"']*)['"]?;?/i);
-        if (filenameMatch && filenameMatch[1]) filename = decodeURIComponent(filenameMatch[1]);
+        if (filenameMatch?.[1]) filename = decodeURIComponent(filenameMatch[1]);
       }
       return { blob: response.data, filename };
     } catch (error) {
-      if (error.response?.data instanceof Blob && error.response?.data.type.includes('json')) {
+      if (error.response?.data instanceof Blob && error.response?.data?.type?.includes('json')) {
         try {
           const errorJson = JSON.parse(await error.response.data.text());
           return rejectWithValue(errorJson.message || 'Failed to download report');
@@ -143,11 +143,11 @@ export const downloadAllVehiclesReport = createAsyncThunk(
       let filename = `all_vehicles_report.xlsx`;
       if (contentDisposition) {
         const filenameMatch = contentDisposition.match(/filename\*?=['"]?(?:UTF-\d['"]*)?([^;\r\n"']*)['"]?;?/i);
-        if (filenameMatch && filenameMatch[1]) filename = decodeURIComponent(filenameMatch[1]);
+        if (filenameMatch?.[1]) filename = decodeURIComponent(filenameMatch[1]);
       }
       return { blob: response.data, filename };
     } catch (error) {
-      if (error.response?.data instanceof Blob && error.response?.data.type.includes('json')) {
+      if (error.response?.data instanceof Blob && error.response?.data?.type?.includes('json')) {
         try {
           const errorJson = JSON.parse(await error.response.data.text());
           return rejectWithValue(errorJson.message || 'Failed to download report');

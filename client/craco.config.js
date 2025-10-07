@@ -20,7 +20,7 @@ module.exports = {
           if (!Array.isArray(rules)) return rules;
           return rules
             .filter((rule) => {
-              if (rule && rule.loader && typeof rule.loader === 'string') {
+              if (rule?.loader && typeof rule.loader === 'string') {
                 return !rule.loader.includes('source-map-loader');
               }
               return true;
@@ -32,7 +32,7 @@ module.exports = {
               return rule;
             });
         }
-        if (webpackConfig.module && Array.isArray(webpackConfig.module.rules)) {
+        if (webpackConfig.module?.rules && Array.isArray(webpackConfig.module.rules)) {
           webpackConfig.module.rules = removeSourceMapLoader(webpackConfig.module.rules);
         }
         // Only override host and server, do not replace the whole devServer object

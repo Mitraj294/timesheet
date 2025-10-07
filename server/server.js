@@ -1,9 +1,7 @@
 import path from 'path';
-import dotenv from 'dotenv';
 import { fileURLToPath } from 'url';
 import express from 'express';
 import cors from 'cors';
-import mongoose from 'mongoose';
 import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
 import cron from 'node-cron';
@@ -17,7 +15,6 @@ import { errorHandler } from './middleware/errorMiddleware.js';
 import { sendWeeklyTimesheetReports } from './controllers/timesheetController.js';
 let settingsRoutes;
 import { startNotificationService } from './services/notificationService.js';
-import * as Sentry from '@sentry/node';
 import https from 'https';
 import os from 'os';
 
@@ -171,12 +168,6 @@ if (process.env.JEST_WORKER_ID === undefined && process.env.NODE_ENV !== 'test' 
   // Server configuration (environment-aware)
   const PORT = config.port;
 
-  // Only use HOST and HTTPS for local development
-  let HOST;
-  if (config.isDevelopment) {
-    HOST = process.env.HOST || '0.0.0.0';
-  }
-
   // Use HTTPS for local development only
   let sslOptions = null;
   if (config.isDevelopment) {
@@ -210,16 +201,20 @@ if (process.env.JEST_WORKER_ID === undefined && process.env.NODE_ENV !== 'test' 
   if (config.isDevelopment && sslOptions) {
     // Local development with HTTPS
     https.createServer(sslOptions, app).listen(PORT, '0.0.0.0', () => {
+      const dbNameMatch = /\/([^?]+)/.exec(config.mongoUri);
+      const dbName = dbNameMatch?.[1] || 'connected';
       console.log(`\n Server running in ${config.env} mode`);
       console.log(`Server: https://${networkIp}:${PORT}`);
-      console.log(`Database: ${config.mongoUri.match(/\/([^?]+)/)?.[1] || 'connected'}\n`);
+      console.log(`Database: ${dbName}\n`);
     });
   } else {
     // Production/Staging - HTTP (platform handles HTTPS)
     app.listen(PORT, () => {
+      const dbNameMatch = /\/([^?]+)/.exec(config.mongoUri);
+      const dbName = dbNameMatch?.[1] || 'connected';
       console.log(`\n Server running in ${config.env} mode`);
       console.log(`Server: http://0.0.0.0:${PORT}`);
-      console.log(`Database: ${config.mongoUri.match(/\/([^?]+)/)?.[1] || 'connected'}\n`);
+      console.log(`Database: ${dbName}\n`);
     });
   }
 }

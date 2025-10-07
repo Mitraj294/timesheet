@@ -221,41 +221,6 @@ select {
     display: none;
   }
 }
-.sidebar {
-  position: fixed;
-  left: -250px;
-  top: 0;
-  width: 250px;
-  height: 100%;
-  background: #333;
-  color: white;
-  transition: left 0.3s ease-in-out;
-  padding-top: 60px;
-}
-
-.sidebar.open {
-  left: 0;
-}
-
-.sidebar-menu {
-  list-style: none;
-  padding: 0;
-}
-
-.sidebar-menu li {
-  padding: 15px;
-  border-bottom: 1px solid #444;
-}
-
-.sidebar-menu li a {
-  color: white;
-  text-decoration: none;
-  display: block;
-}
-
-.sidebar-menu li a:hover {
-  background: #444;
-}
 
 .menu-button {
   position: fixed;

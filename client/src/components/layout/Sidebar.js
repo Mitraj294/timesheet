@@ -66,7 +66,15 @@ const Sidebar = () => {
     if (!user) return [];
     const employeePaths = ["/dashboard", "/timesheet", "/rosterpage", "/clients", "/tablet-view"];
     const employerPaths = ["/dashboard", "/map", "/timesheet", "/rosterpage", "/clients", "/employees", "/tablet-view"];
-    let allowedPaths = user.role === "employee" ? employeePaths : user.role === "employer" ? employerPaths : [];
+    
+    // Determine allowed paths based on user role
+    let allowedPaths = [];
+    if (user.role === "employee") {
+      allowedPaths = employeePaths;
+    } else if (user.role === "employer") {
+      allowedPaths = employerPaths;
+    }
+    
     let items = baseMenuItems.filter(item => allowedPaths.includes(item.path));
     if (showVehiclesTabSetting) {
       const vehiclesItem = baseMenuItems.find(item => item.path === "/vehicles");

@@ -8,7 +8,11 @@ server/node_modules/
 # Environment files - Active/Local configs only (NOT the templates)
 # Backend active configs (templates are tracked: .env.development, .env.staging, .env.production, .env.example)
 server/.env.test  # Active test config with real credentials
+client/.env.test  # Client test config
 
+# SSL Certificates (local development only - NEVER commit)
+key.pem
+cert.pem
 
 # System files
 .DS_Store
