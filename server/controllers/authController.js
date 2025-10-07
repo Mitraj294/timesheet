@@ -450,6 +450,81 @@ const getPendingInvitations = ({ Invitation }) => async (req, res) => {
   }
 };
 
+// Helper: Check existing employee and handle conflicts
+const handleExistingEmployee = async (existingUser, employer, invitation, Employee, res) => {
+  const existingEmployeeRecord = await Employee.findOne({
+    userId: existingUser._id,
+  });
+  
+  if (!existingEmployeeRecord) {
+    return { shouldContinue: true, employeeUser: existingUser };
+  }
+  
+  if (existingEmployeeRecord.employerId.toString() === employer.id.toString()) {
+    invitation.status = "approved";
+    invitation.resolvedBy = employer._id;
+    await invitation.save();
+    res.status(200).json({
+      message: "This user is already an employee of your company. Invitation marked as approved.",
+      employee: existingEmployeeRecord,
+    });
+    return { shouldContinue: false };
+  }
+  
+  res.status(409).json({
+    message: "This user is already registered as an employee with another company.",
+  });
+  return { shouldContinue: false };
+};
+
+// Helper: Create or get employee user
+const getOrCreateEmployeeUser = async (existingUser, prospectiveEmployeeName, prospectiveEmployeeEmail, User) => {
+  if (existingUser) {
+    return { employeeUser: existingUser, temporaryPassword: null };
+  }
+  
+  const temporaryPassword = crypto.randomBytes(8).toString("hex");
+  const employeeUser = new User({
+    name: prospectiveEmployeeName,
+    email: prospectiveEmployeeEmail,
+    password: temporaryPassword,
+    role: USER_ROLES.EMPLOYEE,
+  });
+  await employeeUser.save();
+  
+  return { employeeUser, temporaryPassword };
+};
+
+// Helper: Generate employee notification email content
+const generateEmployeeNotification = (temporaryPassword, prospectiveEmployeeName, prospectiveEmployeeEmail, employer) => {
+  if (temporaryPassword) {
+    return {
+      subject: "Welcome to the Team! Your Timesheet Account is Ready",
+      html: `
+        <h1>Welcome, ${prospectiveEmployeeName}!</h1>
+        <p>Your request to join <b>${employer.companyName || "our company"}</b> has been approved.</p>
+        <p>A new account has been created for you. Please use the following credentials to log in:</p>
+        <p><b>Email:</b> ${prospectiveEmployeeEmail}</p>
+        <p><b>Temporary Password:</b> ${temporaryPassword}</p>
+        <p>We recommend changing your password after your first login.</p>
+        <p>Login at: <a href="${getClientBaseUrl()}">${getClientBaseUrl()}</a></p>
+        <p>Thank you,<br/>The ${employer.companyName || "Company"} Team</p>
+      `,
+    };
+  }
+  
+  return {
+    subject: `You've been added to ${employer.companyName || "a new company"}`,
+    html: `
+      <h1>Hello ${prospectiveEmployeeName}!</h1>
+      <p>You have been successfully added as an employee to <b>${employer.companyName || "our company"}</b>.</p>
+      <p>You can now log in using your existing credentials to access your timesheet and other company resources.</p>
+      <p>Login at: <a href="${getClientBaseUrl()}">${getClientBaseUrl()}</a></p>
+      <p>Thank you,<br/>The ${employer.companyName || "Company"} Team</p>
+    `,
+  };
+};
+
 // --- Employer approves an invitation ---
 const approveInvitation = ({ Invitation, User, Employee, sendEmail }) => async (req, res) => {
   const { invitationId } = req.params;
@@ -460,63 +535,32 @@ const approveInvitation = ({ Invitation, User, Employee, sendEmail }) => async (
       return res.status(404).json({ message: "Invitation not found." });
     }
     if (invitation.status !== "pending") {
-      return res
-        .status(400)
-        .json({ message: `Invitation has already been ${invitation.status}.` });
+      return res.status(400).json({ message: `Invitation has already been ${invitation.status}.` });
     }
     if (invitation.employerId.toString() !== employer.id.toString()) {
       return res.status(403).json({
-        message:
-          "Access denied. You are not authorized to approve this invitation.",
+        message: "Access denied. You are not authorized to approve this invitation.",
       });
     }
+    
     const { prospectiveEmployeeEmail, prospectiveEmployeeName } = invitation;
-    let employeeUser;
-    let temporaryPassword = null;
-    // Check if the prospective employee already exists
-    const existingUser = await User.findOne({
-      email: prospectiveEmployeeEmail,
-    });
+    const existingUser = await User.findOne({ email: prospectiveEmployeeEmail });
+    
+    // Handle existing employee conflicts
     if (existingUser) {
-      // Check if there is already an active employee record
-      const existingEmployeeRecord = await Employee.findOne({
-        userId: existingUser._id,
-      });
-      if (existingEmployeeRecord) {
-        if (
-          existingEmployeeRecord.employerId.toString() ===
-          employer.id.toString()
-        ) {
-          // The user is already an employee of this employer
-          invitation.status = "approved";
-          invitation.resolvedBy = employer._id;
-          await invitation.save();
-          return res.status(200).json({
-            message:
-              "This user is already an employee of your company. Invitation marked as approved.",
-            employee: existingEmployeeRecord,
-          });
-        } else {
-          // The user is already registered as an employee with another company
-          return res.status(409).json({
-            message:
-              "This user is already registered as an employee with another company.",
-          });
-        }
-      }
-      employeeUser = existingUser;
-    } else {
-      // Create a new user for the employee with a temporary password
-      temporaryPassword = crypto.randomBytes(8).toString("hex");
-      employeeUser = new User({
-        name: prospectiveEmployeeName,
-        email: prospectiveEmployeeEmail,
-        password: temporaryPassword,
-        role: USER_ROLES.EMPLOYEE,
-      });
-      await employeeUser.save();
+      const result = await handleExistingEmployee(existingUser, employer, invitation, Employee, res);
+      if (!result.shouldContinue) return;
     }
-    // Check if there is already an employee link for this user and employer
+    
+    // Create or get employee user
+    const { employeeUser, temporaryPassword } = await getOrCreateEmployeeUser(
+      existingUser,
+      prospectiveEmployeeName,
+      prospectiveEmployeeEmail,
+      User
+    );
+    
+    // Check for existing employee link
     const existingEmployeeLink = await Employee.findOne({
       userId: employeeUser._id,
       employerId: employer._id,
@@ -526,12 +570,12 @@ const approveInvitation = ({ Invitation, User, Employee, sendEmail }) => async (
       invitation.resolvedBy = employer._id;
       await invitation.save();
       return res.status(200).json({
-        message:
-          "Employee record already exists for this user in your company. Invitation marked as approved.",
+        message: "Employee record already exists for this user in your company. Invitation marked as approved.",
         employee: existingEmployeeLink,
       });
     }
-    // Create a new employee record
+    
+    // Create new employee record
     const employeeCode = `EMP-${Date.now().toString().slice(-6)}`;
     const newEmployee = new Employee({
       name: prospectiveEmployeeName,
@@ -542,34 +586,11 @@ const approveInvitation = ({ Invitation, User, Employee, sendEmail }) => async (
       employerId: employer._id,
     });
     await newEmployee.save();
+    
     invitation.status = "approved";
     invitation.resolvedBy = employer._id;
     await invitation.save();
-    let employeeNotificationSubject;
-    let employeeNotificationHtml;
-    if (temporaryPassword) {
-      employeeNotificationSubject =
-        "Welcome to the Team! Your Timesheet Account is Ready";
-      employeeNotificationHtml = `
-                <h1>Welcome, ${prospectiveEmployeeName}!</h1>
-                <p>Your request to join <b>${employer.companyName || "our company"}</b> has been approved.</p>
-                <p>A new account has been created for you. Please use the following credentials to log in:</p>
-                <p><b>Email:</b> ${prospectiveEmployeeEmail}</p>
-                <p><b>Temporary Password:</b> ${temporaryPassword}</p>
-                <p>We recommend changing your password after your first login.</p>
-                <p>Login at: <a href="${getClientBaseUrl()}">${getClientBaseUrl()}</a></p>
-                <p>Thank you,<br/>The ${employer.companyName || "Company"} Team</p>
-            `;
-    } else {
-      employeeNotificationSubject = `You've been added to ${employer.companyName || "a new company"}`;
-      employeeNotificationHtml = `
-                <h1>Hello ${prospectiveEmployeeName}!</h1>
-                <p>You have been successfully added as an employee to <b>${employer.companyName || "our company"}</b>.</p>
-                <p>You can now log in using your existing credentials to access your timesheet and other company resources.</p>
-                <p>Login at: <a href="${getClientBaseUrl()}">${getClientBaseUrl()}</a></p>
-                <p>Thank you,<br/>The ${employer.companyName || "Company"} Team</p>
-            `;
-    }
+    
     res.status(200).json({
       message: "Invitation approved successfully. Employee created/linked.",
       employee: newEmployee,
@@ -579,11 +600,19 @@ const approveInvitation = ({ Invitation, User, Employee, sendEmail }) => async (
         name: employeeUser.name,
       },
     });
+    
+    // Send notification email (non-blocking)
     try {
+      const notification = generateEmployeeNotification(
+        temporaryPassword,
+        prospectiveEmployeeName,
+        prospectiveEmployeeEmail,
+        employer
+      );
       await sendEmail({
         to: prospectiveEmployeeEmail,
-        subject: employeeNotificationSubject,
-        html: employeeNotificationHtml,
+        subject: notification.subject,
+        html: notification.html,
       });
     } catch (emailError) {
       console.error('[authController.approveInvitation] Email error:', emailError);
@@ -592,14 +621,11 @@ const approveInvitation = ({ Invitation, User, Employee, sendEmail }) => async (
     console.error('[authController.approveInvitation] Error:', error);
     if (error.code === 11000) {
       return res.status(409).json({
-        message:
-          "Failed to approve invitation due to a conflict. An employee with similar details might already exist.",
+        message: "Failed to approve invitation due to a conflict. An employee with similar details might already exist.",
         details: error.message,
       });
     }
-    res
-      .status(500)
-      .json({ message: "Server error while approving invitation." });
+    res.status(500).json({ message: "Server error while approving invitation." });
   }
 };
 
