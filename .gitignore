@@ -42,3 +42,4 @@ jest-results.json
 
 # Local backup folder (contains sensitive configs)
 backup/
+timesheet_backup/
