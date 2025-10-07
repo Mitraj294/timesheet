@@ -10,18 +10,13 @@ import cron from 'node-cron';
 import fs from 'fs';
 import container from './container.js';
 import { scopePerRequest } from 'awilix-express';
-import clientRoutes from './routes/clientRoutes.js';
-import employeeRoutes from './routes/employeeRoutes.js';
-import authRoutes from './routes/authRoutes.js';
-import timesheetRoutes from './routes/timesheetRoutes.js';
-import projectRoutes from './routes/projectRoutes.js';
-import roleRoutes from './routes/roleRoutes.js';
-import scheduleRoutes from './routes/scheduleRoutes.js';
-import vehicleRoutes from './routes/vehicleRoutes.js';
+// Route modules will be imported dynamically below so we can log and
+// detect which module causes route-parsing errors during initialization.
+let clientRoutes, employeeRoutes, authRoutes, timesheetRoutes, projectRoutes, roleRoutes, scheduleRoutes, vehicleRoutes;
 import { errorHandler } from './middleware/errorMiddleware.js';
 import userRoutes from './routes/userRoutes.js';
 import { sendWeeklyTimesheetReports } from './controllers/timesheetController.js';
-import settingsRoutes from './routes/settingsRoutes.js';
+let settingsRoutes;
 import { startNotificationService } from './services/notificationService.js';
 import * as Sentry from '@sentry/node';
 import https from 'https';
@@ -81,6 +76,8 @@ const allowedOrigins = [
   "https://192.168.1.47:5000", // Allow backend's own origin for proxy scenarios
   "https://192.168.1.47:5000", // Allow backend's own origin for HTTP
   "https://192.168.1.48:3000", // Allow frontend running on 192.168.1.48
+  "https://localhost:3000", // Allow frontend running on localhost over HTTPS
+  "http://localhost:3000", // Allow frontend running on localhost over HTTP (dev)
   // For local dev, allow all origins (uncomment next line if needed)
   // '*',
 ];
@@ -112,6 +109,8 @@ const corsOptions = {
 // Core Middleware
 app.use(scopePerRequest(container));
 app.use(cors(corsOptions));
+// Explicitly handle preflight OPTIONS requests so browsers receive CORS headers
+app.options('*', cors(corsOptions));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(helmet());
@@ -133,16 +132,66 @@ const connectDB = async () => {
 
 // Always register routes, even in test mode (for supertest)
 const BASE_API_URL = process.env.BASE_API_URL || "/api";
-app.use(`${BASE_API_URL}/clients`, clientRoutes);
-app.use(`${BASE_API_URL}/employees`, employeeRoutes);
-app.use(`${BASE_API_URL}/auth`, authRoutes);
-app.use(`${BASE_API_URL}/timesheets`, timesheetRoutes);
-app.use(`${BASE_API_URL}/projects`, projectRoutes);
-app.use(`${BASE_API_URL}/roles`, roleRoutes);
-app.use(`${BASE_API_URL}/schedules`, scheduleRoutes);
-app.use(`${BASE_API_URL}/vehicles`, vehicleRoutes);
-app.use(`${BASE_API_URL}/users`, userRoutes);
-app.use(`${BASE_API_URL}/settings`, settingsRoutes);
+
+// Helper to safely mount routes and log the mount path to help debug path-to-regexp errors
+const safeMount = (mountPath, router) => {
+  try {
+    console.log(`[ROUTE] Mounting: ${mountPath}`);
+    app.use(mountPath, router);
+  } catch (err) {
+    console.error(`[ROUTE ERROR] Failed mounting: ${mountPath}`);
+    console.error(err);
+    throw err; // rethrow so nodemon shows the stack trace
+  }
+};
+
+// Log BASE_API_URL so we can confirm its runtime value (should be a path like '/api')
+console.log('[DEBUG] BASE_API_URL =', BASE_API_URL);
+
+// Dynamically import route modules and log progress so we can detect
+// which module errors during initialization (path-to-regexp runs at import time).
+const importRoutes = async () => {
+  try {
+    console.log('[ROUTE IMPORT] Importing clientRoutes');
+    clientRoutes = (await import('./routes/clientRoutes.js')).default;
+    console.log('[ROUTE IMPORT] Importing employeeRoutes');
+    employeeRoutes = (await import('./routes/employeeRoutes.js')).default;
+    console.log('[ROUTE IMPORT] Importing authRoutes');
+    authRoutes = (await import('./routes/authRoutes.js')).default;
+    console.log('[ROUTE IMPORT] Importing timesheetRoutes');
+    timesheetRoutes = (await import('./routes/timesheetRoutes.js')).default;
+    console.log('[ROUTE IMPORT] Importing projectRoutes');
+    projectRoutes = (await import('./routes/projectRoutes.js')).default;
+    console.log('[ROUTE IMPORT] Importing roleRoutes');
+    roleRoutes = (await import('./routes/roleRoutes.js')).default;
+    console.log('[ROUTE IMPORT] Importing scheduleRoutes');
+    scheduleRoutes = (await import('./routes/scheduleRoutes.js')).default;
+    console.log('[ROUTE IMPORT] Importing vehicleRoutes');
+    vehicleRoutes = (await import('./routes/vehicleRoutes.js')).default;
+    console.log('[ROUTE IMPORT] Importing settingsRoutes');
+    settingsRoutes = (await import('./routes/settingsRoutes.js')).default;
+    console.log('[ROUTE IMPORT] All route modules imported successfully');
+  } catch (err) {
+    console.error('[ROUTE IMPORT ERROR] Failed importing a route module');
+    console.error(err);
+    throw err;
+  }
+};
+
+// Import routes synchronously at startup (top-level await is supported in ESM)
+await importRoutes();
+
+// Now mount routes
+safeMount(`${BASE_API_URL}/clients`, clientRoutes);
+safeMount(`${BASE_API_URL}/employees`, employeeRoutes);
+safeMount(`${BASE_API_URL}/auth`, authRoutes);
+safeMount(`${BASE_API_URL}/timesheets`, timesheetRoutes);
+safeMount(`${BASE_API_URL}/projects`, projectRoutes);
+safeMount(`${BASE_API_URL}/roles`, roleRoutes);
+safeMount(`${BASE_API_URL}/schedules`, scheduleRoutes);
+safeMount(`${BASE_API_URL}/vehicles`, vehicleRoutes);
+safeMount(`${BASE_API_URL}/users`, userRoutes);
+safeMount(`${BASE_API_URL}/settings`, settingsRoutes);
 
 // Add this route temporarily for testing Sentry in production
 app.get('/sentry-test', (req, res, next) => {

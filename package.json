@@ -27,6 +27,8 @@
     "test:e2e:server": "NODE_ENV=test npm run server --prefix server",
     "test:e2e:client": "BROWSER=none npm start --prefix client",
     "test:e2e": "concurrently \"npm run test:e2e:server\" \"npm run test:e2e:client\""
+    ,
+    "fresh:dev": "bash ./scripts/fresh_dev.sh"
   },
   "devDependencies": {
     "@babel/core": "^7.27.4",
