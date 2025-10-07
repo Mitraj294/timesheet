@@ -135,7 +135,7 @@ const loginUser = ({ User, Employee }) => async (req, res) => {
       },
     });
   } catch (error) {
-    // Error in user login
+    console.error('[authController.loginUser] Error:', error);
     res.status(500).json({ message: "Server error during login" });
   }
 };
@@ -168,7 +168,7 @@ const changePassword = ({ User }) => async (req, res) => {
     await user.save();
     res.json({ message: "Password updated successfully." });
   } catch (error) {
-    // Error changing password
+    console.error('[authController.changePassword] Error:', error);
     res.status(500).json({ message: "Server error during password change." });
   }
 };
@@ -219,6 +219,7 @@ const forgotPassword = ({ User, sendEmail }) => async (req, res) => {
           "If an account with that email exists, a password reset link has been sent.",
       });
     } catch (emailError) {
+      console.error('[authController.forgotPassword] Email error:', emailError);
       // Clean up token fields if email fails
       user.passwordResetToken = undefined;
       user.passwordResetExpires = undefined;
@@ -228,7 +229,7 @@ const forgotPassword = ({ User, sendEmail }) => async (req, res) => {
       });
     }
   } catch (error) {
-    // Error in forgot password
+    console.error('[authController.forgotPassword] Error:', error);
     res
       .status(500)
       .json({ message: "Server error during forgot password process." });
@@ -261,7 +262,7 @@ const resetPassword = ({ User }) => async (req, res) => {
     await user.save();
     res.json({ message: "Password has been reset successfully." });
   } catch (error) {
-    // Error in reset password
+    console.error('[authController.resetPassword] Error:', error);
     res.status(500).json({ message: "Server error during password reset." });
   }
 };
@@ -280,7 +281,7 @@ const checkUserExists = ({ User }) => async (req, res) => {
       return res.json({ exists: false });
     }
   } catch (error) {
-    // Error checking user existence
+    console.error('[authController.checkUserExists] Error:', error);
     res.status(500).json({ message: "Server error while checking user." });
   }
 };
@@ -321,7 +322,7 @@ const checkProspectiveEmployee = ({ User, Employee }) => async (req, res) => {
         "This email is already registered. You can proceed to request an invitation.",
     });
   } catch (error) {
-    // Error checking prospective employee
+    console.error('[authController.checkProspectiveEmployee] Error:', error);
     res.status(500).json({ message: "Server error while checking prospective employee." });
   }
 };
@@ -411,6 +412,7 @@ const requestCompanyInvitation = ({ User, Invitation, sendEmail }) => async (req
         html: employerNotificationHtml,
       });
     } catch (emailError) {
+      console.error('[authController.requestInvitation] Email error:', emailError);
       // Error sending invitation email
       user.passwordResetToken = undefined;
       user.passwordResetExpires = undefined;
@@ -424,7 +426,7 @@ const requestCompanyInvitation = ({ User, Invitation, sendEmail }) => async (req
         "Invitation request submitted successfully. The company will be notified.",
     });
   } catch (error) {
-    // Error requesting invitation
+    console.error('[authController.requestInvitation] Error:', error);
     res
       .status(500)
       .json({ message: "Server error while submitting invitation request." });
@@ -443,7 +445,7 @@ const getPendingInvitations = ({ Invitation }) => async (req, res) => {
     }).sort({ createdAt: -1 });
     res.json(invitations);
   } catch (error) {
-    // Error fetching pending invitations
+    console.error('[authController.getPendingInvitations] Error:', error);
     res.status(500).json({ message: "Server error fetching invitations." });
   }
 };
@@ -584,10 +586,10 @@ const approveInvitation = ({ Invitation, User, Employee, sendEmail }) => async (
         html: employeeNotificationHtml,
       });
     } catch (emailError) {
-      // Error sending approval email
+      console.error('[authController.approveInvitation] Email error:', emailError);
     }
   } catch (error) {
-    // Error approving invitation
+    console.error('[authController.approveInvitation] Error:', error);
     if (error.code === 11000) {
       return res.status(409).json({
         message:
@@ -639,11 +641,11 @@ const rejectInvitation = ({ Invitation, sendEmail }) => async (req, res) => {
         html: rejectionHtml,
       });
     } catch (emailError) {
-      // Error sending rejection email
+      console.error('[authController.rejectInvitation] Email error:', emailError);
     }
     res.status(200).json({ message: "Invitation rejected successfully." });
   } catch (error) {
-    // Error rejecting invitation
+    console.error('[authController.rejectInvitation] Error:', error);
     res
       .status(500)
       .json({ message: "Server error while rejecting invitation." });
@@ -809,7 +811,7 @@ const verifyCurrentUserPassword = ({ User, Employee }) => async (req, res) => {
         .json({ success: false, message: "Incorrect password." });
     }
   } catch (error) {
-    // Error verifying password
+    console.error('[authController.verifyPassword] Error:', error);
     res.status(500).json({
       success: false,
       message: "Server error during password verification.",
