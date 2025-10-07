@@ -1,11 +1,16 @@
 # .gitignore
+
+# Dependencies
 node_modules/
 client/node_modules/
 server/node_modules/
-.env
-.env.*
-client/.env
-server/.env
+
+# Environment files - Active/Local configs only (NOT the templates)
+# Backend active configs (templates are tracked: .env.development, .env.staging, .env.production, .env.example)
+server/.env.test  # Active test config with real credentials
+
+
+# System files
 .DS_Store
 *.log
 #git add . git commit -m "Today's work: RosterPage updates" git pushtimesheet.zip

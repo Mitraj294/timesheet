@@ -1,0 +1,266 @@
+.vehicle-review-form-page-container {
+  padding: clamp(1rem, 2vw, 1.5rem);
+  max-width: 1200px;
+  margin: 0 auto;
+  font-family: "Segoe UI", sans-serif;
+  background-color: #f8f9fa;
+  min-height: calc(100vh - 60px);
+}
+
+.vehicle-review-form-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+  gap: 1rem;
+  padding: 1rem;
+  background-color: #fff;
+  border-radius: 5px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+}
+.vehicle-review-form-header .title-breadcrumbs {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  flex-grow: 1;
+}
+.vehicle-review-form-header .title-breadcrumbs h2 {
+  font-size: clamp(1.4rem, 3vw, 1.75rem);
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  color: #333;
+  margin: 0;
+  font-weight: 600;
+}
+.vehicle-review-form-header .title-breadcrumbs .breadcrumbs {
+  font-size: 0.875rem;
+  color: #6c757d;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.vehicle-review-form-header .title-breadcrumbs .breadcrumbs .breadcrumb-link {
+  color: #007bff;
+  text-decoration: none;
+  font-weight: 500;
+  white-space: nowrap;
+}
+.vehicle-review-form-header .title-breadcrumbs .breadcrumbs .breadcrumb-link:hover {
+  text-decoration: underline;
+}
+.vehicle-review-form-header .title-breadcrumbs .breadcrumbs .breadcrumb-separator {
+  margin: 0 0.3rem;
+  color: rgb(147.4356223176, 155.1802575107, 162.0643776824);
+  white-space: nowrap;
+}
+.vehicle-review-form-header .title-breadcrumbs .breadcrumbs .breadcrumb-current {
+  color: #6c757d;
+  white-space: nowrap;
+}
+
+.vehicle-review-form-container {
+  max-width: 700px;
+  margin: 1.5rem auto;
+  padding: clamp(1.5rem, 3vw, 2rem);
+  background: #fff;
+  border-radius: 5px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+}
+.vehicle-review-form-container .vehicle-details-header {
+  margin-bottom: 1.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid #dee2e6;
+  text-align: center;
+}
+.vehicle-review-form-container .vehicle-details-header h5 {
+  margin: 0;
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: #333;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.vehicle-review-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin-bottom: 1rem;
+}
+.form-group label {
+  display: block;
+  font-weight: 500;
+  font-size: 0.95rem;
+  color: rgb(25.5, 25.5, 25.5);
+  margin-bottom: 0.25rem;
+}
+.form-group input[type=text],
+.form-group input[type=email],
+.form-group input[type=number],
+.form-group input[type=date],
+.form-group textarea,
+.form-group select {
+  width: 100%;
+  padding: 0.6rem 0.8rem;
+  font-size: 1rem;
+  border: 1px solid #dee2e6;
+  border-radius: 4px;
+  outline: none;
+  box-sizing: border-box;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  background-color: #fff;
+  font-family: "Segoe UI", sans-serif;
+}
+.form-group input[type=text]:focus,
+.form-group input[type=email]:focus,
+.form-group input[type=number]:focus,
+.form-group input[type=date]:focus,
+.form-group textarea:focus,
+.form-group select:focus {
+  border-color: #007bff;
+  box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.25);
+}
+.form-group input[type=text]:disabled,
+.form-group input[type=email]:disabled,
+.form-group input[type=number]:disabled,
+.form-group input[type=date]:disabled,
+.form-group textarea:disabled,
+.form-group select:disabled {
+  background-color: #e9ecef;
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+.form-group textarea {
+  resize: vertical;
+  min-height: 80px;
+}
+.form-group.form-group-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-top: 0.5rem;
+  margin-bottom: 0;
+}
+.form-group.form-group-checkbox input[type=checkbox] {
+  width: 1.1em;
+  height: 1.1em;
+  flex-shrink: 0;
+  margin-top: 0.1em;
+  order: 1;
+}
+.form-group.form-group-checkbox label {
+  margin: 0;
+  font-weight: normal;
+  order: 2;
+  font-size: 0.95rem;
+  color: #333;
+}
+.form-group .form-text:not(.form-group-checkbox .form-text) {
+  display: block;
+  font-size: 0.8rem;
+  color: #6c757d;
+  margin-top: 0.25rem;
+}
+
+.form-error-message {
+  background-color: rgb(253.8924050633, 248.6075949367, 249.1139240506);
+  color: rgb(189.2151898734, 32.7848101266, 47.7721518987);
+  border: 1px solid rgb(242.5949367089, 183.4050632911, 189.0759493671);
+  border-radius: 5px;
+  padding: 0.75rem 1rem;
+  font-size: 0.9rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.form-footer {
+  margin-top: 1rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid #dee2e6;
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+.form-footer .btn-danger {
+  background-color: #dc3545;
+  color: #fff;
+}
+.form-footer .btn-danger:hover:not(:disabled) {
+  background-color: rgb(189.2151898734, 32.7848101266, 47.7721518987);
+}
+.form-footer .btn-primary {
+  background-color: #007bff;
+  color: #fff;
+}
+.form-footer .btn-primary:hover:not(:disabled) {
+  background-color: rgb(0, 98.4, 204);
+}
+
+@media (max-width: 768px) {
+  .vehicle-review-form-container {
+    padding: 1.5rem;
+  }
+}
+@media (max-width: 576px) {
+  .vehicle-review-form-page-container {
+    padding: 0.5rem;
+  }
+  .vehicle-review-form-header {
+    padding: 0.8rem;
+  }
+  .vehicle-review-form-header .title-breadcrumbs h2 {
+    font-size: 1.25rem;
+  }
+  .vehicle-review-form-header .breadcrumbs {
+    font-size: 0.8rem;
+  }
+  .vehicle-review-form-container {
+    padding: 1rem;
+  }
+  .form-footer {
+    flex-direction: column-reverse;
+    gap: 0.5rem;
+  }
+  .form-footer .btn {
+    width: 100%;
+  }
+}
+.loading-indicator.page-loading,
+.error-message.page-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  margin: 1.5rem auto;
+  background-color: #fff;
+  border-radius: 5px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+  text-align: center;
+  color: #6c757d;
+  max-width: 600px;
+  min-height: 300px;
+}
+.loading-indicator.page-loading p,
+.error-message.page-error p {
+  margin-top: 0.75rem;
+  font-size: 1rem;
+}
+
+.error-message.page-error {
+  color: rgb(189.2151898734, 32.7848101266, 47.7721518987);
+  border: 1px solid rgb(242.5949367089, 183.4050632911, 189.0759493671);
+  background-color: rgb(253.8924050633, 248.6075949367, 249.1139240506);
+}/*# sourceMappingURL=CreateVehicleReview.css.map */

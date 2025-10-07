@@ -5,6 +5,6 @@ import { protect } from "../middleware/authMiddleware.js";
 const router = express.Router();
 
 // Update the logged-in user's profile (name, email, etc.)
-router.put("/profile", protect, updateUserProfile);
+router.put("/me/profile", protect, updateUserProfile);
 
 export default router;

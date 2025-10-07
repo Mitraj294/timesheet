@@ -1,0 +1,111 @@
+.tablet-view-settings-card {
+  font-family: "Segoe UI", sans-serif;
+  background-color: #fff;
+  padding: 1.5rem;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  margin-bottom: 1.5rem;
+}
+.tablet-view-settings-card .tablet-view-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #333;
+  margin-top: 0;
+  margin-bottom: 1.5rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid #eee;
+}
+
+.tablet-view-input {
+  margin-bottom: 1.25rem;
+}
+.tablet-view-input .select-slim-label {
+  display: block;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: #555;
+  margin-bottom: 0.5rem;
+}
+.tablet-view-input .select-slim-label .svg-inline--fa {
+  margin-right: 0.5em;
+  color: #007bff;
+}
+.tablet-view-input select,
+.tablet-view-input input.tablet-view-input-field {
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  font-size: 1rem;
+  line-height: 1.5;
+  color: #333;
+  background-color: #fff;
+  background-clip: padding-box;
+  border: 1px solid #ced4da;
+  border-radius: 0.25rem;
+  transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+}
+.tablet-view-input select:focus,
+.tablet-view-input input.tablet-view-input-field:focus {
+  border-color: rgb(127.5, 189, 255);
+  outline: 0;
+  box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+}
+.tablet-view-input select:disabled,
+.tablet-view-input input.tablet-view-input-field:disabled {
+  background-color: #e9ecef;
+  opacity: 1;
+}
+.tablet-view-input .react-select-container .react-select__control {
+  width: 100%;
+  min-height: calc(1.5em + 1rem + 2px);
+  border: 1px solid #ced4da;
+  border-radius: 0.25rem;
+  font-size: 1rem;
+  transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+}
+.tablet-view-input .react-select-container .react-select__control:hover {
+  border-color: rgb(176.9418604651, 186.5, 196.0581395349);
+}
+.tablet-view-input .react-select-container .react-select__control--is-focused {
+  border-color: rgb(127.5, 189, 255);
+  box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+}
+.tablet-view-input .react-select-container .react-select__value-container {
+  padding-left: 0.75rem;
+  padding-right: 0.75rem;
+}
+.tablet-view-input .react-select-container .react-select__multi-value {
+  background-color: #e9ecef;
+}
+.tablet-view-input small {
+  display: block;
+  margin-top: 0.35rem;
+  font-size: 0.8rem;
+  color: #6c757d;
+}
+
+.tablet-view-button-group {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 1.5rem;
+}
+.tablet-view-button-group .btn {
+  width: auto;
+  flex-grow: 0;
+}
+.tablet-view-button-group .btn .button-text {
+  margin-left: 0.4em;
+}
+@media (max-width: 576px) {
+  .tablet-view-button-group {
+    justify-content: stretch;
+  }
+  .tablet-view-button-group .btn {
+    width: 100%;
+  }
+}
+
+.settings-placeholder-content {
+  text-align: center;
+  padding: 2rem;
+  color: #555;
+}/*# sourceMappingURL=TabletViewSettings.css.map */

@@ -27,7 +27,6 @@ import SubscriptionSection from './SubscriptionSection.js'; // Import the new Su
 
 import { selectAuthUser } from '../../redux/slices/authSlice.js';
 import { fetchEmployerSettings, selectSettingsStatus } from '../../redux/slices/settingsSlice.js';
-// import { setAlert } from '../../redux/slices/alertSlice.js'; // Not directly used here, but Alert component is
 import axios from 'axios'; // Import axios for API calls
 import '../../styles/SettingsPage.scss';
 import Alert from '../layout/Alert.js';
@@ -48,7 +47,7 @@ const SettingsPage = () => {
   const dispatch = useDispatch();
 
   const [pendingInvitationsCount, setPendingInvitationsCount] = useState(0);
-  const API_BASE_URL = process.env.REACT_APP_API_URL || (process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : 'https://timesheet-c4mj.onrender.com'); // Use environment variable for API base URL
+  const API_BASE_URL = process.env.REACT_APP_API_URL || (process.env.NODE_ENV === 'development' ? 'https://192.168.1.63:5000' : 'https://timesheet-c4mj.onrender.com'); // Use environment variable for API base URL
 
   // Set default section based on user role
   const initialActiveSection = useMemo(() => {
@@ -61,14 +60,14 @@ const SettingsPage = () => {
   useEffect(() => {
     // Removed noisy console.log statements
     return () => {
-      // console.log("[SettingsPage] Component unmounted");
+    
     };
   }, []);
 
   // Fetch employer settings if needed
   useEffect(() => {
     if (user?.role === 'employer' && settingsStatus === 'idle') {
-      // console.log("[SettingsPage] Fetching employer settings");
+
       dispatch(fetchEmployerSettings());
     }
   }, [user, settingsStatus, dispatch]);

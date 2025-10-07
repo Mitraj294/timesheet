@@ -1,0 +1,52 @@
+.view-project-container .project-summary-section {
+  margin-bottom: 2rem;
+}
+.view-project-container .project-summary-section .project-summary-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1.5rem;
+}
+.view-project-container .project-summary-section .project-summary-cards .summary-card {
+  display: flex;
+}
+.view-project-container .project-summary-section .project-summary-cards .project-details-card .project-avatar-icon {
+  color: #3498db;
+}
+.view-project-container .project-summary-section .project-summary-cards .project-details-card .project-name-summary {
+  margin-bottom: 0.8rem;
+}
+.view-project-container .project-summary-section .project-summary-cards .project-details-card .project-dates-info .info-item a {
+  color: #007bff;
+  text-decoration: none;
+}
+.view-project-container .project-summary-section .project-summary-cards .project-details-card .project-dates-info .info-item a:hover {
+  text-decoration: underline;
+}
+.view-project-container .project-summary-section .project-summary-cards .project-hours-card.actual-hours-card {
+  border-left: 5px solid #27ae60;
+}
+.view-project-container .project-summary-section .project-summary-cards .project-hours-card.actual-hours-card .actual-icon {
+  color: #27ae60;
+}
+.view-project-container .project-summary-section .project-summary-cards .project-hours-card.actual-hours-card .hours-value {
+  color: #27ae60;
+}
+.view-project-container .timesheet-details-section {
+  background-color: #fff;
+  padding: 1.5rem;
+  border-radius: 8px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+}
+.view-project-container .timesheet-details-section .section-header {
+  margin-bottom: 1.5rem;
+  padding-bottom: 0.8rem;
+  border-bottom: 1px solid #eee;
+}
+.view-project-container .timesheet-details-section .section-header h3 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 1.3rem;
+  font-weight: 600;
+  color: #333;
+}/*# sourceMappingURL=ViewProject.css.map */

@@ -9,7 +9,7 @@
     padding-top: 20px;
     overflow-y: auto;
     z-index: 999;
-    transition: left 0.3s ease-in-out;
+
     box-shadow: 4px 0 10px rgba(0, 0, 0, 0.1);
 
     &.open {
@@ -32,7 +32,6 @@
 
         li {
             padding: 12px 20px;
-            transition: background 0.3s;
             text-align: center;
 
             a {
@@ -44,14 +43,12 @@
                 gap: 5px;
                 font-size: 14px;
                 font-weight: 600;
-                transition: color 0.3s;
 
+            &:hover {
+                background: #2a4766;
+            }
                 .sidebar-icon {
                     font-size: 18px; // Smaller icons
-                }
-
-                &:hover {
-                    color: #007bff;
                 }
             }
 
@@ -65,7 +62,7 @@
             }
 
             &:hover {
-                background: rgba(0, 123, 255, 0.2); // More visible hover effect
+                background: #2a4766;
             }
         }
     }
@@ -81,7 +78,7 @@
     font-size: 24px;
     cursor: pointer;
     z-index: 1001;
-    transition: opacity 0.3s;
+    
 
     &:hover {
         opacity: 0.8;

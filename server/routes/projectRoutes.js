@@ -14,22 +14,22 @@ import { protect, employerOnly } from "../middleware/authMiddleware.js";
 const router = express.Router();
 
 // Create a new project for a client
-router.post("/client/:clientId", createProject);
+router.post("/client/:clientId", protect, employerOnly, createProject);
 
 // Get all projects for a specific client
-router.get("/client/:clientId", getProjectsByClientId);
+router.get("/client/:clientId", protect, getProjectsByClientId);
 
 // Get a single project by its ID
-router.get("/:projectId", getProjectById);
+router.get("/:projectId", protect, getProjectById);
 
 // Update a project by its ID
-router.put("/:projectId", updateProject);
+router.put("/:projectId", protect, employerOnly, updateProject);
 
 // Delete a project by its ID
-router.delete("/:projectId", deleteProject);
+router.delete("/:projectId", protect, employerOnly, deleteProject);
 
 // Get all projects (admin or overview)
-router.get("/", getAllProjects);
+router.get("/", protect, getAllProjects);
 
 // Download project timesheet report as Excel (employer only)
 router.post("/report/download", protect, employerOnly, downloadProjectReport);

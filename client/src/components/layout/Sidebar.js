@@ -5,7 +5,7 @@ import { Link, useLocation } from "react-router-dom";
 import { useSidebar } from "../../context/SidebarContext";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { useSelector } from "react-redux";
-import { selectAuthUser } from "../../redux/slices/authSlice";
+import { selectAuthUser  ,selectIsTabletViewUnlocked} from "../../redux/slices/authSlice";
 import { selectShowVehiclesTabInSidebar } from "../../redux/slices/settingsSlice";
 import {
     faHome,
@@ -18,7 +18,6 @@ import {
     faTabletAlt
 } from "@fortawesome/free-solid-svg-icons";
 import "../../styles/Sidebar.scss";
-import { selectIsTabletViewUnlocked } from "../../redux/slices/authSlice";
 
 const Sidebar = () => {
   const { isOpen, toggleSidebar } = useSidebar();
@@ -30,7 +29,9 @@ const Sidebar = () => {
 
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (sidebarRef.current && !sidebarRef.current.contains(event.target)) {
+      // Check if click is outside sidebar AND not on the toggle button
+      const isToggleButton = event.target.closest('.menu-button');
+      if (sidebarRef.current && !sidebarRef.current.contains(event.target) && !isToggleButton) {
         if (isOpen) {
           toggleSidebar();
         }

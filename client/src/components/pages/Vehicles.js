@@ -98,7 +98,7 @@ const Vehicles = () => {
       dispatch(setAlert('Vehicle report downloaded successfully.', 'success'));
       console.log("[Vehicles] Vehicle report downloaded.");
     } catch (err) {
-      // Error handled by alert
+      console.error("[Vehicles] Error downloading vehicle report:", err);
     }
   };
 
@@ -122,7 +122,7 @@ const Vehicles = () => {
       dispatch(setAlert('Vehicle report sent successfully.', 'success'));
       console.log("[Vehicles] Vehicle report sent.");
     } catch (err) {
-      // Error handled by alert
+      console.error("[Vehicles] Error sending vehicle report:", err);
     }
   };
 
@@ -149,7 +149,7 @@ const Vehicles = () => {
       setItemToDelete(null);
       console.log(`[Vehicles] Vehicle "${vehicleName}" deleted.`);
     } catch (err) {
-      // Error handled by alert
+      console.error("[Vehicles] Error deleting vehicle:", err);
     }
   };
 

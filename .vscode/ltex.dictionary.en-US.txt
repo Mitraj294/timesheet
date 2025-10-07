@@ -1,6 +1,0 @@
-MERN
-Certbot
-redux
-rollbar
-mkcert
-ngrok

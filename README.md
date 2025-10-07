@@ -10,7 +10,7 @@ A full-stack MERN (MongoDB, Express, React, Node.js) application for employee ti
 
 ```
 root/
-├── cert.pem, key.pem, ngrok.yml, package.json
+├── cert.pem, key.pem, package.json
 ├── client/           # React frontend
 │   ├── craco.config.js, netlify.toml, package.json, README.md
 │   ├── build/        # Production build output
@@ -73,14 +73,16 @@ cd ../server && npm install
 
 ### 3. Start the App
 
-```
-
+```bash
+npm run dev
 ```
 
 ### 4. Access
 
-- Frontend: `https://localhost:3000`
-- Backend API: `https://localhost:5000`
+- Frontend: `https://192.168.1.63:3000`
+- Backend API: `https://192.168.1.63:5000`
+
+**Note**: The application uses your current local network IP (192.168.1.63). If your IP changes, update the `.env` files in both `client/` and `server/` directories.
 
 ---
 
@@ -136,7 +138,7 @@ Ensure `key.pem` and `cert.pem` files are stored securely and not exposed in the
 - **Routes**: Define API endpoints.
 - **Middleware**: Auth, error, and other Express middleware.
 - **Scheduler/Scripts**: Background jobs and seeding.
-- **Frontend**: Organized by feature and type (components, context, redux, styles).
+- **Frontend**: Organized by feature and type (components, context, Redux, styles).
 
 ---
 
@@ -170,28 +172,67 @@ For questions or support, open an issue or contact the maintainer.
 
 #rollbar
 
-## Local HTTPS & TLS troubleshooting
+## Local HTTPS & TLS Configuration
 
-When developing locally you may see browser errors or blocked requests if the frontend (e.g. `https://localhost:3000`) and backend (e.g. `https://192.168.1.47:5000`) use different hostnames or self-signed certificates. Browsers treat certificates as host-specific, so a cert for `localhost` will not be valid for `192.168.1.47`.
+The application is configured to use HTTPS with your local network IP address (`192.168.1.63`) for both frontend and backend.
 
-Quick options to fix this:
+### Current Setup
 
-- Use a single hostname for both frontend and backend. For example, map a local name to your machine IP in `/etc/hosts`:
+- **Frontend**: `https://192.168.1.63:3000`
+- **Backend**: `https://192.168.1.63:5000`
+- **SSL Certificates**: Self-signed certificates (`cert.pem` and `key.pem`) generated with mkcert
 
-  192.168.1.47my-timesheet.local
+### If Your IP Changes
 
-  Then run your backend with a TLS certificate that is valid for `my-timesheet.local` (see mkcert below) and access the frontend at `https://my-timesheet.local:3000` or configure the frontend to call the API at `https://my-timesheet.local:5000`.
+If your local network IP changes (e.g., from 192.168.1.63 to a different IP), you need to update:
 
-- Use mkcert to create locally-trusted certificates for any hostnames you use during development:
+1. **Client environment files**:
+   - `client/.env`
+   - `client/.env.local`
+   - `client/.env.development`
+   - `client/.env.development.local`
 
-  1. Install mkcert (https://github.com/FiloSottile/mkcert).
-  2. Run `mkcert -install` once to install the local CA.
-  3. Generate certs for your hostnames: `mkcert my-timesheet.local localhost 192.168.1.47`.
-  4. Point `server.js` to the generated `key.pem` and `cert.pem` files.
+2. **Server environment files**:
+   - `server/.env` (CLIENT_BASE_URL)
 
-- Use ngrok to create a secure public tunnel (useful if you need external webhooks or to avoid TLS setup locally):
+3. **Configuration files**:
+   - `client/src/setupProxy.js`
+   - `client/craco.config.js`
+   - `server/server.js` (CORS allowedOrigins)
 
-  1. Start ngrok: `ngrok http 5000`.
-  2. Use the forwarded `https://...ngrok.io` URL in your frontend to call the backend.
+4. **Rebuild the client**:
+   ```bash
+   cd client
+   npm run build
+   ```
 
-Choose the approach that best fits your workflow. For local development the mkcert + /etc/hosts combination is often the most convenient and secure.
+### Using mkcert for Trusted Certificates
+
+To avoid browser security warnings with self-signed certificates:
+
+1. Install mkcert:
+   ```bash
+   # Linux
+   sudo apt install mkcert
+   
+   # macOS
+   brew install mkcert
+   ```
+
+2. Install the local CA:
+   ```bash
+   mkcert -install
+   ```
+
+3. Generate certificates for your IP:
+   ```bash
+   mkcert 192.168.1.63
+   ```
+
+4. Replace `cert.pem` and `key.pem` in the project root with the generated files.
+
+### Troubleshooting
+
+- **Browser shows "Not Secure"**: This is normal with self-signed certificates. You can safely proceed in development.
+- **API calls failing**: Check that all `.env` files have the correct IP address.
+- **CORS errors**: Verify `server/server.js` allowedOrigins includes your current IP.

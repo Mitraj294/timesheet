@@ -1,0 +1,130 @@
+/* /home/digilab/timesheet/client/src/styles/ConfirmDeleteAccountPage.scss */
+.confirm-delete-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 80vh;
+  padding: 20px;
+  background-color: #f4f6f8;
+}
+.confirm-delete-container.error-page {
+  text-align: center;
+}
+.confirm-delete-container.error-page .btn {
+  margin-top: 20px;
+}
+.confirm-delete-container.error-page svg {
+  color: #dc3545;
+  margin-bottom: 15px;
+}
+.confirm-delete-container .confirm-delete-box {
+  background-color: #fff;
+  padding: 30px 40px;
+  border-radius: 8px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+  text-align: center;
+  max-width: 480px;
+  width: 100%;
+}
+.confirm-delete-container .confirm-delete-box .icon {
+  color: #dc3545;
+  margin-bottom: 15px;
+}
+.confirm-delete-container .confirm-delete-box h2 {
+  margin-bottom: 10px;
+  color: #333;
+  font-size: 1.75rem;
+}
+.confirm-delete-container .confirm-delete-box p {
+  margin-bottom: 25px;
+  color: #555;
+  font-size: 0.95rem;
+  line-height: 1.6;
+}
+.confirm-delete-container .confirm-delete-box p strong {
+  color: #c82333;
+}
+.confirm-delete-container .confirm-delete-box .form-group {
+  margin-bottom: 20px;
+  text-align: left;
+}
+.confirm-delete-container .confirm-delete-box .form-group label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 600;
+  color: #444;
+}
+.confirm-delete-container .confirm-delete-box .form-group .password-input-container {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+.confirm-delete-container .confirm-delete-box .form-group .password-input-container .input-icon {
+  position: absolute;
+  left: 12px;
+  color: #aaa;
+  z-index: 1;
+}
+.confirm-delete-container .confirm-delete-box .form-group .password-input-container input[type=password],
+.confirm-delete-container .confirm-delete-box .form-group .password-input-container input[type=text] {
+  width: 100%;
+  padding: 10px 12px 10px 40px;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  font-size: 1rem;
+  box-sizing: border-box;
+  height: 42px;
+}
+.confirm-delete-container .confirm-delete-box .form-group .password-input-container input[type=password]:focus,
+.confirm-delete-container .confirm-delete-box .form-group .password-input-container input[type=text]:focus {
+  border-color: #007bff;
+  box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+  outline: none;
+}
+.confirm-delete-container .confirm-delete-box .form-group .password-input-container input[type=password]:disabled,
+.confirm-delete-container .confirm-delete-box .form-group .password-input-container input[type=text]:disabled {
+  background-color: #e9ecef;
+  cursor: not-allowed;
+}
+.confirm-delete-container .confirm-delete-box .form-group .password-input-container .password-toggle {
+  position: absolute;
+  right: 1px;
+  top: 1px;
+  bottom: 1px;
+  width: 40px;
+  background: transparent;
+  border: none;
+  border-left: 1px solid #eee;
+  cursor: pointer;
+  color: #777;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.confirm-delete-container .confirm-delete-box .form-group .password-input-container .password-toggle:hover {
+  color: #333;
+}
+.confirm-delete-container .confirm-delete-box .form-group .password-input-container .password-toggle:disabled {
+  cursor: not-allowed;
+  color: #aaa;
+}
+.confirm-delete-container .confirm-delete-box .form-error-message.page-specific-error {
+  color: #721c24;
+  background-color: #f8d7da;
+  border: 1px solid #f5c6cb;
+  padding: 0.75rem 1.25rem;
+  margin-bottom: 1rem;
+  border-radius: 0.25rem;
+  font-size: 0.9em;
+  text-align: left;
+}
+.confirm-delete-container .confirm-delete-box .form-error-message.page-specific-error svg {
+  margin-right: 0.5rem;
+}
+.confirm-delete-container .confirm-delete-box .btn-danger.btn-block {
+  width: 100%;
+  padding: 12px;
+  font-size: 1.05rem;
+  font-weight: 600;
+}/*# sourceMappingURL=ConfirmDeleteAccountPage.css.map */

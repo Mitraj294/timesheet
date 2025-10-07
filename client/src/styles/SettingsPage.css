@@ -1,0 +1,424 @@
+.settings-page-container {
+  display: flex;
+  gap: 1.5rem;
+  padding: 1.5rem;
+  background-color: #f7fafc;
+  min-height: calc(100vh - 70px);
+}
+
+.settings-navigation-panel {
+  flex: 0 0 280px;
+  background-color: #ffffff;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05), 0 1px 2px rgba(0, 0, 0, 0.03);
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+}
+.settings-navigation-panel .settings-panel-title {
+  font-size: 1.4rem;
+  color: #212529;
+  font-weight: 600;
+  margin-top: 0;
+  margin-bottom: 1.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid #dee2e6;
+}
+.settings-navigation-panel .settings-menu-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.settings-navigation-panel .settings-menu-list .settings-menu-item {
+  display: flex;
+  align-items: center;
+  padding: 0.8rem 1rem;
+  margin-bottom: 0.5rem;
+  border-radius: 6px;
+  cursor: pointer;
+  color: #495057;
+  font-weight: 500;
+  transition: background-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+}
+.settings-navigation-panel .settings-menu-list .settings-menu-item .menu-item-icon {
+  margin-right: 0.9rem;
+  width: 20px;
+  text-align: center;
+  font-size: 1.1em;
+  color: #6c757d;
+  transition: color 0.2s ease;
+}
+.settings-navigation-panel .settings-menu-list .settings-menu-item > span {
+  flex-grow: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.settings-navigation-panel .settings-menu-list .settings-menu-item:hover {
+  background-color: #e2e8f0;
+  color: rgb(52.797752809, 60.6460674157, 74.202247191);
+}
+.settings-navigation-panel .settings-menu-list .settings-menu-item:hover .menu-item-icon {
+  color: rgb(52.797752809, 60.6460674157, 74.202247191);
+}
+.settings-navigation-panel .settings-menu-list .settings-menu-item.active {
+  background-color: #4A5568;
+  color: #ffffff;
+  font-weight: 600;
+  box-shadow: 0 3px 6px rgba(42.1966292135, 48.4691011236, 59.3033707865, 0.22);
+}
+.settings-navigation-panel .settings-menu-list .settings-menu-item.active .menu-item-icon {
+  color: #ffffff;
+}
+.settings-navigation-panel .settings-menu-list .settings-menu-item.active .notification-badge {
+  background-color: #e74c3c;
+  color: #ffffff;
+}
+.settings-navigation-panel .settings-menu-list .settings-menu-item .notification-badge {
+  background-color: #dc3545;
+  color: white;
+  border-radius: 50%;
+  padding: 2px 6px;
+  font-size: 0.75em;
+  margin-left: 8px;
+  min-width: 1.5em;
+  height: 1.5em;
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  line-height: 1;
+  font-weight: bold;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.settings-content-panel {
+  flex-grow: 1;
+  background-color: #ffffff;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05), 0 1px 2px rgba(0, 0, 0, 0.03);
+  padding: 2rem;
+  overflow-y: auto;
+}
+
+.settings-placeholder-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  text-align: center;
+  color: #6c757d;
+}
+.settings-placeholder-content .placeholder-icon {
+  font-size: 3rem;
+  margin-bottom: 1.5rem;
+  color: #4A5568;
+}
+.settings-placeholder-content .placeholder-title {
+  font-size: 1.65rem;
+  color: #212529;
+  font-weight: 500;
+  margin-bottom: 1rem;
+}
+.settings-placeholder-content p {
+  font-size: 1.05rem;
+  line-height: 1.6;
+  max-width: 500px;
+}
+.settings-placeholder-content p:last-child {
+  font-size: calc(1.05rem - 0.05rem);
+  margin-top: 0.5rem;
+}
+
+.settings-section h3 {
+  font-size: 1.5rem;
+  color: #212529;
+  margin-top: 0;
+  margin-bottom: 1.5rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid #dee2e6;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+.settings-section p {
+  color: #495057;
+  line-height: 1.6;
+  margin-bottom: 1.5rem;
+}
+.settings-section .settings-form .form-group {
+  margin-bottom: 1.5rem;
+}
+.settings-section .settings-form .form-group label {
+  display: block;
+  font-weight: 600;
+  color: #495057;
+  margin-bottom: 0.5rem;
+}
+.settings-section .settings-form .form-group .form-control,
+.settings-section .settings-form .form-group select {
+  width: 100%;
+  padding: 0.65rem 0.75rem;
+  font-size: 0.95rem;
+  line-height: 1.5;
+  color: #212529;
+  background-color: #fff;
+  background-clip: padding-box;
+  border: 1px solid #ced4da;
+  border-radius: 6px;
+  transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+}
+.settings-section .settings-form .form-group .form-control:focus,
+.settings-section .settings-form .form-group select:focus {
+  border-color: rgb(120.6179775281, 134.8314606742, 159.3820224719);
+  outline: 0;
+  box-shadow: 0 0 0 0.2rem rgba(74, 85, 104, 0.25);
+}
+.settings-section .settings-form .form-group .form-control:disabled,
+.settings-section .settings-form .form-group select:disabled {
+  background-color: #e2e8f0;
+  opacity: 0.7;
+}
+.settings-section .settings-form .form-group .form-text {
+  font-size: 0.8rem;
+  color: #6c757d;
+  margin-top: 0.25rem;
+}
+.settings-section .settings-form .form-footer {
+  margin-top: 2rem;
+  display: flex;
+  justify-content: flex-start;
+  gap: 0.75rem;
+}
+
+/* .vehicle-settings-content removed because it was empty. 
+   Add styles here if needed in the future. */
+.logout-confirm-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1050;
+}
+
+.logout-confirm-dialog {
+  background-color: #fff;
+  padding: 25px 30px;
+  border-radius: 8px;
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+  text-align: center;
+  max-width: 400px;
+  width: 90%;
+}
+.logout-confirm-dialog h4 {
+  margin-top: 0;
+  margin-bottom: 15px;
+  font-size: 1.3rem;
+  color: #333;
+}
+.logout-confirm-dialog p {
+  margin-bottom: 20px;
+  font-size: 1rem;
+  color: #555;
+}
+.logout-confirm-dialog .logout-confirm-actions {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.logout-confirm-dialog .logout-confirm-actions .btn {
+  min-width: 100px;
+}
+
+@media (max-width: 992px) {
+  .settings-page-container {
+    flex-direction: column;
+    padding: 1rem;
+  }
+  .settings-navigation-panel {
+    flex: 0 0 auto;
+    width: 100%;
+    margin-bottom: 1.5rem;
+  }
+}
+@media (max-width: 768px) {
+  .settings-navigation-panel {
+    padding: 1.25rem;
+  }
+  .settings-navigation-panel .settings-panel-title {
+    font-size: 1.26rem;
+    margin-bottom: 1.2rem;
+    padding-bottom: 0.7rem;
+  }
+  .settings-navigation-panel .settings-menu-item {
+    padding: 0.72rem 0.9rem;
+  }
+  .settings-navigation-panel .settings-menu-item span {
+    font-size: 0.9rem;
+  }
+  .settings-navigation-panel .settings-menu-item .menu-item-icon {
+    font-size: 1.045em;
+  }
+  .settings-content-panel {
+    padding: 1.3333333333rem;
+  }
+  .settings-placeholder-content .placeholder-icon {
+    font-size: 2.55rem;
+  }
+  .settings-placeholder-content .placeholder-title {
+    font-size: 1.485rem;
+  }
+  .settings-placeholder-content p {
+    font-size: 0.9975rem;
+  }
+  .settings-section h3 {
+    font-size: 1.3rem;
+    margin-bottom: 1.2rem;
+    padding-bottom: 0.6rem;
+  }
+  .settings-section .settings-form .form-group {
+    margin-bottom: 1.2rem;
+  }
+  .settings-section .settings-form .form-group label {
+    font-size: 0.9rem;
+  }
+  .settings-section .settings-form .form-group .form-control,
+  .settings-section .settings-form .form-group select {
+    padding: 0.6rem 0.7rem;
+    font-size: 0.9rem;
+  }
+  .settings-section .settings-form .form-footer {
+    flex-wrap: wrap;
+  }
+  .settings-section .settings-form .form-footer .btn {
+    margin-bottom: 0.5rem;
+  }
+  .simple-card {
+    padding: 1.5rem;
+  }
+  .simple-card h2 {
+    font-size: 20px;
+    margin-bottom: 1.2rem;
+  }
+  .simple-card .form-control {
+    padding: 0.45rem;
+    font-size: 15px;
+  }
+  .simple-card .btn.btn-primary {
+    padding: 0.45rem 1.2rem;
+  }
+}
+@media (max-width: 576px) {
+  .settings-page-container {
+    padding: 0.75rem;
+  }
+  .settings-navigation-panel {
+    padding: 1rem;
+  }
+  .settings-navigation-panel .settings-panel-title {
+    font-size: 1.12rem;
+    text-align: center;
+  }
+  .settings-navigation-panel .settings-menu-item {
+    padding: 0.64rem 0.8rem;
+    font-size: 0.85rem;
+  }
+  .settings-navigation-panel .settings-menu-item .menu-item-icon {
+    margin-right: 0.72rem;
+    font-size: 0.99em;
+  }
+  .settings-content-panel {
+    padding: 1rem;
+  }
+  .settings-placeholder-content .placeholder-icon {
+    font-size: 2.1rem;
+  }
+  .settings-placeholder-content .placeholder-title {
+    font-size: 1.32rem;
+  }
+  .settings-placeholder-content p {
+    font-size: 0.945rem;
+  }
+  .settings-section h3 {
+    font-size: 1.2rem;
+    justify-content: center;
+  }
+  .settings-section .settings-form .form-group label {
+    font-size: 0.85rem;
+  }
+  .settings-section .settings-form .form-group .form-control,
+  .settings-section .settings-form .form-group select {
+    font-size: 0.85rem;
+  }
+  .settings-section .settings-form .form-footer {
+    justify-content: center;
+  }
+  .settings-section .settings-form .form-footer .btn {
+    width: 100%;
+    margin-bottom: 0.75rem;
+  }
+  .settings-section .settings-form .form-footer .btn:last-child {
+    margin-bottom: 0;
+  }
+  .simple-card {
+    padding: 1rem;
+  }
+  .simple-card h2 {
+    font-size: 18px;
+  }
+  .simple-card .btn.btn-primary {
+    width: 100%;
+  }
+  .logout-confirm-dialog {
+    padding: 20px;
+  }
+  .logout-confirm-dialog h4 {
+    font-size: 1.15rem;
+  }
+  .logout-confirm-dialog p {
+    font-size: 0.9rem;
+  }
+}
+.simple-card {
+  background: white;
+  padding: 2rem;
+  border-radius: 8px;
+  max-width: 400px;
+  margin: 0 auto;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+.simple-card h2 {
+  margin-top: 0;
+  margin-bottom: 1.5rem;
+  font-size: 24px;
+  font-weight: 600;
+  color: #212529;
+}
+.simple-card .form-group {
+  margin-bottom: 1.5rem;
+}
+.simple-card .form-control {
+  width: 100%;
+  padding: 0.5rem;
+  font-size: 16px;
+  border: 1px solid #ced4da;
+  border-radius: 6px;
+}
+.simple-card .btn.btn-primary {
+  background-color: #a78bfa;
+  color: white;
+  padding: 0.5rem 1.5rem;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.simple-card .btn.btn-primary:hover {
+  background-color: rgb(129.9090909091, 90.1074380165, 247.8925619835);
+}/*# sourceMappingURL=SettingsPage.css.map */

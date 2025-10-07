@@ -1,49 +1,48 @@
-import 'dotenv/config'; // Ensure env vars are loaded even if this file is imported first
 import nodemailer from "nodemailer";
-
-// Debug: log the config at initialization
-console.log("[emailService] EMAIL CONFIG AT INIT:", {
-  EMAIL_HOST: process.env.EMAIL_HOST,
-  EMAIL_PORT: process.env.EMAIL_PORT,
-  EMAIL_USER: process.env.EMAIL_USER,
-  EMAIL_PASS: process.env.EMAIL_PASS ? "(set)" : "(not set)",
-  EMAIL_FROM: process.env.EMAIL_FROM,
-});
+import config from "../config/env.js";
 
 let transporter = null;
 let emailEnabled = false;
 
+// Initialize email transporter if configuration is available
 if (
-  process.env.EMAIL_HOST &&
-  process.env.EMAIL_PORT &&
-  process.env.EMAIL_USER &&
-  process.env.EMAIL_PASS
+  config.email.host &&
+  config.email.port &&
+  config.email.user &&
+  config.email.pass
 ) {
   transporter = nodemailer.createTransport({
-    host: process.env.EMAIL_HOST,
-    port: Number(process.env.EMAIL_PORT),
-    secure: Number(process.env.EMAIL_PORT) === 465, // true for 465, false for others
+    host: config.email.host,
+    port: config.email.port,
+    secure: config.email.port === 465, // true for 465, false for others
     auth: {
-      user: process.env.EMAIL_USER,
-      pass: process.env.EMAIL_PASS,
+      user: config.email.user,
+      pass: config.email.pass,
     },
   });
   emailEnabled = true;
+  console.log(`Email service initialized (${config.email.host}:${config.email.port})`);
 } else {
-  if (!global.__EMAIL_CONFIG_WARNED) {
-    console.error("Email functionality is disabled due to missing configuration.");
+  if (!global.__EMAIL_CONFIG_WARNED && !config.isTest) {
+    console.warn("Email functionality disabled (missing configuration)");
     global.__EMAIL_CONFIG_WARNED = true;
   }
 }
 
 const sendEmail = async (options) => {
+  // In test environment, just log and return success
+  if (config.isTest) {
+    console.log(`[TEST] Email would be sent to: ${options.to}`);
+    return { messageId: 'test-' + Date.now() };
+  }
+  
   if (!emailEnabled) {
     throw new Error("Email functionality is disabled due to missing configuration.");
   }
 
   try {
     const mailOptions = {
-      from: process.env.EMAIL_FROM || `"Timesheet App" <${process.env.EMAIL_USER}>`,
+      from: config.email.from,
       to: options.to,
       subject: options.subject,
       text: options.text,
@@ -51,18 +50,16 @@ const sendEmail = async (options) => {
       attachments: options.attachments,
     };
 
-    console.log('[emailService] Sending email with options:', {
-      ...mailOptions,
-      text: mailOptions.text ? '[text set]' : undefined,
-      html: mailOptions.html ? '[html set]' : undefined,
-      attachments: mailOptions.attachments ? '[attachments set]' : undefined,
-    });
-
     const info = await transporter.sendMail(mailOptions);
-    console.log('[emailService] Email sent successfully:', info.response);
+    
+    // Log in development only
+    if (config.isDevelopment) {
+      console.log(`Email sent: ${options.subject} → ${options.to}`);
+    }
+    
     return info;
   } catch (error) {
-    console.error('[emailService] Failed to send email:', error);
+    console.error('Email failed:', error.message);
     throw new Error('Email sending failed. Please check the configuration.');
   }
 }

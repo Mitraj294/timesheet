@@ -7,7 +7,7 @@
     "client": "cd client && NODE_NO_WARNINGS=1 npm start",
     "server": "cross-env NODE_ENV=development nodemon server/server.js",
     "start": "HOST=0.0.0.0 HTTPS=true SSL_CRT_FILE=./ssl/server.crt SSL_KEY_FILE=./ssl/server.key react-scripts start",
-    "dev": "concurrently \"npm run server\" \"npm run client\" \"sleep 5 && xdg-open https://192.168.1.47:3000\"",
+    "dev": "concurrently \"npm run server\" \"npm run client\" \" xdg-open https://192.168.1.63:3000\"",
     "remove-eslint": "npm uninstall eslint",
     "test": "concurrently \"npm run test:server\" \"npm run test:client\"",
     "test:auth": "jest server/tests/authController.test.js --runInBand",
@@ -26,9 +26,12 @@
     "cypress:run": "cypress run",
     "test:e2e:server": "NODE_ENV=test npm run server --prefix server",
     "test:e2e:client": "BROWSER=none npm start --prefix client",
-    "test:e2e": "concurrently \"npm run test:e2e:server\" \"npm run test:e2e:client\""
-    ,
-    "fresh:dev": "bash ./scripts/fresh_dev.sh"
+    "test:e2e": "concurrently \"npm run test:e2e:server\" \"npm run test:e2e:client\"",
+    "fresh:dev": "bash ./scripts/fresh_dev.sh",
+    "staging": "cross-env NODE_ENV=staging node server/server.js",
+    "staging:dev": "cross-env NODE_ENV=staging concurrently \"nodemon server/server.js\" \"cd client && npm start\"",
+    "production": "cross-env NODE_ENV=production node server/server.js",
+    "production:build": "cd client && npm run build"
   },
   "devDependencies": {
     "@babel/core": "^7.27.4",

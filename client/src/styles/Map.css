@@ -1,0 +1,205 @@
+body {
+  background: #f4f6fa;
+}
+
+.map-container {
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
+  padding: 2.5rem 2.5rem 2rem 2.5rem;
+  margin: 2.5rem auto;
+  max-width: 1200px;
+  font-family: "Segoe UI", Arial, sans-serif;
+  min-height: 600px;
+}
+
+.ts-page-header__main-content {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  background: #fff;
+  border-radius: 10px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  padding: 1.5rem 2rem 1rem 2rem;
+  margin-bottom: 1.5rem;
+}
+
+.ts-page-header__title {
+  font-size: 2rem;
+  font-weight: 700;
+  color: #222;
+  margin-bottom: 0.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+}
+
+.ts-page-header__breadcrumbs {
+  font-size: 1rem;
+  color: #6c757d;
+  margin-bottom: 0;
+}
+
+.ts-page-header__breadcrumb-link {
+  color: #007bff;
+  text-decoration: none;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.ts-page-header__breadcrumb-link:hover {
+  text-decoration: underline;
+}
+
+.ts-page-header__breadcrumb-separator {
+  margin: 0 0.3rem;
+  color: #bdbdbd;
+}
+
+.ts-page-header__breadcrumb-current {
+  color: #6c757d;
+  white-space: nowrap;
+}
+
+.date-range {
+  text-align: center;
+  margin-bottom: 1.5rem;
+}
+.date-range h3 {
+  font-size: 1.3rem;
+  font-weight: 600;
+  color: #222;
+}
+
+.map-navigation {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: #f8f9fa;
+  padding: 1rem 1.5rem;
+  border-radius: 8px;
+  margin-bottom: 1.5rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  gap: 1.5rem;
+}
+.map-navigation .nav-button {
+  background: #007bff;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 0.7rem 1.5rem;
+  font-size: 1rem;
+  font-weight: 600;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+  transition: background 0.2s;
+}
+.map-navigation .nav-button:hover {
+  background: #0056b3;
+}
+.map-navigation .select-container select {
+  border-radius: 6px;
+  border: 1px solid #dee2e6;
+  padding: 0.7rem 1.2rem;
+  font-size: 1rem;
+  background: #fff;
+  color: #222;
+}
+
+.map-filters-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2rem;
+  align-items: flex-end;
+  margin-bottom: 2rem;
+  background: #f8f9fa;
+  padding: 1.5rem 2rem;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  border: 1px solid #dee2e6;
+}
+.map-filters-toolbar .marker-filters,
+.map-filters-toolbar .employee-filter {
+  flex: 1 1 220px;
+}
+.map-filters-toolbar .marker-filters h3,
+.map-filters-toolbar .marker-filters h4,
+.map-filters-toolbar .employee-filter h3,
+.map-filters-toolbar .employee-filter h4 {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #222;
+  border-bottom: 1px solid #dee2e6;
+  padding-bottom: 0.5rem;
+  margin-bottom: 1rem;
+}
+.map-filters-toolbar .marker-filters .check-box label,
+.map-filters-toolbar .employee-filter .check-box label {
+  font-size: 1rem;
+  color: #222;
+}
+.map-filters-toolbar .marker-filters .select-container select,
+.map-filters-toolbar .employee-filter .select-container select {
+  border-radius: 6px;
+  border: 1px solid #dee2e6;
+  padding: 0.7rem 1.2rem;
+  font-size: 1rem;
+  background: #fff;
+  color: #222;
+}
+.map-filters-toolbar .locate-button {
+  background: #6c757d;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 0.7rem 1.5rem;
+  font-size: 1rem;
+  font-weight: 600;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+  transition: background 0.2s;
+}
+.map-filters-toolbar .locate-button:hover {
+  background: #495057;
+}
+
+.leaflet-map-container {
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  border: 1px solid #dee2e6;
+  height: 400px;
+  width: 100%;
+  margin-bottom: 2rem;
+}
+
+@media (max-width: 900px) {
+  .map-container {
+    padding: 1.2rem 0.5rem;
+  }
+  .ts-page-header__main-content {
+    padding: 1rem 1rem 0.5rem 1rem;
+  }
+  .map-filters-toolbar {
+    padding: 1rem 0.5rem;
+    gap: 1rem;
+  }
+}
+@media (max-width: 600px) {
+  .map-container {
+    padding: 0.5rem 0.2rem;
+  }
+  .ts-page-header__main-content {
+    padding: 0.7rem 0.5rem 0.3rem 0.5rem;
+  }
+  .map-navigation {
+    flex-direction: column;
+    gap: 0.7rem;
+    padding: 0.7rem 0.5rem;
+  }
+  .map-filters-toolbar {
+    flex-direction: column;
+    gap: 0.7rem;
+    padding: 0.7rem 0.5rem;
+  }
+  .leaflet-map-container {
+    height: 250px;
+  }
+}/*# sourceMappingURL=Map.css.map */

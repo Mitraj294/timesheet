@@ -45,6 +45,7 @@ const calculateTotalHours = (startTime, endTime, lunchBreak, lunchDuration) => {
       if (totalMinutes > lunchMinutes) {
         totalMinutes -= lunchMinutes;
       } else {
+        console.warn( `Warning: Lunch duration (${lunchMinutes} mins) exceeds or equals total work time (${totalMinutes} mins). Setting total work time to 0.` ); 
       }
     }
   }

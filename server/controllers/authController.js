@@ -19,9 +19,9 @@ const USER_ROLES = {
 // Get client base URL for links in emails
 const getClientBaseUrl = () => {
   if (process.env.NODE_ENV !== "production") {
-    return "https://192.168.1.47:3000";
+    return process.env.CLIENT_BASE_URL || "https://192.168.1.63:3000";
   }
-  return process.env.CLIENT_BASE_URL || "https://192.168.1.47:3000";
+  return process.env.CLIENT_BASE_URL || "https://timesheet00.netlify.app";
 };
 
 // --- User Registration ---
@@ -80,7 +80,7 @@ const registerUser = ({ User, sendEmail }) => async (req, res) => {
       },
     });
   } catch (error) {
-    // Error in user registration
+    console.error("[Auth] Error during user registration:", error);
     res.status(500).json({ message: "Server error during registration" });
   }
 };
