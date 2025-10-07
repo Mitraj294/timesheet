@@ -686,8 +686,9 @@ const requestAccountDeletionLink = ({ User, sendEmail }) => async (req, res) => 
       message: `A secure link to delete your account has been sent to ${user.email}. Please check your inbox.`,
     });
   } catch (error) {
+    console.error('[authController.requestAccountDeletionLink] Error:', error);
     // Error in requestAccountDeletionLink
-    if (req.user && req.user.id) {
+    if (req.user?.id) {
       try {
         const userToClean = await User.findById(req.user.id);
         if (userToClean) {
@@ -696,7 +697,7 @@ const requestAccountDeletionLink = ({ User, sendEmail }) => async (req, res) => 
           await userToClean.save({ validateBeforeSave: false });
         }
       } catch (cleanupError) {
-        // Error cleaning up deletion token fields
+        console.error('[authController.requestAccountDeletionLink] Cleanup error:', cleanupError);
       }
     }
     res.status(500).json({
@@ -746,7 +747,7 @@ const confirmAccountDeletion = ({ User, Employee }) => async (req, res) => {
       `[authController.confirmAccountDeletion] Critical error for token (param): ${token}. Error:`,
       error,
     );
-    if (session && session.inTransaction()) {
+    if (session?.inTransaction()) {
       await session.abortTransaction();
     }
     res.status(500).json({

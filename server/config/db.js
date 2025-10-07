@@ -24,7 +24,8 @@ const connectDB = async () => {
     };
     
     // Extract database name from URI for logging
-    const dbName = config.mongoUri.match(/\/([^?]+)/)?.[1] || 'unknown';
+    const dbNameMatch = /\/([^?]+)/.exec(config.mongoUri);
+    const dbName = dbNameMatch?.[1] || 'unknown';
     
     console.log(`Connecting to MongoDB (${config.env})...`);
     console.log(`Database: ${dbName}`);
