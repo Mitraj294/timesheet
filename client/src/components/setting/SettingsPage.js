@@ -28,6 +28,7 @@ import SubscriptionSection from './SubscriptionSection.js'; // Import the new Su
 import { selectAuthUser } from '../../redux/slices/authSlice.js';
 import { fetchEmployerSettings, selectSettingsStatus } from '../../redux/slices/settingsSlice.js';
 import axios from 'axios'; // Import axios for API calls
+import PropTypes from 'prop-types';
 import '../../styles/SettingsPage.scss';
 import Alert from '../layout/Alert.js';
 
@@ -40,6 +41,10 @@ const PlaceholderSection = ({ title }) => (
     <p>We're working hard to bring you this feature. Please check back later!</p>
   </div>
 );
+
+PlaceholderSection.propTypes = {
+  title: PropTypes.string
+};
 
 const SettingsPage = () => {
   const user = useSelector(selectAuthUser);
@@ -82,10 +87,9 @@ const SettingsPage = () => {
           const config = { headers: { 'Authorization': `Bearer ${token}` } };
           const res = await axios.get(`${API_BASE_URL}/auth/invitations/pending`, config);
           setPendingInvitationsCount(res.data.length);
-          // console.log("[SettingsPage] Pending invitations count:", res.data.length);
         } catch (err) {
+          console.error('[SettingsPage] Failed to fetch pending invitations count:', err);
           setPendingInvitationsCount(0);
-          // console.log("[SettingsPage] Failed to fetch pending invitations count");
         }
       } else {
         setPendingInvitationsCount(0);
@@ -132,10 +136,8 @@ const SettingsPage = () => {
   useEffect(() => {
     if (menuItems.length > 0 && !menuItems.find(item => item.key === activeSection)) {
       setActiveSection(menuItems[0].key);
-      // console.log("[SettingsPage] Active section reset to:", menuItems[0].key);
     } else if (menuItems.length === 0 && activeSection !== null) {
       setActiveSection(null);
-      // console.log("[SettingsPage] No menu items, active section set to null");
     }
   }, [menuItems, activeSection]);
 
@@ -174,10 +176,17 @@ const SettingsPage = () => {
             {menuItems.map(item => (
               <li
                 key={item.key}
+                role="button"
+                tabIndex={0}
                 className={`settings-menu-item ${activeSection === item.key ? 'active' : ''}`}
                 onClick={() => {
                   setActiveSection(item.key);
-                  // console.log("[SettingsPage] Section changed to:", item.key);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    setActiveSection(item.key);
+                  }
                 }}
               >
                 <FontAwesomeIcon icon={item.icon} className="menu-item-icon" />
